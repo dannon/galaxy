@@ -50,7 +50,7 @@ def app_factory( global_conf, **kwargs ):
         galaxy.app.app = app
     else:
         try:
-            app = galaxy.app.UniverseApplication( global_conf=global_conf, **kwargs )
+            app = galaxy.webapps.galaxy.app.UniverseApplication( global_conf=global_conf, **kwargs )
             galaxy.app.app = app
         except:
             import traceback
