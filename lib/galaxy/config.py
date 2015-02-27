@@ -121,24 +121,7 @@ class Configuration( object ):
         self.manage_dependency_relationships = string_as_bool( kwargs.get( 'manage_dependency_relationships', False ) )
         self.running_functional_tests = string_as_bool( kwargs.get( 'running_functional_tests', False ) )
         self.hours_between_check = kwargs.get( 'hours_between_check', 12 )
-        if isinstance( self.hours_between_check, basestring ):
-            self.hours_between_check = float( self.hours_between_check )
-        try:
-            if isinstance( self.hours_between_check, int ):
-                if self.hours_between_check < 1 or self.hours_between_check > 24:
-                    self.hours_between_check = 12
-            elif isinstance( self.hours_between_check, float ):
-                # If we're running functional tests, the minimum hours between check should be reduced to 0.001, or 3.6 seconds.
-                if self.running_functional_tests:
-                    if self.hours_between_check < 0.001 or self.hours_between_check > 24.0:
-                        self.hours_between_check = 12.0
-                else:
-                    if self.hours_between_check < 1.0 or self.hours_between_check > 24.0:
-                        self.hours_between_check = 12.0
-            else:
-                self.hours_between_check = 12
-        except:
-            self.hours_between_check = 12
+        self.__validate_hours_between_check()
         self.update_integrated_tool_panel = kwargs.get( "update_integrated_tool_panel", True )
         self.enable_data_manager_user_view = string_as_bool( kwargs.get( "enable_data_manager_user_view", "False" ) )
         self.galaxy_data_manager_data_path = kwargs.get( 'galaxy_data_manager_data_path', self.tool_data_path )
@@ -642,6 +625,26 @@ class Configuration( object ):
             # uWSGI galaxy installations don't use paster and only speak uWSGI not http
             port = None
         return port
+
+    def __validate_hours_between_check( self ):
+        if isinstance( self.hours_between_check, basestring ):
+            self.hours_between_check = float( self.hours_between_check )
+        try:
+            if isinstance( self.hours_between_check, int ):
+                if self.hours_between_check < 1 or self.hours_between_check > 24:
+                    self.hours_between_check = 12
+            elif isinstance( self.hours_between_check, float ):
+                # If we're running functional tests, the minimum hours between check should be reduced to 0.001, or 3.6 seconds.
+                if self.running_functional_tests:
+                    if self.hours_between_check < 0.001 or self.hours_between_check > 24.0:
+                        self.hours_between_check = 12.0
+                else:
+                    if self.hours_between_check < 1.0 or self.hours_between_check > 24.0:
+                        self.hours_between_check = 12.0
+            else:
+                self.hours_between_check = 12
+        except:
+            self.hours_between_check = 12
 
 
 def get_database_engine_options( kwargs, model_prefix='' ):
