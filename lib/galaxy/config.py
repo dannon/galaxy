@@ -447,7 +447,9 @@ class Configuration( object ):
         defaults = dict(
             data_manager_config_file=[ 'config/data_manager_conf.xml', 'data_manager_conf.xml', 'config/data_manager_conf.xml.sample' ],
             datatypes_config_file=[ 'config/datatypes_conf.xml', 'datatypes_conf.xml', 'config/datatypes_conf.xml.sample' ],
-            external_service_type_config_file=[ 'config/external_service_types_conf.xml', 'external_service_types_conf.xml', 'config/external_service_types_conf.xml.sample' ],
+            external_service_type_config_file=[ 'config/external_service_types_conf.xml',
+                                                'external_service_types_conf.xml',
+                                                'config/external_service_types_conf.xml.sample' ],
             job_config_file=[ 'config/job_conf.xml', 'job_conf.xml' ],
             job_metrics_config_file=[ 'config/job_metrics_conf.xml', 'job_metrics_conf.xml' ],
             dependency_resolvers_config_file=[ 'config/dependency_resolvers_conf.xml', 'dependency_resolvers_conf.xml' ],
@@ -596,7 +598,8 @@ class Configuration( object ):
         # Check for deprecated options.
         for key in self.config_dict.keys():
             if key in self.deprecated_options:
-                log.warning( "Config option '%s' is deprecated and will be removed in a future release.  Please consult the latest version of the sample configuration file." % key )
+                log.warning( "Config option '%s' is deprecated and will be removed in a future release."
+                             "Please consult the latest version of the sample configuration file." % key )
 
     def is_admin_user( self, user ):
         """
