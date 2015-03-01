@@ -2,30 +2,29 @@
 Provides factory methods to assemble the Galaxy web application
 """
 import atexit
-import config
 import logging
 import os
-import sys
 
 from inspect import isclass
 
-from paste.request import parse_formvars
-from paste.util import import_string
 from paste import httpexceptions
 from galaxy.util import asbool
 
 import pkg_resources
 
+import galaxy.web.framework.webapp
 import galaxy.webapps.tool_shed.model
 import galaxy.webapps.tool_shed.model.mapping
-import galaxy.web.framework.webapp
-from galaxy.webapps.tool_shed.framework.middleware import hg
 from galaxy import util
+from galaxy.webapps.tool_shed.app import ToolshedUniverseApplication
+from galaxy.webapps.tool_shed.framework.middleware import hg
 
 log = logging.getLogger( __name__ )
 
+
 class CommunityWebApplication( galaxy.web.framework.webapp.WebApplication ):
     pass
+
 
 def add_ui_controllers( webapp, app ):
     """
@@ -33,7 +32,6 @@ def add_ui_controllers( webapp, app ):
     them to the webapp.
     """
     from galaxy.web.base.controller import BaseUIController
-    from galaxy.web.base.controller import ControllerUnavailable
     import galaxy.webapps.tool_shed.controllers
     controller_dir = galaxy.webapps.tool_shed.controllers.__path__[0]
     for fname in os.listdir( controller_dir ):
@@ -49,19 +47,14 @@ def add_ui_controllers( webapp, app ):
                 if isclass( T ) and T is not BaseUIController and issubclass( T, BaseUIController ):
                     webapp.add_ui_controller( name, T( app ) )
 
+
 def app_factory( global_conf, **kwargs ):
     """Return a wsgi application serving the root object"""
     # Create the Galaxy tool shed application unless passed in
     if 'app' in kwargs:
         app = kwargs.pop( 'app' )
     else:
-        try:
-            from galaxy.webapps.tool_shed.app import UniverseApplication
-            app = UniverseApplication( global_conf=global_conf, **kwargs )
-        except:
-            import traceback, sys
-            traceback.print_exc()
-            sys.exit( 1 )
+        app = ToolshedUniverseApplication( global_conf=global_conf, **kwargs )
     atexit.register( app.shutdown )
     # Create the universe WSGI application
     webapp = CommunityWebApplication( app, session_cookie='galaxycommunitysession', name="tool_shed" )
@@ -99,21 +92,21 @@ def app_factory( global_conf, **kwargs ):
     webapp.mapper.resource( 'repository',
                             'repositories',
                             controller='repositories',
-                            collection={ 'add_repository_registry_entry' : 'POST',
-                                         'get_repository_revision_install_info' : 'GET',
-                                         'get_ordered_installable_revisions' : 'GET',
-                                         'remove_repository_registry_entry' : 'POST',
-                                         'repository_ids_for_setting_metadata' : 'GET',
-                                         'reset_metadata_on_repositories' : 'POST',
-                                         'reset_metadata_on_repository' : 'POST' },
+                            collection={ 'add_repository_registry_entry': 'POST',
+                                         'get_repository_revision_install_info': 'GET',
+                                         'get_ordered_installable_revisions': 'GET',
+                                         'remove_repository_registry_entry': 'POST',
+                                         'repository_ids_for_setting_metadata': 'GET',
+                                         'reset_metadata_on_repositories': 'POST',
+                                         'reset_metadata_on_repository': 'POST' },
                             name_prefix='repository_',
                             path_prefix='/api',
-                            new={ 'import_capsule' : 'POST' },
+                            new={ 'import_capsule': 'POST' },
                             parent_resources=dict( member_name='repository', collection_name='repositories' ) )
     webapp.mapper.resource( 'repository_revision',
                             'repository_revisions',
-                            member={ 'repository_dependencies' : 'GET',
-                                     'export' : 'POST' },
+                            member={ 'repository_dependencies': 'GET',
+                                     'export': 'POST' },
                             controller='repository_revisions',
                             name_prefix='repository_revision_',
                             path_prefix='/api',
@@ -149,6 +142,7 @@ def app_factory( global_conf, **kwargs ):
     # Return
     return webapp
 
+
 def wrap_in_middleware( app, global_conf, **local_conf ):
     """Based on the configuration wrap `app` in a set of common and useful middleware."""
     # Merge the global and local configurations
@@ -165,10 +159,10 @@ def wrap_in_middleware( app, global_conf, **local_conf ):
     # upstream server
     if asbool(conf.get( 'use_remote_user', False )):
         from galaxy.webapps.tool_shed.framework.middleware.remoteuser import RemoteUser
-        app = RemoteUser( app, maildomain = conf.get( 'remote_user_maildomain', None ),
-                               display_servers = util.listify( conf.get( 'display_servers', '' ) ),
-                               admin_users = conf.get( 'admin_users', '' ).split( ',' ),
-                               remote_user_secret_header = conf.get('remote_user_secret', None) )
+        app = RemoteUser( app, maildomain=conf.get( 'remote_user_maildomain', None ),
+                          display_servers=util.listify( conf.get( 'display_servers', '' ) ),
+                          admin_users=conf.get( 'admin_users', '' ).split( ',' ),
+                          remote_user_secret_header=conf.get('remote_user_secret', None) )
         log.debug( "Enabling 'remote user' middleware" )
     # The recursive middleware allows for including requests in other
     # requests or forwarding of requests, all on the server side.
@@ -231,9 +225,11 @@ def wrap_in_middleware( app, global_conf, **local_conf ):
     log.debug( "Enabling hg middleware" )
     return app
 
+
 def wrap_in_static( app, global_conf, **local_conf ):
     urlmap, _ = galaxy.web.framework.webapp.build_url_map( app, global_conf, local_conf )
     return urlmap
+
 
 def build_template_error_formatters():
     """
@@ -244,6 +240,7 @@ def build_template_error_formatters():
     formatters = []
     # Formatter for mako
     import mako.exceptions
+
     def mako_html_data( exc_value ):
         if isinstance( exc_value, ( mako.exceptions.CompileException, mako.exceptions.SyntaxException ) ):
             return mako.exceptions.html_error_template().render( full=False, css=False )
