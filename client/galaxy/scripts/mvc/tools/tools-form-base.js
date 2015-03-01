@@ -3,9 +3,9 @@
 */
 define(['utils/utils', 'utils/deferred', 'mvc/ui/ui-portlet', 'mvc/ui/ui-misc',
         'mvc/citation/citation-model', 'mvc/citation/citation-view',
-        'mvc/tools', 'mvc/tools/tools-template', 'mvc/tools/tools-content', 'mvc/tools/tools-section', 'mvc/tools/tools-tree'],
+        'mvc/tools', 'mvc/tools/tools-template', 'mvc/tools/tools-section', 'mvc/tools/tools-tree'],
     function(Utils, Deferred, Portlet, Ui, CitationModel, CitationView,
-             Tools, ToolTemplate, ToolContent, ToolSection, ToolTree) {
+             Tools, ToolTemplate, ToolSection, ToolTree) {
 
     // create form view
     return Backbone.View.extend({
@@ -83,8 +83,8 @@ define(['utils/utils', 'utils/deferred', 'mvc/ui/ui-portlet', 'mvc/ui/ui-misc',
             // creates a tree/json data structure from the input form
             this.tree = new ToolTree(this);
 
-            // request history content and build form
-            this.content = new ToolContent(this);
+            // keeps track of history items
+            this.history = {};
 
             // update model data
             self.options.inputs = options && options.inputs;
@@ -230,7 +230,7 @@ define(['utils/utils', 'utils/deferred', 'mvc/ui/ui-portlet', 'mvc/ui/ui-misc',
                     title   : 'Search',
                     tooltip : 'Search help for this tool (Biostar)',
                     onclick : function() {
-                        window.open(options.biostar_url + '/t/' + options.id + '/');
+                        window.open(options.biostar_url + '/local/search/page/?q=' + options.name);
                     }
                 });
             };
