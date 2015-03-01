@@ -1,30 +1,30 @@
-import config
 import sys
-import time
 import galaxy.datatypes.registry
 import galaxy.quota
 import galaxy.tools.data
 import galaxy.webapps.tool_shed.model
+
+import tool_shed.repository_registry
+import tool_shed.repository_types.registry
+
 from galaxy import tools
+from .config import Configuration
+from galaxy.app import UniverseApplication
 from galaxy.managers.tags import CommunityTagManager
 from galaxy.openid.providers import OpenIDProviders
 from galaxy.util.dbkeys import GenomeBuilds
 from galaxy.web import security
-import tool_shed.repository_registry
-import tool_shed.repository_types.registry
 from tool_shed.grids.repository_grid_filter_manager import RepositoryGridFilterManager
 
 
-class UniverseApplication( object ):
+class ToolshedUniverseApplication( UniverseApplication ):
     """Encapsulates the state of a Universe application"""
+    name = 'tool_shed'
 
-    def __init__( self, **kwd ):
-        print >> sys.stderr, "python path is: " + ", ".join( sys.path )
-        self.name = "tool_shed"
+    def __init__( self, **kwargs ):
+        super(ToolshedUniverseApplication, self).__init__( **kwargs )
         # Read the tool_shed.ini configuration file and check for errors.
-        self.config = config.Configuration( **kwd )
-        self.config.check()
-        config.configure_logging( self.config )
+        configure_logging( self.config )
         # Initialize the  Galaxy datatypes registry.
         self.datatypes_registry = galaxy.datatypes.registry.Registry()
         self.datatypes_registry.load_datatypes( self.config.root, self.config.datatypes_config )
@@ -71,9 +71,10 @@ class UniverseApplication( object ):
         self.hgweb_config_manager.hgweb_config_dir = self.config.hgweb_config_dir
         # Initialize the repository registry.
         self.repository_registry = tool_shed.repository_registry.Registry( self )
-        #  used for cachebusting -- refactor this into a *SINGLE* UniverseApplication base.
-        self.server_starttime = int(time.time())
         print >> sys.stderr, "Tool shed hgweb.config file is: ", self.hgweb_config_manager.hgweb_config
+
+    def __init_config( self, **kwargs ):
+        self.config = Configuration( **kwargs )
 
     def shutdown( self ):
         pass

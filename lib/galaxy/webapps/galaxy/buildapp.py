@@ -10,15 +10,17 @@ import sys
 from paste import httpexceptions
 import pkg_resources
 
-import galaxy.app
+
 import galaxy.model
 import galaxy.model.mapping
 import galaxy.datatypes.registry
 import galaxy.web.framework
 import galaxy.web.framework.webapp
+
 from galaxy import util
 from galaxy.util import asbool
 from galaxy.util.properties import load_app_properties
+from .app import GalaxyUniverseApplication
 
 import logging
 log = logging.getLogger( __name__ )
@@ -50,7 +52,7 @@ def app_factory( global_conf, **kwargs ):
         galaxy.app.app = app
     else:
         try:
-            app = galaxy.webapps.galaxy.app.UniverseApplication( global_conf=global_conf, **kwargs )
+            app = GalaxyUniverseApplication( global_conf=global_conf, **kwargs )
             galaxy.app.app = app
         except:
             import traceback

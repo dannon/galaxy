@@ -53,8 +53,8 @@ def app_factory( global_conf, **kwargs ):
     if 'app' in kwargs:
         app = kwargs.pop( 'app' )
     else:
-        from galaxy.webapps.reports.app import UniverseApplication
-        app = UniverseApplication( global_conf = global_conf, **kwargs )
+        from galaxy.webapps.reports.app import ReportsUniverseApplication
+        app = ReportsUniverseApplication( global_conf=global_conf, **kwargs )
     atexit.register( app.shutdown )
     # Create the universe WSGI application
     webapp = ReportsWebApplication( app, session_cookie='galaxyreportssession', name="reports" )

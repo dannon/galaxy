@@ -1,42 +1,39 @@
-from __future__ import absolute_import
-import sys
+import logging
 import os
-
 import time
-from galaxy import config, jobs
+
 import galaxy.model
-import galaxy.security
 import galaxy.queues
-from galaxy.managers.collections import DatasetCollectionManager
 import galaxy.quota
-from galaxy.managers.tags import GalaxyTagManager
-from galaxy.visualization.genomes import Genomes
-from galaxy.visualization.data_providers.registry import DataProviderRegistry
-from galaxy.visualization.registry import VisualizationsRegistry
-from galaxy.tools.imp_exp import load_history_imp_exp_tools
-from galaxy.sample_tracking import external_service_types
-from galaxy.openid.providers import OpenIDProviders
-from galaxy.tools.data_manager.manager import DataManagers
+import galaxy.security
+
+from galaxy import jobs
+from .config import Configuration, configure_logging, ConfiguresGalaxyMixin
+from galaxy.app import UniverseApplication
 from galaxy.jobs import metrics as job_metrics
-from galaxy.web.proxy import ProxyManager
+from galaxy.managers.collections import DatasetCollectionManager
+from galaxy.managers.tags import GalaxyTagManager
+from galaxy.openid.providers import OpenIDProviders
 from galaxy.queue_worker import GalaxyQueueWorker
+from galaxy.sample_tracking import external_service_types
+from galaxy.tools.data_manager.manager import DataManagers
+from galaxy.tools.imp_exp import load_history_imp_exp_tools
+from galaxy.visualization.data_providers.registry import DataProviderRegistry
+from galaxy.visualization.genomes import Genomes
+from galaxy.visualization.registry import VisualizationsRegistry
+from galaxy.web.proxy import ProxyManager
 from tool_shed.galaxy_install import update_repository_manager
 
-import logging
 log = logging.getLogger( __name__ )
-app = None
 
 
-class UniverseApplication( object, config.ConfiguresGalaxyMixin ):
+class GalaxyUniverseApplication( UniverseApplication, ConfiguresGalaxyMixin ):
     """Encapsulates the state of a Universe application"""
+
+    name = 'galaxy'
+
     def __init__( self, **kwargs ):
-        print >> sys.stderr, "python path is: " + ", ".join( sys.path )
-        self.name = 'galaxy'
-        self.new_installation = False
-        # Read config file and check for errors
-        self.config = config.Configuration( **kwargs )
-        self.config.check()
-        config.configure_logging( self.config )
+        super(GalaxyUniverseApplication, self).__init__(**kwargs)
         self.configure_fluent_log()
         self._amqp_internal_connection_obj = galaxy.queues.connection_from_config(self.config)
         self._configure_tool_shed_registry()
@@ -156,6 +153,9 @@ class UniverseApplication( object, config.ConfiguresGalaxyMixin ):
                                                 self._amqp_internal_connection_obj)
         self.control_worker.daemon = True
         self.control_worker.start()
+
+    def __init_config( self, **kwargs ):
+        self.config = Configuration( **kwargs )
 
     def shutdown( self ):
         self.workflow_scheduling_manager.shutdown()

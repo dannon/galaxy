@@ -1,13 +1,16 @@
+from __future__ import absolute_import
+
 import logging
 import urllib
 
 import galaxy.util
+
 from galaxy import exceptions
-from galaxy import managers
 from galaxy import model
 from galaxy import util
 from galaxy import web
 from galaxy.datatypes.data import nice_size
+from galaxy.managers.histories import HistoryManager, HistorySerializer
 from galaxy.model.item_attrs import UsesAnnotations
 from galaxy.model.item_attrs import UsesItemRatings
 from galaxy.model.orm import and_, eagerload_all, func
@@ -212,8 +215,8 @@ class HistoryController( BaseUIController, SharableMixin, UsesAnnotations, UsesI
 
     def __init__( self, app ):
         super( HistoryController, self ).__init__( app )
-        self.history_manager = managers.histories.HistoryManager( app )
-        self.history_serializer = managers.histories.HistorySerializer( self.app )
+        self.history_manager = HistoryManager( app )
+        self.history_serializer = HistorySerializer( self.app )
 
     @web.expose
     def index( self, trans ):
