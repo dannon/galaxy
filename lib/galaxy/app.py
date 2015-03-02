@@ -40,6 +40,8 @@ class UniverseApplication( object ):
         self.security = security.SecurityHelper( id_secret=self.config.id_secret )
         # used for cachebusting
         self.server_starttime = int(time.time())
+        from galaxy import auth
+        self.auth_manager = auth.AuthManager( self )
 
     def __setup_model( self, db_url):
         # Setup the database engine and ORM
