@@ -42,10 +42,14 @@ REQUIRE_LOGIN_TEMPLATE = """
 PASSWORD_RESET_TEMPLATE = """
 To reset your Galaxy password for the instance at %s, use the following link:
 
-    <a href="%s">%s</a>
+<a href="%s">%s</a>
 
 If you did not make this request, no action is necessary on your part, though
-you may want to notify an administrator."""
+you may want to notify an administrator.
+
+If you're having trouble using the link when clicking it from email client, you
+can also copy and paste it into your browser.
+"""
 
 
 class UserOpenIDGrid( grids.Grid ):
@@ -514,9 +518,7 @@ class User( BaseUIController, UsesFormDefinitionsMixin, CreatesUsersMixin, Creat
         redirect = kwd.get( 'redirect', trans.request.referer ).strip()
         success = False
         user = trans.sa_session.query( trans.app.model.User ).filter( trans.app.model.User.table.c.email == email ).first()
-        if trans.app.config.auth_debug:
-            print ("trans.app.config.auth_config_file: %s" % trans.app.config.auth_config_file)
-            print ("trans.app.config.auth_debug: %s WARNING: don't use in production" % trans.app.config.auth_debug)
+        log.debug("trans.app.config.auth_config_file: %s" % trans.app.config.auth_config_file)
         if not user:
             autoreg = trans.app.auth_manager.check_auto_registration(trans, email, password)
             if autoreg[0]:

@@ -4,7 +4,6 @@ Created on 15/07/2014
 @author: Andrew Robinson
 """
 
-import traceback
 from ..providers import AuthProvider
 
 import logging
@@ -27,13 +26,12 @@ class ActiveDirectory(AuthProvider):
     """
     plugin_type = 'activedirectory'
 
-    def authenticate(self, username, password, options, debug=False):
+    def authenticate(self, username, password, options):
         """
         See abstract method documentation.
         """
-        if debug:
-            log.debug("Username: %s" % username)
-            log.debug("Options: %s" % options)
+        log.debug("Username: %s" % username)
+        log.debug("Options: %s" % options)
 
         failure_mode = False  # reject but continue
         if options.get('continue-on-failure', 'False') == 'False':
@@ -42,8 +40,7 @@ class ActiveDirectory(AuthProvider):
         try:
             import ldap
         except:
-            if debug:
-                log.debug("User: %s, ACTIVEDIRECTORY: False (no ldap)" % (username))
+            log.debug("User: %s, ACTIVEDIRECTORY: False (no ldap)" % (username))
             return (failure_mode, '')
 
         # do AD search (if required)
@@ -64,8 +61,7 @@ class ActiveDirectory(AuthProvider):
                 # parse results
                 _, suser = l.result(result, 60)
                 _, attrs = suser[0]
-                if debug:
-                    log.debug(("AD Search attributes: %s" % attrs))
+                log.debug(("AD Search attributes: %s" % attrs))
                 if hasattr(attrs, 'has_key'):
                     for attr in attributes:
                         if attr in attrs:
@@ -73,8 +69,7 @@ class ActiveDirectory(AuthProvider):
                         else:
                             vars[attr] = ""
             except Exception:
-                if debug:
-                    log.debug('User: %s, ACTIVEDIRECTORY: Search Exception:\n%s' % (username, traceback.format_exc(),))
+                log.exception('ACTIVEDIRECTORY Search Exception for User: %s' % username)
                 return (failure_mode, '')
         # end search
 
@@ -86,19 +81,17 @@ class ActiveDirectory(AuthProvider):
             l.protocol_version = 3
             l.simple_bind_s(_get_subs(options, 'bind-user', vars), _get_subs(options, 'bind-password', vars))
         except Exception:
-            if debug:
-                log.debug('User: %s, ACTIVEDIRECTORY: Authenticate Exception:\n%s' % (username, traceback.format_exc()))
+            log.exception('ACTIVEDIRECTORY Authenticate Exception for User %s' % username)
             return (failure_mode, '')
 
-        if debug:
-            log.debug("User: %s, ACTIVEDIRECTORY: True" % (username))
+        log.debug("User: %s, ACTIVEDIRECTORY: True" % (username))
         return (True, _get_subs(options, 'auto-register-username', vars))
 
-    def authenticate_user(self, user, password, options, debug=False):
+    def authenticate_user(self, user, password, options):
         """
         See abstract method documentation.
         """
-        return self.authenticate(user.email, password, options, debug)[0]
+        return self.authenticate(user.email, password, options)[0]
 
 
 __all__ = ['ActiveDirectory']

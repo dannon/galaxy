@@ -1,9 +1,14 @@
 """
 Execute an external process to set_meta() on a provided list of pickled datasets.
 
-This should not be called directly!  Use the set_metadata.sh script in Galaxy's
-top level directly.
+This was formerly scripts/set_metadata.py and expects these arguments:
 
+    %prog datatypes_conf.xml job_metadata_file metadata_in,metadata_kwds,metadata_out,metadata_results_code,output_filename_override,metadata_override...
+
+Galaxy should be importable on sys.path and output_filename_override should be
+set to the path of the dataset on which metadata is being set
+(output_filename_override could previously be left empty and the path would be
+constructed automatically).
 """
 
 import logging
@@ -16,11 +21,7 @@ import os
 import sys
 
 # ensure supported version
-from check_python import check_python
-try:
-    check_python()
-except:
-    sys.exit(1)
+assert sys.version_info[:2] >= ( 2, 6 ) and sys.version_info[:2] <= ( 2, 7 ), 'Python version must be 2.6 or 2.7, this is: %s' % sys.version
 
 new_path = [ os.path.join( os.getcwd(), "lib" ) ]
 new_path.extend( sys.path[ 1: ] )  # remove scripts/ from the path
@@ -29,17 +30,9 @@ sys.path = new_path
 from galaxy import eggs
 import pkg_resources
 import galaxy.model.mapping  # need to load this before we unpickle, in order to setup properties assigned by the mappers
-
-# This looks REAL stupid, but it is REQUIRED in order for SA to insert
-# parameters into the classes defined by the mappers --> it appears that
-# instantiating ANY mapper'ed class would suffice here
-galaxy.model.Job()
-
+galaxy.model.Job()  # this looks REAL stupid, but it is REQUIRED in order for SA to insert parameters into the classes defined by the mappers --> it appears that instantiating ANY mapper'ed class would suffice here
 from galaxy.util import stringify_dictionary_keys
 from sqlalchemy.orm import clear_mappers
-from galaxy.objectstore import build_object_store_from_config
-from galaxy import config
-from galaxy.util.properties import load_app_properties
 
 
 def set_meta_with_tool_provided( dataset_instance, file_dict, set_meta_kwds ):
@@ -47,39 +40,22 @@ def set_meta_with_tool_provided( dataset_instance, file_dict, set_meta_kwds ):
     # then call set_meta, then set metadata attributes from tool again.
     # This is intentional due to interplay of overwrite kwd, the fact that some metadata
     # parameters may rely on the values of others, and that we are accepting the
-    # values provided by the tool as Truth.
+    # values provided by the tool as Truth. 
     for metadata_name, metadata_value in file_dict.get( 'metadata', {} ).iteritems():
         setattr( dataset_instance.metadata, metadata_name, metadata_value )
     dataset_instance.datatype.set_meta( dataset_instance, **set_meta_kwds )
     for metadata_name, metadata_value in file_dict.get( 'metadata', {} ).iteritems():
         setattr( dataset_instance.metadata, metadata_name, metadata_value )
 
-
-def __main__():
-    file_path = sys.argv.pop( 1 )
-    tool_job_working_directory = tmp_dir = sys.argv.pop( 1 )  # this is also the job_working_directory now
-    galaxy.model.Dataset.file_path = file_path
-    galaxy.datatypes.metadata.MetadataTempFile.tmp_dir = tmp_dir
-
-    config_root = sys.argv.pop( 1 )
-    config_file_name = sys.argv.pop( 1 )
-    if not os.path.isabs( config_file_name ):
-        config_file_name = os.path.join( config_root, config_file_name )
-
-    # Set up reference to object store
-    # First, read in the main config file for Galaxy; this is required because
-    # the object store configuration is stored there
-    conf_dict = load_app_properties( ini_file=config_file_name )
-    # config object is required by ObjectStore class so create it now
-    universe_config = config.Configuration(**conf_dict)
-    universe_config.ensure_tempdir()
-    object_store = build_object_store_from_config(universe_config)
-    galaxy.model.Dataset.object_store = object_store
+def set_metadata():
+    # locate galaxy_root for loading datatypes
+    galaxy_root = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, os.pardir))
+    tool_job_working_directory = os.path.abspath(os.getcwd())
 
     # Set up datatypes registry
     datatypes_config = sys.argv.pop( 1 )
     datatypes_registry = galaxy.datatypes.registry.Registry()
-    datatypes_registry.load_datatypes( root_dir=config_root, config=datatypes_config )
+    datatypes_registry.load_datatypes( root_dir=galaxy_root, config=datatypes_config )
     galaxy.model.set_datatypes_registry( datatypes_registry )
 
     job_metadata = sys.argv.pop( 1 )
@@ -105,7 +81,7 @@ def __main__():
         dataset_filename_override = fields.pop( 0 )
         # Need to be careful with the way that these parameters are populated from the filename splitting,
         # because if a job is running when the server is updated, any existing external metadata command-lines
-        # will not have info about the newly added override_metadata file
+        #will not have info about the newly added override_metadata file
         if fields:
             override_metadata = fields.pop( 0 )
         else:
@@ -113,8 +89,7 @@ def __main__():
         set_meta_kwds = stringify_dictionary_keys( json.load( open( filename_kwds ) ) )  # load kwds; need to ensure our keywords are not unicode
         try:
             dataset = cPickle.load( open( filename_in ) )  # load DatasetInstance
-            if dataset_filename_override:
-                dataset.dataset.external_filename = dataset_filename_override
+            dataset.dataset.external_filename = dataset_filename_override
             files_path = os.path.abspath(os.path.join( tool_job_working_directory, "dataset_%s_files" % (dataset.dataset.id) ))
             dataset.dataset.external_extra_files_path = files_path
             if dataset.dataset.id in existing_job_metadata_dict:
@@ -131,6 +106,7 @@ def __main__():
             dataset.metadata.to_JSON_dict( filename_out )  # write out results of set_meta
             json.dump( ( True, 'Metadata has been set successfully' ), open( filename_results_code, 'wb+' ) )  # setting metadata has succeeded
         except Exception, e:
+            raise
             json.dump( ( False, str( e ) ), open( filename_results_code, 'wb+' ) )  # setting metadata has failed somehow
 
     for i, ( filename, file_dict ) in enumerate( new_job_metadata_dict.iteritems(), start=1 ):
@@ -141,15 +117,10 @@ def __main__():
         new_dataset.state = new_dataset.states.OK
         new_dataset_instance = galaxy.model.HistoryDatasetAssociation( id=-i, dataset=new_dataset, extension=file_dict.get( 'ext', 'data' ) )
         set_meta_with_tool_provided( new_dataset_instance, file_dict, set_meta_kwds )
-        # storing metadata in external form, need to turn back into dict, then later jsonify
-        file_dict[ 'metadata' ] = json.loads( new_dataset_instance.metadata.to_JSON_dict() )
+        file_dict[ 'metadata' ] = json.loads( new_dataset_instance.metadata.to_JSON_dict() ) #storing metadata in external form, need to turn back into dict, then later jsonify
     if existing_job_metadata_dict or new_job_metadata_dict:
         with open( job_metadata, 'wb' ) as job_metadata_fh:
             for value in existing_job_metadata_dict.values() + new_job_metadata_dict.values():
                 job_metadata_fh.write( "%s\n" % ( json.dumps( value ) ) )
 
     clear_mappers()
-    # Shut down any additional threads that might have been created via the ObjectStore
-    object_store.shutdown()
-
-__main__()
