@@ -153,11 +153,21 @@ class UniverseApplication( object, config.ConfiguresGalaxyMixin ):
         self.server_starttime = int(time.time())  # used for cachebusting
 
     def setup_control_queue(self):
-        self.control_worker = GalaxyQueueWorker(self, galaxy.queues.control_queue_from_config(self.config),
-                                                galaxy.queue_worker.control_message_to_task,
-                                                self._amqp_internal_connection_obj)
-        self.control_worker.daemon = True
-        self.control_worker.start()
+        tries = 5
+        while tries:
+            try:
+                self.control_worker = GalaxyQueueWorker(self, galaxy.queues.control_queue_from_config(self.config),
+                                                        galaxy.queue_worker.control_message_to_task,
+                                                        self._amqp_internal_connection_obj)
+                self.control_worker.daemon = True
+                self.control_worker.start()
+                tries = 0
+            except Exception:
+                # This is a terrible hack, and just a test.  Catch the appropriate exception later.
+                log.exception("Failed starting control worker.  Retrying %s more times.", tries)
+                import time
+                time.sleep(2)
+                tries -= 1
 
     def shutdown( self ):
         self.workflow_scheduling_manager.shutdown()
