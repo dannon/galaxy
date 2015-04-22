@@ -41,7 +41,7 @@ class AccessibleManagerMixin( object ):
         """
         if self.is_accessible( item, user, **kwargs ):
             return item
-        raise exceptions.ItemAccessibilityException( "%s is not accessible by user" % ( self.model_class.__name__ ) )
+        raise exceptions.ItemAccessibilityException( "%s is not accessible to user" % ( self.model_class.__name__ ) )
 
     # TODO:?? are these even useful?
     def list_accessible( self, user, **kwargs ):

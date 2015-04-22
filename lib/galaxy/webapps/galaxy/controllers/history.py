@@ -1233,13 +1233,9 @@ class HistoryController( BaseUIController, SharableMixin, UsesAnnotations, UsesI
     @web.expose
     def export_archive( self, trans, id=None, gzip=True, include_hidden=False, include_deleted=False, preview=False ):
         """ Export a history to an archive. """
-        #
-        # Get history to export.
-        #
         if id:
             history = self.history_manager.get_accessible( self.decode_id( id ), trans.user, current_history=trans.history )
         else:
-            # Use current history.
             history = trans.history
             id = trans.security.encode_id( history.id )
         if not history:
@@ -1250,9 +1246,14 @@ class HistoryController( BaseUIController, SharableMixin, UsesAnnotations, UsesI
             if jeha.ready:
                 if preview:
                     url = url_for( controller='history', action="export_archive", id=id, qualified=True )
-                    return trans.show_message( "History Ready: '%(n)s'. Use this link to download "
-                                               "the archive or import it to another Galaxy server: "
-                                               "<a href='%(u)s'>%(u)s</a>" % ( { 'n': history.name, 'u': url } ) )
+                    message = ( "History Ready: '%(n)s'. Use this link to download "
+                                "the archive or import it to another Galaxy server: "
+                                "<a href='%(u)s'>%(u)s</a>" % ( { 'n': history.name, 'u': url } ) )
+                    if not self.history_manager.is_accessible( history, user=None):
+                        message += ( "<br/><br/>Please note that this history is <strong>not</strong> yet accessible and to import it directly into "
+                                     "another galaxy instance using this link that must be changed in <a href='%(share)s'>History Sharing</a>"
+                                     % ( { 'share': url_for( controller='history', action='sharing' ) } ) )
+                    return trans.show_message( message )
                 else:
                     return self.serve_ready_history_export( trans, jeha )
             elif jeha.preparing:
