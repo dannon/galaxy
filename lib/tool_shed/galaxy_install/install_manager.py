@@ -41,8 +41,6 @@ from tool_shed.tools import tool_version_manager
 
 log = logging.getLogger( __name__ )
 
-FAILED_TO_FETCH_VERSIONS = object()
-
 
 class InstallToolDependencyManager( object ):
 
@@ -536,7 +534,7 @@ class InstallRepositoryManager( object ):
             tool_shed_repository.tool_shed_status = tool_shed_status_dict
         self.install_model.context.add( tool_shed_repository )
         self.install_model.context.flush()
-        if tool_versions_response and tool_versions_response is not FAILED_TO_FETCH_VERSIONS:
+        if tool_versions_response and tool_versions_response is not None:
             tool_version_dicts = tool_versions_response
             tvm = tool_version_manager.ToolVersionManager( self.app )
             tvm.handle_tool_versions( tool_version_dicts, tool_shed_repository )
@@ -898,7 +896,7 @@ class InstallRepositoryManager( object ):
                 # Get the tool_versions from the tool shed for each tool in the installed change set.
                 self.update_tool_shed_repository_status( tool_shed_repository,
                                                          self.install_model.ToolShedRepository.installation_status.SETTING_TOOL_VERSIONS )
-                if tool_versions_response is FAILED_TO_FETCH_VERSIONS:
+                if tool_versions_response is None:
                     if not error_message:
                         error_message = ""
                     error_message += "Version information for the tools included in the <b>%s</b> repository is missing.  " % tool_shed_repository.name
@@ -1011,7 +1009,6 @@ def fetch_tool_versions( app, tool_shed_repository ):
     """ Fetch a data structure describing tool shed versions from the tool shed
     corresponding to a tool_shed_repository object.
     """
-    failed_to_fetch = False
     try:
         tool_shed_url = common_util.get_tool_shed_url_from_tool_shed_registry( app, str( tool_shed_repository.tool_shed ) )
         params = '?name=%s&owner=%s&changeset_revision=%s' % ( str( tool_shed_repository.name ),
@@ -1024,9 +1021,5 @@ def fetch_tool_versions( app, tool_shed_repository ):
             return json.loads( text )
         else:
             log.error("No content returned from tool shed repository version request to %s", url)
-            failed_to_fetch = True
     except Exception:
-        failed_to_fetch = True
         log.exception("Failed to fetch tool shed repository verion information.")
-    if failed_to_fetch:
-        return FAILED_TO_FETCH_VERSIONS
