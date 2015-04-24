@@ -534,7 +534,7 @@ class InstallRepositoryManager( object ):
             tool_shed_repository.tool_shed_status = tool_shed_status_dict
         self.install_model.context.add( tool_shed_repository )
         self.install_model.context.flush()
-        if tool_versions_response and tool_versions_response is not None:
+        if tool_versions_response:
             tool_version_dicts = tool_versions_response
             tvm = tool_version_manager.ToolVersionManager( self.app )
             tvm.handle_tool_versions( tool_version_dicts, tool_shed_repository )
