@@ -25,17 +25,12 @@ class VisualizationsConfigParser( object ):
             -- what provides the data
             -- what information needs to be added to the query string
     """
-    #: show/suppress info/warnings about deprecated elements and settings
-    show_deprecations = False
-
     #: what are the allowed 'entry_point_type' for entry_point elements
     ALLOWED_ENTRY_POINT_TYPES = ['mako', 'html', 'script']
     #: what are the allowed href targets when clicking on a visualization anchor
     VALID_RENDER_TARGETS = [ 'galaxy_main', '_top', '_blank' ]
 
-    def __init__( self, debug=False ):
-        self.debug = debug
-
+    def __init__( self ):
         # what parsers should be used for sub-components
         self.data_source_parser = DataSourceParser()
         self.param_parser = ParamParser()
@@ -161,8 +156,7 @@ class VisualizationsConfigParser( object ):
         # (older) mako-only syntax: the template to use in rendering the visualization
         template = xml_tree.find( 'template' )
         if template is not None and template.text:
-            if self.show_deprecations:
-                log.info( 'template syntax is deprecated: use entry_point instead' )
+            log.info( 'template syntax is deprecated: use entry_point instead' )
             return {
                 'type' : 'mako',
                 'file' : template.text,
