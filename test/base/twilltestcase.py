@@ -705,8 +705,8 @@ class TwillTestCase( unittest.TestCase ):
                     username_taken = True
                 except:
                     try:
-                        # Note that we're only checking if the usr name is >< 4 chars here...
-                        self.check_page_for_string( 'Public name must be at least 4 characters in length' )
+                        # Note that we're only checking if the usr name is > 3 chars here...
+                        self.check_page_for_string( 'Public name must contain only lowercase letters, numbers and "-".' )
                         invalid_username = True
                     except:
                         pass

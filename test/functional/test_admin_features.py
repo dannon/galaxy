@@ -64,7 +64,7 @@ class TestDataSecurity( TwillTestCase ):
 
         # Test setting the user name to an invalid one.  Note that the account must not exist in order
         # for this test to work as desired, so the email we're passing is important...
-        previously_created, username_taken, invalid_username = self.create_new_account_as_admin( email='diff@you.com',
+        previously_created, username_taken, invalid_username = self.create_new_account_as_admin( email='diff@youtoo.com',
                                                                                                  password=password,
                                                                                                  username='h',
                                                                                                  redirect='' )
