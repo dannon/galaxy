@@ -631,7 +631,14 @@ def wrap_in_middleware( app, global_conf, **local_conf ):
             from paste.debug import profile
             app = profile.ProfileMiddleware( app, conf )
             log.debug( "Enabling 'profile' middleware" )
-    if debug and asbool( conf.get( 'use_interactive', False ) ) and not process_is_uwsgi:
+    if conf.get('use_wdb', False):
+        import wdb
+        from wdb.ext import WdbMiddleware
+        app = WdbMiddleware(app)
+        #app.serve_forever()
+        #from galaxy.web.framework.middleware.wdbmiddleware import WDBMiddleware
+        #app = WDBMiddleware(app)
+    elif debug and asbool( conf.get( 'use_interactive', False ) ) and not process_is_uwsgi:
         # Interactive exception debugging, scary dangerous if publicly
         # accessible, if not enabled we'll use the regular error printing
         # middleware.

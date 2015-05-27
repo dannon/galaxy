@@ -676,6 +676,11 @@ debug = True
 # public site.  Enabled in the sample config for development.
 use_interactive = True
 
+# Enable WDB interactive debugging.  This requires a WDB server running
+# alongside your Galaxy server.  See https://github.com/Kozea/wdb for details.
+# If set, this overrides other debugging and error display methods.
+#use_wdb = False
+
 # Write thread status periodically to 'heartbeat.log',  (careful, uses disk
 # space rapidly!).  Useful to determine why your processes may be consuming a
 # lot of CPU.
