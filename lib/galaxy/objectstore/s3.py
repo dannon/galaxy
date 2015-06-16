@@ -482,7 +482,7 @@ class S3ObjectStore(ObjectStore):
         dir_only = kwargs.get('dir_only', False)
         obj_dir = kwargs.get('obj_dir', False)
         try:
-            # Remove temparory data in JOB_WORK directory
+            # Remove temporary data in JOB_WORK directory
             if base_dir and dir_only and obj_dir:
                 shutil.rmtree(os.path.abspath(rel_path))
                 return True
