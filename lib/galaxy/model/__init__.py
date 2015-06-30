@@ -992,7 +992,7 @@ class History( object, Dictifiable, UsesAnnotations, HasName ):
             if set_hid:
                 dataset.hid = self._next_hid()
         if quota and self.user:
-            self.user.total_disk_usage += dataset.quota_amount( self.user )
+            self.user.total_disk_usage += dataset.quota_amount()
         dataset.history = self
         if genome_build not in [None, '?']:
             self.genome_build = genome_build
@@ -2021,7 +2021,7 @@ class HistoryDatasetAssociation( DatasetInstance, Dictifiable, UsesAnnotations, 
         """
         return self.dataset.get_access_roles( trans )
 
-    def quota_amount( self, user ):
+    def quota_amount( self ):
         """
         Return the disk space used for this HDA relevant to user quotas.
 
@@ -2030,7 +2030,7 @@ class HistoryDatasetAssociation( DatasetInstance, Dictifiable, UsesAnnotations, 
         """
         rval = 0
         # Anon users are handled just by their single history size.
-        if not user:
+        if not self.history.user:
             return rval
         # Gets an HDA and its children's disk usage, if the user does not already
         #   have an association of the same dataset
@@ -2038,7 +2038,7 @@ class HistoryDatasetAssociation( DatasetInstance, Dictifiable, UsesAnnotations, 
             for hda in self.dataset.history_associations:
                 if hda.id == self.id:
                     continue
-                if not hda.purged and hda.history and hda.history.user and hda.history.user == user:
+                if not hda.purged and hda.history and hda.history.user and hda.history.user == self.history.user:
                     break
             else:
                 rval += self.get_total_size()
