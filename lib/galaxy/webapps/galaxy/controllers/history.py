@@ -33,7 +33,7 @@ log = logging.getLogger( __name__ )
 
 class NameColumn( grids.TextColumn ):
     def get_value( self, trans, grid, history ):
-        return history.get_display_name()
+        return escape(history.get_display_name())
 
 
 class HistoryListGrid( grids.Grid ):
