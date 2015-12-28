@@ -254,7 +254,8 @@ class Tool( object, Dictifiable ):
         self.action = '/tool_runner/index'
         self.target = 'galaxy_main'
         self.method = 'post'
-        self.labels = []
+        self.labels = list()
+        self.tours = list()
         self.check_values = True
         self.nginx_upload = False
         self.input_required = False
@@ -267,7 +268,7 @@ class Tool( object, Dictifiable ):
         # parameters like SelectField objects.  This enables us to more
         # easily ensure that parameter dependencies like index files or
         # tool_data_table_conf.xml entries exist.
-        self.input_params = []
+        self.input_params = list()
         # Attributes of tools installed from Galaxy tool sheds.
         self.tool_shed = None
         self.repository_name = None
@@ -279,7 +280,7 @@ class Tool( object, Dictifiable ):
         self.old_id = None
         self.version = None
         # Enable easy access to this tool's version lineage.
-        self.lineage_ids = []
+        self.lineage_ids = list()
         # populate toolshed repository info, if available
         self.populate_tool_shed_info()
         # Parse XML element containing configuration
@@ -400,6 +401,17 @@ class Tool( object, Dictifiable ):
         :returns: bool -- Whether the user is allowed to access the tool.
         """
         return True
+
+    def _get_tours(self):
+        ret = []
+        # ToDo: only for TS tools
+        # if self.repository_id:
+        tours_dir = os.path.join(self.tool_dir,'tours')
+        if os.path.exists(tours_dir): #if self.repository_id:
+            for filename in os.listdir( tours_dir ):
+                if filename.endswith('yaml'):
+                    ret.append( os.path.join(tours_dir, filename) )
+        return ret
 
     def parse( self, tool_source, guid=None ):
         """
@@ -526,7 +538,7 @@ class Tool( object, Dictifiable ):
         self.containers = containers
 
         self.citations = self._parse_citations( tool_source )
-
+        self.tours = self._get_tours()
         # Determine if this tool can be used in workflows
         self.is_workflow_compatible = self.check_workflow_compatible(tool_source)
         self.__parse_trackster_conf( tool_source )
@@ -1929,6 +1941,7 @@ class Tool( object, Dictifiable ):
         # If an admin user, expose the path to the actual tool config XML file.
         if trans.user_is_admin():
             tool_dict['config_file'] = os.path.abspath(self.config_file)
+            tool_dict['tours'] = self.tours
 
         # Add link details.
         if link_details:
@@ -2233,6 +2246,11 @@ class Tool( object, Dictifiable ):
         if self.citations:
             tool_citations = True
 
+        # get tool tours
+        tool_tours = []
+        for tour_path in self.tours:
+            tool_tours.append( self.app.tour_registry.load_tour_from_path(tour_path) )
+
         # get tool versions
         tool_versions = []
         tools = self.app.toolbox.get_loaded_tools_by_lineage(self.id)
@@ -2259,6 +2277,7 @@ class Tool( object, Dictifiable ):
             'id'            : self.id,
             'help'          : tool_help,
             'citations'     : tool_citations,
+            'tours'         : tool_tours,
             'biostar_url'   : trans.app.config.biostar_url,
             'sharable_url'  : sharable_url,
             'message'       : tool_message,

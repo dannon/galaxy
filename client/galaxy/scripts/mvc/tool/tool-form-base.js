@@ -162,6 +162,14 @@ define(['utils/utils', 'utils/deferred', 'mvc/ui/ui-misc', 'mvc/form/form-view',
                 title   : (!options.narrow && 'Versions') || null,
                 tooltip : 'Select another tool version'
             });
+
+            // button for tour selection
+            var tours_button = new Ui.ButtonMenu({
+                icon    : 'fa-cubes',
+                title   : 'Tool Tours',
+                tooltip : 'Select an interactive Tour'
+            });
+
             if (!options.sustain_version && options.versions && options.versions.length > 1) {
                 for (var i in options.versions) {
                     var version = options.versions[i];
@@ -193,6 +201,7 @@ define(['utils/utils', 'utils/deferred', 'mvc/ui/ui-misc', 'mvc/form/form-view',
                 title   : (!options.narrow && 'Options') || null,
                 tooltip : 'View available options'
             });
+
             if(options.biostar_url) {
                 menu_button.addMenu({
                     icon    : 'fa-question-circle',
@@ -211,6 +220,7 @@ define(['utils/utils', 'utils/deferred', 'mvc/ui/ui-misc', 'mvc/form/form-view',
                     }
                 });
             };
+
             menu_button.addMenu({
                 icon    : 'fa-share',
                 title   : 'Share',
@@ -228,8 +238,26 @@ define(['utils/utils', 'utils/deferred', 'mvc/ui/ui-misc', 'mvc/form/form-view',
                     tooltip : 'Download this tool',
                     onclick : function() {
                         window.location.href = Galaxy.root + 'api/tools/' + options.id + '/download';
-                    }
+                 }
                 });
+            }
+
+            // add tours option
+            if (options.tours && options.tours.length > 0) {
+                for (var i in options.tours) {
+                    var tour = options.tours[i];
+                    tours_button.addMenu({
+                        title   : tour.name,
+                        tour    : tour,
+                        tooltip : 'Start an interactive tool introduction',
+                        icon    : 'fa-cube',
+                        onclick : function() {
+                            window.location.href = Galaxy.root + 'api/tools/' + options.id + '/tours/' + tour.tour_id;
+                        }
+                    });
+                }
+            } else {
+                tours_button.$el.hide();
             }
 
             // button for version selection
@@ -270,7 +298,8 @@ define(['utils/utils', 'utils/deferred', 'mvc/ui/ui-misc', 'mvc/form/form-view',
 
             return {
                 menu        : menu_button,
-                versions    : versions_button
+                versions    : versions_button,
+                tours       : tours_button
             }
         },
 

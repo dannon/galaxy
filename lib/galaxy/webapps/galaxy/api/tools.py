@@ -1,3 +1,4 @@
+import os
 import urllib
 
 from galaxy import exceptions
@@ -138,6 +139,7 @@ class ToolsController( BaseAPIController, UsesVisualizationMixin ):
             "installed_tool_shed_dependencies": tool_shed_dependencies_dict,
             "tool_dir": tool.tool_dir,
             "tool_shed": tool.tool_shed,
+            "tours": tool.tours,
             "repository_name": tool.repository_name,
             "repository_owner": tool.repository_owner,
             "installed_changeset_revision": None,
@@ -194,6 +196,35 @@ class ToolsController( BaseAPIController, UsesVisualizationMixin ):
         for citation in tool.citations:
             rval.append( citation.to_dict( 'bibtex' ) )
         return rval
+
+    @expose_api_anonymous_and_sessionless
+    def tours( self, trans, id, **kwds ):
+        """
+        GET /api/tools/{tool_id}/tours
+        Returns a list of available tours for this specific tool.
+        """
+        tool = self._get_tool( id, user=trans.user )
+        rval = {}
+        for tour_path in tool.tours:
+            tour_conf = trans.app.tour_registry.load_tour_from_path(tour_path)
+            tour_id = tour_conf.get('tour_id', '%s_%s' % (tool.id, os.path.split(tour_path)[-1].rstrip('.yaml')))
+            rval[tour_id] = tour_conf
+        return rval
+
+    @expose_api_anonymous_and_sessionless
+    def tour_by_id( self, trans, id, tour_id, **kwds ):
+        """
+        GET /api/tools/{tool_id}/tours/{tour_id}
+        Returns a list of available tours for this specific tool.
+        """
+        tool = self._get_tool( id, user=trans.user )
+        rval = {}
+        for tour_path in tool.tours:
+            tour_conf = trans.app.tour_registry.load_tour_from_path(tour_path)
+            iid = tour_conf.get('tour_id', '%s_%s' % (tool.id, os.path.split(tour_path)[-1].rstrip('.yaml')))
+            if tour_id == iid:
+                return {tour_id: tour_conf}
+        return {}
 
     @web.expose_api_raw
     @web.require_admin
