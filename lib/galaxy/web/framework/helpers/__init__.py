@@ -4,7 +4,7 @@ Galaxy web framework helpers
 
 import time
 from datetime import datetime, timedelta
-from galaxy.util import hash_util
+from galaxy.util import hash_util, unicodify
 from galaxy.util.json import safe_dumps as dumps  # noqa (used by mako templates)
 from webhelpers import date
 from webhelpers.html.tags import stylesheet_link, javascript_link
@@ -22,7 +22,7 @@ def time_ago( x ):
 
     # If the date is more than one week ago, then display the actual date instead of in words
     if (datetime.utcnow() - x) > delta:  # Greater than a week difference
-        return x.strftime("%b %d, %Y")
+        return unicodify(x.strftime("%b %d, %Y"))
     else:
         date_array = date.distance_of_time_in_words( x, datetime.utcnow() ).replace(",", "").split(" ")
         return "~%s %s ago" % (date_array[0], date_array[1])
