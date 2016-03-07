@@ -450,7 +450,7 @@ class WorkflowController( BaseUIController, SharableMixin, UsesStoredWorkflowMix
         stored = self.get_stored_workflow( trans, id )
         if new_annotation:
             # Sanitize annotation before adding it.
-            new_annotation = sanitize_html( new_annotation, 'utf-8', 'text/html' )
+            new_annotation = sanitize_html( new_annotation )
             self.add_item_annotation( trans.sa_session, trans.get_user(), stored, new_annotation )
             trans.sa_session.flush()
             return new_annotation
@@ -569,7 +569,7 @@ class WorkflowController( BaseUIController, SharableMixin, UsesStoredWorkflowMix
             workflow.stored_workflow = stored_workflow
             stored_workflow.latest_workflow = workflow
             # Add annotation.
-            workflow_annotation = sanitize_html( workflow_annotation, 'utf-8', 'text/html' )
+            workflow_annotation = sanitize_html( workflow_annotation )
             self.add_item_annotation( trans.sa_session, trans.get_user(), stored_workflow, workflow_annotation )
             # Persist
             session = trans.sa_session

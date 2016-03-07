@@ -227,7 +227,10 @@ class VisualizationSelectionGrid( ItemSelectionGrid ):
 
 
 class _PageContentProcessor( _BaseHTMLProcessor ):
-    """ Processes page content to produce HTML that is suitable for display. For now, processor renders embedded objects. """
+    """
+    Processes page content to produce HTML that is suitable for display.
+    For now, processor renders embedded objects.
+    """
 
     def __init__( self, trans, encoding, type, render_embed_html_fn ):
         _BaseHTMLProcessor.__init__( self, encoding, type)
@@ -373,7 +376,7 @@ class PageController( BaseUIController, SharableMixin,
                 page = model.Page()
                 page.title = page_title
                 page.slug = page_slug
-                page_annotation = sanitize_html( page_annotation, 'utf-8', 'text/html' )
+                page_annotation = sanitize_html( page_annotation )
                 self.add_item_annotation( trans.sa_session, trans.get_user(), page, page_annotation )
                 page.user = user
                 # And the first (empty) page revision
@@ -429,7 +432,7 @@ class PageController( BaseUIController, SharableMixin,
             else:
                 page.title = page_title
                 page.slug = page_slug
-                page_annotation = sanitize_html( page_annotation, 'utf-8', 'text/html' )
+                page_annotation = sanitize_html( page_annotation )
                 self.add_item_annotation( trans.sa_session, trans.get_user(), page, page_annotation )
                 session.flush()
                 # Redirect to page list.
@@ -548,7 +551,7 @@ class PageController( BaseUIController, SharableMixin,
         assert page.user == trans.user
 
         # Sanitize content
-        content = sanitize_html( content, 'utf-8', 'text/html' )
+        content = sanitize_html( content )
 
         # Add a new revision to the page with the provided content.
         page_revision = model.PageRevision()
@@ -565,7 +568,7 @@ class PageController( BaseUIController, SharableMixin,
             item = trans.sa_session.query( item_class ).filter_by( id=item_id ).first()
             if not item:
                 raise RuntimeError( "cannot find annotated item" )
-            text = sanitize_html( annotation_dict[ 'text' ], 'utf-8', 'text/html' )
+            text = sanitize_html( annotation_dict[ 'text' ] )
 
             # Add/update annotation.
             if item_id and item_class and text:

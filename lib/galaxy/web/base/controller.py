@@ -1041,7 +1041,7 @@ class UsesVisualizationMixin( UsesLibraryMixinItems ):
         else:
             self.create_item_slug( trans.sa_session, visualization )
         if annotation:
-            annotation = sanitize_html( annotation, 'utf-8', 'text/html' )
+            annotation = sanitize_html( annotation )
             # TODO: if this is to stay in the mixin, UsesAnnotations should be added to the superclasses
             #   right now this is depending on the classes that include this mixin to have UsesAnnotations
             self.add_item_annotation( trans.sa_session, trans.user, visualization, annotation )

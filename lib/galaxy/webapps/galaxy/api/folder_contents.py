@@ -266,7 +266,7 @@ class FolderContentsController( BaseAPIController, UsesLibraryMixin, UsesLibrary
         encoded_folder_id_16 = self.__decode_library_content_id( trans, encoded_folder_id )
         from_hda_id, ldda_message = ( payload.pop( 'from_hda_id', None ), payload.pop( 'ldda_message', '' ) )
         if ldda_message:
-            ldda_message = util.sanitize_html.sanitize_html( ldda_message, 'utf-8' )
+            ldda_message = util.sanitize_html.sanitize_html( ldda_message )
         rval = {}
         try:
             decoded_hda_id = self.decode_id( from_hda_id )

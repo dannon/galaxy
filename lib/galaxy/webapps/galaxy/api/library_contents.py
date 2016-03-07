@@ -297,7 +297,7 @@ class LibraryContentsController( BaseAPIController, UsesLibraryMixin, UsesLibrar
         # PRECONDITION: folder_id has already been altered to remove the folder prefix ('F')
         # TODO: allow name and other, editable ldda attrs?
         if ldda_message:
-            ldda_message = util.sanitize_html.sanitize_html( ldda_message, 'utf-8' )
+            ldda_message = util.sanitize_html.sanitize_html( ldda_message )
 
         rval = {}
         try:

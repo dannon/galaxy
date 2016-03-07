@@ -215,7 +215,7 @@ class WorkflowContentsManager(UsesAnnotations):
             stored.user = trans.user
             stored.published = publish
             if data[ 'annotation' ]:
-                annotation = sanitize_html( data[ 'annotation' ], 'utf-8', 'text/html' )
+                annotation = sanitize_html( data[ 'annotation' ] )
                 self.add_item_annotation( trans.sa_session, stored.user, stored, annotation )
 
             # Persist
@@ -811,7 +811,7 @@ class WorkflowContentsManager(UsesAnnotations):
 
         annotation = step_dict[ 'annotation' ]
         if annotation:
-            annotation = sanitize_html( annotation, 'utf-8', 'text/html' )
+            annotation = sanitize_html( annotation )
             self.add_item_annotation( trans.sa_session, trans.get_user(), step, annotation )
 
         # Stick this in the step temporarily

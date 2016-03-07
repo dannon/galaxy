@@ -328,7 +328,7 @@ class DatasetInterface( BaseUIController, UsesAnnotations, UsesItemRatings, Uses
                     data.datatype.after_setting_metadata( data )
                     # Sanitize annotation before adding it.
                     if params.annotation:
-                        annotation = sanitize_html( params.annotation, 'utf-8', 'text/html' )
+                        annotation = sanitize_html( params.annotation )
                         self.add_item_annotation( trans.sa_session, trans.get_user(), data, annotation )
                     # This block on controller code is inactive until the 'extended_metadata' edit box is added back into the UI
                     # Add or delete extended metadata
@@ -637,7 +637,7 @@ class DatasetInterface( BaseUIController, UsesAnnotations, UsesItemRatings, Uses
             web.httpexceptions.HTTPNotFound()
         if dataset and new_annotation:
             # Sanitize annotation before adding it.
-            new_annotation = sanitize_html( new_annotation, 'utf-8', 'text/html' )
+            new_annotation = sanitize_html( new_annotation )
             self.add_item_annotation( trans.sa_session, trans.get_user(), dataset, new_annotation )
             trans.sa_session.flush()
             return new_annotation

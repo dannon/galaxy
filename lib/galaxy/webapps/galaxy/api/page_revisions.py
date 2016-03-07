@@ -61,7 +61,7 @@ class PageRevisionsController( BaseAPIController, SharableItemSecurityMixin, Use
         else:
             title = page.title
 
-        content = sanitize_html( content, 'utf-8', 'text/html' )
+        content = sanitize_html( content )
 
         page_revision = trans.app.model.PageRevision()
         page_revision.title = title
