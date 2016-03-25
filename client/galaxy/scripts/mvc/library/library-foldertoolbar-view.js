@@ -213,7 +213,7 @@ var FolderToolbarView = Backbone.View.extend({
             that.modal.show({
                 closing_events  : true,
                 title           : 'Import into History',
-                body            : template({histories : that.histories.models}),
+                body            : template({histories : _.filter(that.histories.models, function(h){return h.attributes.deleted !== true})}),
                 buttons         : {
                     'Import'    : function() {that.importAllIntoHistory();},
                     'Close'     : function() {Galaxy.modal.hide();}
