@@ -183,7 +183,6 @@ def generate_workflow_image( trans, workflow_name, repository_metadata_id=None, 
                                                           repository_id=repository_id,
                                                           changeset_revision=changeset_revision )
     workflow_canvas = WorkflowCanvas()
-    canvas = workflow_canvas.canvas
     # Store px width for boxes of each step.
     for step in workflow.steps:
         step.upgrade_messages = {}
@@ -199,10 +198,8 @@ def generate_workflow_image( trans, workflow_name, repository_metadata_id=None, 
             module_data_outputs,
             tool_errors=tool_errors
         )
-    workflow_canvas.add_steps( highlight_errors=True )
-    workflow_canvas.finish( )
     trans.response.set_content_type( "image/svg+xml" )
-    return canvas.tostring()
+    return workflow_canvas.finish(highlight_errors=True)
 
 
 def get_workflow_data_inputs( step, module ):

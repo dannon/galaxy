@@ -8,7 +8,6 @@ class WorkflowCanvas( object ):
 
     def __init__( self ):
         self.canvas = svgwrite.Drawing(profile='full')
-
         self.connectors = []
         self.boxes = []
         self.text = []
@@ -19,18 +18,27 @@ class WorkflowCanvas( object ):
         self.max_y = 0
         self.max_width = 0
         self.data = []
+        self.render_errors = []
 
-    def finish( self ):
-        # max_x, max_y, max_width = self.max_x, self.max_y, self.max_width
-        for box in self.boxes:
-            self.canvas.add(box)
-        for connector in self.connectors:
-            self.canvas.add(connector)
+    def finish( self, highlight_errors=False ):
+        # Process steps and add them to the internal rendering datastructures.
+        self.add_steps(highlight_errors)
         text_style_layer = self.canvas.g(style="font-family: Helvetica, Arial, FreeSans, Sans, sans, sans-serif;")
-        for text in self.text:
-            text_style_layer.add(text)
+        if self.render_errors:
+            # In the event of errors, instead of rendering a (probably) mangled
+            # svg, we return an image with the errors inline.
+            text_style_layer.add(svgwrite.text.Text("Sorry, this Galaxy instance is unable to render the requested workflow due to the following errors.", (10, 20)))
+            for i, e in enumerate(self.render_errors):
+                text_style_layer.add(svgwrite.text.Text(e, ( 20, (i + 2) * 20)))
+        else:
+            for box in self.boxes:
+                self.canvas.add(box)
+            for connector in self.connectors:
+                self.canvas.add(connector)
+            for text in self.text:
+                text_style_layer.add(text)
         self.canvas.add(text_style_layer)
-        return self.canvas
+        return self.canvas.tostring()
 
     def add_boxes( self, step_dict, width, name_fill ):
         x, y = step_dict[ 'position' ][ 'left' ], step_dict[ 'position' ][ 'top' ]
@@ -78,23 +86,25 @@ class WorkflowCanvas( object ):
         self.max_width = max( self.max_width, self.widths[ order_index ] )
 
     def add_connection( self, step_dict, conn, output_dict):
+        if step_dict['id'] not in self.in_pos or output_dict['id'] not in self.out_pos:
+            # Our knowledge about this step is incomplete, we can't render this connection.
+            return
         in_coords = self.in_pos[ step_dict[ 'id' ] ][ conn ]
         # out_pos_index will be a step number like 1, 2, 3...
         out_pos_index = output_dict[ 'id' ]
         # out_pos_name will be a string like 'o', 'o2', etc.
         out_pos_name = output_dict[ 'output_name' ]
-        if out_pos_index in self.out_pos:
-            # out_conn_index_dict will be something like:
-            # 7: {'o': (824.5, 618)}
-            out_conn_index_dict = self.out_pos[ out_pos_index ]
-            if out_pos_name in out_conn_index_dict:
-                out_conn_pos = out_conn_index_dict[ out_pos_name ]
-            else:
-                # Take any key / value pair available in out_conn_index_dict.
-                # A problem will result if the dictionary is empty.
-                if out_conn_index_dict.keys():
-                    key = out_conn_index_dict.keys()[0]
-                    out_conn_pos = self.out_pos[ out_pos_index ][ key ]
+        # out_conn_index_dict will be something like:
+        # 7: {'o': (824.5, 618)}
+        out_conn_index_dict = self.out_pos[ out_pos_index ]
+        if out_pos_name in out_conn_index_dict:
+            out_conn_pos = out_conn_index_dict[ out_pos_name ]
+        else:
+            # Take any key / value pair available in out_conn_index_dict.
+            # A problem will result if the dictionary is empty.
+            if out_conn_index_dict.keys():
+                key = out_conn_index_dict.keys()[0]
+                out_conn_pos = self.out_pos[ out_pos_index ][ key ]
         adjusted = ( out_conn_pos[ 0 ] + self.widths[ output_dict[ 'id' ] ], out_conn_pos[ 1 ] )
         self.text.append( svgwrite.shapes.Circle(center=(out_conn_pos[ 0 ] + self.widths[ output_dict[ 'id' ] ] - MARGIN,
                                                          out_conn_pos[ 1 ] - MARGIN),

@@ -513,7 +513,7 @@ class WorkflowController( BaseUIController, SharableMixin, UsesStoredWorkflowMix
     def gen_image( self, trans, id ):
         stored = self.get_stored_workflow( trans, id, check_ownership=True )
         trans.response.set_content_type("image/svg+xml")
-        return self._workflow_to_svg_canvas( trans, stored ).tostring()
+        return self._workflow_to_svg_canvas( trans, stored )
 
     @web.expose
     @web.require_login( "use Galaxy workflows" )
@@ -1292,16 +1292,23 @@ class WorkflowController( BaseUIController, SharableMixin, UsesStoredWorkflowMix
         for step in workflow.steps:
             # Load from database representation
             module = module_factory.from_workflow_step( trans, step )
-            module_name = module.get_name()
-            module_data_inputs = module.get_data_inputs()
-            module_data_outputs = module.get_data_outputs()
-            workflow_canvas.populate_data_for_step(
-                step,
-                module_name,
-                module_data_inputs,
-                module_data_outputs,
-            )
-        workflow_canvas.add_steps()
+            # This can return none; it might be nice for it to raise an
+            # exception instead.
+            if module:
+                module_name = module.get_name()
+                module_data_inputs = module.get_data_inputs()
+                module_data_outputs = module.get_data_outputs()
+                workflow_canvas.populate_data_for_step(
+                    step,
+                    module_name,
+                    module_data_inputs,
+                    module_data_outputs,
+                )
+            else:
+                # We don't know how to correctly render this tool, so just
+                # register the error and continue.  This will prevent rendering
+                # of the workflow, but will display an error image instead.
+                workflow_canvas.render_errors.append("Unknown tool %s." % step.tool_id)
         return workflow_canvas.finish()
 
 
