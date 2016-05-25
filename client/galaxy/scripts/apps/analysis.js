@@ -115,6 +115,8 @@ window.app = function app( options, bootstrapped ){
         },
 
         show_usage: function( ){
+            var QUOTA = require('mvc/user/quotagraph');
+            console.log(QUOTA);
             centerPanel.display( new QUOTA.UserQuotaGraph() );
         },
 
