@@ -603,7 +603,6 @@ var HistoryCollection = Backbone.Collection
         if( !_.isUndefined( limit ) ){
             fetchOptions.limit = limit;
         }
-        console.log(fetchOptions);
 
         return ControlledFetchMixin.fetch.call( this, fetchOptions )
             .done( function _postFetchMore( fetchData ){
