@@ -490,7 +490,6 @@ var HistoryCollection = Backbone.Collection
 
     initialize : function( models, options ){
         options = options || {};
-        this.log( 'HistoryCollection.initialize', arguments );
 
         // instance vars
         /** @type {boolean} should deleted histories be included */
@@ -604,6 +603,7 @@ var HistoryCollection = Backbone.Collection
         if( !_.isUndefined( limit ) ){
             fetchOptions.limit = limit;
         }
+        console.log(fetchOptions);
 
         return ControlledFetchMixin.fetch.call( this, fetchOptions )
             .done( function _postFetchMore( fetchData ){

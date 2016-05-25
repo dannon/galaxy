@@ -8,6 +8,7 @@ var jQuery = require( 'jquery' ),
     HistoryPanel = require( './history-panel' ),
     PAGE = require( 'layout/page' ),
     ToolForm = require( 'mvc/tool/tool-form' ),
+    QUOTA = require( 'mvc/user/user-quotameter' ),
     Tours = require( 'mvc/tours' );
 
 /** define the 'Analyze Data'/analysis/main/home page for Galaxy
@@ -101,6 +102,7 @@ window.app = function app( options, bootstrapped ){
             // TODO: remove annoying 'root' from root urls
             '(/)root*' : 'home',
             '(/)tours(/)(:tour_id)' : 'show_tours',
+            '(/)usage*' : 'show_usage',
         },
 
         show_tours : function( tour_id ){
@@ -110,6 +112,10 @@ window.app = function app( options, bootstrapped ){
             else{
                 centerPanel.display( new Tours.ToursView() );
             }
+        },
+
+        show_usage: function( ){
+            centerPanel.display( new QUOTA.UserQuotaGraph() );
         },
 
         /**  */

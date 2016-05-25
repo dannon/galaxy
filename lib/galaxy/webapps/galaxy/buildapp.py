@@ -78,6 +78,7 @@ def paste_app_factory( global_conf, **kwargs ):
     # base analysis interface at which point the application takes over.
 
     webapp.add_client_route( '/tours' )
+    webapp.add_client_route( '/usage' )
     webapp.add_client_route( '/tours/{tour_id}' )
 
     # STANDARD CONTROLLER ROUTES
