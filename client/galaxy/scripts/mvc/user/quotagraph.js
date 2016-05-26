@@ -37,7 +37,7 @@ var UserQuotaGraph = Backbone.View.extend({
         var ctx = $('<canvas/>');
         $(this.$el).append(ctx);
         var chartData = [];
-        var colorspacing = 360 / this.model.models.length;
+        var colorspacing = Math.round(360 / this.model.models.length);
         var c = 0;
         _.each(this.model.models, function(history){
             c += colorspacing;
