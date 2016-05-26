@@ -19,7 +19,7 @@ module.exports = function( grunt ){
             'requirejs':      [ 'require.js', 'require.js' ],
             'd3':             [ 'd3.js', 'd3.js' ],
             'bib2json':       [ 'Parser.js', 'bibtex.js' ],
-            'Chart.js':       [ 'dist/Chart.bundle.js', 'Chart.js' ],
+            'plotly':         [ 'dist/plotly.js', 'plotly.js' ],
 
             'farbtastic':     [ 'src/farbtastic.js', 'farbtastic.js' ],
             'jQTouch':        [ 'src/reference/jqtouch.js', 'jquery/jqtouch.js' ],

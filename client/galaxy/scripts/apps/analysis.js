@@ -8,7 +8,6 @@ var jQuery = require( 'jquery' ),
     HistoryPanel = require( './history-panel' ),
     PAGE = require( 'layout/page' ),
     ToolForm = require( 'mvc/tool/tool-form' ),
-    QUOTA = require( 'mvc/user/user-quotameter' ),
     Tours = require( 'mvc/tours' );
 
 /** define the 'Analyze Data'/analysis/main/home page for Galaxy
