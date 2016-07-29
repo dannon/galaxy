@@ -40,7 +40,7 @@ DEVTEAM = [
     "davebx", "martenson", "jmchilton",
     "tnabtaf", "natefoo", "carlfeberhard",
     "jgoecks", "guerler", "jennaj",
-    "nekrut", "jxtx", "nitesh1989"
+    "nekrut", "jxtx", "nturaga"
 ]
 
 TEMPLATE = """
