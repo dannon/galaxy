@@ -10,23 +10,22 @@ define([ 'utils/utils', 'mvc/ui/ui-misc', 'mvc/ui/ui-modal', 'mvc/tool/tool-form
                 always_refresh    : false,
                 customize         : function( options ) {
                     // build execute button
-                    options.buttons = {
-                        execute: execute_btn = new Ui.Button({
-                            icon     : 'fa-check',
-                            tooltip  : 'Execute: ' + options.name + ' (' + options.version + ')',
-                            title    : 'Execute',
-                            cls      : 'ui-button btn btn-primary',
-                            floating : 'clear',
-                            onclick  : function() {
-                                execute_btn.wait();
-                                self.form.portlet.disable();
-                                self.submit( options, function() {
-                                    execute_btn.unwait();
-                                    self.form.portlet.enable();
-                                } );
-                            }
-                        })
-                    };
+                    var execute_btn = new Ui.Button({
+                        icon     : 'fa-check',
+                        tooltip  : 'Execute: ' + options.name + ' (' + options.version + ')',
+                        title    : 'Execute',
+                        cls      : 'ui-button btn btn-primary',
+                        floating : 'clear',
+                        onclick  : function() {
+                            execute_btn.wait();
+                            self.form.portlet.disable();
+                            self.submit( options, function() {
+                                execute_btn.unwait();
+                                self.form.portlet.enable();
+                            } );
+                        }
+                    });
+                    options.buttons = { execute: execute_btn };
                     // remap feature
                     if ( options.job_id && options.job_remap ) {
                         options.inputs[ 'rerun_remap_job_id' ] = {
