@@ -26,6 +26,7 @@ define( [ 'layout/masthead', 'layout/panel', 'mvc/ui/ui-modal', 'utils/utils' ],
                 }
                 self.center.display( view );
             };
+            Utils.setWindowTitle( this.config.title );
             Galaxy.router = this.router = options.Router && new options.Router( self, options );
             this.masthead = new Masthead.View( this.config );
             this.center = new Panel.CenterPanel();
