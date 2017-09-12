@@ -17,13 +17,7 @@ define( [ 'layout/masthead', 'layout/panel', 'mvc/ui/ui-modal', 'utils/utils' ],
             // attach global objects, build mastheads
             Galaxy.modal = this.modal = new Modal.View();
             Galaxy.display = this.display = function( view ) {
-                if ( view.title ){
-                    Utils.setWindowTitle( view.title );
-                    view.allow_title_display = false;
-                } else {
-                    Utils.setWindowTitle();
-                    view.allow_title_display = true;
-                }
+                Utils.setWindowTitle( view.title );
                 self.center.display( view );
             };
             Utils.setWindowTitle( this.config.title );
