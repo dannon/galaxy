@@ -84,7 +84,7 @@ return Backbone.View.extend({
         // get options
         var options = this.grid.attributes;
 
-        if (this.allow_title_display && options.title){
+        if (options.title){
             Utils.setWindowTitle(options.title);
         }
         // handle refresh requests
