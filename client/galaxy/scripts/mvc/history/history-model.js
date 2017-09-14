@@ -443,12 +443,6 @@ var HistoryCollection = _collectionSuper.extend( BASE_MVC.LoggableMixin ).extend
             xhr = _collectionSuper.prototype.fetchFirst.call( self, {
                 silent: true,
                 limit : 1,
-                filters: {
-                    // without these a deleted current history will return [] here and block the other xhr
-                    'purged'        : '',
-                    'deleted'       : '',
-                    'encoded_id-in' : this.currentHistoryId,
-                }
             });
         }
         return xhr.then( function(){
