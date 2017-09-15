@@ -110,7 +110,7 @@ class ObjectStore(object):
         """Close any connections for this ObjectStore."""
         self.running = False
 
-    def exists(self, obj, base_dir=None, dir_only=False, extra_dir=None, extra_dir_at_root=False, alt_name=None):
+    def exists(self, obj, user=None, plugged_media=None, base_dir=None, dir_only=False, extra_dir=None, extra_dir_at_root=False, alt_name=None):
         """Return True if the object identified by `obj` exists, False otherwise."""
         raise NotImplementedError()
 
@@ -139,7 +139,7 @@ class ObjectStore(object):
         """
         raise NotImplementedError()
 
-    def size(self, obj, extra_dir=None, extra_dir_at_root=False, alt_name=None, obj_dir=False):
+    def size(self, obj, user=None, plugged_media=None, extra_dir=None, extra_dir_at_root=False, alt_name=None, obj_dir=False):
         """
         Return size of the object identified by `obj`.
 
@@ -147,7 +147,7 @@ class ObjectStore(object):
         """
         raise NotImplementedError()
 
-    def delete(self, obj, entire_dir=False, base_dir=None, extra_dir=None, extra_dir_at_root=False, alt_name=None, obj_dir=False):
+    def delete(self, obj, user=None, plugged_media=None, entire_dir=False, base_dir=None, extra_dir=None, extra_dir_at_root=False, alt_name=None, obj_dir=False):
         """
         Delete the object identified by `obj`.
 
