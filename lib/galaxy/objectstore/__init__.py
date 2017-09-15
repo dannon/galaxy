@@ -181,7 +181,7 @@ class ObjectStore(object):
         """
         raise NotImplementedError()
 
-    def update_from_file(self, obj, base_dir=None, extra_dir=None, extra_dir_at_root=False, alt_name=None, obj_dir=False, file_name=None, create=False):
+    def update_from_file(self, obj, user=None, plugged_media=None, base_dir=None, extra_dir=None, extra_dir_at_root=False, alt_name=None, obj_dir=False, file_name=None, create=False):
         """
         Inform the store that the file associated with `obj.id` has been updated.
 
