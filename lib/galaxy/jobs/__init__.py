@@ -1001,7 +1001,7 @@ class JobWrapper(object, HasResourceParameters):
                 dataset.blurb = 'tool error'
                 dataset.info = message
                 dataset.set_size()
-                dataset.dataset.set_total_size()
+                dataset.dataset.set_total_size(user=job.user, plugged_media=dataset.plugged_media)
                 dataset.mark_unhidden()
                 if dataset.ext == 'auto':
                     dataset.extension = 'data'
@@ -1247,7 +1247,7 @@ class JobWrapper(object, HasResourceParameters):
                     dataset.dataset.uuid = context['uuid']
                 # Update (non-library) job output datasets through the object store
                 if dataset not in job.output_library_datasets:
-                    self.app.object_store.update_from_file(dataset.dataset, create=True)
+                    self.app.object_store.update_from_file(dataset.dataset, user=job.user, plugged_media=dataset.plugged_media, create=True)
                 self.__update_output(job, dataset)
                 if not purged:
                     self._collect_extra_files(dataset.dataset, self.working_directory)
@@ -1308,12 +1308,12 @@ class JobWrapper(object, HasResourceParameters):
                         dataset.metadata.from_JSON_dict(output_filename, path_rewriter=path_rewriter)
                     try:
                         assert context.get('line_count', None) is not None
-                        if (not dataset.datatype.composite_type and dataset.dataset.is_multi_byte()) or self.tool.is_multi_byte:
+                        if (not dataset.datatype.composite_type and dataset.dataset.is_multi_byte(user=job.user, plugged_media=dataset.plugged_media)) or self.tool.is_multi_byte:
                             dataset.set_peek(line_count=context['line_count'], is_multi_byte=True)
                         else:
                             dataset.set_peek(line_count=context['line_count'])
                     except:
-                        if (not dataset.datatype.composite_type and dataset.dataset.is_multi_byte()) or self.tool.is_multi_byte:
+                        if (not dataset.datatype.composite_type and dataset.dataset.is_multi_byte(user=job.user, plugged_media=dataset.plugged_media)) or self.tool.is_multi_byte:
                             dataset.set_peek(is_multi_byte=True)
                         else:
                             dataset.set_peek()
@@ -1410,8 +1410,8 @@ class JobWrapper(object, HasResourceParameters):
         # Once datasets are collected, set the total dataset size (includes extra files)
         for dataset_assoc in job.output_datasets:
             if not dataset_assoc.dataset.dataset.purged:
-                dataset_assoc.dataset.dataset.set_total_size()
-                collected_bytes += dataset_assoc.dataset.dataset.get_total_size()
+                dataset_assoc.dataset.dataset.set_total_size(user=job.user, plugged_media=dataset.plugged_media)
+                collected_bytes += dataset_assoc.dataset.dataset.get_total_size(user=job.user, plugged_media=dataset.plugged_media)
 
         if job.user:
             job.user.adjust_total_disk_usage(collected_bytes)
@@ -1704,18 +1704,18 @@ class JobWrapper(object, HasResourceParameters):
         else:
             return 'anonymous@unknown'
 
-    def __update_output(self, job, dataset, clean_only=False):
+    def __update_output(self, job, hda, clean_only=False):
         """Handle writing outputs to the object store.
 
         This should be called regardless of whether the job was failed or not so
         that writing of partial results happens and so that the object store is
         cleaned up if the dataset has been purged.
         """
-        dataset = dataset.dataset
+        dataset = hda.dataset
         if dataset not in job.output_library_datasets:
             purged = dataset.purged
             if not purged and not clean_only:
-                self.app.object_store.update_from_file(dataset, create=True)
+                self.app.object_store.update_from_file(dataset, user=job.user, plugged_media=hda.plugged_media, create=True)
             else:
                 # If the dataset is purged and Galaxy is configured to write directly
                 # to the object store from jobs - be sure that file is cleaned up. This
