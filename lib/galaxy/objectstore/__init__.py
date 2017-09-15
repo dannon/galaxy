@@ -49,6 +49,10 @@ class ObjectStore(object):
         directory in which this object should be created, or `None` to specify
         the default directory.
 
+    :type user: User
+    :param user: The user (object) whose dataset is being upload/download
+        to/from object store.
+
     :type dir_only: boolean
     :param dir_only: If `True`, check only the path where the file identified
         by `obj` should be located, not the dataset itself. This option applies
@@ -114,7 +118,7 @@ class ObjectStore(object):
         """
         return True
 
-    def create(self, obj, base_dir=None, dir_only=False, extra_dir=None, extra_dir_at_root=False, alt_name=None, obj_dir=False):
+    def create(self, obj, user=None, base_dir=None, dir_only=False, extra_dir=None, extra_dir_at_root=False, alt_name=None, obj_dir=False):
         """
         Mark the object (`obj`) as existing in the store, but with no content.
 
@@ -165,7 +169,7 @@ class ObjectStore(object):
         """
         raise NotImplementedError()
 
-    def get_filename(self, obj, base_dir=None, dir_only=False, extra_dir=None, extra_dir_at_root=False, alt_name=None, obj_dir=False):
+    def get_filename(self, obj, user=None, base_dir=None, dir_only=False, extra_dir=None, extra_dir_at_root=False, alt_name=None, obj_dir=False):
         """
         Get the expected filename with absolute path for object with id `obj.id`.
 
