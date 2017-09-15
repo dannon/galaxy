@@ -49,7 +49,7 @@ class ObjectStore(object):
         directory in which this object should be created, or `None` to specify
         the default directory.
 
-    :type user: User
+    :type user: User (lib/galaxy/model/__init__.py)
     :param user: The user (object) whose dataset is being upload/download
         to/from object store.
 
