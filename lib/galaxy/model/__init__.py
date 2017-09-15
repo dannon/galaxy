@@ -391,6 +391,15 @@ class User(object, Dictifiable):
         return Template(in_string).safe_substitute(environment)
 
 
+class PluggedMedia(object):
+    def __init__(self, user_id, type, access_key, secret_key, path=None):
+        self.user_id = user_id
+        self.type = type
+        self.path = path
+        self.access_key = access_key
+        self.secret_key = secret_key
+
+
 class PasswordResetToken(object):
     def __init__(self, user, token=None):
         if token:
