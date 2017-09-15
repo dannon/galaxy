@@ -53,6 +53,10 @@ class ObjectStore(object):
     :param user: The user (object) whose dataset is being upload/download
         to/from object store.
 
+    :type plugged_media: PluggedMedia (lib/galaxy/model/__init__.py)
+    :param plugged_media: A data persistence media from/to which a dataset
+        is pulled/pushed.
+
     :type dir_only: boolean
     :param dir_only: If `True`, check only the path where the file identified
         by `obj` should be located, not the dataset itself. This option applies
@@ -169,7 +173,7 @@ class ObjectStore(object):
         """
         raise NotImplementedError()
 
-    def get_filename(self, obj, user=None, base_dir=None, dir_only=False, extra_dir=None, extra_dir_at_root=False, alt_name=None, obj_dir=False):
+    def get_filename(self, obj, user=None, plugged_media=None, base_dir=None, dir_only=False, extra_dir=None, extra_dir_at_root=False, alt_name=None, obj_dir=False):
         """
         Get the expected filename with absolute path for object with id `obj.id`.
 
