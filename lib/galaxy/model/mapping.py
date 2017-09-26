@@ -66,6 +66,7 @@ model.PluggedMedia.table = Table(
     "plugged_media", metadata,
     Column("id", Integer, primary_key=True),
     Column("user_id", Integer, ForeignKey("galaxy_user.id"), index=True),
+    Column("hierarchy", TEXT),
     Column("category", TEXT, nullable=False),
     Column("path", TEXT, nullable=False),
     Column("secret_key", TEXT),

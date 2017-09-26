@@ -392,8 +392,9 @@ class User(object, Dictifiable):
 
 
 class PluggedMedia(object):
-    def __init__(self, user_id, category, access_key, secret_key, path=None):
+    def __init__(self, user_id, hierarchy, category, access_key, secret_key, path=None):
         self.user_id = user_id
+        self.hierarchy = hierarchy
         self.category = category
         self.path = path
         self.access_key = access_key
