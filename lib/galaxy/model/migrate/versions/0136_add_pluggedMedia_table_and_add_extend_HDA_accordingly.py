@@ -15,7 +15,7 @@ metadata = MetaData()
 PluggedMediaTable = Table("plugged_media", metadata,
                           Column("id", Integer, primary_key=True),
                           Column("user_id", Integer, ForeignKey("galaxy_user.id"), index=True),
-                          Column("type", TEXT, default="local"),
+                          Column("category", TEXT, default="local"),
                           Column("path", TEXT),
                           Column("secret_key", TEXT),
                           Column("access_key", TEXT))
