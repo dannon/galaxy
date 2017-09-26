@@ -392,7 +392,24 @@ class User(object, Dictifiable):
 
 
 class PluggedMedia(object):
+    categories = Bunch(LOCAL="local",
+                       S3="s3",
+                       AZURE="azure")
+
     def __init__(self, user_id, hierarchy, category, access_key, secret_key, path=None):
+        """
+        Initializes a plugged media.
+        :param user_id: the Galaxy user id for whome this plugged media is defined.
+        :param hierarchy: A key which defines the hierarchical relation between this
+        and other plugged medias defined by the user. This key is used in Object Store
+        to define where to write or read from a dataset.
+        :param category: is the type of this plugged media, its value is a key from
+        `categories` bunch.
+        :param access_key: credentials to access the plugged media (if required).
+        :param secret_key: credentials to access the plugged media (if required).
+        :param path: a path in the plugged media to be used. For instance, a path
+        on a local disk, or bucket name on AWS, or container name on Azure.
+        """
         self.user_id = user_id
         self.hierarchy = hierarchy
         self.category = category
