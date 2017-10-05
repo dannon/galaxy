@@ -396,7 +396,7 @@ class PluggedMedia(object):
                        S3="s3",
                        AZURE="azure")
 
-    def __init__(self, user_id, hierarchy, category, access_key, secret_key, path=None):
+    def __init__(self, user_id, hierarchy, category, path, access_key, secret_key):
         """
         Initializes a plugged media.
         :param user_id: the Galaxy user id for whom this plugged media is defined.
