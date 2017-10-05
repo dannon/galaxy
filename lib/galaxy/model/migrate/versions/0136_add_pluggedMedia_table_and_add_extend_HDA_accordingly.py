@@ -5,7 +5,7 @@ from __future__ import print_function
 
 import logging
 
-from sqlalchemy import Column, ForeignKey, Integer, MetaData, Table, TEXT
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, MetaData, Table, TEXT
 
 log = logging.getLogger(__name__)
 metadata = MetaData()
@@ -19,7 +19,10 @@ PluggedMediaTable = Table("plugged_media", metadata,
                           Column("category", TEXT, default="local"),
                           Column("path", TEXT),
                           Column("secret_key", TEXT),
-                          Column("access_key", TEXT))
+                          Column("access_key", TEXT),
+                          Column("deleted", Boolean, index=True, default=False),
+                          Column("purged", Boolean, index=True, default=False),
+                          Column("purgable", Boolean, default=True))
 
 plugged_media_id_col = Column("plugged_media_id", Integer, ForeignKey("plugged_media.id"))
 dataset_path_to_media_col = Column("dataset_path_on_media", TEXT)

@@ -70,7 +70,10 @@ model.PluggedMedia.table = Table(
     Column("category", TEXT, nullable=False),
     Column("path", TEXT, nullable=False),
     Column("secret_key", TEXT),
-    Column("access_key", TEXT))
+    Column("access_key", TEXT),
+    Column("deleted", Boolean, index=True, default=False),
+    Column("purged", Boolean, index=True, default=False),
+    Column("purgable", Boolean, default=True))
 
 model.UserAddress.table = Table(
     "user_address", metadata,
