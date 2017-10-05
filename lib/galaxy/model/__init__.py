@@ -399,9 +399,9 @@ class PluggedMedia(object):
     def __init__(self, user_id, hierarchy, category, access_key, secret_key, path=None):
         """
         Initializes a plugged media.
-        :param user_id: the Galaxy user id for whome this plugged media is defined.
+        :param user_id: the Galaxy user id for whom this plugged media is defined.
         :param hierarchy: A key which defines the hierarchical relation between this
-        and other plugged medias defined by the user. This key is used in Object Store
+        and other plugged media defined by the user. This key is used in Object Store
         to define where to write or read from a dataset.
         :param category: is the type of this plugged media, its value is a key from
         `categories` bunch.
