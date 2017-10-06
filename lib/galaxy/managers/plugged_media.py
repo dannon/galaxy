@@ -34,6 +34,8 @@ class PluggedMediaSerializer(sharable.SharableModelSerializer, deletable.Purgabl
             'id',
             'model_class',
             'user_id',
+            'create_time',
+            'update_time',
             'hierarchy',
             'category',
             'path',
