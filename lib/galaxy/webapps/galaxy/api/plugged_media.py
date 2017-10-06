@@ -10,6 +10,12 @@ from galaxy.managers import (
     users,
     plugged_media
 )
+from galaxy.util import (
+    string_as_bool
+)
+from galaxy.web import (
+    _future_expose_api as expose_api)
+
 from galaxy.web.base.controller import BaseAPIController
 
 log = logging.getLogger(__name__)
@@ -101,3 +107,21 @@ class PluggedMediaController(BaseAPIController):
             # Do not use integer response code (see above).
             trans.response.status = '500 Internal Server Error'
             return []
+
+    @expose_api
+    def delete(self, trans, id, **kwd):
+        """
+
+        :param trans:
+        :param id:
+        :param kwd:
+        :return:
+        """
+        plugged_media = self.plugged_media_manager.get_owned(self.decode_id(id), trans.user)
+        if string_as_bool(kwd.get('purge', False)):
+            self.plugged_media_manager.purge(plugged_media)
+        else:
+            self.plugged_media_manager.delete(plugged_media)
+
+        return self.plugged_media_serializer.serialize_to_view(
+            plugged_media, user=trans.user, trans=trans, **self._parse_serialization_params(kwd, 'summary'))
