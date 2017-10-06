@@ -65,6 +65,8 @@ model.User.table = Table(
 model.PluggedMedia.table = Table(
     "plugged_media", metadata,
     Column("id", Integer, primary_key=True),
+    Column("create_time", DateTime, default=now),
+    Column("update_time", DateTime, index=True, default=now, onupdate=now),
     Column("user_id", Integer, ForeignKey("galaxy_user.id"), index=True),
     Column("hierarchy", TEXT),
     Column("category", TEXT, nullable=False),
