@@ -36,8 +36,11 @@ class PluggedMediaController(BaseAPIController):
         if self.user_manager.is_anonymous(user):
             # an anonymous user is not expected to have installed a plugged media.
             return []
-        # TODO: iterate through the plugged media and show its content manually avoiding secret and access key
-        return user.plugged_media
+        rtv = []
+        for pm in user.plugged_media:
+            rtv.append(self.plugged_media_serializer.serialize_to_view(
+                pm, user=trans.user, trans=trans, **self._parse_serialization_params(kwd, 'summary')))
+        return rtv
 
     @web.expose_api_anonymous
     def create(self, trans, payload, **kwd):
