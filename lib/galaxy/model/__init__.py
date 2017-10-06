@@ -416,6 +416,9 @@ class PluggedMedia(object):
         self.path = path
         self.access_key = access_key
         self.secret_key = secret_key
+        self.deleted = False
+        self.purged = False
+        self.purgable = True
 
 
 class PasswordResetToken(object):
