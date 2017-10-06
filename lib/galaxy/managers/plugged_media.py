@@ -55,9 +55,9 @@ class PluggedMediaSerializer(sharable.SharableModelSerializer, deletable.Purgabl
         # k  : serialized dictionary key (e.g., 'model_class', 'hierarchy', 'category', and 'path').
         # **c: a dictionary containing 'trans' and 'user' objects.
         self.serializers.update({
-            'id'         : lambda i, k, **c: i.id,
+            'id'         : lambda i, k, **c: self.app.security.encode_id(i.id),
             'model_class': lambda *a, **c: 'PluggedMedia',
-            'user_id'    : lambda i, k, **c: i.user_id,
+            'user_id'    : lambda i, k, **c: self.app.security.encode_id(i.user_id),
             'hierarchy'  : lambda i, k, **c: i.hierarchy,
             'category'   : lambda i, k, **c: i.category,
             'path'       : lambda i, k, **c: i.path,
