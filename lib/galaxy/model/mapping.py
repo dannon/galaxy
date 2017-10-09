@@ -1799,8 +1799,12 @@ mapper(model.User, model.User.table, properties=dict(
 ))
 
 mapper(model.PluggedMedia, model.PluggedMedia.table, properties=dict(
-    user=relation(model.User)
-))
+    user=relation(model.User),
+    hda=relation(
+        model.HistoryDatasetAssociation,
+        primaryjoin=(model.HistoryDatasetAssociation.table.c.plugged_media_id == model.PluggedMedia.table.c.id),
+        lazy=False))
+)
 
 mapper(model.PasswordResetToken, model.PasswordResetToken.table,
        properties=dict(user=relation(model.User, backref="reset_tokens")))
