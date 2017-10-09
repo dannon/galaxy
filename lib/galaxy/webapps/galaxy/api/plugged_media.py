@@ -55,12 +55,15 @@ class PluggedMediaController(BaseAPIController):
     @web.expose_api_anonymous
     def create(self, trans, payload, **kwd):
         """
+        create(self, trans, payload, **kwd)
+        * POST /api/plugged_media:
+            Creates a new plugged media.
 
         :type  trans: galaxy.web.framework.webapp.GalaxyWebTransaction
         :param trans: Galaxy web transaction.
 
         :type  payload: dict
-        :param payload: a dictionary structure containing the following keys:
+        :param payload: A dictionary structure containing the following keys:
             - hierarchy: A key which defines the hierarchical relation between this and other plugged media defined
             by the user.
             - category: is the type of this plugged media, its value is a key from `categories` bunch defined in the
@@ -68,7 +71,9 @@ class PluggedMediaController(BaseAPIController):
             - path: a path in the plugged media to be used (e.g., AWS S3 Bucket name).
             - access_key: (Optional) credentials to access the plugged media.
             - secret_key: (Optional) credentials to access the plugged media.
-        :return: the newly created plugged media.
+
+        :rtype: dict
+        :return: The newly created plugged media.
         """
         if not isinstance(payload, dict):
             trans.response.status = 400
@@ -106,7 +111,7 @@ class PluggedMediaController(BaseAPIController):
             log.debug('Created a new plugged media of type `%s` for the user id `%s` ', category, str(trans.user.id))
             return view
         except Exception, e:
-            log.exception('An unexpected error occurred while responding to the '
+            log.exception('An unexpected error has occurred while responding to the '
                           'create request of the plugged media API. ' + str(e))
             # Do not use integer response code (see above).
             trans.response.status = '500 Internal Server Error'
@@ -115,11 +120,21 @@ class PluggedMediaController(BaseAPIController):
     @expose_api
     def delete(self, trans, id, **kwd):
         """
+        delete(self, trans, id, **kwd)
+        * DELETE /api/plugged_media/{id}
+            Deletes the plugged media with the given ID, also deletes all the associated datasets and HDAs.
 
-        :param trans:
-        :param id:
-        :param kwd:
-        :return:
+        :type  trans: galaxy.web.framework.webapp.GalaxyWebTransaction
+        :param trans: Galaxy web transaction.
+
+        :type id: string
+        :param id: The encoded ID of the plugged media to be deleted.
+
+        :type kwd: dict
+        :param kwd: (optional) dictionary structure containing extra parameters (e.g., `purge`).
+
+        :rtype: dict
+        :return: The deleted or purged plugged media.
         """
         plugged_media = self.plugged_media_manager.get_owned(self.decode_id(id), trans.user)
         try:
