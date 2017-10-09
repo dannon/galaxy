@@ -7,8 +7,10 @@ import logging
 
 from galaxy import web
 from galaxy.managers import (
-    users,
-    plugged_media
+    datasets,
+    hdas,
+    plugged_media,
+    users
 )
 from galaxy.util import (
     string_as_bool
@@ -31,6 +33,8 @@ class PluggedMediaController(BaseAPIController):
         self.user_manager = users.UserManager(app)
         self.plugged_media_manager = plugged_media.PluggedMediaManager(app)
         self.plugged_media_serializer = plugged_media.PluggedMediaSerializer(app)
+        self.hda_manager = hdas.HDAManager(app)
+        self.dataset_manager = datasets.DatasetManager(app)
 
 
     @web.expose_api_anonymous
@@ -118,10 +122,24 @@ class PluggedMediaController(BaseAPIController):
         :return:
         """
         plugged_media = self.plugged_media_manager.get_owned(self.decode_id(id), trans.user)
-        if string_as_bool(kwd.get('purge', False)):
-            self.plugged_media_manager.purge(plugged_media)
-        else:
-            self.plugged_media_manager.delete(plugged_media)
-
-        return self.plugged_media_serializer.serialize_to_view(
-            plugged_media, user=trans.user, trans=trans, **self._parse_serialization_params(kwd, 'summary'))
+        try:
+            if string_as_bool(kwd.get('purge', False)):
+                self.plugged_media_manager.purge(plugged_media)
+                for hda in plugged_media.hda:
+                    self.hda_manager.purge(hda)
+                    self.dataset_manager.purge(hda.dataset)
+            else:
+                self.plugged_media_manager.delete(plugged_media)
+                for hda in plugged_media.hda:
+                    self.hda_manager.delete(hda)
+                    self.dataset_manager.delete(hda.dataset)
+            return self.plugged_media_serializer.serialize_to_view(
+                plugged_media, user=trans.user, trans=trans, **self._parse_serialization_params(kwd, 'summary'))
+        except AttributeError, e:
+            log.exception('An unexpected error has occurred while deleting/purging a plugged media in response to '
+                          'the related API call. Maybe an inappropriate database manual manipulation. ' + str(e))
+            return []
+        except Exception, e:
+            log.exception('An unexpected error has occurred while deleting/purging a plugged media in response to '
+                          'the related API call. ' + str(e))
+            return []
