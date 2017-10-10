@@ -260,24 +260,24 @@ class DiskObjectStore(ObjectStore):
         if extra_dirs is not None:
             self.extra_dirs.update(extra_dirs)
 
-    def _get_filename(self, obj, plugged_media=None, base_dir=None, dir_only=False, extra_dir=None, extra_dir_at_root=False, alt_name=None, obj_dir=False):
+    def _get_filename(self, obj, base_dir=None, dir_only=False, extra_dir=None, extra_dir_at_root=False, alt_name=None, obj_dir=False):
         """
         Return the absolute path for the file corresponding to the `obj.id`.
 
         This is regardless of whether or not the file exists.
         """
-        path = self._construct_path(obj, plugged_media=plugged_media, base_dir=base_dir, dir_only=dir_only,
+        path = self._construct_path(obj, base_dir=base_dir, dir_only=dir_only,
                                     extra_dir=extra_dir, extra_dir_at_root=extra_dir_at_root, alt_name=alt_name,
                                     obj_dir=False, old_style=True)
         # For backward compatibility: check the old style root path first;
         # otherwise construct hashed path.
         if not os.path.exists(path):
-            return self._construct_path(obj, plugged_media=plugged_media, base_dir=base_dir, dir_only=dir_only,
+            return self._construct_path(obj, base_dir=base_dir, dir_only=dir_only,
                                         extra_dir=extra_dir, extra_dir_at_root=extra_dir_at_root, alt_name=alt_name)
 
     # TODO: rename to _disk_path or something like that to avoid conflicts with
     # children that'll use the local_extra_dirs decorator, e.g. S3
-    def _construct_path(self, obj, plugged_media=None, old_style=False, base_dir=None, dir_only=False, extra_dir=None, extra_dir_at_root=False, alt_name=None, obj_dir=False, **kwargs):
+    def _construct_path(self, obj, old_style=False, base_dir=None, dir_only=False, extra_dir=None, extra_dir_at_root=False, alt_name=None, obj_dir=False, **kwargs):
         """
         Construct the absolute path for accessing the object identified by `obj.id`.
 
@@ -307,10 +307,7 @@ class DiskObjectStore(ObjectStore):
             hash id (e.g., /files/dataset_10.dat (old) vs.
             /files/000/dataset_10.dat (new))
         """
-        if plugged_media is None:
-            base = os.path.abspath(self.extra_dirs.get(base_dir, self.file_path))
-        else:
-            base = os.path.abspath(self.extra_dirs.get(base_dir, plugged_media.path))
+        base = os.path.abspath(self.extra_dirs.get(base_dir, self.file_path))
         # extra_dir should never be constructed from provided data but just
         # make sure there are no shenannigans afoot
         if extra_dir and extra_dir != os.path.normpath(extra_dir):
@@ -483,7 +480,12 @@ class NestedObjectStore(ObjectStore):
 
     def create(self, obj, **kwargs):
         """Create a backing file in a random backend."""
-        random.choice(list(self.backends.values())).create(obj, **kwargs)
+        plugged_media = kwargs.get('plugged_media', None)
+        if plugged_media is not None:
+            store = get_user_based_object_store(self.config, plugged_media)
+            store.create(obj, **kwargs)
+        else:
+            random.choice(list(self.backends.values())).create(obj, **kwargs)
 
     def empty(self, obj, **kwargs):
         """For the first backend that has this `obj`, determine if it is empty."""
@@ -519,9 +521,15 @@ class NestedObjectStore(ObjectStore):
     def _call_method(self, method, obj, default, default_is_exception,
             **kwargs):
         """Check all children object stores for the first one with the dataset."""
-        for key, store in self.backends.items():
+        plugged_media = kwargs.get('plugged_media', None)
+        if plugged_media is not None:
+            store = get_user_based_object_store(self.config, plugged_media)
             if store.exists(obj, **kwargs):
                 return store.__getattribute__(method)(obj, **kwargs)
+        else:
+            for key, store in self.backends.items():
+                if store.exists(obj, **kwargs):
+                    return store.__getattribute__(method)(obj, **kwargs)
         if default_is_exception:
             raise default('objectstore, _call_method failed: %s on %s, kwargs: %s'
                           % (method, str(obj), str(kwargs)))
@@ -694,6 +702,7 @@ class HierarchicalObjectStore(NestedObjectStore):
 
     def exists(self, obj, **kwargs):
         """Check all child object stores."""
+        # TODO
         for store in self.backends.values():
             if store.exists(obj, **kwargs):
                 return True
@@ -701,7 +710,12 @@ class HierarchicalObjectStore(NestedObjectStore):
 
     def create(self, obj, **kwargs):
         """Call the primary object store."""
-        self.backends[0].create(obj, **kwargs)
+        plugged_media = kwargs.get('plugged_media', None)
+        if plugged_media is not None:
+            store = get_user_based_object_store(self.config, plugged_media)
+            store.create(obj, **kwargs)
+        else:
+            self.backends[0].create(obj, **kwargs)
 
 
 def build_object_store_from_config(config, fsmon=False, config_xml=None):
@@ -756,6 +770,11 @@ def build_object_store_from_config(config, fsmon=False, config_xml=None):
     #    return PulsarObjectStore(config=config, config_xml=config_xml)
     else:
         log.error("Unrecognized object store definition: {0}".format(store))
+
+
+def get_user_based_object_store(config, plugged_media):
+    if plugged_media.category == 'disk':
+        return DiskObjectStore(config=config, file_path=plugged_media.path)
 
 
 def local_extra_dirs(func):
