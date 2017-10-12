@@ -396,7 +396,7 @@ class PluggedMedia(object):
                        S3="s3",
                        AZURE="azure")
 
-    def __init__(self, user_id, category, path, access_key, secret_key, hierarchy, quota=0, percentile=0):
+    def __init__(self, user_id, category, path, access_key, secret_key, hierarchy, quota=0, percentile=0, usage=0):
         """
         Initializes a plugged media.
         :param user_id: the Galaxy user id for whom this plugged media is defined.
@@ -409,8 +409,10 @@ class PluggedMedia(object):
         by the user. This key is used in Object Store to define where to write or read from a dataset.
         :param quota:
         :param percentile:
+        :param usage: sets the total size of the data Galaxy has persisted on the media.
         """
         self.user_id = user_id
+        self.usage = usage
         self.hierarchy = hierarchy
         self.category = category
         self.quota = quota
@@ -2403,7 +2405,7 @@ class HistoryDatasetAssociation(DatasetInstance, HasTags, Dictifiable, UsesAnnot
     """
 
     def __init__(self,
-                 plugged_media=None,
+                 plugged_media=None,  # Not sure if this is needed.
                  hid=None,
                  history=None,
                  copied_from_history_dataset_association=None,
@@ -2416,7 +2418,7 @@ class HistoryDatasetAssociation(DatasetInstance, HasTags, Dictifiable, UsesAnnot
         # FIXME: sa_session is must be passed to DataSetInstance if the create_dataset
         # parameter is True so that the new object can be flushed.  Is there a better way?
         DatasetInstance.__init__(self, sa_session=sa_session, **kwd)
-        self.plugged_media = plugged_media
+        self.plugged_media = plugged_media  # Not sure if this is needed.
         self.hid = hid
         # Relationships
         self.history = history
@@ -2662,10 +2664,10 @@ class HistoryDatasetAssociation(DatasetInstance, HasTags, Dictifiable, UsesAnnot
         return self.dataset.set_size(self.history.user, self.plugged_media)
 
     def get_total_size(self):
-        print '~' * 100
+        print '\n\n\n', ('~' * 100)
         print 'user: ', self.history.user
         print 'pm: ', self.plugged_media
-        print '~' * 100
+        print ('~' * 100), '\n\n\n'
         # TODO-1--- find a proper way to assign/fetch plugged media here. Where/when in the HDA initialization a plugged media is passed ?
         return self.dataset.get_total_size(self.history.user, self.plugged_media)
 
