@@ -785,11 +785,16 @@ def build_object_store_from_config(config, fsmon=False, config_xml=None):
 
 def pick_a_plugged_media(plugged_media):
     """
-
-    Do not associate a dataset with a plugged media before the dataset is
+    This function receives a list of plugged media, and decides which one to be
+    used for the object store operations. If a single plugged media is given
+    (e.g., only one available/defined for the user, or user has explicitly
+    chosen a plugged media), it returns that single option. However, if multiple
+    plugged media are available it uses the `hierarchy`, `quota`, and `percentile`
+    attributes of the plugged media to decide which to be used.
+    NOTE: do not associate a dataset with a plugged media before the dataset is
     successfully persisted on the media.
-    :param plugged_media:
-    :return:
+    :param plugged_media: A list of plugged media defined/available for the user.
+    :return: A single plugged media.
     """
     if plugged_media is None:
         raise Exception("A `NoneType` plugged media is not a expected value.")
@@ -800,8 +805,9 @@ def pick_a_plugged_media(plugged_media):
     if len(plugged_media) == 1:
         return plugged_media[0]
     else:
-        # TODO: implement the logic of determining which plugged media to use.
-        pass
+        log.debug("The function choosing a plugged media among multiple options, is not implemeneted. Chose the "
+                  "first available option with ID: {}.".format(plugged_media[0].id))
+        return plugged_media[0]
 
 
 def get_user_based_object_store(config, plugged_media):
