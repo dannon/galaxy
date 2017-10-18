@@ -480,12 +480,11 @@ class NestedObjectStore(ObjectStore):
 
     def create(self, obj, **kwargs):
         """Create a backing file in a random backend."""
-        plugged_media = kwargs.get('plugged_media', None)
+        plugged_media = pick_a_plugged_media(kwargs.get('plugged_media', None))
         if plugged_media is not None:
-            picked_plugged_media = pick_a_plugged_media(plugged_media)
-            store = get_user_based_object_store(self.config, picked_plugged_media)
+            store = get_user_based_object_store(self.config, plugged_media)
             store.create(obj, **kwargs)
-            picked_plugged_media.association_with_dataset(obj)
+            plugged_media.association_with_dataset(obj)
         else:
             random.choice(list(self.backends.values())).create(obj, **kwargs)
 
@@ -523,10 +522,9 @@ class NestedObjectStore(ObjectStore):
     def _call_method(self, method, obj, default, default_is_exception,
             **kwargs):
         """Check all children object stores for the first one with the dataset."""
-        plugged_media = kwargs.get('plugged_media', None)
+        plugged_media = pick_a_plugged_media(kwargs.get('plugged_media', None))
         if plugged_media is not None:
-            picked_plugged_media = pick_a_plugged_media(plugged_media)
-            store = get_user_based_object_store(self.config, picked_plugged_media)
+            store = get_user_based_object_store(self.config, plugged_media)
             if store.exists(obj, **kwargs):
                 return store.__getattribute__(method)(obj, **kwargs)
         else:
@@ -719,12 +717,11 @@ class HierarchicalObjectStore(NestedObjectStore):
 
     def create(self, obj, **kwargs):
         """Call the primary object store."""
-        plugged_media = kwargs.get('plugged_media', None)
+        plugged_media = pick_a_plugged_media(kwargs.get('plugged_media', None))
         if plugged_media is not None:
-            picked_plugged_media = pick_a_plugged_media(plugged_media)
-            store = get_user_based_object_store(self.config, picked_plugged_media)
+            store = get_user_based_object_store(self.config, plugged_media)
             store.create(obj, **kwargs)
-            picked_plugged_media.association_with_dataset(obj)
+            plugged_media.association_with_dataset(obj)
         else:
             self.backends[0].create(obj, **kwargs)
 
@@ -787,21 +784,22 @@ def pick_a_plugged_media(plugged_media):
     """
     This function receives a list of plugged media, and decides which one to be
     used for the object store operations. If a single plugged media is given
-    (e.g., only one available/defined for the user, or user has explicitly
+    (i.e., only one available/defined for the user, or user has explicitly
     chosen a plugged media), it returns that single option. However, if multiple
     plugged media are available it uses the `hierarchy`, `quota`, and `percentile`
     attributes of the plugged media to decide which to be used.
     NOTE: do not associate a dataset with a plugged media before the dataset is
     successfully persisted on the media.
     :param plugged_media: A list of plugged media defined/available for the user.
-    :return: A single plugged media.
+    :return: A single plugged media, or None (if no plugged media is available).
     """
     if plugged_media is None:
-        raise Exception("A `NoneType` plugged media is not a expected value.")
+        return None
     if not hasattr(plugged_media, '__len__'):
-        raise Exception("Expected a list of plugged media, but received an object of type `%s`." % type(plugged_media))
+        log.exception("Expected a list of plugged media, but received an object of type `%s`." % type(plugged_media))
+        return None
     if len(plugged_media) == 0:
-        raise Exception("An empty list is not an expected value for plugged media.")
+        return None
     if len(plugged_media) == 1:
         return plugged_media[0]
     else:
