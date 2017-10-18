@@ -482,8 +482,10 @@ class NestedObjectStore(ObjectStore):
         """Create a backing file in a random backend."""
         plugged_media = kwargs.get('plugged_media', None)
         if plugged_media is not None:
-            store = get_user_based_object_store(self.config, plugged_media)
+            picked_plugged_media = pick_a_plugged_media(plugged_media)
+            store = get_user_based_object_store(self.config, picked_plugged_media)
             store.create(obj, **kwargs)
+            picked_plugged_media.association_with_dataset(obj)
         else:
             random.choice(list(self.backends.values())).create(obj, **kwargs)
 
@@ -523,7 +525,8 @@ class NestedObjectStore(ObjectStore):
         """Check all children object stores for the first one with the dataset."""
         plugged_media = kwargs.get('plugged_media', None)
         if plugged_media is not None:
-            store = get_user_based_object_store(self.config, plugged_media)
+            picked_plugged_media = pick_a_plugged_media(plugged_media)
+            store = get_user_based_object_store(self.config, picked_plugged_media)
             if store.exists(obj, **kwargs):
                 return store.__getattribute__(method)(obj, **kwargs)
         else:
@@ -712,8 +715,10 @@ class HierarchicalObjectStore(NestedObjectStore):
         """Call the primary object store."""
         plugged_media = kwargs.get('plugged_media', None)
         if plugged_media is not None:
-            store = get_user_based_object_store(self.config, plugged_media)
+            picked_plugged_media = pick_a_plugged_media(plugged_media)
+            store = get_user_based_object_store(self.config, picked_plugged_media)
             store.create(obj, **kwargs)
+            picked_plugged_media.association_with_dataset(obj)
         else:
             self.backends[0].create(obj, **kwargs)
 
@@ -772,9 +777,40 @@ def build_object_store_from_config(config, fsmon=False, config_xml=None):
         log.error("Unrecognized object store definition: {0}".format(store))
 
 
+def pick_a_plugged_media(plugged_media):
+    """
+
+    Do not associate a dataset with a plugged media before the dataset is
+    successfully persisted on the media.
+    :param plugged_media:
+    :return:
+    """
+    if plugged_media is None:
+        raise Exception("A `NoneType` plugged media is not a expected value.")
+    if not hasattr(plugged_media, '__len__'):
+        raise Exception("Expected a list of plugged media, but received an object of type `%s`." % type(plugged_media))
+    if len(plugged_media) == 0:
+        raise Exception("An empty list is not an expected value for plugged media.")
+    if len(plugged_media) == 1:
+        return plugged_media[0]
+    else:
+        # TODO: implement the logic of determining which plugged media to use.
+        pass
+
+
 def get_user_based_object_store(config, plugged_media):
-    if plugged_media.category == 'disk':
+    categories = plugged_media.__class__.categories
+    if plugged_media.category == categories.LOCAL:
         return DiskObjectStore(config=config, file_path=plugged_media.path)
+    elif plugged_media.category == categories.S3:
+        # TODO
+        pass
+    elif plugged_media.category == categories.AZURE:
+        # TODO
+        pass
+    else:
+        # TODO: raise an exception here saying the category type is not recognized.
+        pass
 
 
 def local_extra_dirs(func):
