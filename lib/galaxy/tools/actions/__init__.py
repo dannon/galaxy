@@ -301,7 +301,7 @@ class DefaultToolAction(object):
                     inp_dataset_collections,
                     input_ext
                 )
-                data = app.model.HistoryDatasetAssociation(plugged_media=inp_data['input'].plugged_media, extension=ext, create_dataset=True, flush=False)
+                data = app.model.HistoryDatasetAssociation(extension=ext, create_dataset=True, flush=False)
                 if hidden is None:
                     hidden = output.hidden
                 if hidden:
@@ -314,7 +314,7 @@ class DefaultToolAction(object):
             # Must flush before setting object store id currently.
             # TODO: optimize this.
             trans.sa_session.flush()
-            object_store_populator.set_object_store_id(data=data, user=trans.user, plugged_media=inp_data['input'].plugged_media)
+            object_store_populator.set_object_store_id(data=data, user=trans.user)
 
             # This may not be neccesary with the new parent/child associations
             data.designation = name
@@ -646,11 +646,12 @@ class ObjectStorePopulator(object):
         self.object_store = app.object_store
         self.object_store_id = None
 
-    def set_object_store_id(self, data, user=None, plugged_media=None):
+    def set_object_store_id(self, data, user=None):
         # Create an empty file immediately.  The first dataset will be
         # created in the "default" store, all others will be created in
         # the same store as the first.
         data.dataset.object_store_id = self.object_store_id
+        plugged_media = data.dataset.get_plugged_media(user)
         try:
             self.object_store.create(obj=data.dataset, user=user, plugged_media=plugged_media)
         except ObjectInvalid:
