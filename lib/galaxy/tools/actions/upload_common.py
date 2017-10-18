@@ -503,14 +503,8 @@ def create_job(trans, params, tool, json_file_path, data_list, folder=None, hist
                 # Passing trans.user and trans.user.plugged_media to the create function
                 # sends a `None` value for the plugged media in incognito mode.
                 # The following seems a reliable patch.
-                #
-                # If the user has defined plugged media, and if object store chooses to use
-                # any of the plugged media to persist the dataset, the ID of chosen plugged
-                # media is returned, and recorded in HDA.plugged_media_id.
                 user = trans.user
-                dataset.plugged_media_id = trans.app.object_store.create(dataset.dataset,
-                                                                         user=user,
-                                                                         plugged_media=user.plugged_media)
+                trans.app.object_store.create(dataset.dataset, user=user, plugged_media=user.plugged_media)
             except ObjectInvalid:
                 raise Exception('Unable to create output dataset: object store is full')
             object_store_id = dataset.dataset.object_store_id

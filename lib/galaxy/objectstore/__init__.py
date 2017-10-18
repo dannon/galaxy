@@ -519,8 +519,7 @@ class NestedObjectStore(ObjectStore):
         """For the first backend that has this `obj`, get its URL."""
         return self._call_method('get_object_url', obj, None, False, **kwargs)
 
-    def _call_method(self, method, obj, default, default_is_exception,
-            **kwargs):
+    def _call_method(self, method, obj, default, default_is_exception, **kwargs):
         """Check all children object stores for the first one with the dataset."""
         plugged_media = pick_a_plugged_media(kwargs.get('plugged_media', None))
         if plugged_media is not None:

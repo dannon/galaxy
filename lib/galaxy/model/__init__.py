@@ -1974,11 +1974,16 @@ class Dataset(StorableObject):
                 return True
         return False
 
-    def get_plugged_media(self, user, plugged_media):
+    def get_plugged_media(self, user, plugged_media=None):
         """
-
-        :param user:
-        :param plugged_media:
+        Encapsulates plugged media available/defined for the user in a list
+        of plugged media. The list may contain (a) the plugged media passed to
+        function, or (b) the plugged media on which this dataseet is persisted
+        on and available to the user. Note, a dataset can be persisted on
+        multiple plugged media, but not necessary all are accessible to all
+        the users.
+        :param user: Galaxy user.
+        :param plugged_media: A list of plugged media or a single instance.
         :return: None or a list of plugged media.
         """
         if plugged_media is not None:
