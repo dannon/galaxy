@@ -80,6 +80,17 @@ model.PluggedMedia.table = Table(
     Column("purged", Boolean, index=True, default=False),
     Column("purgable", Boolean, default=True))
 
+model.PluggedMediaDatasetAssociation.table = Table(
+    "plugged_media_dataset_association", metadata,
+    Column("id", Integer, primary_key=True),
+    Column("dataset_id", Integer, ForeignKey("dataset.id"), index=True),
+    Column("plugged_media_id", Integer, ForeignKey("plugged_media.id")),
+    Column("create_time", DateTime, default=now),
+    Column("update_time", DateTime, default=now, onupdate=now),
+    Column("deleted", Boolean, index=True, default=False),
+    Column("purged", Boolean, index=True, default=False),
+    Column("dataset_path_on_media", TEXT))
+
 model.UserAddress.table = Table(
     "user_address", metadata,
     Column("id", Integer, primary_key=True),
@@ -163,9 +174,7 @@ model.HistoryDatasetAssociation.table = Table(
     Column("hid", Integer),
     Column("purged", Boolean, index=True, default=False),
     Column("hidden_beneath_collection_instance_id",
-           ForeignKey("history_dataset_collection_association.id"), nullable=True),
-    Column("plugged_media_id", Integer, ForeignKey("plugged_media.id")),
-    Column("dataset_path_on_media", TEXT))
+           ForeignKey("history_dataset_collection_association.id"), nullable=True))
 
 model.Dataset.table = Table(
     "dataset", metadata,
@@ -1654,10 +1663,15 @@ simple_mapping(model.HistoryDatasetAssociation,
                       model.HistoryDatasetCollectionAssociation.table.c.id)),
         uselist=False,
         backref="hidden_dataset_instances"),
-    _metadata=deferred(model.HistoryDatasetAssociation.table.c._metadata),
+    _metadata=deferred(model.HistoryDatasetAssociation.table.c._metadata)
+)
+
+simple_mapping(model.PluggedMediaDatasetAssociation,
+    dataset=relation(model.Dataset,
+        primaryjoin=(model.Dataset.table.c.id == model.PluggedMediaDatasetAssociation.table.c.dataset_id), lazy=False),
     plugged_media=relation(
         model.PluggedMedia,
-        primaryjoin=(model.HistoryDatasetAssociation.table.c.plugged_media_id == model.PluggedMedia.table.c.id))
+        primaryjoin=(model.PluggedMediaDatasetAssociation.table.c.plugged_media_id == model.PluggedMedia.table.c.id))
 )
 
 simple_mapping(model.Dataset,
@@ -1680,7 +1694,10 @@ simple_mapping(model.Dataset,
             (model.LibraryDatasetDatasetAssociation.table.c.deleted == false()))),
     tags=relation(model.DatasetTagAssociation,
         order_by=model.DatasetTagAssociation.table.c.id,
-        backref='datasets')
+        backref='datasets'),
+    plugged_media_associations=relation(
+        model.PluggedMediaDatasetAssociation,
+        primaryjoin=(model.Dataset.table.c.id == model.PluggedMediaDatasetAssociation.table.c.dataset_id))
 )
 
 mapper(model.HistoryDatasetAssociationDisplayAtAuthorization, model.HistoryDatasetAssociationDisplayAtAuthorization.table, properties=dict(
@@ -1803,11 +1820,11 @@ mapper(model.User, model.User.table, properties=dict(
 
 mapper(model.PluggedMedia, model.PluggedMedia.table, properties=dict(
     user=relation(model.User),
-    hda=relation(
-        model.HistoryDatasetAssociation,
-        primaryjoin=(model.HistoryDatasetAssociation.table.c.plugged_media_id == model.PluggedMedia.table.c.id),
-        lazy=False))
-)
+    data_association=relation(
+        model.PluggedMediaDatasetAssociation,
+        primaryjoin=(model.PluggedMediaDatasetAssociation.table.c.plugged_media_id == model.PluggedMedia.table.c.id),
+        lazy=False)
+))
 
 mapper(model.PasswordResetToken, model.PasswordResetToken.table,
        properties=dict(user=relation(model.User, backref="reset_tokens")))

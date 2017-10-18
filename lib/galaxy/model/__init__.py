@@ -424,6 +424,27 @@ class PluggedMedia(object):
         self.purged = False
         self.purgable = True
 
+    def association_with_dataset(self, dataset):
+        qres = object_session(self).query(PluggedMediaDatasetAssociation).join(Dataset)\
+            .filter(PluggedMediaDatasetAssociation.table.c.dataset_id == dataset.id)\
+            .filter(PluggedMediaDatasetAssociation.table.c.plugged_media_id == self.id).all()
+        if len(qres) > 0:
+            log.error('An attempt to create a duplicate PluggedMediaDatasetAssociation is blocked. A duplicated file'
+                      ', with the same or different file name as the original file, for the dataset with ID `{}` might'
+                      ' be uploaded to the plugged media with ID `{}`.'.format(self.id, dataset.id))
+            return
+        association = PluggedMediaDatasetAssociation(dataset, self)
+        object_session(self).add(association)
+        object_session(self).flush()
+
+
+class PluggedMediaDatasetAssociation(object):
+    def __init__(self, dataset, plugged_media):
+        self.dataset_id = dataset.id
+        self.plugged_media_id = plugged_media.id
+        self.dataset_path_on_media = None
+
+
 
 class PasswordResetToken(object):
     def __init__(self, user, token=None):
@@ -1812,6 +1833,7 @@ class Dataset(StorableObject):
         if not self.external_filename:
             assert self.id is not None, "ID must be set before filename used (commit the object)"
             assert self.object_store is not None, "Object Store has not been initialized for dataset %s" % self.id
+            plugged_media = self.get_plugged_media(user, plugged_media)
             return self.object_store.get_filename(self, user=user, plugged_media=plugged_media)
         else:
             filename = self.external_filename
@@ -1848,6 +1870,7 @@ class Dataset(StorableObject):
             except OSError:
                 return 0
         else:
+            plugged_media = self.get_plugged_media(user, plugged_media)
             return self.object_store.size(self, user=user, plugged_media=plugged_media)
 
     def get_size(self, user=None, plugged_media=None, nice_size=False):
@@ -1858,6 +1881,7 @@ class Dataset(StorableObject):
             else:
                 return self.file_size
         else:
+            plugged_media = self.get_plugged_media(user, plugged_media)
             if nice_size:
                 return galaxy.util.nice_size(self._calculate_size(user=user, plugged_media=plugged_media))
             else:
@@ -1866,18 +1890,21 @@ class Dataset(StorableObject):
     def set_size(self, user=None, plugged_media=None):
         """Returns the size of the data on disk"""
         if not self.file_size:
+            plugged_media = self.get_plugged_media(user, plugged_media)
             self.file_size = self._calculate_size(user=user, plugged_media=plugged_media)
 
     def get_total_size(self, user=None, plugged_media=None):
         if self.total_size is not None:
             return self.total_size
         # for backwards compatibility, set if unset
+        plugged_media = self.get_plugged_media(user, plugged_media)
         self.set_total_size(user=user, plugged_media=plugged_media)
         db_session = object_session(self)
         db_session.flush()
         return self.total_size
 
     def set_total_size(self, user=None, plugged_media=None):
+        plugged_media = self.get_plugged_media(user, plugged_media)
         if self.file_size is None:
             self.set_size(user=user, plugged_media=plugged_media)
         self.total_size = self.file_size or 0
@@ -1887,12 +1914,14 @@ class Dataset(StorableObject):
 
     def has_data(self, user=None, plugged_media=None):
         """Detects whether there is any data"""
+        plugged_media = self.get_plugged_media(user, plugged_media)
         return self.get_size(user=user, plugged_media=plugged_media) > 0
 
     def mark_deleted(self, include_children=True):
         self.deleted = True
 
     def is_multi_byte(self, user=None, plugged_media=None):
+        plugged_media = self.get_plugged_media(user, plugged_media)
         if not self.has_data(user=user, plugged_media=plugged_media):
             return False
         try:
@@ -1903,6 +1932,7 @@ class Dataset(StorableObject):
 
     def _delete(self, user=None, plugged_media=None):
         """Remove the file that corresponds to this data"""
+        plugged_media = self.get_plugged_media(user, plugged_media)
         self.object_store.delete(self, user=user, plugged_media=plugged_media)
 
     @property
@@ -1914,6 +1944,7 @@ class Dataset(StorableObject):
     def full_delete(self, user=None, plugged_media=None):
         """Remove the file and extra files, marks deleted and purged"""
         # os.unlink( self.file_name )
+        plugged_media = self.get_plugged_media(user, plugged_media)
         self.object_store.delete(self, user=user, plugged_media=plugged_media)
         if self.object_store.exists(self, user=user, plugged_media=plugged_media, extra_dir=self._extra_files_path or "dataset_%d_files" % self.id, dir_only=True):
             self.object_store.delete(self, user=user, plugged_media=plugged_media, entire_dir=True, extra_dir=self._extra_files_path or "dataset_%d_files" % self.id, dir_only=True)
@@ -1942,6 +1973,38 @@ class Dataset(StorableObject):
             if dp.action == trans.app.security_agent.permitted_actions.DATASET_MANAGE_PERMISSIONS.action:
                 return True
         return False
+
+    def get_plugged_media(self, user, plugged_media):
+        """
+
+        :param user:
+        :param plugged_media:
+        :return: None or a list of plugged media.
+        """
+        if plugged_media is not None:
+            # If user has explicitly specified a plugged media to be used.
+            if isinstance(plugged_media, PluggedMedia):
+                return [plugged_media]
+            # If user's explicit selection is already put in a list, or the list
+            # of available plugged media of the user is already determined.
+            elif hasattr(plugged_media, '__len__') and len(plugged_media) > 0:
+                return plugged_media
+            # If an empty list is passed.
+            elif hasattr(plugged_media, '__len__') and len(plugged_media) == 0:
+                log.exception("An empty list as plugged media is an unexpected value.")
+        if user is None:
+            # The only time this condition would be met is during an anonymous access.
+            return None
+        plugged_media = []
+
+        for assoc in self.plugged_media_associations:
+            if assoc.plugged_media.user.id == user.id:
+                plugged_media.append(assoc.plugged_media)
+
+        if len(plugged_media) == 0:
+            return None
+        else:
+            return plugged_media
 
 
 class DatasetInstance(object):
@@ -2405,7 +2468,6 @@ class HistoryDatasetAssociation(DatasetInstance, HasTags, Dictifiable, UsesAnnot
     """
 
     def __init__(self,
-                 plugged_media=None,  # Not sure if this is needed.
                  hid=None,
                  history=None,
                  copied_from_history_dataset_association=None,
@@ -2418,7 +2480,6 @@ class HistoryDatasetAssociation(DatasetInstance, HasTags, Dictifiable, UsesAnnot
         # FIXME: sa_session is must be passed to DataSetInstance if the create_dataset
         # parameter is True so that the new object can be flushed.  Is there a better way?
         DatasetInstance.__init__(self, sa_session=sa_session, **kwd)
-        self.plugged_media = plugged_media  # Not sure if this is needed.
         self.hid = hid
         # Relationships
         self.history = history
@@ -2651,29 +2712,24 @@ class HistoryDatasetAssociation(DatasetInstance, HasTags, Dictifiable, UsesAnnot
             self.tags.append(new_tag_assoc)
 
     def get_file_name(self):
-        return self.dataset.get_file_name(self.history.user, self.plugged_media)
+        return self.dataset.get_file_name(self.history.user)
 
     def get_size(self, nice_size=False):
         """Returns the size of the data on disk"""
         if nice_size:
-            return galaxy.util.nice_size(self.dataset.get_size(self.history.user, self.plugged_media))
-        return self.dataset.get_size(self.history.user, self.plugged_media)
+            return galaxy.util.nice_size(self.dataset.get_size(self.history.user))
+        return self.dataset.get_size(self.history.user)
 
     def set_size(self):
         """Returns the size of the data on disk"""
-        return self.dataset.set_size(self.history.user, self.plugged_media)
+        return self.dataset.set_size(self.history.user)
 
     def get_total_size(self):
-        print '\n\n\n', ('~' * 100)
-        print 'user: ', self.history.user
-        print 'pm: ', self.plugged_media
-        print ('~' * 100), '\n\n\n'
-        # TODO-1--- find a proper way to assign/fetch plugged media here. Where/when in the HDA initialization a plugged media is passed ?
-        return self.dataset.get_total_size(self.history.user, self.plugged_media)
+        return self.dataset.get_total_size(self.history.user)
 
     def has_data(self):
         """Detects whether there is any data"""
-        return self.dataset.has_data(self.history.user, self.plugged_media)
+        return self.dataset.has_data(self.history.user)
 
     def set_file_name(self, filename):
         return self.dataset.set_file_name(filename)
