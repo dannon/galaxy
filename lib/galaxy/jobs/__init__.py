@@ -1001,7 +1001,7 @@ class JobWrapper(object, HasResourceParameters):
                 dataset.blurb = 'tool error'
                 dataset.info = message
                 dataset.set_size()
-                dataset.dataset.set_total_size(user=job.user, plugged_media=dataset.plugged_media)
+                dataset.dataset.set_total_size(user=job.user)
                 dataset.mark_unhidden()
                 if dataset.ext == 'auto':
                     dataset.extension = 'data'
@@ -1247,7 +1247,10 @@ class JobWrapper(object, HasResourceParameters):
                     dataset.dataset.uuid = context['uuid']
                 # Update (non-library) job output datasets through the object store
                 if dataset not in job.output_library_datasets:
-                    self.app.object_store.update_from_file(dataset.dataset, user=job.user, plugged_media=dataset.plugged_media, create=True)
+                    # The following is related to the job working directory. Since the job working directory
+                    # is not intended to be persisted on a plugged media, then do not pass a plugged media to
+                    # the following function.
+                    self.app.object_store.update_from_file(dataset.dataset, user=job.user, create=True)
                 self.__update_output(job, dataset)
                 if not purged:
                     self._collect_extra_files(dataset.dataset, self.working_directory)
@@ -1308,12 +1311,12 @@ class JobWrapper(object, HasResourceParameters):
                         dataset.metadata.from_JSON_dict(output_filename, path_rewriter=path_rewriter)
                     try:
                         assert context.get('line_count', None) is not None
-                        if (not dataset.datatype.composite_type and dataset.dataset.is_multi_byte(user=job.user, plugged_media=dataset.plugged_media)) or self.tool.is_multi_byte:
+                        if (not dataset.datatype.composite_type and dataset.dataset.is_multi_byte(user=job.user)) or self.tool.is_multi_byte:
                             dataset.set_peek(line_count=context['line_count'], is_multi_byte=True)
                         else:
                             dataset.set_peek(line_count=context['line_count'])
                     except:
-                        if (not dataset.datatype.composite_type and dataset.dataset.is_multi_byte(user=job.user, plugged_media=dataset.plugged_media)) or self.tool.is_multi_byte:
+                        if (not dataset.datatype.composite_type and dataset.dataset.is_multi_byte(user=job.user)) or self.tool.is_multi_byte:
                             dataset.set_peek(is_multi_byte=True)
                         else:
                             dataset.set_peek()
@@ -1410,8 +1413,8 @@ class JobWrapper(object, HasResourceParameters):
         # Once datasets are collected, set the total dataset size (includes extra files)
         for dataset_assoc in job.output_datasets:
             if not dataset_assoc.dataset.dataset.purged:
-                dataset_assoc.dataset.dataset.set_total_size(user=job.user, plugged_media=dataset.plugged_media)
-                collected_bytes += dataset_assoc.dataset.dataset.get_total_size(user=job.user, plugged_media=dataset.plugged_media)
+                dataset_assoc.dataset.dataset.set_total_size(user=job.user)
+                collected_bytes += dataset_assoc.dataset.dataset.get_total_size(user=job.user)
 
         if job.user:
             job.user.adjust_total_disk_usage(collected_bytes)
@@ -1460,6 +1463,7 @@ class JobWrapper(object, HasResourceParameters):
             galaxy.tools.imp_exp.JobExportHistoryArchiveWrapper(self.job_id).cleanup_after_job(self.sa_session)
             galaxy.tools.imp_exp.JobImportHistoryArchiveWrapper(self.app, self.job_id).cleanup_after_job()
             if delete_files:
+                # TODO-4--- find a way to send user and plugged media.
                 self.app.object_store.delete(self.get_job(), base_dir='job_work', entire_dir=True, dir_only=True, obj_dir=True)
         except:
             log.exception("Unable to cleanup job %d", self.job_id)
@@ -1715,7 +1719,7 @@ class JobWrapper(object, HasResourceParameters):
         if dataset not in job.output_library_datasets:
             purged = dataset.purged
             if not purged and not clean_only:
-                self.app.object_store.update_from_file(dataset, user=job.user, plugged_media=hda.plugged_media, create=True)
+                self.app.object_store.update_from_file(dataset, user=job.user, create=True)
             else:
                 # If the dataset is purged and Galaxy is configured to write directly
                 # to the object store from jobs - be sure that file is cleaned up. This
