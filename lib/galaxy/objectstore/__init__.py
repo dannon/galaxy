@@ -705,10 +705,16 @@ class HierarchicalObjectStore(NestedObjectStore):
 
     def exists(self, obj, **kwargs):
         """Check all child object stores."""
-        # TODO
-        for store in self.backends.values():
-            if store.exists(obj, **kwargs):
-                return True
+        plugged_media = kwargs.get('plugged_media', None)
+        if plugged_media is not None:
+            for pm in plugged_media:
+                store = get_user_based_object_store(self.config, pm)
+                if store.exists(obj, **kwargs):
+                    return True
+        else:
+            for store in self.backends.values():
+                if store.exists(obj, **kwargs):
+                    return True
         return False
 
     def create(self, obj, **kwargs):
