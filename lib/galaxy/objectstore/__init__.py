@@ -812,13 +812,14 @@ def get_user_based_object_store(config, plugged_media):
     if plugged_media.category == categories.LOCAL:
         return DiskObjectStore(config=config, file_path=plugged_media.path)
     elif plugged_media.category == categories.S3:
-        # TODO
-        pass
+        from .s3 import S3ObjectStore
+        return S3ObjectStore(config=config, config_xml=None, plugged_media=plugged_media)
     elif plugged_media.category == categories.AZURE:
-        # TODO
-        pass
+        raise NotImplementedError()
     else:
-        # TODO: raise an exception here saying the category type is not recognized.
+        raise Exception("Received a plugged media with a un-recognized category type ({}). "
+                        "The catory type should match either of the following categories: {}"
+                        .format(plugged_media.category, categories))
         pass
 
 

@@ -48,13 +48,16 @@ class S3ObjectStore(ObjectStore):
     Galaxy and S3.
     """
 
-    def __init__(self, config, config_xml):
+    def __init__(self, config, config_xml, plugged_media=None):
         if boto is None:
             raise Exception(NO_BOTO_ERROR_MESSAGE)
         super(S3ObjectStore, self).__init__(config)
         self.staging_path = self.config.file_path
         self.transfer_progress = 0
-        self._parse_config_xml(config_xml)
+        if plugged_media is not None:
+            self._configure_using_plugged_media(plugged_media)
+        else:
+            self._parse_config_xml(config_xml)
         self._configure_connection()
         self.bucket = self._get_bucket(self.bucket)
         # Clean cache only if value is set in galaxy.ini
@@ -119,6 +122,20 @@ class S3ObjectStore(ObjectStore):
             # Toss it back up after logging, we can't continue loading at this point.
             log.exception("Malformed ObjectStore Configuration XML -- unable to continue")
             raise
+
+    def _configure_using_plugged_media(self, plugged_media):
+        self.access_key = plugged_media.access_key
+        self.secret_key = plugged_media.secret_key
+        self.bucket = plugged_media.path
+        self.use_rr = False
+        self.max_chunk_size = 250
+        self.host = None
+        self.port = 6000
+        self.multipart = True
+        self.is_secure = True
+        self.conn_path = '/'
+        self.cache_size = -1
+        self.staging_path = self.config.object_store_cache_path
 
     def __cache_monitor(self):
         time.sleep(2)  # Wait for things to load before starting the monitor
