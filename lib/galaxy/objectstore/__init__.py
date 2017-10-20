@@ -59,7 +59,8 @@ class ObjectStore(object):
         object store chooses one based on `usage`, `hierarchy`, `quota`, and
         `percentile` attributes of each plugged media.
         A recommended approach for getting a list of plugged media available for
-        as user, is using the `galaxy.model.get_plugged_media` method.
+        a user, or possibly associated with the dataset, is using the
+        `Dataset.get_plugged_media` method.
 
     :type dir_only: boolean
     :param dir_only: If `True`, check only the path where the file identified

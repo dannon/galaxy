@@ -1908,7 +1908,8 @@ class Dataset(StorableObject):
         if self.file_size is None:
             self.set_size(user=user, plugged_media=plugged_media)
         self.total_size = self.file_size or 0
-        if self.object_store.exists(self, user=user, plugged_media=plugged_media, extra_dir=self._extra_files_path or "dataset_%d_files" % self.id, dir_only=True):
+        if self.object_store.exists(self, user=user, plugged_media=plugged_media,
+                                    extra_dir=self._extra_files_path or "dataset_%d_files" % self.id, dir_only=True):
             for root, dirs, files in os.walk(self.extra_files_path):
                 self.total_size += sum([os.path.getsize(os.path.join(root, file)) for file in files if os.path.exists(os.path.join(root, file))])
 
@@ -1946,8 +1947,10 @@ class Dataset(StorableObject):
         # os.unlink( self.file_name )
         plugged_media = self.get_plugged_media(user, plugged_media)
         self.object_store.delete(self, user=user, plugged_media=plugged_media)
-        if self.object_store.exists(self, user=user, plugged_media=plugged_media, extra_dir=self._extra_files_path or "dataset_%d_files" % self.id, dir_only=True):
-            self.object_store.delete(self, user=user, plugged_media=plugged_media, entire_dir=True, extra_dir=self._extra_files_path or "dataset_%d_files" % self.id, dir_only=True)
+        if self.object_store.exists(self, user=user, plugged_media=plugged_media,
+                                    extra_dir=self._extra_files_path or "dataset_%d_files" % self.id, dir_only=True):
+            self.object_store.delete(self, user=user, plugged_media=plugged_media, entire_dir=True,
+                                     extra_dir=self._extra_files_path or "dataset_%d_files" % self.id, dir_only=True)
         # if os.path.exists( self.extra_files_path ):
         #     shutil.rmtree( self.extra_files_path )
         # TODO: purge metadata files
