@@ -53,9 +53,13 @@ class ObjectStore(object):
     :param user: The user (object) whose dataset is being upload/download
         to/from object store.
 
-    :type plugged_media: PluggedMedia (lib/galaxy/model/__init__.py)
-    :param plugged_media: A data persistence media from/to which a dataset
-        is pulled/pushed.
+    :type plugged_media: A list of PluggedMedia (lib/galaxy/model/__init__.py)
+    :param plugged_media: A list of data persistence media from/to which a dataset
+        is pulled/pushed. If multiple plugged media is available for a user,
+        object store chooses one based on `usage`, `hierarchy`, `quota`, and
+        `percentile` attributes of each plugged media.
+        A recommended approach for getting a list of plugged media available for
+        as user, is using the `galaxy.model.get_plugged_media` method.
 
     :type dir_only: boolean
     :param dir_only: If `True`, check only the path where the file identified
@@ -122,7 +126,7 @@ class ObjectStore(object):
         """
         return True
 
-    def create(self, obj, user=None, base_dir=None, dir_only=False, extra_dir=None, extra_dir_at_root=False, alt_name=None, obj_dir=False):
+    def create(self, obj, user=None, plugged_media=None, base_dir=None, dir_only=False, extra_dir=None, extra_dir_at_root=False, alt_name=None, obj_dir=False):
         """
         Mark the object (`obj`) as existing in the store, but with no content.
 
