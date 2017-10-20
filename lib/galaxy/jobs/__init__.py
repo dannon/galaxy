@@ -1461,7 +1461,6 @@ class JobWrapper(object, HasResourceParameters):
             galaxy.tools.imp_exp.JobExportHistoryArchiveWrapper(self.job_id).cleanup_after_job(self.sa_session)
             galaxy.tools.imp_exp.JobImportHistoryArchiveWrapper(self.app, self.job_id).cleanup_after_job()
             if delete_files:
-                # TODO-4--- find a way to send user and plugged media.
                 self.app.object_store.delete(self.get_job(), base_dir='job_work', entire_dir=True, dir_only=True, obj_dir=True)
         except:
             log.exception("Unable to cleanup job %d", self.job_id)
