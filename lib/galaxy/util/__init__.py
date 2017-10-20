@@ -9,7 +9,6 @@ import binascii
 import collections
 import errno
 import json
-import logging
 import os
 import random
 import re
@@ -49,10 +48,11 @@ except ImportError:
     docutils_html4css1 = None
 
 from .inflection import English, Inflector
+from .logging import get_logger
 
 inflector = Inflector(English)
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 _lock = threading.RLock()
 
 CHUNK_SIZE = 65536  # 64k
@@ -66,6 +66,9 @@ DEFAULT_ENCODING = os.environ.get('GALAXY_DEFAULT_ENCODING', 'utf-8')
 NULL_CHAR = '\000'
 BINARY_CHARS = [NULL_CHAR]
 FILENAME_VALID_CHARS = '.,^_-()[]0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
+
+
+defaultdict = collections.defaultdict
 
 
 def remove_protocol_from_url(url):
@@ -762,7 +765,7 @@ class Params(object):
 
 def rst_to_html(s, error=False):
     """Convert a blob of reStructuredText to HTML"""
-    log = logging.getLogger("docutils")
+    log = get_logger("docutils")
 
     if docutils_core is None:
         raise Exception("Attempted to use rst_to_html but docutils unavailable.")
@@ -782,9 +785,9 @@ def rst_to_html(s, error=False):
                                   # number of sections in help content.
     }
 
-    return unicodify(docutils_core.publish_string(s,
-                      writer=docutils_html4css1.Writer(),
-                      settings_overrides=settings_overrides))
+    return unicodify(docutils_core.publish_string(
+        s, writer=docutils_html4css1.Writer(),
+        settings_overrides=settings_overrides))
 
 
 def xml_text(root, name=None):
@@ -886,8 +889,25 @@ def roundify(amount, sfs=2):
 
 
 def unicodify(value, encoding=DEFAULT_ENCODING, error='replace', default=None):
-    """
+    u"""
     Returns a unicode string or None.
+
+    >>> unicodify(None) is None
+    True
+    >>> unicodify('simple string') == u'simple string'
+    True
+    >>> unicodify(3) == u'3'
+    True
+    >>> unicodify(Exception('message')) == u'message'
+    True
+    >>> unicodify('cómplǐcḁtëd strĩñg') == u'cómplǐcḁtëd strĩñg'
+    True
+    >>> s = u'lâtín strìñg'; unicodify(s.encode('latin-1'), 'latin-1') == s
+    True
+    >>> s = u'lâtín strìñg'; unicodify(s.encode('latin-1')) == u'l\ufffdt\ufffdn str\ufffd\ufffdg'
+    True
+    >>> s = u'lâtín strìñg'; unicodify(s.encode('latin-1'), error='ignore') == u'ltn strg'
+    True
     """
     if value is None:
         return None
@@ -1461,6 +1481,7 @@ def build_url(base_url, port=80, scheme='http', pathspec=None, params=None, dose
     parsed_url = urlparse.urlparse(base_url)
     if scheme != 'http':
         parsed_url.scheme = scheme
+    assert parsed_url.scheme in ('http', 'https', 'ftp'), 'Invalid URL scheme: %s' % scheme
     if port != 80:
         url = '%s://%s:%d/%s' % (parsed_url.scheme, parsed_url.netloc.rstrip('/'), int(port), parsed_url.path)
     else:
