@@ -84,7 +84,7 @@ model.PluggedMediaDatasetAssociation.table = Table(
     "plugged_media_dataset_association", metadata,
     Column("id", Integer, primary_key=True),
     Column("dataset_id", Integer, ForeignKey("dataset.id"), index=True),
-    Column("plugged_media_id", Integer, ForeignKey("plugged_media.id")),
+    Column("plugged_media_id", Integer, ForeignKey("plugged_media.id"), index=True),
     Column("create_time", DateTime, default=now),
     Column("update_time", DateTime, default=now, onupdate=now),
     Column("deleted", Boolean, index=True, default=False),
