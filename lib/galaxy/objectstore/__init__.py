@@ -807,7 +807,7 @@ def pick_a_plugged_media(plugged_media):
     if len(plugged_media) == 1:
         return plugged_media[0]
     else:
-        log.debug("The function choosing a plugged media among multiple options, is not implemeneted. Chose the "
+        log.debug("The function choosing a plugged media among multiple options, is not implemented. Chose the "
                   "first available option with ID: {}.".format(plugged_media[0].id))
         return plugged_media[0]
 
