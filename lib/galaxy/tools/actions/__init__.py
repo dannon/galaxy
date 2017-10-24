@@ -657,7 +657,7 @@ class ObjectStorePopulator(object):
         data.dataset.object_store_id = self.object_store_id
         plugged_media = data.dataset.get_plugged_media(user)
         try:
-            self.object_store.create(obj=data.dataset, user=user, plugged_media=plugged_media)
+            self.object_store.create(data.dataset, user=user, plugged_media=plugged_media)
         except ObjectInvalid:
             raise Exception('Unable to create output dataset: object store is full')
         self.object_store_id = data.dataset.object_store_id  # these will be the same thing after the first output

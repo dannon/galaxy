@@ -36,7 +36,6 @@ class PluggedMediaController(BaseAPIController):
         self.hda_manager = hdas.HDAManager(app)
         self.dataset_manager = datasets.DatasetManager(app)
 
-
     @web.expose_api_anonymous
     def index(self, trans, **kwd):
         """
@@ -110,7 +109,7 @@ class PluggedMediaController(BaseAPIController):
             trans.response.status = '200 OK'
             log.debug('Created a new plugged media of type `%s` for the user id `%s` ', category, str(trans.user.id))
             return view
-        except Exception, e:
+        except Exception as e:
             log.exception('An unexpected error has occurred while responding to the '
                           'create request of the plugged media API. ' + str(e))
             # Do not use integer response code (see above).

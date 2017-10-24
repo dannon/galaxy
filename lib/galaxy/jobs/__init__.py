@@ -1317,7 +1317,7 @@ class JobWrapper(object, HasResourceParameters):
                         else:
                             dataset.set_peek(line_count=context['line_count'])
                     except Exception:
-                        if (not dataset.datatype.composite_type and dataset.dataset.is_multi_byte()) or self.tool.is_multi_byte:
+                        if (not dataset.datatype.composite_type and dataset.dataset.is_multi_byte(user=job.user)) or self.tool.is_multi_byte:
                             dataset.set_peek(is_multi_byte=True)
                         else:
                             dataset.set_peek()

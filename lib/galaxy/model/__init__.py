@@ -445,7 +445,6 @@ class PluggedMediaDatasetAssociation(object):
         self.dataset_path_on_media = None
 
 
-
 class PasswordResetToken(object):
     def __init__(self, user, token=None):
         if token:
@@ -2694,24 +2693,29 @@ class HistoryDatasetAssociation(DatasetInstance, HasTags, Dictifiable, UsesAnnot
             self.tags.append(new_tag_assoc)
 
     def get_file_name(self):
-        return self.dataset.get_file_name(self.history.user)
+        user = self.history.user if self.history else None
+        return self.dataset.get_file_name(user)
 
     def get_size(self, nice_size=False):
         """Returns the size of the data on disk"""
+        user = self.history.user if self.history else None
         if nice_size:
-            return galaxy.util.nice_size(self.dataset.get_size(self.history.user))
-        return self.dataset.get_size(self.history.user)
+            return galaxy.util.nice_size(self.dataset.get_size(user))
+        return self.dataset.get_size(user)
 
     def set_size(self):
         """Returns the size of the data on disk"""
-        return self.dataset.set_size(self.history.user)
+        user = self.history.user if self.history else None
+        return self.dataset.set_size(user)
 
     def get_total_size(self):
-        return self.dataset.get_total_size(self.history.user)
+        user = self.history.user if self.history else None
+        return self.dataset.get_total_size(user)
 
     def has_data(self):
         """Detects whether there is any data"""
-        return self.dataset.has_data(self.history.user)
+        user = self.history.user if self.history else None
+        return self.dataset.has_data(user)
 
     def set_file_name(self, filename):
         return self.dataset.set_file_name(filename)
