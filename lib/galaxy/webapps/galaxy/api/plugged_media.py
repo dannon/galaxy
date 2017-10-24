@@ -149,11 +149,11 @@ class PluggedMediaController(BaseAPIController):
                     self.dataset_manager.delete(hda.dataset)
             return self.plugged_media_serializer.serialize_to_view(
                 plugged_media, user=trans.user, trans=trans, **self._parse_serialization_params(kwd, 'summary'))
-        except AttributeError, e:
+        except AttributeError as e:
             log.exception('An unexpected error has occurred while deleting/purging a plugged media in response to '
                           'the related API call. Maybe an inappropriate database manual manipulation. ' + str(e))
             return []
-        except Exception, e:
+        except Exception as e:
             log.exception('An unexpected error has occurred while deleting/purging a plugged media in response to '
                           'the related API call. ' + str(e))
             return []
