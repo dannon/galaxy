@@ -1,5 +1,6 @@
 """
-Migration script to create a table for PluggedMedia, and extend the HDA table accordingly.
+Migration script to (a) create a table for PluggedMedia and (b) extend the HDA table
+linking datasets to plugged media.
 """
 from __future__ import print_function
 
@@ -12,7 +13,7 @@ now = datetime.datetime.utcnow
 log = logging.getLogger(__name__)
 metadata = MetaData()
 
-# Table to add
+# Tables to add
 
 PluggedMediaTable = Table(
     "plugged_media", metadata,
