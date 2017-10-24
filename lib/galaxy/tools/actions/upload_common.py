@@ -500,9 +500,7 @@ def create_job(trans, params, tool, json_file_path, data_list, folder=None, hist
         if not dataset.dataset.external_filename:
             dataset.dataset.object_store_id = object_store_id
             try:
-                plugged_media = None
-                if trans.user:
-                    plugged_media = trans.user.plugged_media
+                plugged_media = trans.user.plugged_media if trans.user else None
                 trans.app.object_store.create(dataset.dataset, user=trans.user, plugged_media=plugged_media)
             except ObjectInvalid:
                 raise Exception('Unable to create output dataset: object store is full')

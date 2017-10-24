@@ -1251,9 +1251,7 @@ class JobWrapper(object, HasResourceParameters):
                     dataset.dataset.uuid = context['uuid']
                 # Update (non-library) job output datasets through the object store
                 if dataset not in job.output_library_datasets:
-                    plugged_media = None
-                    if job.user:
-                        plugged_media = job.user.plugged_media
+                    plugged_media = job.user.plugged_media if job.user else None
                     self.app.object_store.update_from_file(dataset.dataset, user=job.user,
                                                            plugged_media=plugged_media, create=True)
                 self.__update_output(job, dataset)
@@ -1730,9 +1728,7 @@ class JobWrapper(object, HasResourceParameters):
         if dataset not in job.output_library_datasets:
             purged = dataset.purged
             if not purged and not clean_only:
-                plugged_media = None
-                if job.user:
-                    plugged_media = job.user.plugged_media
+                plugged_media = job.user.plugged_media if job.user else None
                 self.app.object_store.update_from_file(dataset, user=job.user,
                                                        plugged_media=plugged_media, create=True)
             else:
