@@ -1227,7 +1227,7 @@ class DeferredJob(object):
     def set_last_check(self, seconds):
         try:
             self._last_check = int(seconds)
-        except:
+        except ValueError:
             self._last_check = time.time()
     last_check = property(get_last_check, set_last_check)
 
@@ -4453,7 +4453,7 @@ class FormDefinition(object, Dictifiable):
                 try:
                     # This field has a saved value.
                     value = str(contents[field['name']])
-                except:
+                except Exception:
                     # If there was an error getting the saved value, we'll still
                     # display the widget, but it will be empty.
                     if field_type == 'AddressField':

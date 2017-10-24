@@ -1166,7 +1166,7 @@ class JobWrapper(object, HasResourceParameters):
         # TODO: After failing here, consider returning from the function.
         try:
             self.reclaim_ownership()
-        except:
+        except Exception:
             log.exception('(%s) Failed to change ownership of %s, failing' % (job.id, self.working_directory))
             return self.fail(job.info, stdout=stdout, stderr=stderr, exit_code=tool_exit_code)
 
@@ -1251,9 +1251,7 @@ class JobWrapper(object, HasResourceParameters):
                     dataset.dataset.uuid = context['uuid']
                 # Update (non-library) job output datasets through the object store
                 if dataset not in job.output_library_datasets:
-                    plugged_media = job.user.plugged_media if job.user else None
-                    self.app.object_store.update_from_file(dataset.dataset, user=job.user,
-                                                           plugged_media=plugged_media, create=True)
+                    self.app.object_store.update_from_file(dataset.dataset, create=True)
                 self.__update_output(job, dataset)
                 if not purged:
                     self._collect_extra_files(dataset.dataset, self.working_directory)
@@ -1318,8 +1316,8 @@ class JobWrapper(object, HasResourceParameters):
                             dataset.set_peek(line_count=context['line_count'], is_multi_byte=True)
                         else:
                             dataset.set_peek(line_count=context['line_count'])
-                    except:
-                        if (not dataset.datatype.composite_type and dataset.dataset.is_multi_byte(user=job.user)) or self.tool.is_multi_byte:
+                    except Exception:
+                        if (not dataset.datatype.composite_type and dataset.dataset.is_multi_byte()) or self.tool.is_multi_byte:
                             dataset.set_peek(is_multi_byte=True)
                         else:
                             dataset.set_peek()
@@ -1418,8 +1416,8 @@ class JobWrapper(object, HasResourceParameters):
         # Once datasets are collected, set the total dataset size (includes extra files)
         for dataset_assoc in job.output_datasets:
             if not dataset_assoc.dataset.dataset.purged:
-                dataset_assoc.dataset.dataset.set_total_size(user=job.user)
-                collected_bytes += dataset_assoc.dataset.dataset.get_total_size(user=job.user)
+                dataset_assoc.dataset.dataset.set_total_size()
+                collected_bytes += dataset_assoc.dataset.dataset.get_total_size()
 
         if job.user:
             job.user.adjust_total_disk_usage(collected_bytes)
@@ -1469,7 +1467,7 @@ class JobWrapper(object, HasResourceParameters):
             galaxy.tools.imp_exp.JobImportHistoryArchiveWrapper(self.app, self.job_id).cleanup_after_job()
             if delete_files:
                 self.app.object_store.delete(self.get_job(), base_dir='job_work', entire_dir=True, dir_only=True, obj_dir=True)
-        except:
+        except Exception:
             log.exception("Unable to cleanup job %d", self.job_id)
 
     def _collect_extra_files(self, dataset, job_working_directory):
@@ -1728,9 +1726,7 @@ class JobWrapper(object, HasResourceParameters):
         if dataset not in job.output_library_datasets:
             purged = dataset.purged
             if not purged and not clean_only:
-                plugged_media = job.user.plugged_media if job.user else None
-                self.app.object_store.update_from_file(dataset, user=job.user,
-                                                       plugged_media=plugged_media, create=True)
+                self.app.object_store.update_from_file(dataset, create=True)
             else:
                 # If the dataset is purged and Galaxy is configured to write directly
                 # to the object store from jobs - be sure that file is cleaned up. This
@@ -1769,7 +1765,7 @@ class JobWrapper(object, HasResourceParameters):
         if external_chown_script and job.user is not None:
             try:
                 self._change_ownership(self.user_system_pwent[0], str(self.user_system_pwent[3]))
-            except:
+            except Exception:
                 log.exception('(%s) Failed to change ownership of %s, making world-writable instead' % (job.id, self.working_directory))
                 os.chmod(self.working_directory, 0o777)
 
