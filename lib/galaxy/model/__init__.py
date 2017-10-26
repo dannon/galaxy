@@ -422,7 +422,7 @@ class PluggedMedia(object):
         self.secret_key = secret_key
         self.deleted = False
         self.purged = False
-        self.purgable = True
+        self.purgeable = True
 
     def association_with_dataset(self, dataset):
         qres = object_session(self).query(PluggedMediaDatasetAssociation).join(Dataset)\

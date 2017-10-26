@@ -78,7 +78,7 @@ model.PluggedMedia.table = Table(
     Column("access_key", TEXT),
     Column("deleted", Boolean, index=True, default=False),
     Column("purged", Boolean, index=True, default=False),
-    Column("purgable", Boolean, default=True))
+    Column("purgeable", Boolean, default=True))
 
 model.PluggedMediaDatasetAssociation.table = Table(
     "plugged_media_dataset_association", metadata,
