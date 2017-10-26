@@ -44,7 +44,7 @@ class PluggedMediaSerializer(sharable.SharableModelSerializer, deletable.Purgabl
             'path',
             'deleted',
             'purged',
-            'purgable'
+            'purgeable'
         ])
 
     def add_serializers(self):
@@ -71,5 +71,5 @@ class PluggedMediaSerializer(sharable.SharableModelSerializer, deletable.Purgabl
             'path'       : lambda i, k, **c: i.path,
             'deleted'    : lambda i, k, **c: i.deleted,
             'purged'     : lambda i, k, **c: i.purged,
-            'purgable'   : lambda i, k, **c: i.purgable
+            'purgeable'  : lambda i, k, **c: i.purgeable
         })
