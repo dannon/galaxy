@@ -396,7 +396,7 @@ class PluggedMedia(object):
                        S3="s3",
                        AZURE="azure")
 
-    def __init__(self, user_id, category, path, access_key, secret_key, hierarchy, quota=0, percentile=0, usage=0):
+    def __init__(self, user_id, category, path, access_key, secret_key, hierarchy, quota=0, percentile=0, usage=0, purgeable=True):
         """
         Initializes a plugged media.
         :param user_id: the Galaxy user id for whom this plugged media is defined.
@@ -422,7 +422,7 @@ class PluggedMedia(object):
         self.secret_key = secret_key
         self.deleted = False
         self.purged = False
-        self.purgeable = True
+        self.purgeable = purgeable
 
     def association_with_dataset(self, dataset):
         qres = object_session(self).query(PluggedMediaDatasetAssociation).join(Dataset)\

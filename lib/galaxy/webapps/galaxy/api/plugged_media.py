@@ -91,7 +91,8 @@ class PluggedMediaController(BaseAPIController):
             missing_arguments.append("path")
         if len(missing_arguments) > 0:
             trans.response.status = 400
-            return "The following arguments are missing in the payload: %s" % missing_arguments
+            return "The following required arguments are missing in the payload: %s" % missing_arguments
+        purgeable = string_as_bool(payload.get("purgeable", True))
 
         new_plugged_media = self.plugged_media_manager.create(
             user_id=trans.user.id,
@@ -99,7 +100,8 @@ class PluggedMediaController(BaseAPIController):
             category=category,
             path=path,
             access_key=payload.get("access_key", None),
-            secret_key=payload.get("secret_key", None))
+            secret_key=payload.get("secret_key", None),
+            purgeable=purgeable)
 
         try:
             view = self.plugged_media_serializer.serialize_to_view(
