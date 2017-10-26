@@ -3,8 +3,11 @@ Manager and Serializer for plugged media.
 """
 
 from galaxy import model
-from galaxy.managers import sharable
+from galaxy import exceptions
+from galaxy.managers import datasets
 from galaxy.managers import deletable
+from galaxy.managers import hdas
+from galaxy.managers import sharable
 
 import logging
 log = logging.getLogger(__name__)
@@ -17,6 +20,34 @@ class PluggedMediaManager(sharable.SharableModelManager, deletable.PurgableManag
 
     def __init__(self, app, *args, **kwargs):
         super(PluggedMediaManager, self).__init__(app, *args, **kwargs)
+        self.hda_manager = hdas.HDAManager(app)
+        self.dataset_manager = datasets.DatasetManager(app)
+
+    def purge(self, plugged_media):
+        """
+        Purges a plugged media by taking the following steps:
+        (1) marks the plugged media `purged` in the database;
+        (2) deletes all the datasets persisted on the plugged media;
+        (3) marks all the HDAs associated with the deleted datasets as purged.
+        This operation does NOT `delete` the plugged media physically
+        (e.g., it does not delete a S3 bucket), because the plugged media
+        (e.g., a S3 bucket) may contain data other than those loaded
+        or mounted on Galaxy which deleting the media (e.g., deleting
+        a S3 bucket) will result in unexpected file deletes.
+        :param plugged_media: The media to be purged.
+        :return: returns the purged plugged media.
+        """
+        if not plugged_media.purgeable:
+            raise exceptions.ConfigDoesNotAllowException(
+                "The plugged media (ID: `{}`; category: `{}`) is not purgeable."
+                .format(plugged_media.id, plugged_media.category))
+        for assoc in plugged_media.data_association:
+            for hda in assoc.dataset.history_associations:
+                self.hda_manager.purge(hda)
+            self.dataset_manager.purge(assoc.dataset, plugged_media=plugged_media)
+        plugged_media.purged = True
+        self.session().flush()
+        return plugged_media
 
 
 class PluggedMediaSerializer(sharable.SharableModelSerializer, deletable.PurgableSerializerMixin):

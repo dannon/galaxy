@@ -53,7 +53,7 @@ class DatasetManager(base.ModelManager, secured.AccessibleManagerMixin, deletabl
     def copy(self, dataset, **kwargs):
         raise galaxy.exceptions.NotImplemented('Datasets cannot be copied')
 
-    def purge(self, dataset, flush=True):
+    def purge(self, dataset, flush=True, plugged_media=None):
         """
         Remove the object_store/file for this dataset from storage and mark
         as purged.
@@ -63,7 +63,7 @@ class DatasetManager(base.ModelManager, secured.AccessibleManagerMixin, deletabl
         self.error_unless_dataset_purge_allowed(dataset)
 
         # the following also marks dataset as purged and deleted
-        dataset.full_delete()
+        dataset.full_delete(plugged_media=plugged_media)
         self.session().add(dataset)
         if flush:
             self.session().flush()

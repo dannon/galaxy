@@ -5,6 +5,7 @@ API operations on Plugged Media.
 """
 import logging
 
+from galaxy import exceptions
 from galaxy import web
 from galaxy.managers import (
     datasets,
@@ -137,25 +138,26 @@ class PluggedMediaController(BaseAPIController):
         :rtype: dict
         :return: The deleted or purged plugged media.
         """
-        plugged_media = self.plugged_media_manager.get_owned(self.decode_id(id), trans.user)
         try:
-            if string_as_bool(kwd.get('purge', False)):
+            plugged_media = self.plugged_media_manager.get_owned(self.decode_id(id), trans.user)
+            payload = kwd.get('payload', None)
+            purge = False if payload is None else string_as_bool(payload.get('purge', False))
+            if purge:
                 self.plugged_media_manager.purge(plugged_media)
-                for hda in plugged_media.hda:
-                    self.hda_manager.purge(hda)
-                    self.dataset_manager.purge(hda.dataset)
             else:
                 self.plugged_media_manager.delete(plugged_media)
-                for hda in plugged_media.hda:
-                    self.hda_manager.delete(hda)
-                    self.dataset_manager.delete(hda.dataset)
             return self.plugged_media_serializer.serialize_to_view(
                 plugged_media, user=trans.user, trans=trans, **self._parse_serialization_params(kwd, 'summary'))
+        except exceptions.ObjectNotFound:
+            msg = 'The plugged media with ID `{}` does not exist.'.format(str(id))
+            log.debug(msg)
         except AttributeError as e:
-            log.exception('An unexpected error has occurred while deleting/purging a plugged media in response to '
-                          'the related API call. Maybe an inappropriate database manual manipulation. ' + str(e))
-            return []
+            msg = 'An unexpected error has occurred while deleting/purging a plugged media in response to ' \
+                  'the related API call. Maybe an inappropriate database manual manipulation. ' + str(e)
+            log.exception(msg)
         except Exception as e:
-            log.exception('An unexpected error has occurred while deleting/purging a plugged media in response to '
-                          'the related API call. ' + str(e))
-            return []
+            msg = 'An unexpected error has occurred while deleting/purging a plugged media in response to ' \
+                  'the related API call. ' + str(e)
+            log.exception(msg)
+        return msg
+
