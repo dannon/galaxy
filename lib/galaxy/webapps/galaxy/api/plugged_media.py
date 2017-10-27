@@ -150,6 +150,8 @@ class PluggedMediaController(BaseAPIController):
                 plugged_media, user=trans.user, trans=trans, **self._parse_serialization_params(kwd, 'summary'))
         except exceptions.ObjectNotFound:
             raise exceptions.ObjectNotFound('The plugged media with ID `{}` does not exist.'.format(str(id)))
+        except exceptions.ConfigDoesNotAllowException as e:
+            raise exceptions.ConfigDoesNotAllowException(str(e))
         except AttributeError as e:
             raise AttributeError('An unexpected error has occurred while deleting/purging a plugged media in response '
                                  'to the related API call. Maybe an inappropriate database manipulation. ' + str(e))

@@ -437,6 +437,14 @@ class PluggedMedia(object):
         object_session(self).add(association)
         object_session(self).flush()
 
+    def is_purgeable(self):
+        if self.purgeable is False:
+            return False
+        for assoc in self.data_association:
+            if assoc.dataset.purgable is False:
+                return False
+        return True
+
 
 class PluggedMediaDatasetAssociation(object):
     def __init__(self, dataset, plugged_media):

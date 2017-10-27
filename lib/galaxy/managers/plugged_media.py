@@ -37,10 +37,12 @@ class PluggedMediaManager(sharable.SharableModelManager, deletable.PurgableManag
         :param plugged_media: The media to be purged.
         :return: returns the purged plugged media.
         """
-        if not plugged_media.purgeable:
+        if not plugged_media.is_purgeable():
             raise exceptions.ConfigDoesNotAllowException(
-                "The plugged media (ID: `{}`; category: `{}`) is not purgeable."
-                .format(plugged_media.id, plugged_media.category))
+                "The plugged media (ID: `{}`; category: `{}`) is not purgeable; because {}".format(
+                    plugged_media.id, plugged_media.category,
+                    "it's purgeable attribute is set to `False`." if plugged_media.purgeable is False
+                    else "it contains at least one dataset which is not purgeable."))
         for assoc in plugged_media.data_association:
             for hda in assoc.dataset.history_associations:
                 self.hda_manager.purge(hda)
