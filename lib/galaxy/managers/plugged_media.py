@@ -23,7 +23,41 @@ class PluggedMediaManager(sharable.SharableModelManager, deletable.PurgableManag
         self.hda_manager = hdas.HDAManager(app)
         self.dataset_manager = datasets.DatasetManager(app)
 
-    def purge(self, plugged_media):
+    def delete(self, plugged_media, **kwargs):
+        """
+        Deletes the given plugged media by taking the following steps:
+        (1) marks the plugged media `deleted` in the database (i.e., setting
+        the `deleted` attribute to True);
+        (2) marks `deleted` all the datasets persisted on the plugged media;
+        (3) marks `deleted` all the PluggedMedia-Dataset associations.
+        :param plugged_media: The plugged media to be deleted.
+        :type plugged_media: galaxy.model.PluggedMedia
+        :return: returns the deleted plugged media.
+        """
+        super(PluggedMediaManager, self).delete(plugged_media, kwargs)
+        for assoc in plugged_media.data_association:
+            self.hda_manager.delete(assoc, kwargs)
+            self.dataset_manager.delete(assoc.dataset, kwargs)
+        return plugged_media
+
+    def undelete(self, plugged_media, **kwargs):
+        """
+        Un-deletes the given plugged media by taking the following steps:
+        (1) marks the plugged media `un-deleted` in the database (i.e., setting
+        the `deleted` attribute to False);
+        (2) marks `un-deleted` all the datasets persisted on the plugged media;
+        (3) marks `un-deleted` all the PluggedMedia-Dataset associations.
+        :param plugged_media: The plugged media to be deleted.
+        :type plugged_media: galaxy.model.PluggedMedia
+        :return: returns the deleted plugged media.
+        """
+        super(PluggedMediaManager, self).undelete(plugged_media, kwargs)
+        for assoc in plugged_media.data_association:
+            self.hda_manager.delete(assoc, kwargs)
+            self.dataset_manager.delete(assoc.dataset, kwargs)
+        return plugged_media
+
+    def purge(self, plugged_media, **kwargs):
         """
         Purges a plugged media by taking the following steps:
         (1) marks the plugged media `purged` in the database;
@@ -35,6 +69,7 @@ class PluggedMediaManager(sharable.SharableModelManager, deletable.PurgableManag
         or mounted on Galaxy which deleting the media (e.g., deleting
         a S3 bucket) will result in unexpected file deletes.
         :param plugged_media: The media to be purged.
+        :type: plugged_media: galaxy.model.PluggedMedia
         :return: returns the purged plugged media.
         """
         if not plugged_media.is_purgeable():
