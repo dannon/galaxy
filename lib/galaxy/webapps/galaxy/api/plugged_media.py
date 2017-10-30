@@ -69,8 +69,8 @@ class PluggedMediaController(BaseAPIController):
             - category: is the type of this plugged media, its value is a key from `categories` bunch defined in the
             `PluggedMedia` class.
             - path: a path in the plugged media to be used (e.g., AWS S3 Bucket name).
-            - access_key: (Optional) credentials to access the plugged media.
-            - secret_key: (Optional) credentials to access the plugged media.
+            - credentials (Optional): It is a JSON object containing required credentials to access the plugged media
+             (e.g., access and secret key for an AWS S3 bucket).
 
         :rtype: dict
         :return: The newly created plugged media.
@@ -95,16 +95,14 @@ class PluggedMediaController(BaseAPIController):
             return "The following required arguments are missing in the payload: %s" % missing_arguments
         purgeable = string_as_bool(payload.get("purgeable", True))
 
-        new_plugged_media = self.plugged_media_manager.create(
-            user_id=trans.user.id,
-            hierarchy=hierarchy,
-            category=category,
-            path=path,
-            access_key=payload.get("access_key", None),
-            secret_key=payload.get("secret_key", None),
-            purgeable=purgeable)
-
         try:
+            new_plugged_media = self.plugged_media_manager.create(
+                user_id=trans.user.id,
+                hierarchy=hierarchy,
+                category=category,
+                path=path,
+                credentials=payload.get("credentials", None),
+                purgeable=purgeable)
             view = self.plugged_media_serializer.serialize_to_view(
                 new_plugged_media, user=trans.user, trans=trans, **self._parse_serialization_params(kwd, 'summary'))
             # Do not use integer response codes (e.g., 200), as they are not accepted by the

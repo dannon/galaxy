@@ -74,8 +74,7 @@ model.PluggedMedia.table = Table(
     Column("percentile", Integer),
     Column("category", TEXT, nullable=False),
     Column("path", TEXT, nullable=False),
-    Column("secret_key", TEXT),
-    Column("access_key", TEXT),
+    Column("credentials", JSONType, nullable=True),
     Column("deleted", Boolean, index=True, default=False),
     Column("purged", Boolean, index=True, default=False),
     Column("purgeable", Boolean, default=True))

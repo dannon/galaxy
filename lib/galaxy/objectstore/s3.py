@@ -121,8 +121,8 @@ class S3ObjectStore(ObjectStore):
             raise
 
     def _configure_using_plugged_media(self, plugged_media):
-        self.access_key = plugged_media.access_key
-        self.secret_key = plugged_media.secret_key
+        self.access_key = plugged_media.credentials.get("access_key", None)
+        self.secret_key = plugged_media.credentials.get("secret_key", None)
         self.bucket = plugged_media.path
         self.use_rr = False
         self.max_chunk_size = 250

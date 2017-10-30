@@ -396,15 +396,14 @@ class PluggedMedia(object):
                        S3="s3",
                        AZURE="azure")
 
-    def __init__(self, user_id, category, path, access_key, secret_key, hierarchy, quota=0, percentile=0, usage=0, purgeable=True):
+    def __init__(self, user_id, category, path, credentials, hierarchy, quota=0, percentile=0, usage=0, purgeable=True):
         """
         Initializes a plugged media.
         :param user_id: the Galaxy user id for whom this plugged media is defined.
         :param category: is the type of this plugged media, its value is a key from `categories` bunch.
         :param path: a path in the plugged media to be used. For instance, a path on a local disk, or bucket name
         on AWS, or container name on Azure.
-        :param access_key: credentials to access the plugged media (if required).
-        :param secret_key: credentials to access the plugged media (if required).
+        :param credentials: credentials to access the plugged media (if required).
         :param hierarchy: A key which defines the hierarchical relation between this and other plugged media defined
         by the user. This key is used in Object Store to define where to write or read from a dataset.
         :param quota:
@@ -418,8 +417,7 @@ class PluggedMedia(object):
         self.quota = quota
         self.percentile = percentile
         self.path = path
-        self.access_key = access_key
-        self.secret_key = secret_key
+        self.credentials = credentials
         self.deleted = False
         self.purged = False
         self.purgeable = purgeable
