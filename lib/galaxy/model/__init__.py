@@ -417,7 +417,11 @@ class PluggedMedia(object):
         self.quota = quota
         self.percentile = percentile
         self.path = path
-        self.credentials = credentials
+        if self.is_credentials_valid(credentials):
+            self.credentials = credentials
+        else:
+            raise ValueError("The credentials object is missing the required keys for authorizing access "
+                             "to the plugged media.")
         self.deleted = False
         self.purged = False
         self.purgeable = purgeable
@@ -442,6 +446,23 @@ class PluggedMedia(object):
             if assoc.dataset.purgable is False:
                 return False
         return True
+
+    def is_credentials_valid(self, credentials):
+        """
+        Checks if the credentials JSON object contains all the keys required to access the plugged media.
+        This function does not check for the authenticity of the credentials (e.g., it does not check if
+        AWS S3 access and secret key are valid, it only checks if they are given in the JSON object).
+        :param credentials: a JSON object containing credentials to access the plugged media.
+        :return: True if the credentials JSON object has all the credential keys for the selected plugged
+        media category (e.g., it should contain access and secret key for S3 category).
+        """
+        if self.category == self.categories.S3:
+            return "secret_key" in credentials and "access_key" in credentials
+        if self.category == self.categories.AZURE:
+            # TODO
+            return True
+        else:
+            return True
 
 
 class PluggedMediaDatasetAssociation(object):

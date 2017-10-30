@@ -110,12 +110,15 @@ class PluggedMediaController(BaseAPIController):
             trans.response.status = '200 OK'
             log.debug('Created a new plugged media of type `%s` for the user id `%s` ', category, str(trans.user.id))
             return view
+        except ValueError as e:
+            log.debug('An error occurred while creating a plugged media. ' + str(e))
+            trans.response.status = '400 Bad Request'
         except Exception as e:
             log.exception('An unexpected error has occurred while responding to the '
                           'create request of the plugged media API. ' + str(e))
             # Do not use integer response code (see above).
             trans.response.status = '500 Internal Server Error'
-            return []
+        return []
 
     @expose_api
     def delete(self, trans, id, **kwd):
