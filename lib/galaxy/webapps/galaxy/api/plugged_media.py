@@ -150,12 +150,21 @@ class PluggedMediaController(BaseAPIController):
             return self.plugged_media_serializer.serialize_to_view(
                 plugged_media, user=trans.user, trans=trans, **self._parse_serialization_params(kwd, 'summary'))
         except exceptions.ObjectNotFound:
-            raise exceptions.ObjectNotFound('The plugged media with ID `{}` does not exist.'.format(str(id)))
+            trans.response.status = '404 Not Found'
+            msg = 'The plugged media with ID `{}` does not exist.'.format(str(id))
+            log.debug(msg)
         except exceptions.ConfigDoesNotAllowException as e:
-            raise exceptions.ConfigDoesNotAllowException(str(e))
+            trans.response.status = '403 Forbidden'
+            msg = str(e)
+            log.debug(msg)
         except AttributeError as e:
-            raise AttributeError('An unexpected error has occurred while deleting/purging a plugged media in response '
-                                 'to the related API call. Maybe an inappropriate database manipulation. ' + str(e))
+            trans.response.status = '500 Internal Server Error'
+            msg = 'An unexpected error has occurred while deleting/purging a plugged media in response to the ' \
+                  'related API call. Maybe an inappropriate database manipulation. ' + str(e)
+            log.error(msg)
         except Exception as e:
-            raise Exception('An unexpected error has occurred while deleting/purging a plugged media in response to '
-                            'the related API call. ' + str(e))
+            trans.response.status = '500 Internal Server Error'
+            msg = 'An unexpected error has occurred while deleting/purging a plugged media in response to the ' \
+                  'related API call. ' + str(e)
+            log.error(msg)
+        return msg
