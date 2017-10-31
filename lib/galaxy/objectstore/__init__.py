@@ -56,8 +56,8 @@ class ObjectStore(object):
     :type plugged_media: A list of PluggedMedia (lib/galaxy/model/__init__.py)
     :param plugged_media: A list of data persistence media from/to which a dataset
         is pulled/pushed. If multiple plugged media is available for a user,
-        object store chooses one based on `usage`, `hierarchy`, `quota`, and
-        `percentile` attributes of each plugged media.
+        object store chooses one based on `usage`, `order`, and `quota` attributes
+        of each plugged media.
         A recommended approach for getting a list of plugged media available for
         a user, or possibly associated with the dataset, is using the
         `Dataset.get_plugged_media` method.
@@ -790,8 +790,8 @@ def pick_a_plugged_media(plugged_media):
     used for the object store operations. If a single plugged media is given
     (i.e., only one available/defined for the user, or user has explicitly
     chosen a plugged media), it returns that single option. However, if multiple
-    plugged media are available it uses the `hierarchy`, `quota`, and `percentile`
-    attributes of the plugged media to decide which to be used.
+    plugged media are available it uses the `order`, and `quota` attributes of
+    the plugged media to decide which to be used.
     NOTE: do not associate a dataset with a plugged media before the dataset is
     successfully persisted on the media.
     :param plugged_media: A list of plugged media defined/available for the user.

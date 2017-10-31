@@ -396,7 +396,7 @@ class PluggedMedia(object):
                        S3="s3",
                        AZURE="azure")
 
-    def __init__(self, user_id, category, path, credentials, hierarchy, quota=0, percentile=0, usage=0, purgeable=True):
+    def __init__(self, user_id, category, path, credentials, order, quota=0, usage=0, purgeable=True):
         """
         Initializes a plugged media.
         :param user_id: the Galaxy user id for whom this plugged media is defined.
@@ -404,18 +404,21 @@ class PluggedMedia(object):
         :param path: a path in the plugged media to be used. For instance, a path on a local disk, or bucket name
         on AWS, or container name on Azure.
         :param credentials: credentials to access the plugged media (if required).
-        :param hierarchy: A key which defines the hierarchical relation between this and other plugged media defined
-        by the user. This key is used in Object Store to define where to write or read from a dataset.
-        :param quota:
-        :param percentile:
+        :param order: A key which defines the hierarchical relation between this and other plugged media defined
+        by the user. This key is used in Object Store to determine where to write to or read from a dataset. The
+        value of this parameter can be any integer (+/-) excluding 0, as 0 is the default storage configuration
+        of the Galaxy instance. For instance, if use has defined multiple plugged media with the following orders:
+        -2, -1, 1, 2, 3, then object store tries read/write a dataset to a plugged media (PM) in the following order:
+        PM_3, PM_2, PM_1, Instance ObjectStore Configuration, PM_-1, PM_-2. It fals from one plugged media to another
+        if (a) plugged media is not available, or (b) usage + dataset_size > quota.
+        :param quota: sets the maximum data size to be persisted on this plugged media.
         :param usage: sets the total size of the data Galaxy has persisted on the media.
         """
         self.user_id = user_id
         self.usage = usage
-        self.hierarchy = hierarchy
+        self.order = order
         self.category = category
         self.quota = quota
-        self.percentile = percentile
         self.path = path
         if self.is_credentials_valid(credentials):
             self.credentials = credentials

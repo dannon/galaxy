@@ -105,9 +105,8 @@ class PluggedMediaSerializer(sharable.SharableModelSerializer, deletable.Purgabl
             'create_time',
             'update_time',
             'usage',
-            'hierarchy',
+            'order',
             'quota',
-            'percentile',
             'category',
             'path',
             'deleted',
@@ -119,22 +118,17 @@ class PluggedMediaSerializer(sharable.SharableModelSerializer, deletable.Purgabl
         super(PluggedMediaSerializer, self).add_serializers()
         deletable.PurgableSerializerMixin.add_serializers(self)
 
-        # Each key (e.g., 'hierarchy') receives a set of arguments, and the value of the key
-        # can be dependent (e.g., see 'hierarchy') or independent (e.g., see 'model_class') from the input arguments.
-        # see: serialize function in lib/galaxy/managers/base.py
-        #
         # Arguments of the following lambda functions:
         # i  : an instance of galaxy.model.PluggedMedia.
-        # k  : serialized dictionary key (e.g., 'model_class', 'hierarchy', 'category', and 'path').
+        # k  : serialized dictionary key (e.g., 'model_class', 'order', 'category', and 'path').
         # **c: a dictionary containing 'trans' and 'user' objects.
         self.serializers.update({
             'id'         : lambda i, k, **c: self.app.security.encode_id(i.id),
             'model_class': lambda *a, **c: 'PluggedMedia',
             'user_id'    : lambda i, k, **c: self.app.security.encode_id(i.user_id),
             'usage'      : lambda i, k, **c: i.usage,
-            'hierarchy'  : lambda i, k, **c: i.hierarchy,
+            'order'      : lambda i, k, **c: i.order,
             'quota'      : lambda i, k, **c: i.quota,
-            'percentile' : lambda i, k, **c: i.percentile,
             'category'   : lambda i, k, **c: i.category,
             'path'       : lambda i, k, **c: i.path,
             'deleted'    : lambda i, k, **c: i.deleted,

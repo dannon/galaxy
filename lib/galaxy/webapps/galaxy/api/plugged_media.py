@@ -64,7 +64,7 @@ class PluggedMediaController(BaseAPIController):
 
         :type  payload: dict
         :param payload: A dictionary structure containing the following keys:
-            - hierarchy: A key which defines the hierarchical relation between this and other plugged media defined
+            - order: A key which defines the hierarchical relation between this and other plugged media defined
             by the user.
             - category: is the type of this plugged media, its value is a key from `categories` bunch defined in the
             `PluggedMedia` class.
@@ -81,9 +81,9 @@ class PluggedMediaController(BaseAPIController):
                    " but received data of type '%s'." % str(type(payload))
 
         missing_arguments = []
-        hierarchy = payload.get("hierarchy")
-        if hierarchy is None:
-            missing_arguments.append("hierarchy")
+        order = payload.get("order")
+        if order is None:
+            missing_arguments.append("order")
         category = payload.get("category")
         if category is None:
             missing_arguments.append("category")
@@ -98,7 +98,7 @@ class PluggedMediaController(BaseAPIController):
         try:
             new_plugged_media = self.plugged_media_manager.create(
                 user_id=trans.user.id,
-                hierarchy=hierarchy,
+                order=order,
                 category=category,
                 path=path,
                 credentials=payload.get("credentials", None),
