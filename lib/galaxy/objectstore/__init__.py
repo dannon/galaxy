@@ -804,7 +804,7 @@ def build_object_store_from_config(config, fsmon=False, config_xml=None):
         log.error("Unrecognized object store definition: {0}".format(store))
 
 
-def pick_a_plugged_media(plugged_media, user=None, from_order=None):
+def pick_a_plugged_media(plugged_media, user=None, from_order=None, dataset_size=0):
     """
     This function receives a list of plugged media, and decides which one to be
     used for the object store operations. If a single plugged media is given
@@ -817,6 +817,7 @@ def pick_a_plugged_media(plugged_media, user=None, from_order=None):
     :param plugged_media: A list of plugged media defined/available for the user.
     :param user: the galaxy user.
     :param from_order: is the order of a previously returned and failed plugged media,
+    :param dataset_size: is the file size of the dataset.
     which this function should determine a plugged media in a lower order to that.
     :return: A single plugged media, or None (if no plugged media is available, or
     if object store should use instance-level config).
@@ -843,17 +844,17 @@ def pick_a_plugged_media(plugged_media, user=None, from_order=None):
         while plugged_media[i].order > 0:
             if plugged_media[i].order > from_order:  # i.e., OS has already failed to persist on the i-th plugged media.
                 continue
-            if plugged_media[i].usage < plugged_media[i].quota:  # TODO: this should be: usage+dataset.size < quota
+            if plugged_media[i].usage + dataset_size < plugged_media[i].quota:
                 return plugged_media[i]
             i -= 1
     elif from_order < 0:
         for index, item in reversed(list(enumerate(plugged_media))):
-            if item.order < 0 and item.usage < item.quota:  # TODO: this should be: usage+dataset.size < quota
+            if item.order < 0 and item.usage + dataset_size < item.quota:
                 return item
         log.debug("The user with ID `{}` does not have enough space on any of the storage backends available to "
                   "her/him to persist the given dataset on.".format(user.id))
         raise StopIteration  # TODO: any better solution?
-    return None  # TODO: check for usage+size < quota on instance-level config.
+    return None  # TODO: check for usage+size < quota on instance-level objectstore config.
     # This return is occurred when the function determines that the instance-level object store config
     # should be used. Hence, it might be better to return a different value than `None`, e.g., return 0.
 
