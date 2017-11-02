@@ -1726,7 +1726,8 @@ class JobWrapper(object, HasResourceParameters):
         if dataset not in job.output_library_datasets:
             purged = dataset.purged
             if not purged and not clean_only:
-                self.app.object_store.update_from_file(dataset, create=True)
+                plugged_media = job.user.plugged_media if job.user else None
+                self.app.object_store.update_from_file(dataset, user=job.user, plugged_media=plugged_media, create=True)
             else:
                 # If the dataset is purged and Galaxy is configured to write directly
                 # to the object store from jobs - be sure that file is cleaned up. This
