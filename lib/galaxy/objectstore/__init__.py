@@ -526,7 +526,7 @@ class NestedObjectStore(ObjectStore):
 
     def _call_method(self, method, obj, default, default_is_exception, **kwargs):
         """Check all children object stores for the first one with the dataset."""
-        plugged_media = pick_a_plugged_media(kwargs.get('plugged_media', None))
+        plugged_media = pick_a_plugged_media(kwargs.get('plugged_media', None), kwargs.get('user', None))
         if plugged_media is not None:
             store = get_user_based_object_store(self.config, plugged_media)
             if store.exists(obj, **kwargs):
@@ -721,13 +721,33 @@ class HierarchicalObjectStore(NestedObjectStore):
 
     def create(self, obj, **kwargs):
         """Call the primary object store."""
-        plugged_media = pick_a_plugged_media(kwargs.get('plugged_media', None))
-        if plugged_media is not None:
-            store = get_user_based_object_store(self.config, plugged_media)
-            store.create(obj, **kwargs)
-            plugged_media.association_with_dataset(obj)
-        else:
-            self.backends[0].create(obj, **kwargs)
+        # Iterates until: (a) a backend is determined and the dataset is successfully persisted on, or (b) if all
+        # the available backends are exhausted and then raise an exception. Backend are exhausted if (a) none can
+        # be chosen (e.g., if usage quota on the storage is hit), or (b) object store fails to use it (e.g., S3
+        # access and secret are invalid).
+        from_order = None
+        while True:
+            try:
+                plugged_media = pick_a_plugged_media(kwargs.get('plugged_media', None), kwargs.get('user', None), from_order)
+                if plugged_media is not None:
+                    from_order = plugged_media.order
+                    store = get_user_based_object_store(self.config, plugged_media)
+                    store.create(obj, **kwargs)
+                    plugged_media.association_with_dataset(obj)
+                else:
+                    from_order = 0
+                    self.backends[0].create(obj, **kwargs)
+                break
+            except StopIteration:
+                log.exception("Failed to persist the `{}` with ID `{}` on any of the storages available to the user."
+                              .format(obj, obj.id))
+                break
+            except Exception as e:
+                log.exception("Failed to persist the `{}` with ID `{}` on `{}` with the following error;"
+                              "now trying another persistence option, if any available. Error: {}"
+                              .format(obj, obj.id, "{} with ID {}".format(plugged_media.category, plugged_media.id)
+                                      if plugged_media is not None else "instance default storage", str(e)))
+        # TODO: User should be notified if this operation is failed.
 
 
 def build_object_store_from_config(config, fsmon=False, config_xml=None):
@@ -784,32 +804,58 @@ def build_object_store_from_config(config, fsmon=False, config_xml=None):
         log.error("Unrecognized object store definition: {0}".format(store))
 
 
-def pick_a_plugged_media(plugged_media):
+def pick_a_plugged_media(plugged_media, user=None, from_order=None):
     """
     This function receives a list of plugged media, and decides which one to be
     used for the object store operations. If a single plugged media is given
     (i.e., only one available/defined for the user, or user has explicitly
     chosen a plugged media), it returns that single option. However, if multiple
-    plugged media are available it uses the `order`, and `quota` attributes of
-    the plugged media to decide which to be used.
+    plugged media are available, then it uses the `order`, and `quota` attributes of
+    the plugged media to decide which one to be used.
     NOTE: do not associate a dataset with a plugged media before the dataset is
     successfully persisted on the media.
     :param plugged_media: A list of plugged media defined/available for the user.
-    :return: A single plugged media, or None (if no plugged media is available).
+    :param user: the galaxy user.
+    :param from_order: is the order of a previously returned and failed plugged media,
+    which this function should determine a plugged media in a lower order to that.
+    :return: A single plugged media, or None (if no plugged media is available, or
+    if object store should use instance-level config).
     """
     if plugged_media is None:
         return None
     if not hasattr(plugged_media, '__len__'):
-        log.exception("Expected a list of plugged media, but received an object of type `%s`." % type(plugged_media))
+        log.exception("Expected a list of PluggedMedia, but received an object of type `%s`." % type(plugged_media))
         return None
     if len(plugged_media) == 0:
         return None
     if len(plugged_media) == 1:
-        return plugged_media[0]
-    else:
-        log.debug("The function choosing a plugged media among multiple options, is not implemented. Chose the "
-                  "first available option with ID: {}.".format(plugged_media[0].id))
-        return plugged_media[0]
+        return plugged_media[0] if plugged_media[0].order > 0 else None
+
+    # The following is the procedure of choosing a plugged media from a list of available options
+    # including instance-level object store configuration. This operation iterates from the highest
+    # to lowest order plugged media (i.e., biggest positive and smallest negative order respectively)
+    # with `0` being the instance-level object store configuration. It falls from one plugged media to
+    # another, if the available space on that media is not sufficient to store the given dataset.
+    plugged_media.sort(key=lambda p: p.order)
+    from_order = from_order - 1 if from_order is not None else plugged_media[-1].order
+    if from_order > 0:
+        i = len(plugged_media)
+        while plugged_media[i].order > 0:
+            if plugged_media[i].order > from_order:  # i.e., OS has already failed to persist on the i-th plugged media.
+                continue
+            if plugged_media[i].usage < plugged_media[i].quota:  # TODO: this should be: usage+dataset.size < quota
+                return plugged_media[i]
+            i -= 1
+    elif from_order < 0:
+        for index, item in reversed(list(enumerate(plugged_media))):
+            if item.order < 0 and item.usage < item.quota:  # TODO: this should be: usage+dataset.size < quota
+                return item
+        log.debug("The user with ID `{}` does not have enough space on any of the storage backends available to "
+                  "her/him to persist the given dataset on.".format(user.id))
+        raise StopIteration  # TODO: any better solution?
+    return None  # TODO: check for usage+size < quota on instance-level config.
+    # This return is occurred when the function determines that the instance-level object store config
+    # should be used. Hence, it might be better to return a different value than `None`, e.g., return 0.
 
 
 def get_user_based_object_store(config, plugged_media):
