@@ -71,7 +71,8 @@ class PluggedMediaController(BaseAPIController):
             - path: a path in the plugged media to be used (e.g., AWS S3 Bucket name).
             - credentials (Optional): It is a JSON object containing required credentials to access the plugged media
              (e.g., access and secret key for an AWS S3 bucket).
-
+            - quota (Optional): Disk quota, a limit that sets maximum data storage limit on this plugged media.
+            - usage (Optional): Sets the size of data persisted by Galaxy in this plugged media.
         :rtype: dict
         :return: The newly created plugged media.
         """
@@ -96,12 +97,23 @@ class PluggedMediaController(BaseAPIController):
         purgeable = string_as_bool(payload.get("purgeable", True))
 
         try:
+            quota = int(payload.get("quota", "0"))
+        except ValueError:
+            return "Expect an integer value for the `quota` attribute, but received `{}`.".format(payload.get("quota"))
+        try:
+            usage = int(payload.get("usage", "0"))
+        except ValueError:
+            return "Expect an integer value for the `usage` attribute, but received `{}`.".format(payload.get("usage"))
+
+        try:
             new_plugged_media = self.plugged_media_manager.create(
                 user_id=trans.user.id,
                 order=order,
                 category=category,
                 path=path,
                 credentials=payload.get("credentials", None),
+                quota=quota,
+                usage=usage,
                 purgeable=purgeable)
             view = self.plugged_media_serializer.serialize_to_view(
                 new_plugged_media, user=trans.user, trans=trans, **self._parse_serialization_params(kwd, 'summary'))
