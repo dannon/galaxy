@@ -726,7 +726,10 @@ class HierarchicalObjectStore(NestedObjectStore):
         # be chosen (e.g., if usage quota on the storage is hit), or (b) object store fails to use it (e.g., S3
         # access and secret are invalid).
         from_order = None
-        while True:
+        plugged_media = None
+        i = 1 + len(kwargs.get('plugged_media', None)) if kwargs.get('plugged_media', None) is not None else 1
+        while i > 0:
+            i -= 1
             try:
                 plugged_media = pick_a_plugged_media(kwargs.get('plugged_media', None), kwargs.get('user', None), from_order)
                 if plugged_media is not None:
@@ -746,7 +749,7 @@ class HierarchicalObjectStore(NestedObjectStore):
                 log.exception("Failed to persist the `{}` with ID `{}` on `{}` with the following error;"
                               "now trying another persistence option, if any available. Error: {}"
                               .format(obj, obj.id, "{} with ID {}".format(plugged_media.category, plugged_media.id)
-                                      if plugged_media is not None else "instance default storage", str(e)))
+                                      if plugged_media is not None else "the default storage of this instance", str(e)))
         # TODO: User should be notified if this operation is failed.
 
 
@@ -840,11 +843,9 @@ def pick_a_plugged_media(plugged_media, user=None, from_order=None, dataset_size
     plugged_media.sort(key=lambda p: p.order)
     from_order = from_order - 1 if from_order is not None else plugged_media[-1].order
     if from_order > 0:
-        i = len(plugged_media)
-        while plugged_media[i].order > 0:
-            if plugged_media[i].order > from_order:  # i.e., OS has already failed to persist on the i-th plugged media.
-                continue
-            if plugged_media[i].usage + dataset_size < plugged_media[i].quota:
+        i = len(plugged_media) - 1
+        while i >= 0 and plugged_media[i].order > 0:
+            if plugged_media[i].order <= from_order and plugged_media[i].usage + dataset_size <= plugged_media[i].quota:
                 return plugged_media[i]
             i -= 1
     elif from_order < 0:
