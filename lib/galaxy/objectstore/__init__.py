@@ -731,7 +731,11 @@ class HierarchicalObjectStore(NestedObjectStore):
         while i > 0:
             i -= 1
             try:
-                plugged_media = pick_a_plugged_media(kwargs.get('plugged_media', None), kwargs.get('user', None), from_order)
+                # The following check is done because the `obj` object is either of type
+                # `galaxy.model.Dataset` or `galaxy.model.Job`.
+                dataset_size = obj.get_size() if hasattr(obj, 'get_size') else 0
+                plugged_media = pick_a_plugged_media(kwargs.get('plugged_media', None), kwargs.get('user', None),
+                                                     from_order, dataset_size)
                 if plugged_media is not None:
                     from_order = plugged_media.order
                     store = get_user_based_object_store(self.config, plugged_media)
@@ -740,10 +744,6 @@ class HierarchicalObjectStore(NestedObjectStore):
                 else:
                     from_order = 0
                     self.backends[0].create(obj, **kwargs)
-                break
-            except StopIteration:
-                log.exception("Failed to persist the `{}` with ID `{}` on any of the storages available to the user."
-                              .format(obj, obj.id))
                 break
             except Exception as e:
                 log.exception("Failed to persist the `{}` with ID `{}` on `{}` with the following error;"
@@ -832,32 +832,35 @@ def pick_a_plugged_media(plugged_media, user=None, from_order=None, dataset_size
         return None
     if len(plugged_media) == 0:
         return None
-    if len(plugged_media) == 1:
-        return plugged_media[0] if plugged_media[0].order > 0 else None
 
     # The following is the procedure of choosing a plugged media from a list of available options
     # including instance-level object store configuration. This operation iterates from the highest
-    # to lowest order plugged media (i.e., biggest positive and smallest negative order respectively)
+    # to lowest order plugged media  (i.e., biggest positive and smallest negative order respectively)
     # with `0` being the instance-level object store configuration. It falls from one plugged media to
     # another, if the available space on that media is not sufficient to store the given dataset.
     plugged_media.sort(key=lambda p: p.order)
     from_order = from_order - 1 if from_order is not None else plugged_media[-1].order
-    if from_order > 0:
-        i = len(plugged_media) - 1
-        while i >= 0 and plugged_media[i].order > 0:
-            if plugged_media[i].order <= from_order and plugged_media[i].usage + dataset_size <= plugged_media[i].quota:
+    i = len(plugged_media) - 1
+    while i >= 0:
+        if from_order >= plugged_media[i].order > 0 or from_order <= plugged_media[i].order < -1:
+            if plugged_media[i].usage + dataset_size <= plugged_media[i].quota:
                 return plugged_media[i]
-            i -= 1
-    elif from_order < 0:
-        for index, item in reversed(list(enumerate(plugged_media))):
-            if item.order < 0 and item.usage + dataset_size < item.quota:
-                return item
-        log.debug("The user with ID `{}` does not have enough space on any of the storage backends available to "
-                  "her/him to persist the given dataset on.".format(user.id))
-        raise StopIteration  # TODO: any better solution?
-    return None  # TODO: check for usage+size < quota on instance-level objectstore config.
-    # This return is occurred when the function determines that the instance-level object store config
-    # should be used. Hence, it might be better to return a different value than `None`, e.g., return 0.
+        else:
+            return None
+            # TODO [when ObjectStore can assess user quota and usage on instance-level object store]:
+            # Remove the above return and replace it with the following:
+            #   if user_has_enough_quota_on_instalce_level_object_store_to_persist_this_dataset:
+            #       return None
+            #   elif plugged_media[i].usage + dataset_size <= plugged_media[i].quota:
+            #       return plugged_media[i]
+        i -= 1
+    return None
+    # TODO [when ObjectStore can assess user quota and usage on instance-level object store]:
+    # Remove the above return and replace it with the following:
+    #   if user_has_enough_quota_on_instalce_level_object_store_to_persist_this_dataset:
+    #       return None
+    #   elif plugged_media[i].usage + dataset_size <= plugged_media[i].quota:
+    #       raise an_error_which_informs_the_user_that_there_is_no_enough_space_left_to_persist_the_dataset
 
 
 def get_user_based_object_store(config, plugged_media):
