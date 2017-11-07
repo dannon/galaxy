@@ -1683,7 +1683,14 @@ simple_mapping(model.Dataset,
         backref='datasets'),
     plugged_media_associations=relation(
         model.PluggedMediaDatasetAssociation,
-        primaryjoin=(model.Dataset.table.c.id == model.PluggedMediaDatasetAssociation.table.c.dataset_id))
+        primaryjoin=(model.Dataset.table.c.id == model.PluggedMediaDatasetAssociation.table.c.dataset_id)),
+    active_plugged_media_associations=relation(
+        model.PluggedMediaDatasetAssociation,
+        primaryjoin=(
+            (model.Dataset.table.c.id == model.PluggedMediaDatasetAssociation.table.c.dataset_id) &
+            (model.PluggedMediaDatasetAssociation.table.c.deleted == false()) &
+            (model.PluggedMediaDatasetAssociation.table.c.purged == false()))
+    )
 )
 
 mapper(model.HistoryDatasetAssociationDisplayAtAuthorization, model.HistoryDatasetAssociationDisplayAtAuthorization.table, properties=dict(
@@ -1801,7 +1808,14 @@ mapper(model.User, model.User.table, properties=dict(
     api_keys=relation(model.APIKeys,
         backref="user",
         order_by=desc(model.APIKeys.table.c.create_time)),
-    plugged_media=relation(model.PluggedMedia)
+    plugged_media=relation(model.PluggedMedia),
+    active_plugged_media=relation(
+        model.PluggedMedia,
+        primaryjoin=(
+            (model.PluggedMedia.table.c.user_id == model.User.table.c.id) &
+            (model.PluggedMedia.table.c.deleted == false()) &
+            (model.PluggedMedia.table.c.purged == false())
+        ))
 ))
 
 mapper(model.PluggedMedia, model.PluggedMedia.table, properties=dict(
@@ -1809,7 +1823,13 @@ mapper(model.PluggedMedia, model.PluggedMedia.table, properties=dict(
     data_association=relation(
         model.PluggedMediaDatasetAssociation,
         primaryjoin=(model.PluggedMediaDatasetAssociation.table.c.plugged_media_id == model.PluggedMedia.table.c.id),
-        lazy=False)
+        lazy=False),
+    active_data_association=relation(
+        model.PluggedMediaDatasetAssociation,
+        primaryjoin=((model.PluggedMediaDatasetAssociation.table.c.plugged_media_id == model.PluggedMedia.table.c.id) &
+                     (model.PluggedMediaDatasetAssociation.table.c.deleted == false()) &
+                     (model.PluggedMediaDatasetAssociation.table.c.purged == false()))
+    )
 ))
 
 mapper(model.PasswordResetToken, model.PasswordResetToken.table,

@@ -472,10 +472,12 @@ class PluggedMedia(object):
 
 
 class PluggedMediaDatasetAssociation(object):
-    def __init__(self, dataset, plugged_media):
+    def __init__(self, dataset, plugged_media, deleted=False, purged=False):
         self.dataset_id = dataset.id
         self.plugged_media_id = plugged_media.id
         self.dataset_path_on_media = None
+        self.deleted = deleted
+        self.purged = purged
 
 
 class PasswordResetToken(object):
@@ -2037,7 +2039,7 @@ class Dataset(StorableObject):
             return None
         plugged_media = []
 
-        for assoc in self.plugged_media_associations:
+        for assoc in self.active_plugged_media_associations:
             if assoc.plugged_media.user.id == user.id:
                 plugged_media.append(assoc.plugged_media)
 

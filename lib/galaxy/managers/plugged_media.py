@@ -78,10 +78,11 @@ class PluggedMediaManager(sharable.SharableModelManager, deletable.PurgableManag
                     plugged_media.id, plugged_media.category,
                     "it's purgeable attribute is set to `False`." if plugged_media.purgeable is False
                     else "it contains at least one dataset which is not purgeable."))
-        for assoc in plugged_media.data_association:
+        for i, assoc in enumerate(plugged_media.data_association):
             for hda in assoc.dataset.history_associations:
                 self.hda_manager.purge(hda)
             self.dataset_manager.purge(assoc.dataset, plugged_media=plugged_media)
+            plugged_media.data_association[i].purged = True
         plugged_media.purged = True
         self.session().flush()
         return plugged_media
