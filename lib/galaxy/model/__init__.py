@@ -467,6 +467,9 @@ class PluggedMedia(object):
         else:
             return True
 
+    def set_usage(self, amount):
+        self.usage = amount
+
 
 class PluggedMediaDatasetAssociation(object):
     def __init__(self, dataset, plugged_media):

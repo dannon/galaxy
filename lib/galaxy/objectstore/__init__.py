@@ -741,6 +741,7 @@ class HierarchicalObjectStore(NestedObjectStore):
                     store = get_user_based_object_store(self.config, plugged_media)
                     store.create(obj, **kwargs)
                     plugged_media.association_with_dataset(obj)
+                    plugged_media.set_usage(plugged_media.usage + dataset_size)
                 else:
                     from_order = 0
                     self.backends[0].create(obj, **kwargs)
