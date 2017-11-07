@@ -97,13 +97,13 @@ class PluggedMediaController(BaseAPIController):
         purgeable = string_as_bool(payload.get("purgeable", True))
 
         try:
-            quota = int(payload.get("quota", "0"))
+            quota = float(payload.get("quota", "0.0"))
         except ValueError:
-            return "Expect an integer value for the `quota` attribute, but received `{}`.".format(payload.get("quota"))
+            return "Expect a float number for the `quota` attribute, but received `{}`.".format(payload.get("quota"))
         try:
-            usage = int(payload.get("usage", "0"))
+            usage = float(payload.get("usage", "0.0"))
         except ValueError:
-            return "Expect an integer value for the `usage` attribute, but received `{}`.".format(payload.get("usage"))
+            return "Expect a float number for the `usage` attribute, but received `{}`.".format(payload.get("usage"))
 
         try:
             new_plugged_media = self.plugged_media_manager.create(

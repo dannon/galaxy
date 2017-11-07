@@ -7,7 +7,7 @@ from __future__ import print_function
 import datetime
 import logging
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, MetaData, Table, TEXT
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, MetaData, Numeric, Table, TEXT
 from galaxy.model.custom_types import JSONType
 
 now = datetime.datetime.utcnow
@@ -22,9 +22,9 @@ PluggedMediaTable = Table(
     Column("create_time", DateTime, default=now),
     Column("update_time", DateTime, default=now, onupdate=now),
     Column("user_id", Integer, ForeignKey("galaxy_user.id"), index=True),
-    Column("usage", Integer, default=0),
+    Column("usage", Numeric(15, 0), default=0),
     Column("order", Integer),
-    Column("quota", Integer),
+    Column("quota", Numeric(15, 0)),
     Column("category", TEXT, default="local"),
     Column("path", TEXT),
     Column("credentials", JSONType, nullable=True),
