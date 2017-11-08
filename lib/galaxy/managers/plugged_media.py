@@ -38,6 +38,8 @@ class PluggedMediaManager(sharable.SharableModelManager, deletable.PurgableManag
         for assoc in plugged_media.data_association:
             self.hda_manager.delete(assoc, kwargs)
             self.dataset_manager.delete(assoc.dataset, kwargs)
+            super(PluggedMediaManager, self).delete(assoc, kwargs)
+        self.session().flush()
         return plugged_media
 
     def undelete(self, plugged_media, **kwargs):
@@ -55,6 +57,8 @@ class PluggedMediaManager(sharable.SharableModelManager, deletable.PurgableManag
         for assoc in plugged_media.data_association:
             self.hda_manager.delete(assoc, kwargs)
             self.dataset_manager.delete(assoc.dataset, kwargs)
+            super(PluggedMediaManager, self).undelete(assoc, kwargs)
+        self.session().flush()
         return plugged_media
 
     def purge(self, plugged_media, **kwargs):
