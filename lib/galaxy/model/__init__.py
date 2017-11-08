@@ -1954,6 +1954,7 @@ class Dataset(StorableObject):
 
     def mark_deleted(self):
         self.deleted = True
+        self.plugged_media_associations.deleted = True
 
     def is_multi_byte(self, user=None, plugged_media=None):
         plugged_media = self.get_plugged_media(user, plugged_media)
@@ -1990,6 +1991,8 @@ class Dataset(StorableObject):
         # TODO: purge metadata files
         self.deleted = True
         self.purged = True
+        self.plugged_media_associations.deleted = True
+        self.plugged_media_associations.purged = True
 
     def get_access_roles(self, trans):
         roles = []
