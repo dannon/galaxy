@@ -69,6 +69,12 @@ class PluggedMediaController(BaseAPIController):
             - category: is the type of this plugged media, its value is a key from `categories` bunch defined in the
             `PluggedMedia` class.
             - path: a path in the plugged media to be used (e.g., AWS S3 Bucket name).
+            - order : Sets the order of this plugged media, it is an integer specifying the order in
+            which a plugged media should be tried to persiste a dataset on. Order is relative to the default
+            Galaxy instance storage, which has a reserved order 0, where plugged media with positive and negative
+            order are tried prior and posterior to the default storage respectively. For instance, considering 3
+            plugged media, PM_1, PM_2, and PM_3 with the orders 2, 1, and -1 respectively; Galaxy tries the these
+            plugged media in the following order: PM_1, PM_2, Default, PM_3.
             - credentials (Optional): It is a JSON object containing required credentials to access the plugged media
              (e.g., access and secret key for an AWS S3 bucket).
             - quota (Optional): Disk quota, a limit that sets maximum data storage limit on this plugged media.
@@ -85,6 +91,10 @@ class PluggedMediaController(BaseAPIController):
         order = payload.get("order")
         if order is None:
             missing_arguments.append("order")
+        try:
+            order = int(order)
+        except ValueError:
+            return 'Expect an integer value for `order` argument, but received: `{}`.'.format(order)
         category = payload.get("category")
         if category is None:
             missing_arguments.append("category")
@@ -94,6 +104,8 @@ class PluggedMediaController(BaseAPIController):
         if len(missing_arguments) > 0:
             trans.response.status = 400
             return "The following required arguments are missing in the payload: %s" % missing_arguments
+        if order == 0:
+            return "The order `0` is reserved for default storage, choose a higher/lower order."
         purgeable = string_as_bool(payload.get("purgeable", True))
 
         try:
