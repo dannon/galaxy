@@ -2026,30 +2026,27 @@ class Dataset(StorableObject):
         :param plugged_media: A list of plugged media or a single instance.
         :return: None or a list of plugged media.
         """
+        if user is None:
+            # The only time this condition would be met is during an anonymous access, and anonymous users
+            # cannot define/access a plugged media, theoretically.
+            return None
         if plugged_media is not None:
             # If user has explicitly specified a plugged media to be used.
             if isinstance(plugged_media, PluggedMedia):
-                return [plugged_media]
+                return [plugged_media] if plugged_media.user_id == user.id else None
             # If user's explicit selection is already put in a list, or the list
             # of available plugged media of the user is already determined.
             elif hasattr(plugged_media, '__len__') and len(plugged_media) > 0:
-                return plugged_media
+                return [x for x in plugged_media if x.user_id != user.id]
             # If an empty list is passed.
             elif hasattr(plugged_media, '__len__') and len(plugged_media) == 0:
                 log.exception("An empty list as plugged media is an unexpected value.")
-        if user is None:
-            # The only time this condition would be met is during an anonymous access.
-            return None
         plugged_media = []
 
         for assoc in self.active_plugged_media_associations:
-            if assoc.plugged_media.user.id == user.id:
+            if assoc.plugged_media.user_id == user.id:
                 plugged_media.append(assoc.plugged_media)
-
-        if len(plugged_media) == 0:
-            return None
-        else:
-            return plugged_media
+        return None if len(plugged_media) == 0 else plugged_media
 
 
 class DatasetInstance(object):
