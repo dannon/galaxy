@@ -13,6 +13,7 @@ var cached = require('gulp-cached');
 var plumber = require('gulp-plumber');
 var vueify = require('gulp-vueify');
 var ext_replace = require('gulp-ext-replace');
+var commonToAmd = require('gulp-common-to-amd');
 
 var paths = {
     node_modules: './node_modules',
@@ -88,6 +89,7 @@ gulp.task('clean', function(){
 gulp.task('vueify', function () {
   return gulp.src(paths.components)
     .pipe(vueify())
+    .pipe(commonToAmd())
     .pipe(ext_replace('.vue.js'))
     .pipe(gulp.dest('../static/scripts/'));
 });

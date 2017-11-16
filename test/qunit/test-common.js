@@ -72,6 +72,7 @@ require.config({
         // Custom paths for qunit testing dependencies...
         "QUnit": qunit_absolute_directory + "node_modules/qunitjs/qunit/qunit", // .. because baseUrl is scripts to match Galaxy.
         "sinon": qunit_absolute_directory + "node_modules/sinon/pkg/sinon",
+        "vueify": qunit_absolute_directory + "node_modules/vueify",
         // (optional) test data
         "test-data" : qunit_absolute_directory + "test-data/",
         // (optional) test app/environment with server data
