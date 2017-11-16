@@ -11,6 +11,8 @@ var beautify = require('gulp-beautify');
 var gulpif = require('gulp-if');
 var cached = require('gulp-cached');
 var plumber = require('gulp-plumber');
+var vueify = require('gulp-vueify');
+var ext_replace = require('gulp-ext-replace');
 
 var paths = {
     node_modules: './node_modules',
@@ -36,7 +38,8 @@ var paths = {
         'underscore': [ 'underscore.js', 'underscore.js' ],
         'vue': [ 'dist/vue.js', 'vue.js' ]
     },
-    libs: ['galaxy/scripts/libs/**/*.js']
+    libs: ['galaxy/scripts/libs/**/*.js'],
+    components: ['galaxy/scripts/**/*.vue']
 };
 
 var nopack_mode = function(){
@@ -80,6 +83,13 @@ gulp.task('clean', function(){
     return del(['../static/scripts/**/*.js',
                 '!../static/scripts/bundled/**.*.js'],
                {force: true});
+});
+
+gulp.task('vueify', function () {
+  return gulp.src(paths.components)
+    .pipe(vueify({extractCSS: true}))
+    .pipe(ext_replace('.vue.js'))
+    .pipe(gulp.dest('../static/scripts/'));
 });
 
 gulp.task('watch', function(){

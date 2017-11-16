@@ -1,0 +1,5 @@
+{
+  "devDependencies": {
+    "gulp-ext-replace": "^0.3.0"
+  }
+}
