@@ -87,7 +87,7 @@ gulp.task('clean', function(){
 
 gulp.task('vueify', function () {
   return gulp.src(paths.components)
-    .pipe(vueify({extractCSS: true}))
+    .pipe(vueify())
     .pipe(ext_replace('.vue.js'))
     .pipe(gulp.dest('../static/scripts/'));
 });
