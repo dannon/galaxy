@@ -1,16 +1,9 @@
-define([
-    'vueify/lib/insert-css',
-    'axios',
-    'vue-hot-reload-api',
-    'vue'
-], function (__module__0, __module__1, __module__2, __module__3) {
+define(['axios'], function (__module__0) {
     'use strict';
     var exports = {};
     var module = { exports: {} };
-    var __vueify_insert__ = __module__0;
-    var __vueify_style__ = __vueify_insert__.insert('\n');
     Object.defineProperty(exports, '__esModule', { value: true });
-    var _axios = __module__1;
+    var _axios = __module__0;
     var _axios2 = _interopRequireDefault(_axios);
     function _interopRequireDefault(obj) {
         return obj && obj.__esModule ? obj : { default: obj };
@@ -43,25 +36,7 @@ define([
     };
     if (module.exports.__esModule)
         module.exports = module.exports.default;
-    (typeof module.exports === 'function' ? module.exports.options : module.exports).template = '\n<div id="form-userkeys" class="toolForm" v-cloak="">\n    <div class="toolFormTitle">User Information</div>\n    <div v-if="users &amp;&amp; users.length > 0">\n        <table class="grid">\n            <thead><tr><th>Encoded UID</th><th>Email</th><th>API Key</th><th>Actions</th></tr></thead>\n            <tbody>\n                <tr v-for="user in users">\n                    <td>\n                        {{ user.uid }}\n                    </td>\n                    <td>\n                        {{ user.email }}\n                    </td>\n                    <td>\n                        {{ user.key }}\n                    </td>\n                    <td>\n                        <input type="button" value="Generate a new key now" v-on:click="generateKey( user.uid )">\n                    </td>\n                </tr>\n            </tbody>\n        </table>\n    </div>\n    <div v-else="">\n        <div>No user information available</div>\n    </div>\n    <div style="clear: both"></div>\n</div>\n';
-    if (module.hot) {
-        (function () {
-            module.hot.accept();
-            var hotAPI = __module__2;
-            hotAPI.install(__module__3, true);
-            if (!hotAPI.compatible)
-                return;
-            module.hot.dispose(function () {
-                __vueify_insert__.cache['\n'] = false;
-                document.head.removeChild(__vueify_style__);
-            });
-            if (!module.hot.data) {
-                hotAPI.createRecord('_v-4f9416e4', module.exports);
-            } else {
-                hotAPI.update('_v-4f9416e4', module.exports, (typeof module.exports === 'function' ? module.exports.options : module.exports).template);
-            }
-        }());
-    }
+    (typeof module.exports === 'function' ? module.exports.options : module.exports).template = '<div id=form-userkeys class=toolForm v-cloak=""><div class=toolFormTitle>User Information</div><div v-if="users &amp;&amp; users.length > 0"><table class=grid><thead><tr><th>Encoded UID<th>Email<th>API Key<th>Actions<tbody><tr v-for="user in users"><td>{{ user.uid }}<td>{{ user.email }}<td>{{ user.key }}<td><input type=button value="Generate a new key now" v-on:click="generateKey( user.uid )"></table></div><div v-else=""><div>No user information available</div></div><div style="clear: both"></div></div>';
     function __isEmptyObject(obj) {
         var attr;
         for (attr in obj)

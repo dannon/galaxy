@@ -3,15 +3,13 @@ define([
     'axios',
     'libs/bibtexParse',
     'latex-to-unicode-converter',
-    'latex-parser',
-    'vue-hot-reload-api',
-    'vue'
-], function (__module__0, __module__1, __module__2, __module__3, __module__4, __module__5, __module__6) {
+    'latex-parser'
+], function (__module__0, __module__1, __module__2, __module__3, __module__4) {
     'use strict';
     var exports = {};
     var module = { exports: {} };
     var __vueify_insert__ = __module__0;
-    var __vueify_style__ = __vueify_insert__.insert('\n.citations-formatted{\n    word-wrap: break-word;\n}\n\n.citations-bibtex-text{\n    width: 100%;\n    height: 500px;\n}\n\n.citation-padding{\n    padding:5px 10px;\n}\n');
+    var __vueify_style__ = __vueify_insert__.insert('.citations-formatted{word-wrap:break-word}.citations-bibtex-text{width:100%;height:500px}.citation-padding{padding:5px 10px}');
     Object.defineProperty(exports, '__esModule', { value: true });
     var _axios = __module__1;
     var _axios2 = _interopRequireDefault(_axios);
@@ -191,25 +189,7 @@ define([
     };
     if (module.exports.__esModule)
         module.exports = module.exports.default;
-    (typeof module.exports === 'function' ? module.exports.options : module.exports).template = '\n<div class="toolForm">\n    <div class="toolFormTitle">\n        Citations\n        <button v-if="viewRender" v-on:click="toggleViewRender" type="button" class="btn btn-xs" title="Show all in BibTeX format.">\n            <i class="fa fa-pencil-square-o"></i>\n            Show BibTeX\n        </button>\n        <button v-else="" type="button" v-on:click="toggleViewRender" class="btn btn-xs" title="Return to formatted citation list.">\n            <i class="fa fa-times"></i>\n            Hide BibTeX\n        </button>\n    </div>\n    <div class="toolFormBody citationPadding">\n        <div v-if="source === \'histories\'" class="citation-padding">\n            <b>Warning: This is a experimental feature.</b> Most Galaxy\n            tools will not annotate citations explicitly at this time. When\n            writing up your analysis, please manually review your histories\n            and find all references that should be cited in order to\n            completely describe your work. Also, please remember to <a href="https://galaxyproject.org/citing-galaxy">cite Galaxy</a>.\n        </div>\n    </div>\n    <div class="citations-bibtex toolFormBody citation-padding">\n        <span v-if="viewRender" class="citations-formatted">\n            <p v-html="formattedReferences">\n            </p>\n        </span>\n        <textarea v-else="" class="citations-bibtex-text">                {{ content }}\n        </textarea>\n    </div>\n</div>\n';
-    if (module.hot) {
-        (function () {
-            module.hot.accept();
-            var hotAPI = __module__5;
-            hotAPI.install(__module__6, true);
-            if (!hotAPI.compatible)
-                return;
-            module.hot.dispose(function () {
-                __vueify_insert__.cache['\n.citations-formatted{\n    word-wrap: break-word;\n}\n\n.citations-bibtex-text{\n    width: 100%;\n    height: 500px;\n}\n\n.citation-padding{\n    padding:5px 10px;\n}\n'] = false;
-                document.head.removeChild(__vueify_style__);
-            });
-            if (!module.hot.data) {
-                hotAPI.createRecord('_v-3a8d5b3a', module.exports);
-            } else {
-                hotAPI.update('_v-3a8d5b3a', module.exports, (typeof module.exports === 'function' ? module.exports.options : module.exports).template);
-            }
-        }());
-    }
+    (typeof module.exports === 'function' ? module.exports.options : module.exports).template = '<div class=toolForm><div class=toolFormTitle>Citations <button v-if=viewRender v-on:click=toggleViewRender type=button class="btn btn-xs" title="Show all in BibTeX format."><i class="fa fa-pencil-square-o"></i> Show BibTeX</button> <button v-else="" type=button v-on:click=toggleViewRender class="btn btn-xs" title="Return to formatted citation list."><i class="fa fa-times"></i> Hide BibTeX</button></div><div class="toolFormBody citationPadding"><div v-if="source === \'histories\'" class=citation-padding><b>Warning: This is a experimental feature.</b> Most Galaxy tools will not annotate citations explicitly at this time. When writing up your analysis, please manually review your histories and find all references that should be cited in order to completely describe your work. Also, please remember to <a href=https://galaxyproject.org/citing-galaxy>cite Galaxy</a>.</div></div><div class="citations-bibtex toolFormBody citation-padding"><span v-if=viewRender class=citations-formatted><p v-html=formattedReferences></span><textarea v-else="" class=citations-bibtex-text>                {{ content }}\n        </textarea></div></div>';
     function __isEmptyObject(obj) {
         var attr;
         for (attr in obj)

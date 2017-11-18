@@ -87,6 +87,7 @@ gulp.task('clean', function(){
 });
 
 gulp.task('vueify', function () {
+  process.env.NODE_ENV = 'production';
   return gulp.src(paths.components)
     .pipe(vueify())
     .pipe(commonToAmd())
@@ -95,7 +96,7 @@ gulp.task('vueify', function () {
 });
 
 gulp.task('watch', function(){
-    gulp.watch(paths.scripts, ['scripts']);
+    gulp.watch(paths.scripts, ['vueify', 'scripts']);
 });
 
-gulp.task('default', ['scripts', 'libs']);
+gulp.task('default', ['vueify', 'scripts', 'libs']);
