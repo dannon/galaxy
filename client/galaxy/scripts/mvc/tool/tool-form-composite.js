@@ -365,7 +365,7 @@ var View = Backbone.View.extend({
                     var current_state = {
                         tool_id: step.id,
                         tool_version: step.version,
-                        inputs: $.extend(true, {}, form.data.create())
+                        inputs: form.data.create()
                     };
                     form.wait(true);
                     Galaxy.emit.debug("tool-form-composite::postchange()", "Sending current state.", current_state);
