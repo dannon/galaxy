@@ -11,7 +11,7 @@ import localize from "utils/localization";
 // TODO: move into a singleton pattern and have dependents import Galaxy
 // ============================================================================
 /** Base galaxy client-side application.
- *      Iniitializes:
+ *      Initializes:
  *          logger      : the logger/metrics-logger
  *          localize    : the string localizer
  *          config      : the current configuration (any k/v in
@@ -27,7 +27,7 @@ const FLATTEN_LOG_MESSAGES_KEY = `${DEBUGGING_KEY}:flatten`;
 
 var localDebugging = false;
 try {
-    localDebugging = localStorage.getItem(DEBUGGING_KEY) == "true";
+    localDebugging = window.localStorage.getItem(DEBUGGING_KEY) == "true";
 } catch (storageErr) {
     console.log(localize("localStorage not available for debug flag retrieval"));
 }
@@ -46,7 +46,7 @@ class GalaxyApp {
         this.init(options || {}, bootstrapped || {});
     }
 
-    /** initalize options and sub-components */
+    /** initialize options and sub-components */
     init(options, bootstrapped) {
         _.extend(this, Backbone.Events);
         if (localDebugging) {
@@ -83,7 +83,7 @@ class GalaxyApp {
         this.debug("GalaxyApp.user: ", this.user);
 
         this._initUserLocale();
-        this.debug("currentLocale: ", sessionStorage.getItem("currentLocale"));
+        this.debug("currentLocale: ", window.sessionStorage.getItem("currentLocale"));
 
         this._setUpListeners();
         this.trigger("ready", this);
@@ -134,11 +134,15 @@ class GalaxyApp {
             loggerOptions.consoleLevel = loggerOptions.consoleLevel || metricsLogger.MetricsLogger.ALL;
             // load any logging namespaces from localStorage if we can
             try {
-                loggerOptions.consoleNamespaceWhitelist = localStorage.getItem(NAMESPACE_KEY).split(",");
-            } catch (storageErr) {}
+                loggerOptions.consoleNamespaceWhitelist = window.localStorage.getItem(NAMESPACE_KEY).split(",");
+            } catch (storageErr) {
+                console.debug("Galaxy localStorage error: ", storageErr);
+            }
             try {
-                loggerOptions.consoleFlattenMessages = localStorage.getItem(FLATTEN_LOG_MESSAGES_KEY) == "true";
-            } catch (storageErr) {}
+                loggerOptions.consoleFlattenMessages = window.localStorage.getItem(FLATTEN_LOG_MESSAGES_KEY) == "true";
+            } catch (storageErr) {
+                console.debug("Galaxy localStorage error: ", storageErr);
+            }
             console.log(loggerOptions.consoleFlattenMessages);
         }
 
@@ -193,11 +197,11 @@ class GalaxyApp {
         var nav_locale =
             typeof navigator === "undefined"
                 ? "__root"
-                : (navigator.language || navigator.userLanguage || "__root").toLowerCase();
+                : (window.navigator.language || window.navigator.userLanguage || "__root").toLowerCase();
 
         let locale = user_locale || global_locale || nav_locale;
 
-        sessionStorage.setItem("currentLocale", locale);
+        window.sessionStorage.setItem("currentLocale", locale);
     }
 
     /** set up the current user as a Backbone model (mvc/user/user-model) */
@@ -213,14 +217,18 @@ class GalaxyApp {
         // hook to jq beforeSend to record the most recent ajax call and cache some data about it
         /** cached info about the last ajax call made through jQuery */
         this.lastAjax = {};
-        $(document).bind("ajaxSend", (ev, xhr, options) => {
+        $(window.document).bind("ajaxSend", (ev, xhr, options) => {
             var data = options.data;
-            try {
-                data = JSON.parse(data);
-            } catch (err) {}
-
+            if (data) {
+                try {
+                    console.debug(data);
+                    data = JSON.parse(data);
+                } catch (err) {
+                    console.debug("ajaxSend data parsing failure: ", err);
+                }
+            }
             this.lastAjax = {
-                url: location.href.slice(0, -1) + options.url,
+                url: window.location.href.slice(0, -1) + options.url,
                 data: data
             };
             //TODO:?? we might somehow manage to *retry* ajax using either this hook or Backbone.sync
@@ -232,14 +240,14 @@ class GalaxyApp {
     _debugging(setting) {
         try {
             if (setting === undefined) {
-                return localStorage.getItem(DEBUGGING_KEY) === "true";
+                return window.localStorage.getItem(DEBUGGING_KEY) === "true";
             }
             if (setting) {
-                localStorage.setItem(DEBUGGING_KEY, true);
+                window.localStorage.setItem(DEBUGGING_KEY, true);
                 return true;
             }
 
-            localStorage.removeItem(DEBUGGING_KEY);
+            window.localStorage.removeItem(DEBUGGING_KEY);
             // also remove all namespaces
             this.debuggingNamespaces(null);
         } catch (storageErr) {
@@ -257,12 +265,12 @@ class GalaxyApp {
     _debuggingNamespaces(namespaces) {
         try {
             if (namespaces === undefined) {
-                var csv = localStorage.getItem(NAMESPACE_KEY);
+                var csv = window.localStorage.getItem(NAMESPACE_KEY);
                 return typeof csv === "string" ? csv.split(",") : [];
             } else if (namespaces === null) {
-                localStorage.removeItem(NAMESPACE_KEY);
+                window.localStorage.removeItem(NAMESPACE_KEY);
             } else {
-                localStorage.setItem(NAMESPACE_KEY, namespaces);
+                window.localStorage.setItem(NAMESPACE_KEY, namespaces);
             }
             var newSettings = this.debuggingNamespaces();
             if (this.logger) {
