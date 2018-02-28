@@ -109,10 +109,6 @@ let buildconfig = {
         }
     },
     plugins: [
-        new webpack.optimize.CommonsChunkPlugin({
-            name: "libs",
-            filename: "libs.bundled.js"
-        }),
         // this plugin allows using the following keys/globals in scripts (w/o req'ing them first)
         // and webpack will automagically require them in the bundle for you
         new webpack.ProvidePlugin({
