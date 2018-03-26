@@ -570,11 +570,6 @@ class Configuration(object):
         # The application stack code may manipulate the server name. It also needs to be accessible via the get() method
         # for galaxy.util.facts()
         self.config_dict['base_server_name'] = self.base_server_name = self.server_name
-        # Store all configured server names for the message queue routing
-        self.server_names = []
-        for section in global_conf_parser.sections():
-            if section.startswith('server:'):
-                self.server_names.append(section.replace('server:', '', 1))
 
         # Default URL (with schema http/https) of the Galaxy instance within the
         # local network - used to remotely communicate with the Galaxy API.
