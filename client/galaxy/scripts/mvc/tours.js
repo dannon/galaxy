@@ -1,8 +1,13 @@
-import _l from "utils/localization";
 /**
  *  This is the primary galaxy tours definition, currently only used for
  *  rendering a tour menu.
  */
+import * as _ from "underscore";
+import * as Backbone from "backbone";
+import "bootstrap-tour";
+
+/* global $ */
+/* global Galaxy */
 
 // bootstrap-tour configures a window.Tour object; keep a local ref.
 import "libs/bootstrap-tour";
@@ -107,7 +112,7 @@ var Tours = Backbone.Collection.extend({
 });
 
 export var ToursView = Backbone.View.extend({
-    title: _l("Tours"),
+    title: "Tours",
     initialize: function() {
         var self = this;
         this.setElement("<div/>");
