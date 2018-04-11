@@ -1,0 +1,9 @@
+{
+    "name": "galaxy-webhook-tourgenerator",
+    "scripts": {
+        "build": "parcel build src/script.js -d . --out-file script"
+    },
+    "dependencies": {
+        "parcel-bundler": "^1.7.0"
+    }
+}
