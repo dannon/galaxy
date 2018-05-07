@@ -1,7 +1,8 @@
 import * as Backbone from "backbone";
 import Menu from "layout/menu";
 import Scratchbook from "layout/scratchbook";
-import QuotaMeter from "mvc/user/user-quotameter";
+import Vue from "vue";
+import QuotaMeterVue from "components/QuotaMeter.vue";
 
 /* global Galaxy */
 /* global $ */
@@ -16,7 +17,7 @@ var View = Backbone.View.extend({
         this.$navbarBrandImage = this.$(".navbar-brand-image");
         this.$navbarBrandTitle = this.$(".navbar-brand-title");
         this.$navbarTabs = this.$(".navbar-nav");
-        this.$quoteMeter = this.$(".quota-meter-container");
+        this.$quotaMeter = this.$(".quota-meter-container");
 
         // build tabs
         this.collection = new Menu.Collection();
@@ -44,10 +45,13 @@ var View = Backbone.View.extend({
 
         // set up the quota meter (And fetch the current user data from trans)
         // add quota meter to masthead
-        Galaxy.quotaMeter = this.quotaMeter = new QuotaMeter.UserQuotaMeter({
-            model: Galaxy.user,
-            el: this.$quoteMeter
-        });
+        // Galaxy.quotaMeter = this.quotaMeter = new QuotaMeter.UserQuotaMeter({
+        //     model: Galaxy.user,
+        //     el: this.$quotaMeter
+        // });
+
+        const quotaInstance = Vue.extend(QuotaMeterVue);
+        Galaxy.quotaMeter = this.quotaMeter = new quotaInstance();
 
         // loop through beforeunload functions if the user attempts to unload the page
         $(window)
@@ -83,7 +87,7 @@ var View = Backbone.View.extend({
         this.$navbarBrandTitle.html(`Galaxy ${(this.options.brand && `/ ${this.options.brand}`) || ""}`);
         this.$navbarBrandLink.attr("href", this.options.logo_url);
         this.$navbarBrandImage.attr("src", this.options.logo_src);
-        this.quotaMeter.render();
+        this.quotaMeter.$mount(".quota-meter-container");
         return this;
     },
 
