@@ -2,10 +2,14 @@ import * as Backbone from "backbone";
 import Menu from "layout/menu";
 import Scratchbook from "layout/scratchbook";
 import Vue from "vue";
+import Vuex from "vuex";
+import store from "store";
 import QuotaMeterVue from "components/QuotaMeter.vue";
 
 /* global Galaxy */
 /* global $ */
+
+Vue.use(Vuex);
 
 /** Masthead **/
 var View = Backbone.View.extend({
@@ -51,7 +55,7 @@ var View = Backbone.View.extend({
         // });
 
         const quotaInstance = Vue.extend(QuotaMeterVue);
-        Galaxy.quotaMeter = this.quotaMeter = new quotaInstance();
+        Galaxy.quotaMeter = this.quotaMeter = new quotaInstance({ store });
 
         // loop through beforeunload functions if the user attempts to unload the page
         $(window)
