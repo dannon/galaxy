@@ -42,13 +42,6 @@ export default {
         ...mapGetters(["quotaPercent", "totalDiskUsage"]),
         title() {
             return `${this.nice_total_disk_usage} Click for details.`;
-        },
-        isOverQuota() {
-            if (this.quotaPercent === null || this.quotaPercent >= this.max) {
-                return false;
-            } else {
-                return true;
-            }
         }
     },
     methods: {
@@ -57,6 +50,13 @@ export default {
         },
         localized(text) {
             return _l(text);
+        },
+        isOverQuota() {
+            if (this.quotaPercent === null || this.quotaPercent >= this.max) {
+                return false;
+            } else {
+                return true;
+            }
         }
     }
 };
