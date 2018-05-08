@@ -1,7 +1,11 @@
 {
   "presets": ["env"],
   "moduleIds": true,
-  "plugins": ["transform-vue-template"],
+  "plugins": [
+      "transform-vue-template",
+      "transform-es2015-destructuring",
+      "transform-object-rest-spread"
+  ],
   "ignore": [
     "i18n.js",
     "utils/localization.js",
