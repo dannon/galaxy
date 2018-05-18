@@ -4,7 +4,8 @@
             <b-progress class="quota-meter-text" :max="max"
                  data-placement="left"
                  style="top: 7px"
-                 :title="title">
+                 :title="title"
+                 :variant="usageVariant">
                 <b-progress-bar :value="quotaPercent">
                     <a href="https://galaxyproject.org/support/account-quotas/" target="_blank">
                         {{ localized("Using") }} {{ quotaPercent }} %
@@ -35,13 +36,24 @@ export default {
     data() {
         return {
             max: 100,
-            nice_total_disk_usage: "100 GB"
+            nice_total_disk_usage: "100 GB",
+            warnAtPercent: 85,
+            errorAtPercent: 100
         };
     },
     computed: {
         ...mapGetters(["quotaPercent", "totalDiskUsage"]),
         title() {
             return `${this.nice_total_disk_usage} Click for details.`;
+        },
+        usageVariant() {
+            if (this.quotaPercent >= this.errorAtPercent) {
+                return "danger";
+            } else if (this.quotaPercent >= this.warnAtPercent) {
+                return "warning";
+            } else {
+                return "success";
+            }
         }
     },
     methods: {
