@@ -95,6 +95,10 @@ let buildconfig = {
                     'style-loader',
                     'css-loader'
                 ]
+            },
+            {
+                test: /\.vue$/,
+                loader: "vue-loader"
             }
         ]
     },
