@@ -21,7 +21,6 @@
                 {{ localized("Using") }} {{ nice_total_disk_usage }}
             </div>
         </div>
-        <b-btn @click="clicked">TESTS!</b-btn>
     </div>
 </template>
 <script>
@@ -57,9 +56,6 @@ export default {
         }
     },
     methods: {
-        clicked() {
-            this.$store.commit("setQuotaPercent", Math.round(Math.random() * 100));
-        },
         localized(text) {
             return _l(text);
         },
