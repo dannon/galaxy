@@ -406,7 +406,7 @@ var CurrentHistoryView = _super.extend(
         },
 
         //TODO: remove quota meter from panel and remove this
-        /** add listeners to an external quota meter (mvc/user/user-quotameter.js) */
+        /** add listeners to an external quota meter */
         connectToQuotaMeter: function(quotaMeter) {
             if (!quotaMeter) {
                 return this;
