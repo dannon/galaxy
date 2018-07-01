@@ -441,6 +441,7 @@ def populate_api_routes(webapp, app):
     webapp.mapper.connect('/api/datasets/{dataset_id}/converted', controller='datasets', action='converted', ext=None)
     webapp.mapper.connect('/api/datasets/{dataset_id}/converted/{ext}', controller='datasets', action='converted')
 
+    webapp.mapper.connect('/api/graphql', action='index', controller='graphql')
     # API refers to usages and invocations - these mean the same thing but the
     # usage routes should be considered deprecated.
     invoke_names = {
