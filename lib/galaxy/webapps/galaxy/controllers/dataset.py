@@ -1151,7 +1151,7 @@ class DatasetInterface(BaseUIController, UsesAnnotations, UsesItemRatings, UsesE
                     else:
                         for hist in target_histories:
                             if content.history_content_type == "dataset":
-                                hist.add_dataset(content.copy())
+                                hist.add_dataset(content.copy(copy_tags=True))
                             else:
                                 copy_collected_datasets = True
                                 copy_kwds = {}
