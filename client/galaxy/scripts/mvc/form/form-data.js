@@ -39,6 +39,8 @@ export var Manager = Backbone.Model.extend({
             self.flat_dict[flat_id] = input_id;
             result_dict[flat_id] = input_value;
             if (self.app.element_list[input_id]) {
+                // TODO: tour_id is deprecated, remove completely in 19.01.
+                self.app.element_list[input_id].$el.attr("tour_id", flat_id);
                 self.app.element_list[input_id].$el.attr("id", flat_id);
             }
         }
