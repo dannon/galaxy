@@ -1,3 +1,9 @@
+import * as Backbone from "backbone";
+import * as _ from "underscore";
+
+/* global $ */
+/* global Galaxy */
+
 /* This class maps the form dom to an api compatible javascript dictionary. */
 export var Manager = Backbone.Model.extend({
     initialize: function(app) {
@@ -33,7 +39,7 @@ export var Manager = Backbone.Model.extend({
             self.flat_dict[flat_id] = input_id;
             result_dict[flat_id] = input_value;
             if (self.app.element_list[input_id]) {
-                self.app.element_list[input_id].$el.attr("tour_id", flat_id);
+                self.app.element_list[input_id].$el.attr("id", flat_id);
             }
         }
         // converter between raw dictionary and job dictionary
