@@ -2528,7 +2528,7 @@ class HistoryDatasetAssociation(DatasetInstance, HasTags, Dictifiable, UsesAnnot
             self.version = self.version + 1 if self.version else 1
             session.add(past_hda)
 
-    def copy(self, parent_id=None, copy_tags=None):
+    def copy(self, parent_id=None, copy_tags=True):
         """
         Create a copy of this HDA.
         """
