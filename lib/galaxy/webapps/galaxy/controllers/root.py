@@ -251,41 +251,7 @@ class RootController(controller.JSAppLauncher, UsesAnnotations):
         else:
             return "No data with id=%d" % id
 
-    @web.expose
-    def peek(self, trans, id=None):
-        """Returns a 'peek' at the data.
-        """
-        # TODO: unused?
-        # TODO: unencoded id
-        data = trans.sa_session.query(self.app.model.HistoryDatasetAssociation).get(id)
-        if data:
-            yield "<html><body><pre>"
-            yield data.peek
-            yield "</pre></body></html>"
-        else:
-            yield "No data with id=%d" % id
-
     # ---- History management -----------------------------------------------
-    @web.expose
-    def history_delete(self, trans, id):
-        """Backward compatibility with check_galaxy script.
-        """
-        # TODO: unused?
-        return trans.webapp.controllers['history'].list(trans, id, operation='delete')
-
-    @web.expose
-    def clear_history(self, trans):
-        """Clears the history for a user.
-        """
-        # TODO: unused? (seems to only be used in TwillTestCase)
-        history = trans.get_history()
-        for dataset in history.datasets:
-            dataset.deleted = True
-            dataset.clear_associated_files()
-        trans.sa_session.flush()
-        trans.log_event("History id %s cleared" % (str(history.id)))
-        trans.response.send_redirect(web.url_for("/index"))
-
     @web.expose
     def history_import(self, trans, id=None, confirm=False, **kwd):
         # TODO: unused?
