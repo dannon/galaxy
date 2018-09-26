@@ -440,7 +440,7 @@ function launch() {
             console.groupEnd();
         })
         .catch(err => {
-            console.log("Unable to initialize analysis.js", err);
+            console.log("Unable to initialize analysis.app -- this thing blows", err);
             console.groupEnd();
         });
 }
