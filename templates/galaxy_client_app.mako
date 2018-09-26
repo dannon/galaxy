@@ -24,6 +24,7 @@ ${ h.dumps( dictionary, indent=( 2 if trans.debug else 0 ) ) }
     ## 1) bootstrap kwargs (as above), 2) build Galaxy global var, 3) load 'app' by AMD (optional)
     ${ self.bootstrap( **kwargs ) }
     <script type="text/javascript">
+        console.log("galaxy_client_app.mako galaxy initialization");
         window.Galaxy = new window.bundleEntries.GalaxyApp.GalaxyApp({
             root               : '${h.url_for( "/" )}',
             config             : ${ render_json( get_config_dict() )},

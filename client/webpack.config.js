@@ -90,6 +90,15 @@ let buildconfig = {
                 ]
             },
             {
+                test: path.resolve(__dirname, "client/galaxy/scripts/apps/extended.js"),
+                use: [
+                    {
+                        loader: "expose-loader",
+                        options: "bundleEntries"
+                    }
+                ]
+            },
+            {
                 test: /\.css$/,
                 use: [
                     'style-loader',

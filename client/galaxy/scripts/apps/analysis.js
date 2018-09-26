@@ -1,8 +1,8 @@
-import $ from "jquery";
-import "bootstrap";
-import * as _ from "underscore";
+import { setGalaxyInstance } from "galaxy";
+import { loadConfigs } from "loadConfigs";
+import { onloadHandler, initAutoFocusForms } from "onload";
+import { initializeRaven } from "raven";
 import decodeUriComponent from "decode-uri-component";
-import GalaxyApp from "galaxy";
 import Router from "layout/router";
 import ToolPanel from "./panels/tool-panel";
 import HistoryPanel from "./panels/history-panel";
@@ -44,9 +44,16 @@ import Vue from "vue";
  *      * tables showing the contents of datasets
  *      * etc.
  */
-window.app = function app(options, bootstrapped) {
-    window.Galaxy = new GalaxyApp.GalaxyApp(options, bootstrapped);
-    Galaxy.debug("analysis app");
+function initAnalysisApp(rawConfig) {
+
+    let { options, bootstrapped } = rawConfig;
+
+    let Galaxy = setGalaxyInstance(GalaxyApp => {
+        let newApp = new GalaxyApp(options, bootstrapped);
+        newApp.debug("analysis app");
+        return newApp;
+    })
+
 
     /** Routes */
     var AnalysisRouter = Router.extend({
@@ -396,17 +403,46 @@ window.app = function app(options, bootstrapped) {
     });
 
     // render and start the router
-    $(() => {
-        options.config = _.extend(options.config, {
-            hide_panels: Galaxy.params.hide_panels,
-            hide_masthead: Galaxy.params.hide_masthead
-        });
-        Galaxy.page = new Page.View(
-            _.extend(options, {
-                Left: ToolPanel,
-                Right: HistoryPanel,
-                Router: AnalysisRouter
-            })
-        );
+    options.config = _.extend(options.config, {
+        hide_panels: Galaxy.params.hide_panels,
+        hide_masthead: Galaxy.params.hide_masthead
     });
+
+    Galaxy.page = new Page.View(
+        _.extend(options, {
+            Left: ToolPanel,
+            Right: HistoryPanel,
+            Router: AnalysisRouter
+        })
+    );
+
+    return Galaxy;
 };
+
+
+function launch() {
+
+    console.group("Initialize analysis section");
+    loadConfigs()
+        .then(config => {
+
+            // initialize raven early
+            initializeRaven(config);
+
+            // fire up main app
+            let app = initAnalysisApp(config);
+
+            // misc loading scripts that shouldn't exist
+            onloadHandler();
+  
+            console.log("Analysis section initialized", app);
+            console.groupEnd();
+        })
+        .catch(err => {
+            console.log("Unable to initialize analysis.app", err);
+            console.groupEnd();
+        });
+}
+
+
+window.addEventListener('load', launch);

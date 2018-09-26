@@ -1,16 +1,10 @@
-// ============================================================================
-// Globals (temporary)
-// ============================================================================
-// HACK: add these to global scope until we stop asking for them there...
-// Via webpack: these are required here automatically by the provider plugin
-// Via script tag: these are redundant (identities) since they're already global
-window["jQuery"] = jQuery; // a weird form to prevent webpack from sub'ing 'window.jQuery' in the provider plugin
-window.$ = jQuery;
-window._ = _;
-window.Backbone = Backbone;
-// console.debug('globals loaded:', window.jQuery, window.Backbone, '...');
+// NOTE: almost all of this code should be removed shortly. Any
+// specific DOM-related initializations should be packaged with
+// the appropriate components.
 
-// these are galaxy globals not defined in the provider (although they could be - but why encourage that?)
+import { getGalaxyInstance as Galaxy } from "galaxy";
+import { getAppRoot } from "loadConfigs";
+import $ from "jquery";
 import Panel from "layout/panel";
 window.panels = Panel;
 
@@ -27,6 +21,7 @@ window.init_tag_click_function = init_tag_click_function;
 import Tours from "mvc/tours";
 import Webhooks from "mvc/webhooks";
 import Utils from "utils/utils";
+
 // console.debug( 'galaxy globals loaded' );
 
 // ============================================================================
@@ -60,7 +55,7 @@ function replace_big_select_inputs(min_length, max_length, select_elts) {
 
     select_elts = select_elts || $("select");
 
-    select_elts.each(function() {
+    select_elts.each(function () {
         var select_elt = $(this).not("[multiple]");
         // Make sure that options is within range.
         var num_options = select_elt.find("option").length;
@@ -84,10 +79,10 @@ function replace_big_select_inputs(min_length, max_length, select_elts) {
 }
 
 // Initialize refresh events.
-function init_refresh_on_change() {
+export function init_refresh_on_change() {
     $("select[refresh_on_change='true']")
         .off("change")
-        .change(function() {
+        .change(function () {
             var select_field = $(this);
             var select_val = select_field.val();
             var ref_on_change_vals = select_field.attr("refresh_on_change_values");
@@ -109,7 +104,7 @@ function init_refresh_on_change() {
     // checkboxes refresh on change
     $(":checkbox[refresh_on_change='true']")
         .off("click")
-        .click(function() {
+        .click(function () {
             var select_field = $(this);
             var select_val = select_field.val();
             var ref_on_change_vals = select_field.attr("refresh_on_change_values");
@@ -130,21 +125,27 @@ function init_refresh_on_change() {
     // Links with confirmation
     $("a[confirm]")
         .off("click")
-        .click(function() {
+        .click(function () {
             return confirm($(this).attr("confirm"));
         });
 }
+
 // used globally in grid-view
 window.init_refresh_on_change = init_refresh_on_change;
 
-$(document).ready(() => {
+
+// functionalized version of this script
+export function onloadHandler() {
+
     // Refresh events for form fields.
     init_refresh_on_change();
 
     // Tooltips
     if ($.fn.tooltip) {
         // Put tooltips below items in panel header so that they do not overlap masthead.
-        $(".unified-panel-header [title]").tooltip({ placement: "bottom" });
+        $(".unified-panel-header [title]").tooltip({
+            placement: "bottom"
+        });
 
         // default tooltip initialization, it will follow the data-placement tag for tooltip location
         // and fallback to 'top' if not present
@@ -158,7 +159,7 @@ $(document).ready(() => {
 
     // If galaxy_main frame does not exist and link targets galaxy_main,
     // add use_panels=True and set target to self.
-    $("a").click(function() {
+    $("a").click(function () {
         var anchor = $(this);
         var galaxy_main_exists = window.parent.frames && window.parent.frames.galaxy_main;
         if (anchor.attr("target") == "galaxy_main" && !galaxy_main_exists) {
@@ -178,12 +179,13 @@ $(document).ready(() => {
     Tours.activeGalaxyTourRunner();
 
     function onloadWebhooks() {
-        if (Galaxy.root !== undefined) {
-            if (Galaxy.config.enable_webhooks) {
+        
+        if (getAppRoot() !== undefined) {
+            if (Galaxy().config.enable_webhooks) {
                 // Load all webhooks with the type 'onload'
                 Webhooks.load({
                     type: "onload",
-                    callback: function(webhooks) {
+                    callback: function (webhooks) {
                         webhooks.each(model => {
                             var webhook = model.toJSON();
                             if (webhook.activate && webhook.script) {
@@ -197,5 +199,19 @@ $(document).ready(() => {
             setTimeout(onloadWebhooks, 100);
         }
     }
+
     onloadWebhooks();
-});
+    initAutoFocusForms();
+}
+
+
+
+// Auto Focus on first item on form
+// Transplanted here from python template code.
+// This should be eliminated when all the forms are Vue components
+
+export function initAutoFocusForms() {
+    if ($("*:focus").html() == null) {
+        $(":input:not([type=hidden]):visible:enabled:first").focus();
+    }
+}
