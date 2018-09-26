@@ -1,6 +1,4 @@
-import $ from "jquery";
-import "bootstrap";
-import GalaxyApp from "galaxy";
+import { getGalaxyInstance } from "galaxy";
 import WorkflowView from "mvc/workflow/workflow-view";
 import Trackster from "viz/trackster";
 import Circster from "viz/circster";
@@ -26,15 +24,8 @@ import LegacyGridView from "legacy/grid/grid-view";
 import * as run_stats from "reports/run_stats";
 import ToolshedGroups from "toolshed/toolshed.groups";
 
-/* global Galaxy */
-
-if (window.Galaxy && window.Galaxy.debug === undefined) {
-    //TODO: (kind of a temporary hack?) Must have Galaxy.logging for some of the imports
-    //here; remove when imports are all fixed.
-    addLogging(window.Galaxy, "GalaxyApp");
-}
-
 export function mastheadEntry(options) {
+    let Galaxy = getGalaxyInstance();
     if (!Galaxy.user) {
         Galaxy.user = new user.User(options.user_json);
     }
@@ -105,10 +96,8 @@ export const bundleEntries = {
     Trackster,
     HDAListItemEdit,
     HDAModel,
-    GalaxyApp,
+    getGalaxyInstance,
     LegacyGridView,
     run_stats,
     ToolshedGroups
 };
-
-window.bundleEntries = bundleEntries;

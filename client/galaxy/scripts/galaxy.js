@@ -1,12 +1,11 @@
-import * as _ from "libs/underscore";
-import * as Backbone from "libs/backbone";
 import BASE_MVC from "mvc/base-mvc";
 import userModel from "mvc/user/user-model";
 import metricsLogger from "utils/metrics-logger";
 import addLogging from "utils/add-logging";
 import localize from "utils/localization";
+import { getAppRoot } from "loadConfigs";
 
-/* global $ */
+/* global $, _, Backbone */
 
 // TODO: move into a singleton pattern and have dependents import Galaxy
 // ============================================================================
@@ -293,10 +292,75 @@ GalaxyApp.prototype.toString = function toString() {
     return `GalaxyApp(${userEmail})`;
 };
 
-// This is not great.  Rework to be a singleton-style Galaxy app accessible/created by import
-window.Galaxy = window.Galaxy || new GalaxyApp();
 
-// ============================================================================
-export default {
-    GalaxyApp: GalaxyApp
-};
+
+/**
+ * Galaxy app singleton for use in modularized code.
+ */
+
+let instance = null;
+
+export function getGalaxyInstance() {
+    
+    // TODO: remove once iframe code is safely destroyed
+    try {
+        if (window.top !== window) {
+            if ("bundleEntries" in window.top) {
+                return window.top.bundleEntries.getGalaxyInstance();
+            }
+        }
+    } catch(err) {
+        console.warn("Error retrieving application instance for horrible iframe scripting", err);
+    }
+
+    if (instance === null) {
+        throw new Error("Uninitialized singleton galaxy");
+    }
+
+    return instance;
+}
+
+export function setGalaxyInstance(factory) {
+
+    if (instance !== null) {
+        throw new Error("Galaxy already initialized");
+    }
+
+    if (!(factory instanceof Function)) {
+        console.warn("GalaxyApp.setGalaxyInstance: Singleton factory parameter should be a function");
+        factory = (app) => new app();
+    }
+
+    console.log("Initializing galaxy instance");
+    instance = factory(GalaxyApp);
+
+    return getGalaxyInstance();
+}
+
+
+
+// Install temporary code to detect when window.Global is being accessed
+// We'll use this to hunt down all the global Galaxy references and replace
+// them with getGalaxyInstance()
+
+Object.defineProperty(window, 'Galaxy', {
+    enumerable: true,
+    get() {
+        // temporary default for code that has not yet been repaired
+        console.group("Somebody is accessing window.Galaxy...");
+        let i;   
+        try {
+            console.log("Returning app singleton");
+            i = getGalaxyInstance();
+        } catch(err) {
+            console.warn("App not initialized yet, returning temporary fallback default Galaxy object", err);
+            i = { root: getAppRoot() };
+        }
+        console.groupEnd(); 
+        return i;
+    },
+    set(newValue) {
+        console.warn("Attempt to write to window.Galaxy with...", newValue);
+        // debugger;
+    }
+})

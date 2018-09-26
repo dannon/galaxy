@@ -30,66 +30,36 @@
     <body scroll="no" class="full-content">
         ${ js_disabled_warning() }
 
+        <script type="text/javascript">
+            
+            console.warn("js-app.mako, Writing window.galaxyConfig variables");
+            
+            window.galaxyConfig = {
+                root: '${ options[ "root" ] }',             
+                options: ${ h.dumps( options ) },
+                bootstrapped: ${ h.dumps( bootstrapped ) },
+                raven: {
+                    use_raven: ${"true" if app.config.sentry_dsn else "false"},
+                    %if trans.user:
+                        user_email: '${trans.user.email|h}',
+                    %endif
+                    sentry_dsn_public: '${app.config.sentry_dsn_public}'
+                }
+            }
+
+        </script>
+
         ## js libraries and bundled js app
         ${ h.js(
             'libs/require',
             'bundled/libs.bundled',
             'bundled/' + js_app_name + '.bundled'
         )}
-        <script type="text/javascript">
-            window.jQuery = window.jquery = window.$;
-            define( 'jquery', [], function(){ return window.$; })
-            require.config({
-                baseUrl: "${h.url_for('/static/scripts') }",
-                shim: {
-                    "libs/underscore": {
-                        exports: "_"
-                    },
-                    "libs/backbone": {
-                        deps: [ 'jquery', 'libs/underscore' ],
-                        exports: "Backbone"
-                    }
-                },
-                // cache busting using time server was restarted
-                urlArgs: 'v=${app.server_starttime}',
-            });
-            ${js_app_entry_fn}(
-                ${ h.dumps( options ) },
-                ${ h.dumps( bootstrapped ) }
-            );
-        </script>
     </body>
 </html>
 
 ## ============================================================================
 <%def name="page_setup()">
-    ## Send js errors to Sentry server if configured
-    %if app.config.sentry_dsn:
-    ${h.js( "libs/raven" )}
-    <script>
-        Raven.config('${app.config.sentry_dsn_public}').install();
-        %if trans.user:
-            Raven.setUser( { email: "${trans.user.email|h}" } );
-        %endif
-    </script>
-    %endif
-
-    <script type="text/javascript">
-        // this is needed *before* the app code is loaded - many MVC access Galaxy.root for their url
-        // TODO: change this by using a common Backbone.Model base class and url fn
-        window.Galaxy = { root: '${ options[ "root" ] }' };
-    </script>
-
-    %if not form_input_auto_focus is UNDEFINED and form_input_auto_focus:
-    <script type="text/javascript">
-        $(document).ready( function() {
-            // Auto Focus on first item on form
-            if ( $("*:focus").html() == null ) {
-                $(":input:not([type=hidden]):visible:enabled:first").focus();
-            }
-        });
-    </script>
-    %endif
 
     ## google analytics
     %if app.config.ga_code:

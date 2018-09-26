@@ -46,16 +46,6 @@
 
 ## Default javascripts
 <%def name="javascripts()">
-    ## Send errors to Sentry server if configured
-    %if app.config.sentry_dsn:
-        ${h.js( "libs/raven" )}
-        <script>
-            Raven.config('${app.config.sentry_dsn_public}').install();
-            %if trans.user:
-                Raven.setUser( { email: "${trans.user.email|h}" } );
-            %endif
-        </script>
-    %endif
 
     ${h.js(
         ## TODO: remove when all libs are required directly in modules
@@ -63,49 +53,6 @@
         'libs/require',
         'bundled/extended.bundled'
     )}
-
-    <script type="text/javascript">
-        ## global configuration object
-        ## TODO: remove
-        window.Galaxy = window.Galaxy || {};
-        window.Galaxy.root = '${h.url_for( "/" )}';
-        window.Galaxy.config = {};
-
-
-        // configure require for base
-        // due to our using both script tags and require, we need to access the same jq in both for plugin retention
-        // source http://www.manuel-strehl.de/dev/load_jquery_before_requirejs.en.html
-        window.jQuery = window.jquery = window.$;
-        define( 'jquery', [], function(){ return window.$; })
-        // TODO: use one system
-
-        // shims and paths
-        require.config({
-            baseUrl: "${h.url_for('/static/scripts') }",
-            shim: {
-                "libs/underscore": {
-                    exports: "_"
-                },
-                "libs/backbone": {
-                    deps: [ 'jquery', 'libs/underscore' ],
-                    exports: "Backbone"
-                }
-            },
-            // cache busting using time server was restarted
-            urlArgs: 'v=${app.server_starttime}'
-        });
-    </script>
-
-    %if not form_input_auto_focus is UNDEFINED and form_input_auto_focus:
-        <script type="text/javascript">
-            $(document).ready( function() {
-                // Auto Focus on first item on form
-                if ( $("*:focus").html() == null ) {
-                    $(":input:not([type=hidden]):visible:enabled:first").focus();
-                }
-            });
-        </script>
-    %endif
 
 </%def>
 
