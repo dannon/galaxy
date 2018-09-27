@@ -2,6 +2,9 @@
 import "polyfills";
 import _l from "utils/localization";
 import { setGalaxyInstance } from "galaxy";
+import { loadConfigs } from "loadConfigs";
+import { onloadHandler } from "onload";
+import { initializeRaven } from "ravenInit";
 import AdminPanel from "./panels/admin-panel";
 import FormWrapper from "mvc/form/form-wrapper";
 import GridView from "mvc/grid/grid-view";

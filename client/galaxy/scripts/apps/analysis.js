@@ -2,7 +2,7 @@ import "polyfills";
 import { setGalaxyInstance } from "galaxy";
 import { loadConfigs } from "loadConfigs";
 import { onloadHandler } from "onload";
-import { initializeRaven } from "raven";
+import { initializeRaven } from "ravenInit";
 import decodeUriComponent from "decode-uri-component";
 import Router from "layout/router";
 import ToolPanel from "./panels/tool-panel";

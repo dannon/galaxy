@@ -1,6 +1,9 @@
 /* global jQuery, $, _, Backbone */
 import "polyfills";
 import { setGalaxyInstance } from "galaxy";
+import { loadConfigs } from "loadConfigs";
+import { onloadHandler } from "onload";
+import { initializeRaven } from "ravenInit";
 import _l from "utils/localization";
 import Page from "layout/page";
 
