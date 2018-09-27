@@ -4,16 +4,14 @@ import { setGalaxyInstance } from "galaxy";
 import _l from "utils/localization";
 import Page from "layout/page";
 
-
 function initLoginEndpoint(rawConfig) {
-    
     let { options, bootstrapped } = rawConfig;
 
     let Galaxy = setGalaxyInstance(GalaxyApp => {
         let newApp = new GalaxyApp(options, bootstrapped);
         newApp.debug("login app");
         return newApp;
-    })
+    });
 
     var redirect = encodeURI(options.redirect);
 
@@ -49,14 +47,12 @@ function initLoginEndpoint(rawConfig) {
             })
         );
     });
-};
+}
 
 function launch() {
-
     console.group("Initialize login endpoint");
     loadConfigs()
         .then(config => {
-
             // initialize raven early
             initializeRaven(config);
 
@@ -65,7 +61,7 @@ function launch() {
 
             // misc loading scripts that shouldn't exist
             onloadHandler();
-  
+
             console.log("Login endpoint initialized", app);
             console.groupEnd();
         })
@@ -73,8 +69,6 @@ function launch() {
             console.log("Unable to initialize login.js", err);
             console.groupEnd();
         });
-
 }
 
-
-window.addEventListener('load', launch);
+window.addEventListener("load", launch);

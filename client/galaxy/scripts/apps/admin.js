@@ -13,16 +13,14 @@ import DataTables from "components/admin/DataTables.vue";
 import DataTypes from "components/admin/DataTypes.vue";
 import Vue from "vue";
 
-
 function initAdminEndpoint(rawConfig) {
-
     let { options, bootstrapped } = rawConfig;
 
     let Galaxy = setGalaxyInstance(GalaxyApp => {
         let newApp = new GalaxyApp(options, bootstrapped);
         newApp.debug("admin app");
         return newApp;
-    })
+    });
 
     /** Routes */
     var AdminRouter = Router.extend({
@@ -212,15 +210,12 @@ function initAdminEndpoint(rawConfig) {
             })
         );
     });
-};
-
+}
 
 function launch() {
-
     console.group("Initialize admin endpoint");
     loadConfigs()
         .then(config => {
-
             // initialize raven early
             initializeRaven(config);
 
@@ -229,7 +224,7 @@ function launch() {
 
             // misc loading scripts that shouldn't exist
             onloadHandler();
-  
+
             console.log("Admin section initialized", app);
             console.groupEnd();
         })
@@ -239,5 +234,4 @@ function launch() {
         });
 }
 
-
-window.addEventListener('load', launch);
+window.addEventListener("load", launch);
