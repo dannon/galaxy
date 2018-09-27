@@ -1,8 +1,8 @@
+/* global jQuery, $, _, Backbone, Galaxy */
 import Tools from "mvc/tool/tools";
 import Upload from "mvc/upload/upload-view";
 import _l from "utils/localization";
-import ToolForm from "mvc/tool/tool-form-composite";
-import _ from "libs/underscore";
+// import ToolForm from "mvc/tool/tool-form-composite";
 
 var ToolPanel = Backbone.View.extend({
     initialize: function(page, options) {

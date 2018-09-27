@@ -1,12 +1,19 @@
-import jQuery from "jquery";
-var $ = jQuery;
-import GalaxyApp from "galaxy";
+/* global jQuery, $, _, Backbone */
+import { setGalaxyInstance } from "galaxy";
 import _l from "utils/localization";
 import Page from "layout/page";
 
-window.app = function app(options, bootstrapped) {
-    window.Galaxy = new GalaxyApp.GalaxyApp(options, bootstrapped);
-    Galaxy.debug("login app");
+
+function initLoginEndpoint(options, bootstrapped) {
+    
+    let { options, bootstrapped } = rawConfig;
+
+    let Galaxy = setGalaxyInstance(GalaxyApp => {
+        let newApp = new GalaxyApp(options, bootstrapped);
+        newApp.debug("login app");
+        return newApp;
+    })
+
     var redirect = encodeURI(options.redirect);
 
     // TODO: remove iframe for user login (at least) and render login page from here
@@ -42,3 +49,31 @@ window.app = function app(options, bootstrapped) {
         );
     });
 };
+
+function launch() {
+
+    console.group("Initialize login endpoint");
+    loadConfigs()
+        .then(config => {
+
+            // initialize raven early
+            initializeRaven(config);
+
+            // fire up main app
+            let app = initLoginEndpoint(config);
+
+            // misc loading scripts that shouldn't exist
+            onloadHandler();
+  
+            console.log("Login endpoint initialized", app);
+            console.groupEnd();
+        })
+        .catch(err => {
+            console.log("Unable to initialize login.js", err);
+            console.groupEnd();
+        });
+
+}
+
+
+window.addEventListener('load', launch);
