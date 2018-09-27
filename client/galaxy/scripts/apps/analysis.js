@@ -46,15 +46,13 @@ import Vue from "vue";
  *      * etc.
  */
 function initAnalysisApp(rawConfig) {
-
     let { options, bootstrapped } = rawConfig;
 
     let Galaxy = setGalaxyInstance(GalaxyApp => {
         let newApp = new GalaxyApp(options, bootstrapped);
         newApp.debug("analysis app");
         return newApp;
-    })
-
+    });
 
     /** Routes */
     var AnalysisRouter = Router.extend({
@@ -418,15 +416,12 @@ function initAnalysisApp(rawConfig) {
     );
 
     return Galaxy;
-};
-
+}
 
 function launch() {
-
     console.group("Initialize analysis section");
     loadConfigs()
         .then(config => {
-
             // initialize raven early
             initializeRaven(config);
 
@@ -435,7 +430,7 @@ function launch() {
 
             // misc loading scripts that shouldn't exist
             onloadHandler();
-  
+
             console.log("Analysis section initialized", app);
             console.groupEnd();
         })
@@ -445,5 +440,4 @@ function launch() {
         });
 }
 
-
-window.addEventListener('load', launch);
+window.addEventListener("load", launch);

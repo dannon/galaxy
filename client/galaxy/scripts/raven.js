@@ -1,7 +1,6 @@
 import Raven from "raven";
 
 export function initializeRaven(configs) {
-
     console.log("Initializing Raven");
 
     let r = configs.raven;

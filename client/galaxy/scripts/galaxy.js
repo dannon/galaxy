@@ -292,8 +292,6 @@ GalaxyApp.prototype.toString = function toString() {
     return `GalaxyApp(${userEmail})`;
 };
 
-
-
 /**
  * Galaxy app singleton for use in modularized code.
  */
@@ -301,7 +299,6 @@ GalaxyApp.prototype.toString = function toString() {
 let instance = null;
 
 export function getGalaxyInstance() {
-    
     // TODO: remove once iframe code is safely destroyed
     try {
         if (window.top !== window) {
@@ -309,7 +306,7 @@ export function getGalaxyInstance() {
                 return window.top.bundleEntries.getGalaxyInstance();
             }
         }
-    } catch(err) {
+    } catch (err) {
         console.warn("Error retrieving application instance for horrible iframe scripting", err);
     }
 
@@ -321,14 +318,13 @@ export function getGalaxyInstance() {
 }
 
 export function setGalaxyInstance(factory) {
-
     if (instance !== null) {
         throw new Error("Galaxy already initialized");
     }
 
     if (!(factory instanceof Function)) {
         console.warn("GalaxyApp.setGalaxyInstance: Singleton factory parameter should be a function");
-        factory = (app) => new app();
+        factory = app => new app();
     }
 
     console.log("Initializing galaxy instance");
@@ -337,30 +333,28 @@ export function setGalaxyInstance(factory) {
     return getGalaxyInstance();
 }
 
-
-
 // Install temporary code to detect when window.Global is being accessed
 // We'll use this to hunt down all the global Galaxy references and replace
 // them with getGalaxyInstance()
 
-Object.defineProperty(window, 'Galaxy', {
+Object.defineProperty(window, "Galaxy", {
     enumerable: true,
     get() {
         // temporary default for code that has not yet been repaired
         console.group("Somebody is accessing window.Galaxy...");
-        let i;   
+        let i;
         try {
             console.log("Returning app singleton");
             i = getGalaxyInstance();
-        } catch(err) {
+        } catch (err) {
             console.warn("App not initialized yet, returning temporary fallback default Galaxy object", err);
             i = { root: getAppRoot() };
         }
-        console.groupEnd(); 
+        console.groupEnd();
         return i;
     },
     set(newValue) {
         console.warn("Attempt to write to window.Galaxy with...", newValue);
         // debugger;
     }
-})
+});

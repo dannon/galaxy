@@ -7,8 +7,8 @@ in local storage (or both)
 */
 
 const defaultConfigs = {
-    options: {}, 
-    bootstrapped: {}, 
+    options: {},
+    bootstrapped: {},
     root: "/",
     raven: {
         use_raven: false,
@@ -30,16 +30,15 @@ export function loadConfigs() {
     return Promise.resolve(configs);
 }
 
-
 /**
  * getAppRoot(), returns configured application root address
  *
  * This should probably be a promise as well. But the only files using Galaxy
  * root on primitive property values are Backbone objects that are probably
  * going to be replaced anyway. If we end up keeping these backbone objects then
- * we should implement a controlled definition pipeline 
+ * we should implement a controlled definition pipeline
  *
- * e.g. 
+ * e.g.
  *       loadConfigs().then(config => {
  *          // define models in context of the
  *          // application config
