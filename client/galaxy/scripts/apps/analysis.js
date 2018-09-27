@@ -1,3 +1,4 @@
+import "polyfills";
 import { setGalaxyInstance } from "galaxy";
 import { loadConfigs } from "loadConfigs";
 import { onloadHandler } from "onload";

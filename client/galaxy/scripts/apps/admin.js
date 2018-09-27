@@ -1,4 +1,5 @@
 /* global jQuery, $, Backbone, _ */
+import "polyfills";
 import _l from "utils/localization";
 import { setGalaxyInstance } from "galaxy";
 import AdminPanel from "./panels/admin-panel";

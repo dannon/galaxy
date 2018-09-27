@@ -1,4 +1,5 @@
 /* global jQuery, $, _, Backbone, Galaxy */
+import "polyfills";
 import Tools from "mvc/tool/tools";
 import Upload from "mvc/upload/upload-view";
 import _l from "utils/localization";

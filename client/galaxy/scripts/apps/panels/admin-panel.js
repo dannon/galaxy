@@ -1,4 +1,5 @@
 /* global Galaxy, global $, jQuery, _, Backbone */
+import "polyfills";
 import _l from "utils/localization";
 
 var AdminPanel = Backbone.View.extend({

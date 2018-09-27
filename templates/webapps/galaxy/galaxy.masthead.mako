@@ -38,6 +38,7 @@
     ## load the frame manager
     <script type="text/javascript">
 
+        /*
         // if we're in an iframe, create styles that hide masthead/messagebox, and reset top for panels
         // note: don't use a link to avoid roundtrip request
         // note: we can't select here because the page (incl. messgaebox, center, etc.) isn't fully rendered
@@ -57,5 +58,16 @@
         $( function() {
             window.bundleEntries.masthead(${h.dumps(masthead_config)});
         });
+        */
+        let mastheadConfig = ${h.dumps(masthead_config)};
+        console.log("Masthead configuration goes here", mastheadConfig);
     </script>
+
+
+    ## ${ h.js(
+    ##     'libs/require',
+    ##     'bundled/libs.bundled',
+    ##     'bundled/' + masthead + '.bundled'
+    ## )}
+
 </%def>
