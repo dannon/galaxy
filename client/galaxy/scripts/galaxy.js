@@ -342,19 +342,19 @@ Object.defineProperty(window, "Galaxy", {
     get() {
         // temporary default for code that has not yet been repaired
         console.group("Somebody is accessing window.Galaxy...");
-        let i;
+        let gi;
         try {
-            console.log("Returning app singleton");
-            i = getGalaxyInstance();
+            gi = getGalaxyInstance();
+            console.debug("Returning app singleton -- stack follows.");
+            console.trace();
         } catch (err) {
             console.warn("App not initialized yet, returning temporary fallback default Galaxy object", err);
-            i = { root: getAppRoot() };
+            gi = { root: getAppRoot() };
         }
         console.groupEnd();
-        return i;
+        return gi;
     },
     set(newValue) {
         console.warn("Attempt to write to window.Galaxy with...", newValue);
-        // debugger;
     }
 });
