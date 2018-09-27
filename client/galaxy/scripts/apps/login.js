@@ -1,10 +1,11 @@
 /* global jQuery, $, _, Backbone */
+import "polyfills";
 import { setGalaxyInstance } from "galaxy";
 import _l from "utils/localization";
 import Page from "layout/page";
 
 
-function initLoginEndpoint(options, bootstrapped) {
+function initLoginEndpoint(rawConfig) {
     
     let { options, bootstrapped } = rawConfig;
 

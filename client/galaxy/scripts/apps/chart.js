@@ -1,4 +1,5 @@
-import * as _ from "libs/underscore";
+/* global _ */
+import "polyfills";
 import Client from "mvc/visualization/chart/chart-client";
 import Datasets from "mvc/visualization/chart/utilities/datasets";
 import Series from "mvc/visualization/chart/utilities/series";

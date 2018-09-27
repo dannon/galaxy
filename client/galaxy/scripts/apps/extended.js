@@ -1,3 +1,4 @@
+import "polyfills";
 import { getGalaxyInstance } from "galaxy";
 import WorkflowView from "mvc/workflow/workflow-view";
 import Trackster from "viz/trackster";
@@ -101,3 +102,6 @@ export const bundleEntries = {
     run_stats,
     ToolshedGroups
 };
+
+// Hmmm, should be able to expose this with the expose-loaders
+window.bundleEntries = bundleEntries;
