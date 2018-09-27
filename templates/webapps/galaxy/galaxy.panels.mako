@@ -78,7 +78,6 @@
             var jscript = galaxy_config.app.jscript;
             if( galaxy_config.app.jscript && window.bundleEntries[galaxy_config.app.jscript]){
                 console.log("initialization function defined by server configs?");
-                debugger;
                 $( function(){
                     // load galaxy module application
                     window.bundleEntries[galaxy_config.app.jscript]();
