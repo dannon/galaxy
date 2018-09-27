@@ -1,9 +1,6 @@
-import * as Backbone from "backbone";
-import * as _ from "underscore";
+/* global jQuery, $, Backbone, _ */
 import _l from "utils/localization";
-import jQuery from "jquery";
-var $ = jQuery;
-import GalaxyApp from "galaxy";
+import { setGalaxyInstance } from "galaxy";
 import AdminPanel from "./panels/admin-panel";
 import FormWrapper from "mvc/form/form-wrapper";
 import GridView from "mvc/grid/grid-view";
@@ -15,11 +12,16 @@ import DataTables from "components/admin/DataTables.vue";
 import DataTypes from "components/admin/DataTypes.vue";
 import Vue from "vue";
 
-/* global Galaxy */
 
-window.app = function app(options, bootstrapped) {
-    window.Galaxy = new GalaxyApp.GalaxyApp(options, bootstrapped);
-    Galaxy.debug("admin app");
+function initAdminEndpoint(rawConfig) {
+
+    let { options, bootstrapped } = rawConfig;
+
+    let Galaxy = setGalaxyInstance(GalaxyApp => {
+        let newApp = new GalaxyApp(options, bootstrapped);
+        newApp.debug("admin app");
+        return newApp;
+    })
 
     /** Routes */
     var AdminRouter = Router.extend({
@@ -210,3 +212,31 @@ window.app = function app(options, bootstrapped) {
         );
     });
 };
+
+
+function launch() {
+
+    console.group("Initialize admin endpoint");
+    loadConfigs()
+        .then(config => {
+
+            // initialize raven early
+            initializeRaven(config);
+
+            // fire up main app
+            let app = initAdminEndpoint(config);
+
+            // misc loading scripts that shouldn't exist
+            onloadHandler();
+  
+            console.log("Admin section initialized", app);
+            console.groupEnd();
+        })
+        .catch(err => {
+            console.log("Unable to initialize admin.js", err);
+            console.groupEnd();
+        });
+}
+
+
+window.addEventListener('load', launch);

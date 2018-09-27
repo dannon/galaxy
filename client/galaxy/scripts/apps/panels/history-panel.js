@@ -1,3 +1,4 @@
+/* global jQuery, $, _, Backbone, Galaxy */
 import Ui from "mvc/ui/ui-misc";
 import historyOptionsMenu from "mvc/history/options-menu";
 import CurrentHistoryView from "mvc/history/history-view-edit-current";

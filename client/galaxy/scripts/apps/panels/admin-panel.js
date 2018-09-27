@@ -1,10 +1,5 @@
-import * as Backbone from "backbone";
-import * as _ from "underscore";
-
+/* global Galaxy, global $, jQuery, _, Backbone */
 import _l from "utils/localization";
-
-/* global Galaxy */
-/* global $ */
 
 var AdminPanel = Backbone.View.extend({
     initialize: function(page, options) {

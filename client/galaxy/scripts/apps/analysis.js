@@ -1,6 +1,6 @@
 import { setGalaxyInstance } from "galaxy";
 import { loadConfigs } from "loadConfigs";
-import { onloadHandler, initAutoFocusForms } from "onload";
+import { onloadHandler } from "onload";
 import { initializeRaven } from "raven";
 import decodeUriComponent from "decode-uri-component";
 import Router from "layout/router";
@@ -439,7 +439,7 @@ function launch() {
             console.groupEnd();
         })
         .catch(err => {
-            console.log("Unable to initialize analysis.app", err);
+            console.log("Unable to initialize analysis.js", err);
             console.groupEnd();
         });
 }
