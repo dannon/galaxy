@@ -25,7 +25,7 @@ let configs = Object.assign({}, defaultConfigs);
  * eventually, so return as a promise for now.
  */
 export function loadConfigs() {
-    console.log("loadConfigs");
+    // console.log("loadConfigs");
     Object.assign(configs, window.galaxyConfig);
     return Promise.resolve(configs);
 }

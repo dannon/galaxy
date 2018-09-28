@@ -1,5 +1,6 @@
 import testApp from "qunit/test-app";
 import Masthead from "layout/masthead";
+import { setGalaxyInstance, resetGalaxyInstance, getGalaxyInstance } from "galaxy";
 
 /* global QUnit */
 /* global $ */
@@ -7,6 +8,7 @@ import Masthead from "layout/masthead";
 QUnit.module("Masthead test", {
     beforeEach: function() {
         testApp.create();
+        setGalaxyInstance(G => new G({}));
         this.masthead = new Masthead.View({
             brand: "brand",
             use_remote_user: "use_remote_user",
@@ -35,11 +37,13 @@ QUnit.module("Masthead test", {
         $("body").append(this.masthead.render().$el);
     },
     afterEach: function() {
+        resetGalaxyInstance();
         testApp.destroy();
     }
 });
 
 QUnit.test("tabs", function(assert) {
+    let Galaxy = getGalaxyInstance();
     var tab = this.masthead.collection.findWhere({ id: "analysis" });
     var $tab = $("#analysis");
     var $toggle = $tab.find(".nav-link");
@@ -53,8 +57,8 @@ QUnit.test("tabs", function(assert) {
     assert.ok($toggle.css("visibility") == "hidden", "Tab hidden");
     tab.set("visible", true);
     assert.ok($toggle.css("visibility") == "visible", "Tab visible, again");
-    // TODO: cleanup global usage so window.Galaxy isn't needed here.
-    assert.ok($toggle.attr("href") == window.Galaxy.root, "Correct initial url");
+    // TODO: cleanup global usage so Galaxy isn't needed here.
+    assert.ok($toggle.attr("href") == Galaxy.root, "Correct initial url");
     tab.set("url", "_url");
     assert.ok($toggle.attr("href") == "/_url", "Correct test url");
     tab.set("url", "http://_url");
@@ -120,6 +124,6 @@ QUnit.test("tabs", function(assert) {
     assert.ok(!$toggle.hasClass("toggle"), "Untoggled before click");
     $toggle.trigger("click");
     assert.ok($toggle.hasClass("toggle"), "Toggled after click");
-    // TODO: cleanup global usage so window.Galaxy isn't needed here.
-    assert.ok(window.Galaxy.frame.active, "Scratchbook is active");
+    // TODO: cleanup global usage so Galaxy isn't needed here.
+    assert.ok(Galaxy.frame.active, "Scratchbook is active");
 });

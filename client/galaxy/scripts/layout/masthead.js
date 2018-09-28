@@ -1,14 +1,15 @@
+import { getGalaxyInstance } from "galaxy";
 import * as Backbone from "backbone";
 import Menu from "layout/menu";
 import Scratchbook from "layout/scratchbook";
 import QuotaMeter from "mvc/user/user-quotameter";
 
-/* global Galaxy */
 /* global $ */
 
 /** Masthead **/
 var View = Backbone.View.extend({
     initialize: function(options) {
+        let Galaxy = getGalaxyInstance();
         var self = this;
         this.options = options;
         this.setElement(this._template());

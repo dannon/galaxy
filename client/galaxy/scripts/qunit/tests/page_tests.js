@@ -1,14 +1,17 @@
 /* global QUnit */
 
 import testApp from "qunit/test-app";
+import { setGalaxyInstance, resetGalaxyInstance } from "galaxy";
 import Page from "layout/page";
 
 QUnit.module("Page test", {
     beforeEach: function() {
         testApp.create();
+        setGalaxyInstance(GalaxyApp => new GalaxyApp({}));
         $("body").append((this.$container = $("<div/>").css("display", "none")));
     },
     afterEach: function() {
+        resetGalaxyInstance();
         testApp.destroy();
     }
 });

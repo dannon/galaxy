@@ -1,4 +1,4 @@
-import Raven from "raven";
+import Raven from "raven-js";
 
 export function initializeRaven(configs) {
     console.log("Initializing Raven");

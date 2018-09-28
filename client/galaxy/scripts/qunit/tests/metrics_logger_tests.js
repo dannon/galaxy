@@ -2,9 +2,7 @@
 // (or demonstrating) qunit+backbone interactions.
 /* global define */
 
-import testApp from "qunit/test-app";
 import metrics from "utils/metrics-logger";
-import $ from "jquery";
 import sinon from "sinon";
 
 var MockConsole = function() {

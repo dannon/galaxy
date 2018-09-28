@@ -1,10 +1,18 @@
 /* global define */
 import testApp from "qunit/test-app";
+import { setGalaxyInstance, resetGalaxyInstance } from "galaxy";
 import HDA_MODEL from "mvc/history/hda-model";
 import sinon from "sinon";
 import $ from "jquery";
 
-QUnit.module("History Contents Model QUnit.Tests");
+QUnit.module("History Contents Model QUnit.Tests", {
+    beforeEach() {
+        setGalaxyInstance(G => new G({}));
+    },
+    afterEach() {
+        resetGalaxyInstance();
+    }
+});
 
 QUnit.test("HDA Constructions with Default Attributes", function(assert) {
     var hda = new HDA_MODEL.HistoryDatasetAssociation({});

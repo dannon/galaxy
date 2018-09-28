@@ -2,11 +2,19 @@
 // (or demonstrating) qunit+backbone interactions.
 /* global define */
 import testApp from "qunit/test-app";
+import { setGalaxyInstance, resetGalaxyInstance } from "galaxy";
 import HDA_MODEL from "mvc/history/hda-model";
 import HDA_BASE from "mvc/history/hda-li";
 import $ from "jquery";
 
-QUnit.module("HDA base backbone view tests");
+QUnit.module("HDA base backbone view tests", {
+    beforeEach() {
+        setGalaxyInstance(GalaxyApp => new GalaxyApp({}));
+    },
+    afterEach() {
+        resetGalaxyInstance();
+    }
+});
 
 QUnit.test("Base HDA view default construction, initialize", function(assert) {
     var hda = new HDA_MODEL.HistoryDatasetAssociation({
