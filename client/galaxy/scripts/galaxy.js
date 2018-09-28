@@ -328,11 +328,11 @@ export function setGalaxyInstance(factory) {
     }
 
     if (!(factory instanceof Function)) {
-        // console.warn("GalaxyApp.setGalaxyInstance: Singleton factory parameter should be a function");
+        console.warn("GalaxyApp.setGalaxyInstance: Singleton factory parameter should be a function");
         factory = app => new app();
     }
 
-    // console.log("Initializing galaxy instance");
+    console.log("Initializing galaxy instance");
     instance = factory(GalaxyApp);
 
     return getGalaxyInstance();
@@ -346,14 +346,14 @@ Object.defineProperty(window, "Galaxy", {
     enumerable: true,
     get() {
         // temporary default for code that has not yet been repaired
-        // console.group("Somebody is accessing window.Galaxy...");
+        console.group("Somebody is accessing window.Galaxy...");
         let gi;
         try {
             gi = getGalaxyInstance();
-            // console.debug("Returning app singleton -- stack follows.");
-            // console.trace();
+            console.debug("Returning app singleton -- stack follows.");
+            console.trace();
         } catch (err) {
-            // console.warn("App not initialized yet, returning temporary fallback default Galaxy object", err);
+            console.warn("App not initialized yet, returning temporary fallback default Galaxy object", err);
             gi = { root: getAppRoot() };
         }
         console.groupEnd();
