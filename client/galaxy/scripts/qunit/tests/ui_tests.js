@@ -1,4 +1,5 @@
 import testApp from "qunit/test-app";
+import { setGalaxyInstance, resetGalaxyInstance } from "galaxy";
 import sinon from "sinon";
 import Ui from "mvc/ui/ui-misc";
 import SelectContent from "mvc/ui/ui-select-content";
@@ -12,10 +13,12 @@ import Tabs from "mvc/ui/ui-tabs";
 QUnit.module("Ui test", {
     beforeEach: function() {
         testApp.create();
+        setGalaxyInstance(GalaxyApp => new GalaxyApp({}));
         this.clock = sinon.useFakeTimers();
     },
     afterEach: function() {
         testApp.destroy();
+        resetGalaxyInstance();
         this.clock.restore();
     }
 });

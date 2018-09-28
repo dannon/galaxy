@@ -1,4 +1,5 @@
 import _l from "utils/localization";
+import { getGalaxyInstance } from "galaxy";
 /** Upload app contains the upload progress button and upload modal, compiles model data for API request **/
 import Utils from "utils/utils";
 import Modal from "mvc/ui/ui-modal";
@@ -64,6 +65,7 @@ export default Backbone.View.extend({
     /** Show/hide upload dialog */
     show: function() {
         var self = this;
+        let Galaxy = getGalaxyInstance();
         if (!Galaxy.currHistoryPanel || !Galaxy.currHistoryPanel.model) {
             window.setTimeout(() => {
                 self.show();

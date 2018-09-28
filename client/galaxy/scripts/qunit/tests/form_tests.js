@@ -1,4 +1,6 @@
 /* global define */
+import $ from "jquery";
+import { setGalaxyInstance, resetGalaxyInstance } from "galaxy";
 import testApp from "qunit/test-app";
 import InputElement from "mvc/form/form-input";
 import Ui from "mvc/ui/ui-misc";
@@ -9,21 +11,21 @@ import Utils from "utils/utils";
 QUnit.module("Form test", {
     beforeEach: function() {
         testApp.create();
+        setGalaxyInstance(GalaxyApp => new GalaxyApp({}));
         $.fx.off = true;
     },
     afterEach: function() {
         testApp.destroy();
+        resetGalaxyInstance();
         $.fx.off = false;
     }
 });
 
 QUnit.test("tool-form", function(assert) {
-    // Huh? The following seems to be needed by tool-form.js - once the global usage
-    // is cleaned up in that module this can be deleted I assume.
-    window.parent.Galaxy = window.Galaxy;
-
     var toolform = new ToolForm.View({ id: "test" });
     var form = toolform.form;
+    assert.ok(form);
+
     $("body").prepend(toolform.$el);
     window.fakeserver.respond();
     var output = "";
@@ -38,6 +40,7 @@ QUnit.test("tool-form", function(assert) {
     $("[tour_id]").each(function() {
         tour_ids.push($(this).attr("tour_id"));
     });
+
     assert.ok(
         JSON.stringify(tour_ids) == '["a","b|c","b|i","b|j","k_0|l","k_0|m|n","k_0|m|s","k_0|m|t"]',
         "Tour ids correct"

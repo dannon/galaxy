@@ -1,6 +1,7 @@
 /* global define */
 
 import testApp from "qunit/test-app";
+import { setGalaxyInstance, resetGalaxyInstance } from "galaxy";
 import GalaxyModal from "mvc/ui/ui-modal";
 import $ from "jquery";
 
@@ -8,6 +9,7 @@ QUnit.module("Modal dialog test", {
     beforeEach: function() {
         $.fx.off = true;
         testApp.create();
+        setGalaxyInstance(GalaxyApp => new GalaxyApp({}));
         var self = this;
         this.app = new GalaxyModal.View({
             title: "Test title",
@@ -22,6 +24,7 @@ QUnit.module("Modal dialog test", {
     },
     afterEach: function() {
         $.fx.off = false;
+        resetGalaxyInstance();
         testApp.destroy();
     }
 });

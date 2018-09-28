@@ -1,14 +1,17 @@
-import _l from "utils/localization";
 /* This is the regular tool form */
+import _l from "utils/localization";
+import { getGalaxyInstance } from "galaxy";
 import Utils from "utils/utils";
 import Ui from "mvc/ui/ui-misc";
 import Modal from "mvc/ui/ui-modal";
 import ToolFormBase from "mvc/tool/tool-form-base";
 import Webhooks from "mvc/webhooks";
+
 var View = Backbone.View.extend({
     initialize: function(options) {
+        let Galaxy = getGalaxyInstance();
         var self = this;
-        this.modal = parent.Galaxy.modal || new Modal.View();
+        this.modal = Galaxy.modal || new Modal.View();
         this.form = new ToolFormBase(
             Utils.merge(
                 {
@@ -229,7 +232,7 @@ var View = Backbone.View.extend({
                         toolId: job_def.tool_id
                     });
                 }
-                parent.Galaxy && parent.Galaxy.currHistoryPanel && parent.Galaxy.currHistoryPanel.refreshContents();
+                Galaxy && Galaxy.currHistoryPanel && Galaxy.currHistoryPanel.refreshContents();
             },
             error: function(response) {
                 callback && callback();
