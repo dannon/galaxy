@@ -1,6 +1,11 @@
+import _ from "underscore";
+import $ from "jquery";
+import Backbone from "backbone";
+import { getAppRoot } from "onload/loadConfig";
 import mod_toastr from "toastr";
 import mod_library_model from "mvc/library/library-model";
 import mod_select from "mvc/ui/ui-select";
+
 var FolderView = Backbone.View.extend({
     el: "#center",
 
@@ -61,7 +66,7 @@ var FolderView = Backbone.View.extend({
         this.$el.html(template({ folder: this.model, is_admin: is_admin }));
 
         var self = this;
-        $.get(`${Galaxy.root}api/folders/${self.id}/permissions?scope=current`)
+        $.get(`${getAppRoot()}api/folders/${self.id}/permissions?scope=current`)
             .done(fetched_permissions => {
                 self.prepareSelectBoxes({
                     fetched_permissions: fetched_permissions
@@ -71,7 +76,7 @@ var FolderView = Backbone.View.extend({
                 mod_toastr.error("An error occurred while attempting to fetch folder permissions.");
             });
 
-        $("#center [data-toggle]").tooltip();
+        $('#center [data-toggle="tooltip"]').tooltip({ trigger: "hover" });
         //hack to show scrollbars
         $("#center").css("overflow", "auto");
     },
@@ -112,7 +117,7 @@ var FolderView = Backbone.View.extend({
             placeholder: "Click to select a role",
             container: self.$el.find(`#${id}`),
             ajax: {
-                url: `${Galaxy.root}api/folders/${self.id}/permissions?scope=available`,
+                url: `${getAppRoot()}api/folders/${self.id}/permissions?scope=available`,
                 dataType: "json",
                 quietMillis: 100,
                 data: function(term, page) {
@@ -176,7 +181,7 @@ var FolderView = Backbone.View.extend({
         var add_ids = this._extractIds(this.addSelectObject.$el.select2("data"));
         var manage_ids = this._extractIds(this.manageSelectObject.$el.select2("data"));
         var modify_ids = this._extractIds(this.modifySelectObject.$el.select2("data"));
-        $.post(`${Galaxy.root}api/folders/${self.id}/permissions?action=set_permissions`, {
+        $.post(`${getAppRoot()}api/folders/${self.id}/permissions?action=set_permissions`, {
             "add_ids[]": add_ids,
             "manage_ids[]": manage_ids,
             "modify_ids[]": modify_ids
@@ -196,9 +201,9 @@ var FolderView = Backbone.View.extend({
         return _.template(
             [
                 '<div class="library_style_container">',
-                '<div id="library_toolbar">',
+                "<div>",
                 '<a href="#/folders/<%= folder.get("parent_id") %>">',
-                '<button data-toggle="tooltip" data-placement="top" title="Go back to the parent folder" class="btn btn-default primary-button" type="button">',
+                '<button data-toggle="tooltip" data-placement="top" title="Go back to the parent folder" class="btn btn-secondary primary-button" type="button">',
                 '<span class="fa fa-caret-left fa-lg"/>',
                 "&nbsp;Parent folder",
                 "</button>",
@@ -237,7 +242,7 @@ var FolderView = Backbone.View.extend({
                 '<div class="alert alert-info roles-selection">',
                 "User with <strong>any</strong> of these roles can modify this folder (name, etc.).",
                 "</div>",
-                '<button data-toggle="tooltip" data-placement="top" title="Save modifications" class="btn btn-default toolbtn_save_permissions primary-button" type="button">',
+                '<button data-toggle="tooltip" data-placement="top" title="Save modifications" class="btn btn-secondary toolbtn_save_permissions primary-button" type="button">',
                 '<span class="fa fa-floppy-o"/>',
                 "&nbsp;Save",
                 "</button>",

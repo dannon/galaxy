@@ -8,6 +8,7 @@ from abc import (
 
 import six
 
+from galaxy.containers.docker_model import DockerVolume
 from galaxy.util import (
     asbool,
     in_directory,
@@ -38,7 +39,7 @@ SINGULARITY_CONTAINER_TYPE = "singularity"
 DEFAULT_CONTAINER_TYPE = DOCKER_CONTAINER_TYPE
 ALL_CONTAINER_TYPES = [DOCKER_CONTAINER_TYPE, SINGULARITY_CONTAINER_TYPE]
 
-LOAD_CACHED_IMAGE_COMMAND_TEMPLATE = '''
+LOAD_CACHED_IMAGE_COMMAND_TEMPLATE = r'''
 python << EOF
 from __future__ import print_function
 
@@ -56,7 +57,7 @@ cmd = "${images_cmd}"
 proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
 stdo, stde = proc.communicate()
 found = False
-for line in stdo.split("\\n"):
+for line in stdo.split("\n"):
     tmp = re.split(r'\s+', line)
     if tmp[0] == tag and tmp[1] == rev and tmp[2] == rev_value:
         found = True
@@ -105,12 +106,18 @@ class ContainerFinder(object):
             )
             return container
 
+        def container_from_description_from_dicts(destination_container_dicts):
+            for destination_container_dict in destination_container_dicts:
+                container_description = ContainerDescription.from_dict(destination_container_dict)
+                if container_description:
+                    container = __destination_container(container_description)
+                    if container:
+                        return container
+
         if "container_override" in destination_info:
-            container_description = ContainerDescription.from_dict(destination_info["container_override"][0])
-            if container_description:
-                container = __destination_container(container_description)
-                if container:
-                    return container
+            container = container_from_description_from_dicts(destination_info["container_override"])
+            if container:
+                return container
 
         # If destination forcing Galaxy to use a particular container do it,
         # this is likely kind of a corner case. For instance if deployers
@@ -131,11 +138,9 @@ class ContainerFinder(object):
         # If we still don't have a container, check to see if any container
         # types define a default container id and use that.
         if "container" in destination_info:
-            container_description = ContainerDescription.from_dict(destination_info["container"][0])
-            if container_description:
-                container = __destination_container(container_description)
-                if container:
-                    return container
+            container = container_from_description_from_dicts(destination_info["container"])
+            if container:
+                return container
 
         for container_type in CONTAINER_CLASSES.keys():
             container_id = self.__default_container_id(container_type, destination_info)
@@ -223,7 +228,9 @@ class ContainerRegistry(object):
         return self.__parse_resolver_conf_xml(plugin_source)
 
     def __parse_resolver_conf_xml(self, plugin_source):
-        extra_kwds = {}
+        extra_kwds = {
+            'app_info': self.app_info
+        }
         return plugin_config.load_plugins(self.resolver_classes, plugin_source, extra_kwds)
 
     def __default_containers_resolvers(self):
@@ -347,13 +354,13 @@ def preprocess_volumes(volumes_raw_str, container_type):
     parent directories with rw subdirectories).
 
     >>> preprocess_volumes("/a/b", DOCKER_CONTAINER_TYPE)
-    '/a/b:rw'
+    ['/a/b:rw']
     >>> preprocess_volumes("/a/b:ro,/a/b/c:rw", DOCKER_CONTAINER_TYPE)
-    '/a/b:ro,/a/b/c:rw'
+    ['/a/b:ro', '/a/b/c:rw']
     >>> preprocess_volumes("/a/b:default_ro,/a/b/c:rw", DOCKER_CONTAINER_TYPE)
-    '/a/b:ro,/a/b/c:rw'
+    ['/a/b:ro', '/a/b/c:rw']
     >>> preprocess_volumes("/a/b:default_ro,/a/b/c:rw", SINGULARITY_CONTAINER_TYPE)
-    '/a/b:rw,/a/b/c:rw'
+    ['/a/b:rw', '/a/b/c:rw']
     """
 
     volumes_raw_strs = [v.strip() for v in volumes_raw_str.split(",")]
@@ -383,7 +390,7 @@ def preprocess_volumes(volumes_raw_str, container_type):
 
         volume[1] = how
 
-    return ",".join([":".join(v) for v in volumes])
+    return [":".join(v) for v in volumes]
 
 
 class HasDockerLikeVolumes(object):
@@ -401,7 +408,9 @@ class HasDockerLikeVolumes(object):
 
         def add_var(name, value):
             if value:
-                variables[name] = os.path.abspath(value)
+                if not value.startswith("$"):
+                    value = os.path.abspath(value)
+                variables[name] = value
 
         add_var("working_directory", self.job_info.working_directory)
         add_var("tmp_directory", self.job_info.tmp_directory)
@@ -464,14 +473,14 @@ class DockerContainer(Container, HasDockerLikeVolumes):
             raise Exception("Cannot containerize command [%s] without defined working directory." % working_directory)
 
         volumes_raw = self._expand_volume_str(self.destination_info.get("docker_volumes", "$defaults"))
-        preprocessed_volumes_str = preprocess_volumes(volumes_raw, self.container_type)
+        preprocessed_volumes_list = preprocess_volumes(volumes_raw, self.container_type)
         # TODO: Remove redundant volumes...
-        volumes = docker_util.DockerVolume.volumes_from_str(preprocessed_volumes_str)
+        volumes = [DockerVolume.from_str(v) for v in preprocessed_volumes_list]
         # If a tool definitely has a temp directory available set it to /tmp in container for compat.
         # with CWL. This is part of that spec and should make it easier to share containers between CWL
         # and Galaxy.
         if self.job_info.tmp_directory is not None:
-            volumes.append(docker_util.DockerVolume.volume_from_str("%s:/tmp:rw" % self.job_info.tmp_directory))
+            volumes.append(DockerVolume.from_str("%s:/tmp:rw" % self.job_info.tmp_directory))
         volumes_from = self.destination_info.get("docker_volumes_from", docker_util.DEFAULT_VOLUMES_FROM)
 
         docker_host_props = dict(
@@ -558,8 +567,8 @@ class SingularityContainer(Container, HasDockerLikeVolumes):
             raise Exception("Cannot containerize command [%s] without defined working directory." % working_directory)
 
         volumes_raw = self._expand_volume_str(self.destination_info.get("singularity_volumes", "$defaults"))
-        preprocessed_volumes_str = preprocess_volumes(volumes_raw, self.container_type)
-        volumes = docker_util.DockerVolume.volumes_from_str(preprocessed_volumes_str)
+        preprocessed_volumes_list = preprocess_volumes(volumes_raw, self.container_type)
+        volumes = [DockerVolume.from_str(v) for v in preprocessed_volumes_list]
 
         singularity_target_kwds = dict(
             singularity_cmd=prop("cmd", singularity_util.DEFAULT_SINGULARITY_COMMAND),

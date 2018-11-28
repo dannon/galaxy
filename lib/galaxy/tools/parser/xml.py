@@ -8,6 +8,7 @@ from math import isinf
 from galaxy.tools.deps import requirements
 from galaxy.util import string_as_bool, xml_text, xml_to_string
 from galaxy.util.odict import odict
+from .error_level import StdioErrorLevel
 from .interface import (
     InputSource,
     PageSource,
@@ -252,7 +253,8 @@ class XmlToolSource(ToolSource):
             data_dict[output_def.name] = output_def
             return output_def
 
-        map(_parse, out_elem.findall("data"))
+        for _ in out_elem.findall("data"):
+            _parse(_)
 
         for collection_elem in out_elem.findall("collection"):
             name = collection_elem.get("name")
@@ -260,6 +262,7 @@ class XmlToolSource(ToolSource):
             default_format = collection_elem.get("format", "data")
             collection_type = collection_elem.get("type", None)
             collection_type_source = collection_elem.get("type_source", None)
+            collection_type_from_rules = collection_elem.get("type_from_rules", None)
             structured_like = collection_elem.get("structured_like", None)
             inherit_format = False
             inherit_metadata = False
@@ -276,6 +279,7 @@ class XmlToolSource(ToolSource):
             structure = ToolOutputCollectionStructure(
                 collection_type=collection_type,
                 collection_type_source=collection_type_source,
+                collection_type_from_rules=collection_type_from_rules,
                 structured_like=structured_like,
                 dataset_collector_descriptions=dataset_collector_descriptions,
             )
@@ -379,6 +383,9 @@ class XmlToolSource(ToolSource):
     def parse_help(self):
         help_elem = self.root.find('help')
         return help_elem.text if help_elem is not None else None
+
+    def macro_paths(self):
+        return self._macro_paths
 
     def parse_tests_to_dict(self):
         tests_elem = self.root.find("tests")
@@ -737,8 +744,8 @@ class StdioParser(object):
                 # Also note that whitespace is eliminated.
                 # TODO: Turn this into a single match - it should be
                 # more efficient.
-                code_range = re.sub("\s", "", code_range)
-                code_ranges = re.split(":", code_range)
+                code_range = re.sub(r"\s", "", code_range)
+                code_ranges = re.split(r":", code_range)
                 if (len(code_ranges) == 2):
                     if (code_ranges[0] is None or '' == code_ranges[0]):
                         exit_code.range_start = float("-inf")
@@ -820,8 +827,8 @@ class StdioParser(object):
                     output_srcs = regex_elem.get("sources")
                 if output_srcs is None:
                     output_srcs = "output,error"
-                output_srcs = re.sub("\s", "", output_srcs)
-                src_list = re.split(",", output_srcs)
+                output_srcs = re.sub(r"\s", "", output_srcs)
+                src_list = re.split(r",", output_srcs)
                 # Just put together anything to do with "out", including
                 # "stdout", "output", etc. Repeat for "stderr", "error",
                 # and anything to do with "err". If neither stdout nor
@@ -855,7 +862,6 @@ class StdioParser(object):
         Parses error level and returns error level enumeration. If
         unparsable, returns 'fatal'
         """
-        from galaxy.jobs.error_level import StdioErrorLevel
         return_level = StdioErrorLevel.FATAL
         try:
             if err_level:

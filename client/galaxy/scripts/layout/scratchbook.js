@@ -1,31 +1,39 @@
 /** Frame manager uses the ui-frames to create the scratch book masthead icon and functionality **/
+import _ from "underscore";
+import $ from "jquery";
+import Backbone from "backbone";
+import { getAppRoot } from "onload/loadConfig";
+import { getGalaxyInstance } from "app";
 import Frames from "mvc/ui/ui-frames";
-import DATA from "mvc/dataset/data";
+import { Dataset, createTabularDatasetChunkedView, TabularDataset } from "mvc/dataset/data";
 import visualization from "viz/visualization";
-import trackster from "viz/trackster";
+import { TracksterUI } from "viz/trackster";
 import _l from "utils/localization";
+
 export default Backbone.View.extend({
     initialize: function(options) {
-        var self = this;
         options = options || {};
         this.frames = new Frames.View({ visible: false });
         this.setElement(this.frames.$el);
+        this.active = false;
         this.buttonActive = options.collection.add({
             id: "enable-scratchbook",
             icon: "fa-th",
             tooltip: _l("Enable/Disable Scratchbook"),
-            onclick: function() {
-                self.active = !self.active;
-                self.buttonActive.set({
-                    toggle: self.active,
-                    show_note: self.active,
-                    note_cls: self.active && "fa fa-check"
+            onclick: () => {
+                this.active = !this.active;
+                this.buttonActive.set({
+                    toggle: this.active,
+                    show_note: this.active,
+                    note_cls: this.active && "fa fa-check"
                 });
-                !self.active && self.frames.hide();
+                if (!this.active) {
+                    this.frames.hide();
+                }
             },
-            onbeforeunload: function() {
-                if (self.frames.length() > 0) {
-                    return `You opened ${self.frames.length()} frame(s) which will be lost.`;
+            onbeforeunload: () => {
+                if (this.frames.length() > 0) {
+                    return `You opened ${this.frames.length()} frame(s) which will be lost.`;
                 }
             }
         });
@@ -35,22 +43,28 @@ export default Backbone.View.extend({
             tooltip: _l("Show/Hide Scratchbook"),
             show_note: true,
             visible: false,
-            onclick: function(e) {
-                self.frames.visible ? self.frames.hide() : self.frames.show();
+            onclick: e => {
+                if (this.frames.visible) {
+                    this.frames.hide();
+                } else {
+                    this.frames.show();
+                }
             }
         });
         this.frames
-            .on("add remove", function() {
-                this.visible && this.length() == 0 && this.hide();
-                self.buttonLoad.set({
-                    note: this.length(),
-                    visible: this.length() > 0
+            .on("add remove", () => {
+                if (this.frames.visible && this.frames.length() === 0) {
+                    this.frames.hide();
+                }
+                this.buttonLoad.set({
+                    note: this.frames.length(),
+                    visible: this.frames.length() > 0
                 });
             })
-            .on("show hide ", function() {
-                self.buttonLoad.set({
-                    toggle: this.visible,
-                    icon: (this.visible && "fa-eye") || "fa-eye-slash"
+            .on("show hide ", () => {
+                this.buttonLoad.set({
+                    toggle: this.frames.visible,
+                    icon: (this.frames.visible && "fa-eye") || "fa-eye-slash"
                 });
             });
         this.history_cache = {};
@@ -60,6 +74,7 @@ export default Backbone.View.extend({
     addDataset: function(dataset_id) {
         var self = this;
         var current_dataset = null;
+        let Galaxy = getGalaxyInstance();
         if (Galaxy && Galaxy.currHistoryPanel) {
             var history_id = Galaxy.currHistoryPanel.collection.historyId;
             this.history_cache[history_id] = {
@@ -67,9 +82,9 @@ export default Backbone.View.extend({
                 dataset_ids: []
             };
             Galaxy.currHistoryPanel.collection.each(model => {
-                !model.get("deleted") &&
-                    model.get("visible") &&
+                if (!model.get("deleted") && model.get("visible")) {
                     self.history_cache[history_id].dataset_ids.push(model.get("id"));
+                }
             });
         }
         var _findDataset = (dataset, offset) => {
@@ -131,7 +146,7 @@ export default Backbone.View.extend({
 
     _loadDataset: function(dataset_id, callback) {
         var self = this;
-        var dataset = new DATA.Dataset({ id: dataset_id });
+        var dataset = new Dataset({ id: dataset_id });
         $.when(dataset.fetch()).then(() => {
             var is_tabular = _.find(
                 ["tabular", "interval"],
@@ -148,15 +163,15 @@ export default Backbone.View.extend({
                     ? {
                           title: title,
                           url: null,
-                          content: DATA.createTabularDatasetChunkedView({
-                              model: new DATA.TabularDataset(dataset.toJSON()),
+                          content: createTabularDatasetChunkedView({
+                              model: new TabularDataset(dataset.toJSON()),
                               embedded: true,
                               height: "100%"
                           }).$el
                       }
                     : {
                           title: title,
-                          url: `${Galaxy.root}datasets/${dataset_id}/display/?preview=True`,
+                          url: `${getAppRoot()}datasets/${dataset_id}/display/?preview=True`,
                           content: null
                       }
             );
@@ -168,7 +183,7 @@ export default Backbone.View.extend({
         var self = this;
         var viz = new visualization.Visualization({ id: viz_id });
         $.when(viz.fetch()).then(() => {
-            var ui = new trackster.TracksterUI(Galaxy.root);
+            var ui = new TracksterUI(getAppRoot());
 
             // Construct frame config based on dataset's type.
             var frame_config = {
@@ -195,7 +210,7 @@ export default Backbone.View.extend({
                             id: d.dataset_id
                         };
                     });
-                    view = ui.create_visualization(
+                    ui.create_visualization(
                         view_config,
                         latest_revision.config.viewport,
                         latest_revision.config.view.drawables,

@@ -1,9 +1,12 @@
 {
-  "presets": ["env"],
-  "moduleIds": true,
-  "ignore": [
-    "i18n.js",
-    "utils/localization.js",
-    "nls/*"
-  ]
+    "presets": [
+        [
+            "@babel/preset-env",
+            {
+                "modules": false
+            }
+        ]
+    ],
+    "plugins": ["transform-vue-template", "@babel/plugin-syntax-dynamic-import"],
+    "ignore": ["i18n.js", "utils/localization.js", "nls/*"]
 }

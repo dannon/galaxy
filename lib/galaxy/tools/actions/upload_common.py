@@ -5,15 +5,12 @@ import shlex
 import socket
 import subprocess
 import tempfile
-from cgi import FieldStorage
-from json import dumps
+from json import dump, dumps
 
 from six import StringIO
+from six.moves.urllib.parse import urlparse
 from sqlalchemy.orm import eagerload_all
-try:
-    from urlparse import urlparse
-except ImportError:
-    from urllib.parse import urlparse
+from webob.compat import cgi_FieldStorage
 
 from galaxy import datatypes, util
 from galaxy.exceptions import ConfigDoesNotAllowException, ObjectInvalid
@@ -114,7 +111,7 @@ def persist_uploads(params, trans):
         new_files = []
         for upload_dataset in params['files']:
             f = upload_dataset['file_data']
-            if isinstance(f, FieldStorage):
+            if isinstance(f, cgi_FieldStorage):
                 assert not isinstance(f.file, StringIO)
                 assert f.file.name != '<fdopen>'
                 local_filename = util.mkstemp_ln(f.file.name, 'upload_file_data_')
@@ -173,11 +170,11 @@ def __new_history_upload(trans, uploaded_dataset, history=None, state=None):
                                                     history=history,
                                                     create_dataset=True,
                                                     sa_session=trans.sa_session)
+    trans.sa_session.add(hda)
     if state:
         hda.state = state
     else:
         hda.state = hda.states.QUEUED
-    trans.sa_session.add(hda)
     trans.sa_session.flush()
     history.add_dataset(hda, genome_build=uploaded_dataset.dbkey)
     permissions = trans.app.security_agent.history_get_default_permissions(history)
@@ -188,7 +185,7 @@ def __new_history_upload(trans, uploaded_dataset, history=None, state=None):
 
 def __new_library_upload(trans, cntrller, uploaded_dataset, library_bunch, state=None):
     current_user_roles = trans.get_current_user_roles()
-    if not ((trans.user_is_admin() and cntrller in ['library_admin', 'api']) or trans.app.security_agent.can_add_library_item(current_user_roles, library_bunch.folder)):
+    if not ((trans.user_is_admin and cntrller in ['library_admin', 'api']) or trans.app.security_agent.can_add_library_item(current_user_roles, library_bunch.folder)):
         # This doesn't have to be pretty - the only time this should happen is if someone's being malicious.
         raise Exception("User is not authorized to add datasets to this library.")
     folder = library_bunch.folder
@@ -274,11 +271,16 @@ def __new_library_upload(trans, cntrller, uploaded_dataset, library_bunch, state
     return ldda
 
 
-def new_upload(trans, cntrller, uploaded_dataset, library_bunch=None, history=None, state=None):
+def new_upload(trans, cntrller, uploaded_dataset, library_bunch=None, history=None, state=None, tag_list=None):
     if library_bunch:
-        return __new_library_upload(trans, cntrller, uploaded_dataset, library_bunch, state)
+        upload_target_dataset_instance = __new_library_upload(trans, cntrller, uploaded_dataset, library_bunch, state)
     else:
-        return __new_history_upload(trans, uploaded_dataset, history=history, state=state)
+        upload_target_dataset_instance = __new_history_upload(trans, uploaded_dataset, history=history, state=state)
+
+    if tag_list:
+        trans.app.tag_handler.add_tags_from_list(trans.user, upload_target_dataset_instance, tag_list)
+
+    return upload_target_dataset_instance
 
 
 def get_uploaded_datasets(trans, cntrller, params, dataset_upload_inputs, library_bunch=None, history=None):
@@ -308,10 +310,8 @@ def create_paramfile(trans, uploaded_datasets):
         except Exception as e:
             log.warning('Changing ownership of uploaded file %s failed: %s' % (path, str(e)))
 
-    # TODO: json_file should go in the working directory
-    json_file = tempfile.mkstemp()
-    json_file_path = json_file[1]
-    json_file = os.fdopen(json_file[0], 'w')
+    tool_params = []
+    json_file_path = None
     for uploaded_dataset in uploaded_datasets:
         data = uploaded_dataset.data
         if uploaded_dataset.type == 'composite':
@@ -321,14 +321,14 @@ def create_paramfile(trans, uploaded_datasets):
                 setattr(data.metadata, meta_name, meta_value)
             trans.sa_session.add(data)
             trans.sa_session.flush()
-            json = dict(file_type=uploaded_dataset.file_type,
-                        dataset_id=data.dataset.id,
-                        dbkey=uploaded_dataset.dbkey,
-                        type=uploaded_dataset.type,
-                        metadata=uploaded_dataset.metadata,
-                        primary_file=uploaded_dataset.primary_file,
-                        composite_file_paths=uploaded_dataset.composite_files,
-                        composite_files=dict((k, v.__dict__) for k, v in data.datatype.get_composite_files(data).items()))
+            params = dict(file_type=uploaded_dataset.file_type,
+                          dataset_id=data.dataset.id,
+                          dbkey=uploaded_dataset.dbkey,
+                          type=uploaded_dataset.type,
+                          metadata=uploaded_dataset.metadata,
+                          primary_file=uploaded_dataset.primary_file,
+                          composite_file_paths=uploaded_dataset.composite_files,
+                          composite_files=dict((k, v.__dict__) for k, v in data.datatype.get_composite_files(data).items()))
         else:
             try:
                 is_binary = uploaded_dataset.datatype.is_binary
@@ -352,31 +352,31 @@ def create_paramfile(trans, uploaded_datasets):
                 user_ftp_dir = None
             if user_ftp_dir and uploaded_dataset.path.startswith(user_ftp_dir):
                 uploaded_dataset.type = 'ftp_import'
-            json = dict(file_type=uploaded_dataset.file_type,
-                        ext=uploaded_dataset.ext,
-                        name=uploaded_dataset.name,
-                        dataset_id=data.dataset.id,
-                        dbkey=uploaded_dataset.dbkey,
-                        type=uploaded_dataset.type,
-                        is_binary=is_binary,
-                        link_data_only=link_data_only,
-                        uuid=uuid_str,
-                        to_posix_lines=getattr(uploaded_dataset, "to_posix_lines", True),
-                        auto_decompress=getattr(uploaded_dataset, "auto_decompress", True),
-                        purge_source=purge_source,
-                        space_to_tab=uploaded_dataset.space_to_tab,
-                        run_as_real_user=trans.app.config.external_chown_script is not None,
-                        check_content=trans.app.config.check_upload_content,
-                        path=uploaded_dataset.path)
+            params = dict(file_type=uploaded_dataset.file_type,
+                          ext=uploaded_dataset.ext,
+                          name=uploaded_dataset.name,
+                          dataset_id=data.dataset.id,
+                          dbkey=uploaded_dataset.dbkey,
+                          type=uploaded_dataset.type,
+                          is_binary=is_binary,
+                          link_data_only=link_data_only,
+                          uuid=uuid_str,
+                          to_posix_lines=getattr(uploaded_dataset, "to_posix_lines", True),
+                          auto_decompress=getattr(uploaded_dataset, "auto_decompress", True),
+                          purge_source=purge_source,
+                          space_to_tab=uploaded_dataset.space_to_tab,
+                          run_as_real_user=trans.app.config.external_chown_script is not None,
+                          check_content=trans.app.config.check_upload_content,
+                          path=uploaded_dataset.path)
             # TODO: This will have to change when we start bundling inputs.
             # Also, in_place above causes the file to be left behind since the
             # user cannot remove it unless the parent directory is writable.
             if link_data_only == 'copy_files' and trans.app.config.external_chown_script:
                 _chown(uploaded_dataset.path)
-        json_file.write(dumps(json) + '\n')
-    json_file.close()
-    if trans.app.config.external_chown_script:
-        _chown(json_file_path)
+        tool_params.append(params)
+    with tempfile.NamedTemporaryFile(mode="w", prefix='upload_params_', delete=False) as fh:
+        json_file_path = fh.name
+        dump(tool_params, fh)
     return json_file_path
 
 
@@ -420,7 +420,7 @@ def create_job(trans, params, tool, json_file_path, outputs, folder=None, histor
             else:
                 job.add_output_dataset(output_name, dataset)
             # Create an empty file immediately
-            if not dataset.dataset.external_filename:
+            if not dataset.dataset.external_filename and trans.app.config.legacy_eager_objectstore_initialization:
                 dataset.dataset.object_store_id = object_store_id
                 try:
                     trans.app.object_store.create(dataset.dataset)

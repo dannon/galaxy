@@ -2,7 +2,7 @@
 
 This file checks upload options that require different non-default Galaxy
 configuration options. More vanilla upload options and behaviors are tested
-with the API test framework (located in test_tools.py).
+with the API test framework (located in test_tools_upload.py).
 
 These options include:
  - The config options ``check_upload_content`` and ``allow_path_paste``.
@@ -117,9 +117,9 @@ class NonAdminsCannotPasteFilePathTestCase(BaseUploadContentConfigurationTestCas
 
     def test_disallowed_for_primary_file(self):
         payload = self.dataset_populator.upload_payload(
-            self.history_id, 'file://%s/1.RData' % TEST_DATA_DIRECTORY, ext="binary"
+            self.history_id, 'file://%s/1.RData' % TEST_DATA_DIRECTORY, file_type="binary"
         )
-        create_response = self._post("tools", data=payload)
+        create_response = self.dataset_populator.tools_post(payload)
         # Ideally this would be 403 but the tool API endpoint isn't using
         # the newer API decorator that handles those details.
         assert create_response.status_code >= 400
@@ -139,7 +139,7 @@ class NonAdminsCannotPasteFilePathTestCase(BaseUploadContentConfigurationTestCas
                 "files_2|type": "upload_dataset",
             },
         )
-        create_response = self._post("tools", data=payload)
+        create_response = self.dataset_populator.tools_post(payload)
         # Ideally this would be 403 but the tool API endpoint isn't using
         # the newer API decorator that handles those details.
         assert create_response.status_code >= 400
@@ -193,7 +193,7 @@ class AdminsCanPasteFilePathsTestCase(BaseUploadContentConfigurationTestCase):
         payload = self.dataset_populator.upload_payload(
             self.history_id, 'file://%s/random-file' % TEST_DATA_DIRECTORY,
         )
-        create_response = self._post("tools", data=payload)
+        create_response = self.dataset_populator.tools_post(payload)
         # Is admin - so this should work fine!
         assert create_response.status_code == 200
 
@@ -246,7 +246,7 @@ class DefaultBinaryContentFiltersTestCase(BaseUploadContentConfigurationTestCase
             self.history_id, 'file://%s/random-file' % TEST_DATA_DIRECTORY, file_type="auto", wait=True
         )
         dataset = self.dataset_populator.get_history_dataset_details(self.history_id, dataset=dataset)
-        assert dataset["file_ext"] == "data", dataset
+        assert dataset["file_ext"] == "binary", dataset
 
     def test_gzipped_html_content_blocked_by_default(self):
         dataset = self.dataset_populator.new_dataset(
@@ -287,7 +287,7 @@ class AutoDecompressTestCase(BaseUploadContentConfigurationTestCase):
             self.history_id, 'file://%s/1.sam.gz' % TEST_DATA_DIRECTORY, file_type="auto", auto_decompress=False, wait=True
         )
         dataset = self.dataset_populator.get_history_dataset_details(self.history_id, dataset=dataset)
-        assert dataset["file_ext"] == "data", dataset
+        assert dataset["file_ext"] == "binary", dataset
 
     def test_auto_decompress_on(self):
         dataset = self.dataset_populator.new_dataset(
@@ -301,9 +301,9 @@ class LocalAddressWhitelisting(BaseUploadContentConfigurationTestCase):
 
     def test_blocked_url_for_primary_file(self):
         payload = self.dataset_populator.upload_payload(
-            self.history_id, 'http://localhost/', ext="txt"
+            self.history_id, 'http://localhost/', file_type="txt"
         )
-        create_response = self._post("tools", data=payload)
+        create_response = self.dataset_populator.tools_post(payload)
         # Ideally this would be 403 but the tool API endpoint isn't using
         # the newer API decorator that handles those details.
         assert create_response.status_code >= 400
@@ -321,7 +321,7 @@ class LocalAddressWhitelisting(BaseUploadContentConfigurationTestCase):
                 "files_2|type": "upload_dataset",
             },
         )
-        create_response = self._post("tools", data=payload)
+        create_response = self.dataset_populator.tools_post(payload)
         # Ideally this would be 403 but the tool API endpoint isn't using
         # the newer API decorator that handles those details.
         assert create_response.status_code >= 400
@@ -497,13 +497,12 @@ class AdvancedFtpUploadFetchTestCase(BaseFtpUploadConfigurationTestCase):
             "ftp_path": "subdir",
             "collection_type": "list",
         }
-        response = self.fetch_target(target)
-        self._assert_status_code_is(response, 200)
+        self.fetch_target(target, assert_ok=True)
         hdca = self.dataset_populator.get_history_collection_details(self.history_id, hid=1)
         assert len(hdca["elements"]) == 3, hdca
         element0 = hdca["elements"][0]
-        assert element0["element_identifier"] == "1"
-        assert element0["object"]["file_size"] == 9
+        assert element0["element_identifier"] == "1", hdca
+        assert element0["object"]["file_size"] == 9, element0
 
     def test_fetch_nested_elements_from(self):
         dir_path = self._get_user_ftp_path()
@@ -519,8 +518,7 @@ class AdvancedFtpUploadFetchTestCase(BaseFtpUploadConfigurationTestCase):
             "elements": elements,
             "collection_type": "list:list",
         }
-        response = self.fetch_target(target)
-        self._assert_status_code_is(response, 200)
+        self.fetch_target(target, assert_ok=True)
         hdca = self.dataset_populator.get_history_collection_details(self.history_id, hid=1)
         assert len(hdca["elements"]) == 2, hdca
         element0 = hdca["elements"][0]
@@ -671,13 +669,13 @@ class ServerDirectoryValidUsageTestCase(BaseUploadContentConfigurationTestCase):
         full_dir_path = os.path.join(self.server_dir(), dir_to_import)
         os.makedirs(full_dir_path)
         file_content = "hello world\n"
-        with tempfile.NamedTemporaryFile(dir=full_dir_path, delete=False) as fh:
+        with tempfile.NamedTemporaryFile(mode='w', dir=full_dir_path, delete=False) as fh:
             fh.write(file_content)
             file_to_import = fh.name
 
         library_dataset = self.library_populator.new_library_dataset("serverdirupload", upload_option="upload_directory", server_dir=dir_to_import)
         # Check the file is still there and was not modified
-        with open(file_to_import) as fh:
+        with open(file_to_import, 'r') as fh:
             read_content = fh.read()
         assert read_content == file_content
 
@@ -841,3 +839,25 @@ class FetchByPathTestCase(BaseUploadContentConfigurationTestCase):
         library = matching[0]
         dataset = self.library_populator.get_library_contents_with_path(library["id"], "/file1")
         assert dataset["file_size"] == 6, dataset
+
+
+class TestDirectoryAndCompressedTypes(BaseUploadContentConfigurationTestCase):
+
+    require_admin_user = True
+
+    @classmethod
+    def handle_galaxy_config_kwds(cls, config):
+        config["allow_path_paste"] = True
+
+    def test_tar_to_directory(self):
+        dataset = self.dataset_populator.new_dataset(
+            self.history_id, 'file://%s/testdir.tar' % TEST_DATA_DIRECTORY, file_type="tar", auto_decompress=False, wait=True
+        )
+        dataset = self.dataset_populator.get_history_dataset_details(self.history_id, dataset=dataset)
+        assert dataset["file_ext"] == "tar", dataset
+        response = self.dataset_populator.run_tool(
+            tool_id="CONVERTER_tar_to_directory",
+            inputs={"input1": {"src": "hda", "id": dataset["id"]}},
+            history_id=self.history_id,
+        )
+        self.dataset_populator.wait_for_job(response["jobs"][0]["id"])

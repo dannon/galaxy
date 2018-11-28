@@ -1,12 +1,12 @@
 <?xml version="1.0"?>
 
-<tool name="Upload File" id="upload1" version="1.1.5" workflow_compatible="false">
+<tool name="Upload File" id="upload1" version="1.1.6" workflow_compatible="false" profile="16.04">
   <description>
     from your computer  
   </description>
   <action module="galaxy.tools.actions.upload" class="UploadToolAction"/>
-  <command interpreter="python">
-      upload.py $GALAXY_ROOT_DIR $GALAXY_DATATYPES_CONF_FILE $paramfile
+  <command>
+    python '$__tool_directory__/upload.py' $GALAXY_ROOT_DIR $GALAXY_DATATYPES_CONF_FILE $paramfile
     #set $outnum = 0
     #while $varExists('output%i' % $outnum):
         #set $output = $getVar('output%i' % $outnum)
@@ -54,6 +54,7 @@
       </param>
       <param name="NAME" type="hidden" help="Name for dataset in upload"></param>
     </upload_dataset>
+    <param name="force_composite" type="hidden" value="false" />
     <param name="dbkey" type="genomebuild" label="Genome" />
     <conditional name="files_metadata" value_from="self:app.datatypes_registry.get_upload_metadata_params" value_ref="file_type" value_ref_in_group="False" />
     <!-- <param name="other_dbkey" type="text" label="Or user-defined Genome" /> -->

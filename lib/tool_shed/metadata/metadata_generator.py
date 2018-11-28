@@ -886,7 +886,7 @@ class MetadataGenerator(object):
                     # installation from proceeding.  Reaching here implies a bug in the Tool Shed
                     # framework.
                     error_message = 'Installation encountered an invalid repository dependency definition:\n'
-                    error_message += xml_util.xml_to_string(repository_elem, use_indent=True)
+                    error_message += util.xml_to_string(repository_elem, pretty=True)
                     log.error(error_message)
                     return repository_dependency_tup, False, error_message
         if not toolshed:
@@ -975,7 +975,7 @@ class MetadataGenerator(object):
                     log.debug(error_message)
                     is_valid = False
                     return repository_dependency_tup, is_valid, error_message
-                repo = hg_util.get_repo_for_repository(self.app, repository=repository, repo_path=None, create=False)
+                repo = hg_util.get_repo_for_repository(self.app, repository=repository)
 
                 # The received changeset_revision may be None since defining it in the dependency definition is optional.
                 # If this is the case, the default will be to set its value to the repository dependency tip revision.

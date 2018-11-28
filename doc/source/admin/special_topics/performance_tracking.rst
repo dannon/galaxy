@@ -24,7 +24,7 @@ Or a StatsD server via:
       socket: ...
       statsd-push: 127.0.0.1:8125
 
-The `official documentation <http://uwsgi-docs.readthedocs.io/en/latest/Metrics.html#stats-pushers>`__ contains further information on uWSGI and stats servers. In the `uWSGI Stats Server <http://uwsgi-docs.readthedocs.io/en/latest/StatsServer.html>` documentation, you can see an example of the sort of information that you will be able to collect.
+The `official documentation <https://uwsgi-docs.readthedocs.io/en/latest/Metrics.html#stats-pushers>`__ contains further information on uWSGI and stats servers. In the `uWSGI Stats Server <https://uwsgi-docs.readthedocs.io/en/latest/StatsServer.html>` documentation, you can see an example of the sort of information that you will be able to collect.
 
 API / Route Timing Statistics
 -----------------------------
@@ -40,16 +40,6 @@ The statsD configuration requires setting the following options in the ``galaxy`
       statsd_host: 127.0.0.1
       statsd_port: 8125
       statsd_prefix: galaxy
-
-And the graphite configuration is very similar:
-
-.. code-block:: yaml
-
-    galaxy:
-      # ...
-      graphite_host: 127.0.0.1
-      graphite_port: 2003
-      graphite_prefix: galaxy
 
 Most people visualize the statistics using something like `Grafana <https://grafana.com/>`__:
 

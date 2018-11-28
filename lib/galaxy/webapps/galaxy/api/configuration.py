@@ -36,7 +36,10 @@ class ConfigurationController(BaseAPIController):
         :rtype:   dict
         """
         current_user = self.user_manager.current_user(trans)
-        return current_user.to_dict()
+        rval = None
+        if current_user:  # None for master API key for instance
+            rval = current_user.to_dict()
+        return rval
 
     @expose_api_anonymous_and_sessionless
     def index(self, trans, **kwd):
@@ -46,7 +49,7 @@ class ConfigurationController(BaseAPIController):
 
         Note: a more complete list is returned if the user is an admin.
         """
-        is_admin = trans.user_is_admin()
+        is_admin = trans.user_is_admin
         serialization_params = self._parse_serialization_params(kwd, 'all')
         return self.get_config_dict(trans, is_admin, **serialization_params)
 

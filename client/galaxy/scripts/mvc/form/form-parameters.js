@@ -1,13 +1,16 @@
 /**
     This class creates input elements. New input parameter types should be added to the types dictionary.
 */
+import { getGalaxyInstance } from "app";
 import Utils from "utils/utils";
 import Ui from "mvc/ui/ui-misc";
 import SelectContent from "mvc/ui/ui-select-content";
 import SelectLibrary from "mvc/ui/ui-select-library";
 import SelectFtp from "mvc/ui/ui-select-ftp";
 import SelectGenomeSpace from "mvc/ui/ui-select-genomespace";
+import RulesEdit from "mvc/ui/ui-rules-edit";
 import ColorPicker from "mvc/ui/ui-color-picker";
+
 // create form view
 export default Backbone.Model.extend({
     /** Available parameter types */
@@ -30,11 +33,13 @@ export default Backbone.Model.extend({
         library_data: "_fieldLibrary",
         ftpfile: "_fieldFtp",
         upload: "_fieldUpload",
+        rules: "_fieldRulesEdit",
         genomespacefile: "_fieldGenomeSpace"
     },
 
     /** Returns an input field for a given field type */
     create: function(input_def) {
+        let Galaxy = getGalaxyInstance();
         var fieldClass = this.types[input_def.type];
         var field = typeof this[fieldClass] === "function" ? this[fieldClass].call(this, input_def) : null;
         if (!field) {
@@ -74,40 +79,27 @@ export default Backbone.Model.extend({
             input_def.error_text = "Missing columns in referenced dataset.";
         }
 
-        // identify available options
-        var data = input_def.data;
-        if (!data) {
-            data = [];
-            _.each(input_def.options, option => {
-                data.push({ label: option[0], value: option[1] });
-            });
-        }
-
-        // identify display type
-        var SelectClass = Ui.Select;
-        switch (input_def.display) {
-            case "checkboxes":
-                SelectClass = Ui.Checkbox;
-                break;
-            case "radio":
-                SelectClass = Ui.Radio;
-                break;
-            case "radiobutton":
-                SelectClass = Ui.RadioButton;
-                break;
-        }
-
-        // create select field
-        return new SelectClass.View({
+        // pick selection display
+        var classes = {
+            checkboxes: Ui.Checkbox,
+            radio: Ui.Radio,
+            radiobutton: Ui.RadioButton
+        };
+        var SelectClass = classes[input_def.display] || Ui.Select;
+        return new Ui.TextSelect({
             id: `field-${input_def.id}`,
-            data: data,
+            data: input_def.data,
+            options: input_def.options,
+            display: input_def.display,
             error_text: input_def.error_text || "No options available",
             readonly: input_def.readonly,
             multiple: input_def.multiple,
             optional: input_def.optional,
             onchange: input_def.onchange,
             individual: input_def.individual,
-            searchable: input_def.flavor !== "workflow"
+            searchable: input_def.flavor !== "workflow",
+            textable: input_def.textable,
+            SelectClass: SelectClass
         });
     },
 
@@ -221,10 +213,17 @@ export default Backbone.Model.extend({
     /** GenomeSpace file select field
      */
     _fieldGenomeSpace: function(input_def) {
-        var self = this;
         return new SelectGenomeSpace.View({
             id: `field-${input_def.id}`,
             onchange: input_def.onchange
+        });
+    },
+
+    _fieldRulesEdit: function(input_def) {
+        return new RulesEdit.View({
+            id: `field-${input_def.id}`,
+            onchange: input_def.onchange,
+            target: input_def.target
         });
     },
 

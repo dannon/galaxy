@@ -3,20 +3,8 @@ set -e
 
 if [ ! -z "$USE_SELENIUM" ];
 then
-    sudo -E -u seluser /opt/bin/entry_point.sh &
-    # TODO:...
-    while ! curl -s "http://localhost:4444";
-    do
-        printf "."
-        sleep 4;
-    done;
-    GALAXY_TEST_SELENIUM_REMOTE=1
-    GALAXY_TEST_SELENIUM_REMOTE_HOST=localhost
-    GALAXY_TEST_SELENIUM_REMOTE_PORT=4444
-
-    export GALAXY_TEST_SELENIUM_REMOTE
-    export GALAXY_TEST_SELENIUM_REMOTE_HOST
-    export GALAXY_TEST_SELENIUM_REMOTE_PORT
+    # Start Selenium.
+    sudo -H -E -u seluser /opt/bin/entry_point.sh &
 fi
 
 echo "Deleting galaxy user - it may not exist and this is fine."
@@ -30,7 +18,7 @@ echo "Creating galaxy user with uid $GALAXY_TEST_UID - it may already exist and 
 useradd -u $GALAXY_TEST_UID -r -g galaxy -d /home/galaxy -c "Galaxy User" galaxy -s /bin/bash | true
 echo "Setting galaxy user password - the operation may fail."
 echo "galaxy:galaxy" | chpasswd | true
-chown -R "$GALAXY_TEST_UID:$GALAXY_TEST_UID" /galaxy_venv
+chown -R "$GALAXY_TEST_UID:$GALAXY_TEST_UID" "${GALAXY_VIRTUAL_ENV:-/galaxy_venv}"
 
 : ${GALAXY_TEST_DATABASE_TYPE:-"postgres"}
 if [ "$GALAXY_TEST_DATABASE_TYPE" = "postgres" ];
@@ -41,7 +29,7 @@ then
     GALAXY_TEST_INSTALL_DB_MERGED="true"
     GALAXY_TEST_DBURI="postgres://root@localhost:5930/galaxy?client_encoding=utf8"
     TOOL_SHED_TEST_DBURI="postgres://root@localhost:5930/toolshed?client_encoding=utf8"
-    export GALAXY_CONFIG_OVERRIDE_DATABASE_ENCODING="SQL_ASCII"
+    export GALAXY_CONFIG_OVERRIDE_DATABASE_ENCODING="UTF-8"
 elif [ "$GALAXY_TEST_DATABASE_TYPE" = "mysql" ];
 then
     sh /opt/galaxy/start_mysql.sh
@@ -75,6 +63,22 @@ sudo -E -u "#${GALAXY_TEST_UID}" GALAXY_CONFIG_OVERRIDE_DATABASE_CONNECTION="$GA
 echo "Upgrading tool shed database... $TOOL_SHED_CONFIG_OVERRIDE_DATABASE_CONNECTION"
 sudo -E -u "#${GALAXY_TEST_UID}" TOOL_SHED_CONFIG_OVERRIDE_DATABASE_CONNECTION="$TOOL_SHED_TEST_DBURI" sh manage_db.sh upgrade tool_shed
 
+# Ensure Selenium is running before starting tests.
+if [ ! -z "$USE_SELENIUM" ];
+then
+    while ! curl -s "http://localhost:4444";
+    do
+        printf "."
+        sleep 4;
+    done;
+    GALAXY_TEST_SELENIUM_REMOTE=1
+    GALAXY_TEST_SELENIUM_REMOTE_HOST=localhost
+    GALAXY_TEST_SELENIUM_REMOTE_PORT=4444
+
+    export GALAXY_TEST_SELENIUM_REMOTE
+    export GALAXY_TEST_SELENIUM_REMOTE_HOST
+    export GALAXY_TEST_SELENIUM_REMOTE_PORT
+fi
 
 if [ -z "$GALAXY_NO_TESTS" ];
 then

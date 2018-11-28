@@ -1,6 +1,11 @@
 /** Base class for options based ui elements **/
+import * as Backbone from "backbone";
+import * as _ from "underscore";
 import Utils from "utils/utils";
 import Buttons from "mvc/ui/ui-buttons";
+
+/* global $ */
+
 var Base = Backbone.View.extend({
     initialize: function(options) {
         var self = this;
@@ -32,7 +37,7 @@ var Base = Backbone.View.extend({
             .empty()
             .removeClass()
             .addClass("ui-options")
-            .append((this.$message = $("<div/>")))
+            .append((this.$message = $("<div/>").addClass("mt-2")))
             .append((this.$menu = $("<div/>").addClass("ui-options-menu")))
             .append((this.$options = $(this._template())));
 
@@ -56,8 +61,10 @@ var Base = Backbone.View.extend({
     },
 
     /** Update available options */
-    update: function(options) {
-        this.model.set("data", options);
+    update: function(input_def) {
+        if (input_def.data) {
+            this.model.set("data", input_def.data);
+        }
     },
 
     _changeData: function() {
@@ -71,13 +78,12 @@ var Base = Backbone.View.extend({
                     $(self._templateOption(option))
                         .addClass("ui-option")
                         .tooltip({
-                            title: option.tooltip,
+                            title: option.tooltip || "",
                             placement: "bottom"
                         })
                 );
             });
         }
-        var self = this;
         this.$("input").on("change", () => {
             self.value(self._getValue());
             self.trigger("change");
@@ -115,13 +121,16 @@ var Base = Backbone.View.extend({
         if (this._getValue() === null && !this.model.get("multiple") && !this.model.get("optional")) {
             this._setValue(this.first());
         }
-        this.all_button &&
+        if (this.all_button) {
             this.all_button.value($.isArray(this._getValue()) ? this._getValue().length : 0, this.length());
+        }
     },
 
     /** Return/Set current selection */
     value: function(new_value) {
-        new_value !== undefined && this.model.set("value", new_value);
+        if (new_value !== undefined) {
+            this.model.set("value", new_value);
+        }
         return this._getValue();
     },
 
@@ -154,8 +163,7 @@ var Base = Backbone.View.extend({
             if (new_value !== null) {
                 var values = $.isArray(new_value) ? new_value : [new_value];
                 _.each(values, v => {
-                    self
-                        .$(`input[value="${v}"]`)
+                    self.$(`input[value="${v}"]`)
                         .first()
                         .prop("checked", true);
                 });
@@ -180,7 +188,7 @@ var Base = Backbone.View.extend({
         this.$message
             .show()
             .removeClass()
-            .addClass(`ui-message alert alert-${status}`)
+            .addClass(`alert alert-${status}`)
             .html(text);
     },
 
@@ -253,30 +261,33 @@ RadioButton.View = Base.extend({
 
     /** Template for a single option */
     _templateOption: function(pair) {
-        var $el = $("<label/>").addClass("btn btn-default");
-        pair.icon &&
+        var $el = $("<label/>").addClass("btn btn-secondary");
+        if (pair.icon) {
             $el.append(
                 $("<i/>")
                     .addClass("fa")
                     .addClass(pair.icon)
                     .addClass(!pair.label && "no-padding")
             );
+        }
         $el.append(
-            $("<input/>").attr({
-                type: "radio",
-                name: this.model.id,
-                value: pair.value
-            })
+            $("<input/>")
+                .attr({
+                    type: "radio",
+                    name: this.model.id,
+                    value: pair.value
+                })
+                .hide()
         );
-        pair.label && $el.append(pair.label);
+        if (pair.label) {
+            $el.append(pair.label);
+        }
         return $el;
     },
 
     /** Main template function */
     _template: function() {
-        return $("<div/>")
-            .addClass("btn-group ui-radiobutton")
-            .attr("data-toggle", "buttons");
+        return $("<div/>").addClass("btn-group ui-radiobutton");
     }
 });
 

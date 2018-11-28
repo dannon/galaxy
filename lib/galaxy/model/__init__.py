@@ -4,6 +4,7 @@ Galaxy data model classes
 Naming: try to use class names that have a distinct plural form so that
 the relationship cardinalities are obvious (e.g. prefer Dataset to Data)
 """
+import base64
 import errno
 import json
 import logging
@@ -11,13 +12,17 @@ import numbers
 import operator
 import os
 import pwd
+import random
+import string
 import time
 from datetime import datetime, timedelta
 from string import Template
 from uuid import UUID, uuid4
 
 from six import string_types
+from social_core.storage import AssociationMixin, CodeMixin, NonceMixin, PartialMixin, UserMixin
 from sqlalchemy import (
+    alias,
     and_,
     func,
     inspect,
@@ -29,8 +34,12 @@ from sqlalchemy import (
     type_coerce,
     types)
 from sqlalchemy.ext import hybrid
-from sqlalchemy.orm import aliased, joinedload, object_session
-
+from sqlalchemy.orm import (
+    aliased,
+    joinedload,
+    object_session,
+)
+from sqlalchemy.schema import UniqueConstraint
 
 import galaxy.model.metadata
 import galaxy.model.orm.now
@@ -49,7 +58,6 @@ from galaxy.util.sanitize_html import sanitize_html
 from galaxy.web.form_builder import (AddressField, CheckboxField, HistoryField,
                                      PasswordField, SelectField, TextArea, TextField, WorkflowField,
                                      WorkflowMappingField)
-from galaxy.web.framework.helpers import to_unicode
 
 log = logging.getLogger(__name__)
 
@@ -60,6 +68,24 @@ _datatypes_registry = None
 # are going to have different limits so it is likely best to not let
 # this be unlimited - filter in Python if over this limit.
 MAX_IN_FILTER_LENGTH = 100
+
+# The column sizes for job metrics. Note: changing these values does not change the column sizes, a migration must be
+# performed to do that.
+JOB_METRIC_MAX_LENGTH = 1023
+JOB_METRIC_PRECISION = 26
+JOB_METRIC_SCALE = 7
+# Tags that get automatically propagated from inputs to outputs when running jobs.
+AUTO_PROPAGATED_TAGS = ["name"]
+
+
+class RepresentById(object):
+    def __repr__(self):
+        try:
+            r = '<galaxy.model.%s(%s) at %s>' % (self.__class__.__name__, cached_id(self), hex(id(self)))
+        except Exception:
+            r = object.__repr__(self)
+            log.exception("Caught exception attempting to generate repr for: %s", r)
+        return r
 
 
 class NoConverterException(Exception):
@@ -111,6 +137,16 @@ class HasTags(object):
             tags_str_list.append(tag_str)
         return tags_str_list
 
+    def copy_tags_from(self, target_user, source):
+        for source_tag_assoc in source.tags:
+            new_tag_assoc = source_tag_assoc.copy()
+            new_tag_assoc.user = target_user
+            self.tags.append(new_tag_assoc)
+
+    @property
+    def auto_propagated_tags(self):
+        return [t for t in self.tags if t.user_tname in AUTO_PROPAGATED_TAGS]
+
 
 class HasName(object):
 
@@ -137,7 +173,34 @@ class UsesCreateAndUpdateTime(object):
         return (galaxy.model.orm.now.now() - create_time).total_seconds()
 
 
+def cached_id(galaxy_model_object):
+    """Get model object id attribute without a firing a database query.
+
+    Useful to fetching the id of a typical Galaxy model object after a flush,
+    where SA is going to mark the id attribute as unloaded but we know the id
+    is immutable and so we can use the database identity to fetch.
+
+    With Galaxy's default SA initialization - any flush marks all attributes as
+    unloaded - even objects completely unrelated to the flushed changes and
+    even attributes we know to be immutable like id. See test_galaxy_mapping.py
+    for verification of this behavior. This method is a workaround that uses
+    the fact that we know all Galaxy objects use the id attribute as identity
+    and SA internals (_sa_instance_state) to infer the previously loaded ID
+    value. I tried digging into the SA internals extensively and couldn't find
+    a way to get the previously loaded values after a flush to allow a
+    generalization of this for other attributes.
+    """
+    if hasattr(galaxy_model_object, "_sa_instance_state"):
+        identity = galaxy_model_object._sa_instance_state.identity
+        if identity:
+            assert len(identity) == 1
+            return identity[0]
+
+    return galaxy_model_object.id
+
+
 class JobLike(object):
+    MAX_NUMERIC = 10**(JOB_METRIC_PRECISION - JOB_METRIC_SCALE) - 1
 
     def _init_metrics(self):
         self.text_metrics = []
@@ -146,15 +209,19 @@ class JobLike(object):
     def add_metric(self, plugin, metric_name, metric_value):
         plugin = unicodify(plugin, 'utf-8')
         metric_name = unicodify(metric_name, 'utf-8')
-        if isinstance(metric_value, numbers.Number):
+        number = isinstance(metric_value, numbers.Number)
+        if number and int(metric_value) <= JobLike.MAX_NUMERIC:
             metric = self._numeric_metric(plugin, metric_name, metric_value)
             self.numeric_metrics.append(metric)
+        elif number:
+            log.warning("Cannot store metric due to database column overflow (max: %s): %s: %s",
+                        JobLike.MAX_NUMERIC, metric_name, metric_value)
         else:
             metric_value = unicodify(metric_value, 'utf-8')
-            if len(metric_value) > 1022:
+            if len(metric_value) > (JOB_METRIC_MAX_LENGTH - 1):
                 # Truncate these values - not needed with sqlite
                 # but other backends must need it.
-                metric_value = metric_value[:1022]
+                metric_value = metric_value[:(JOB_METRIC_MAX_LENGTH - 1)]
             metric = self._text_metric(plugin, metric_name, metric_value)
             self.text_metrics.append(metric)
 
@@ -164,8 +231,8 @@ class JobLike(object):
         return self.text_metrics + self.numeric_metrics
 
     def set_streams(self, stdout, stderr):
-        stdout = galaxy.util.unicodify(stdout)
-        stderr = galaxy.util.unicodify(stderr)
+        stdout = galaxy.util.unicodify(stdout) or u''
+        stderr = galaxy.util.unicodify(stderr) or u''
         if (len(stdout) > galaxy.util.DATABASE_MAX_STRING_SIZE):
             stdout = galaxy.util.shrink_string_by_size(stdout, galaxy.util.DATABASE_MAX_STRING_SIZE, join_by="\n..\n", left_larger=True, beginning_on_size_error=True)
             log.info("stdout for %s %d is greater than %s, only a portion will be logged to database", type(self), self.id, galaxy.util.DATABASE_MAX_STRING_SIZE_PRETTY)
@@ -186,7 +253,7 @@ class JobLike(object):
         return "%s[%s,tool_id=%s]" % (self.__class__.__name__, extra, self.tool_id)
 
 
-class User(Dictifiable):
+class User(Dictifiable, RepresentById):
     use_pbkdf2 = True
     """
     Data for a Galaxy user or admin and relations to their
@@ -197,7 +264,7 @@ class User(Dictifiable):
     # attributes that will be accessed and returned when calling to_dict( view='element' )
     dict_element_visible_keys = ['id', 'email', 'username', 'total_disk_usage', 'nice_total_disk_usage', 'deleted', 'active', 'last_password_change']
 
-    def __init__(self, email=None, password=None):
+    def __init__(self, email=None, password=None, username=None):
         self.email = email
         self.password = password
         self.external = False
@@ -205,7 +272,7 @@ class User(Dictifiable):
         self.purged = False
         self.active = False
         self.activation_token = None
-        self.username = None
+        self.username = username
         self.last_password_change = None
         # Relationships
         self.histories = []
@@ -232,6 +299,14 @@ class User(Dictifiable):
         else:
             self.password = new_secure_hash(text_type=cleartext)
         self.last_password_change = datetime.now()
+
+    def set_random_password(self, length=16):
+        """
+        Sets user password to a random string of the given length.
+        :return: void
+        """
+        self.set_password_cleartext(
+            ''.join(random.SystemRandom().choice(string.ascii_letters + string.digits) for _ in range(length)))
 
     def check_password(self, cleartext):
         """
@@ -420,6 +495,18 @@ class User(Dictifiable):
         environment = User.user_template_environment(user)
         return Template(in_string).safe_substitute(environment)
 
+    def is_active(self):
+        return self.active
+
+    def is_authenticated(self):
+        # TODO: is required for python social auth (PSA); however, a user authentication is relative to the backend.
+        # For instance, a user who is authenticated with Google, is not necessarily authenticated
+        # with Amazon. Therefore, this function should also receive the backend and check if this
+        # user is already authenticated on that backend or not. For now, returning always True
+        # seems reasonable. Besides, this is also how a PSA example is implemented:
+        # https://github.com/python-social-auth/social-examples/blob/master/example-cherrypy/example/db/user.py
+        return True
+
 
 class PasswordResetToken(object):
     def __init__(self, user, token=None):
@@ -439,23 +526,23 @@ class BaseJobMetric(object):
         self.metric_value = metric_value
 
 
-class JobMetricText(BaseJobMetric):
+class JobMetricText(BaseJobMetric, RepresentById):
     pass
 
 
-class JobMetricNumeric(BaseJobMetric):
+class JobMetricNumeric(BaseJobMetric, RepresentById):
     pass
 
 
-class TaskMetricText(BaseJobMetric):
+class TaskMetricText(BaseJobMetric, RepresentById):
     pass
 
 
-class TaskMetricNumeric(BaseJobMetric):
+class TaskMetricNumeric(BaseJobMetric, RepresentById):
     pass
 
 
-class Job(JobLike, UsesCreateAndUpdateTime, Dictifiable):
+class Job(JobLike, UsesCreateAndUpdateTime, Dictifiable, RepresentById):
     dict_collection_visible_keys = ['id', 'state', 'exit_code', 'update_time', 'create_time']
     dict_element_visible_keys = ['id', 'state', 'exit_code', 'update_time', 'create_time']
 
@@ -611,10 +698,6 @@ class Job(JobLike, UsesCreateAndUpdateTime, Dictifiable):
     def get_user(self):
         # This is defined in the SQL Alchemy mapper as a relation to the User.
         return self.user
-
-    def get_id(self):
-        # This is defined in the SQL Alchemy's Job table (and not in the model).
-        return self.id
 
     def get_tasks(self):
         # The tasks member is pert of a reference in the SQL Alchemy schema:
@@ -779,6 +862,15 @@ class Job(JobLike, UsesCreateAndUpdateTime, Dictifiable):
                 dataset.peek = 'Job deleted'
                 dataset.info = 'Job output deleted by user before job completed'
 
+    def resume(self, flush=True):
+        if self.state == self.states.PAUSED:
+            self.set_state(self.states.NEW)
+            object_session(self).add(self)
+            for dataset in self.output_datasets:
+                dataset.info = None
+            if flush:
+                object_session(self).flush()
+
     def to_dict(self, view='collection', system_details=False):
         rval = super(Job, self).to_dict(view=view)
         rval['tool_id'] = self.tool_id
@@ -831,12 +923,14 @@ class Job(JobLike, UsesCreateAndUpdateTime, Dictifiable):
         if self.workflow_invocation_step:
             self.workflow_invocation_step.update()
 
-    def get_destination_configuration(self, config, key, default=None):
+    def get_destination_configuration(self, dest_params, config, key, default=None):
         """ Get a destination parameter that can be defaulted back
         in specified config if it needs to be applied globally.
         """
         param_unspecified = object()
         config_value = (self.destination_params or {}).get(key, param_unspecified)
+        if config_value is param_unspecified:
+            config_value = dest_params.get(key, param_unspecified)
         if config_value is param_unspecified:
             config_value = getattr(config, key, param_unspecified)
         if config_value is param_unspecified:
@@ -844,7 +938,7 @@ class Job(JobLike, UsesCreateAndUpdateTime, Dictifiable):
         return config_value
 
 
-class Task(JobLike):
+class Task(JobLike, RepresentById):
     """
     A task represents a single component of a job.
     """
@@ -885,16 +979,12 @@ class Task(JobLike):
         param_dict = tool.params_from_strings(param_dict, app)
         return param_dict
 
-    def get_id(self):
-        # This is defined in the SQL Alchemy schema:
-        return self.id
-
     def get_id_tag(self):
         """
         Return an id tag suitable for identifying the task.
         This combines the task's job id and the task's own id.
         """
-        return "%s_%s" % (self.job.get_id(), self.get_id())
+        return "%s_%s" % (self.job.id, self.id)
 
     def get_command_line(self):
         return self.command_line
@@ -1012,7 +1102,7 @@ class Task(JobLike):
         self.prepare_input_files_cmd = prepare_input_files_cmd
 
 
-class JobParameter(object):
+class JobParameter(RepresentById):
     def __init__(self, name, value):
         self.name = name
         self.value = value
@@ -1021,20 +1111,20 @@ class JobParameter(object):
         return JobParameter(name=self.name, value=self.value)
 
 
-class JobToInputDatasetAssociation(object):
+class JobToInputDatasetAssociation(RepresentById):
     def __init__(self, name, dataset):
         self.name = name
         self.dataset = dataset
-        self.dataset_version = dataset.version if dataset else None
+        self.dataset_version = 0  # We start with version 0 and update once the job is ready
 
 
-class JobToOutputDatasetAssociation(object):
+class JobToOutputDatasetAssociation(RepresentById):
     def __init__(self, name, dataset):
         self.name = name
         self.dataset = dataset
 
 
-class JobToInputDatasetCollectionAssociation(object):
+class JobToInputDatasetCollectionAssociation(RepresentById):
     def __init__(self, name, dataset_collection):
         self.name = name
         self.dataset_collection = dataset_collection
@@ -1042,7 +1132,7 @@ class JobToInputDatasetCollectionAssociation(object):
 
 # Many jobs may map to one HistoryDatasetCollection using these for a given
 # tool output (if mapping over an input collection).
-class JobToOutputDatasetCollectionAssociation(object):
+class JobToOutputDatasetCollectionAssociation(RepresentById):
     def __init__(self, name, dataset_collection_instance):
         self.name = name
         self.dataset_collection_instance = dataset_collection_instance
@@ -1051,38 +1141,38 @@ class JobToOutputDatasetCollectionAssociation(object):
 # A DatasetCollection will be mapped to at most one job per tool output
 # using these. (You can think of many of these models as going into the
 # creation of a JobToOutputDatasetCollectionAssociation.)
-class JobToImplicitOutputDatasetCollectionAssociation(object):
+class JobToImplicitOutputDatasetCollectionAssociation(RepresentById):
     def __init__(self, name, dataset_collection):
         self.name = name
         self.dataset_collection = dataset_collection
 
 
-class JobToInputLibraryDatasetAssociation(object):
+class JobToInputLibraryDatasetAssociation(RepresentById):
     def __init__(self, name, dataset):
         self.name = name
         self.dataset = dataset
 
 
-class JobToOutputLibraryDatasetAssociation(object):
+class JobToOutputLibraryDatasetAssociation(RepresentById):
     def __init__(self, name, dataset):
         self.name = name
         self.dataset = dataset
 
 
-class JobStateHistory(object):
+class JobStateHistory(RepresentById):
     def __init__(self, job):
         self.job = job
         self.state = job.state
         self.info = job.info
 
 
-class ImplicitlyCreatedDatasetCollectionInput(object):
+class ImplicitlyCreatedDatasetCollectionInput(RepresentById):
     def __init__(self, name, input_dataset_collection):
         self.name = name
         self.input_dataset_collection = input_dataset_collection
 
 
-class ImplicitCollectionJobs(object):
+class ImplicitCollectionJobs(RepresentById):
 
     populated_states = Bunch(
         NEW='new',  # New implicit jobs object, unpopulated job associations
@@ -1103,13 +1193,13 @@ class ImplicitCollectionJobs(object):
         return [icjja.job for icjja in self.jobs]
 
 
-class ImplicitCollectionJobsJobAssociation(object):
+class ImplicitCollectionJobsJobAssociation(RepresentById):
 
     def __init__(self):
         pass
 
 
-class PostJobAction(object):
+class PostJobAction(RepresentById):
     def __init__(self, action_type, workflow_step, output_name=None, action_arguments=None):
         self.action_type = action_type
         self.output_name = output_name
@@ -1117,7 +1207,7 @@ class PostJobAction(object):
         self.workflow_step = workflow_step
 
 
-class PostJobActionAssociation(object):
+class PostJobActionAssociation(RepresentById):
     def __init__(self, pja, job=None, job_id=None):
         if job is not None:
             self.job = job
@@ -1128,7 +1218,7 @@ class PostJobActionAssociation(object):
         self.post_job_action = pja
 
 
-class JobExternalOutputMetadata(object):
+class JobExternalOutputMetadata(RepresentById):
     def __init__(self, job=None, dataset=None):
         self.job = job
         if isinstance(dataset, galaxy.model.HistoryDatasetAssociation):
@@ -1145,7 +1235,7 @@ class JobExternalOutputMetadata(object):
         return None
 
 
-class JobExportHistoryArchive(object):
+class JobExportHistoryArchive(RepresentById):
     def __init__(self, job=None, history=None, dataset=None, compressed=False,
                  history_attrs_filename=None, datasets_attrs_filename=None,
                  jobs_attrs_filename=None):
@@ -1184,14 +1274,14 @@ class JobExportHistoryArchive(object):
         return hname
 
 
-class JobImportHistoryArchive(object):
+class JobImportHistoryArchive(RepresentById):
     def __init__(self, job=None, history=None, archive_dir=None):
         self.job = job
         self.history = history
         self.archive_dir = archive_dir
 
 
-class GenomeIndexToolData(object):
+class GenomeIndexToolData(RepresentById):
     def __init__(self, job=None, params=None, dataset=None, deferred_job=None,
                  transfer_job=None, fasta_path=None, created_time=None, modified_time=None,
                  dbkey=None, user=None, indexer=None):
@@ -1206,7 +1296,7 @@ class GenomeIndexToolData(object):
         self.transfer = transfer_job
 
 
-class DeferredJob(object):
+class DeferredJob(RepresentById):
     states = Bunch(NEW='new',
                    WAITING='waiting',
                    QUEUED='queued',
@@ -1250,7 +1340,7 @@ class DeferredJob(object):
             return False
 
 
-class Group(Dictifiable):
+class Group(Dictifiable, RepresentById):
     dict_collection_visible_keys = ['id', 'name']
     dict_element_visible_keys = ['id', 'name']
 
@@ -1259,7 +1349,7 @@ class Group(Dictifiable):
         self.deleted = False
 
 
-class UserGroupAssociation(object):
+class UserGroupAssociation(RepresentById):
     def __init__(self, user, group):
         self.user = user
         self.group = group
@@ -1269,7 +1359,7 @@ def is_hda(d):
     return isinstance(d, HistoryDatasetAssociation)
 
 
-class History(HasTags, Dictifiable, UsesAnnotations, HasName):
+class History(HasTags, Dictifiable, UsesAnnotations, HasName, RepresentById):
 
     dict_collection_visible_keys = ['id', 'name', 'published', 'deleted']
     dict_element_visible_keys = ['id', 'name', 'genome_build', 'deleted', 'purged', 'update_time',
@@ -1349,7 +1439,6 @@ class History(HasTags, Dictifiable, UsesAnnotations, HasName):
             if quota and self.user:
                 disk_usage = sum([d.get_total_size() for d in datasets])
                 self.user.adjust_total_disk_usage(disk_usage)
-
             sa_session.add_all(datasets)
             if flush:
                 sa_session.flush()
@@ -1371,11 +1460,13 @@ class History(HasTags, Dictifiable, UsesAnnotations, HasName):
         set_genome = genome_build not in [None, '?']
         for i, dataset in enumerate(datasets):
             dataset.hid = base_hid + i
-            dataset.history = self
+            # Don't let SA manage this.
+            delattr(dataset, "history")
+            dataset.history_id = cached_id(self)
             if set_genome:
                 self.genome_build = genome_build
         for dataset in datasets:
-            dataset.history_id = self.id
+            dataset.history_id = cached_id(self)
         return datasets
 
     def add_dataset_collection(self, history_dataset_collection, set_hid=True):
@@ -1399,12 +1490,12 @@ class History(HasTags, Dictifiable, UsesAnnotations, HasName):
         new_history = History(name=name, user=target_user)
         db_session = object_session(self)
         db_session.add(new_history)
-        db_session.flush()
+        db_session.flush([new_history])
 
         # copy history tags and annotations (if copying user is not anonymous)
         if target_user:
             self.copy_item_annotation(db_session, self.user, self, target_user, new_history)
-            new_history.copy_tags_from(target_user=target_user, source_history=self)
+            new_history.copy_tags_from(target_user=target_user, source=self)
 
         # Copy HDAs.
         if activatable:
@@ -1415,10 +1506,8 @@ class History(HasTags, Dictifiable, UsesAnnotations, HasName):
             hdas = self.active_datasets
         for hda in hdas:
             # Copy HDA.
-            new_hda = hda.copy()
+            new_hda = hda.copy(force_flush=False)
             new_history.add_dataset(new_hda, set_hid=False, quota=applies_to_quota)
-            db_session.add(new_hda)
-            db_session.flush()
 
             if target_user:
                 new_hda.copy_item_annotation(db_session, self.user, hda, target_user, new_hda)
@@ -1437,12 +1526,16 @@ class History(HasTags, Dictifiable, UsesAnnotations, HasName):
 
             if target_user:
                 new_hdca.copy_item_annotation(db_session, self.user, hdca, target_user, new_hdca)
+                new_hdca.copy_tags_from(target_user, hdca)
 
         new_history.hid_counter = self.hid_counter
-        db_session.add(new_history)
         db_session.flush()
 
         return new_history
+
+    @property
+    def has_possible_members(self):
+        return True
 
     @property
     def activatable_datasets(self):
@@ -1469,10 +1562,18 @@ class History(HasTags, Dictifiable, UsesAnnotations, HasName):
             dataset.mark_unhidden()
 
     def resume_paused_jobs(self):
-        for dataset in self.datasets:
-            job = dataset.creating_job
-            if job is not None and job.state == Job.states.PAUSED:
-                job.set_state(Job.states.NEW)
+        job = None
+        for job in self.paused_jobs:
+            job.resume(flush=False)
+        if job is not None:
+            # We'll flush once if there was a paused job
+            object_session(job).flush()
+
+    @property
+    def paused_jobs(self):
+        db_session = object_session(self)
+        return db_session.query(Job).filter(Job.history_id == self.id,
+                                            Job.state == Job.states.PAUSED).all()
 
     @hybrid.hybrid_property
     def disk_size(self):
@@ -1550,6 +1651,36 @@ class History(HasTags, Dictifiable, UsesAnnotations, HasName):
         return self._active_datasets_and_roles
 
     @property
+    def active_visible_datasets_and_roles(self):
+        if not hasattr(self, '_active_visible_datasets_and_roles'):
+            db_session = object_session(self)
+            query = (db_session.query(HistoryDatasetAssociation)
+                .filter(HistoryDatasetAssociation.table.c.history_id == self.id)
+                .filter(not_(HistoryDatasetAssociation.deleted))
+                .filter(HistoryDatasetAssociation.visible)
+                .order_by(HistoryDatasetAssociation.table.c.hid.asc())
+                .options(joinedload("dataset"),
+                         joinedload("dataset.actions"),
+                         joinedload("dataset.actions.role"),
+                         joinedload("tags")))
+            self._active_visible_datasets_and_roles = query.all()
+        return self._active_visible_datasets_and_roles
+
+    @property
+    def active_visible_dataset_collections(self):
+        if not hasattr(self, '_active_visible_dataset_collections'):
+            db_session = object_session(self)
+            query = (db_session.query(HistoryDatasetCollectionAssociation)
+                .filter(HistoryDatasetCollectionAssociation.table.c.history_id == self.id)
+                .filter(not_(HistoryDatasetCollectionAssociation.deleted))
+                .filter(HistoryDatasetCollectionAssociation.visible)
+                .order_by(HistoryDatasetCollectionAssociation.table.c.hid.asc())
+                .options(joinedload("collection"),
+                         joinedload("tags")))
+            self._active_visible_dataset_collections = query.all()
+        return self._active_visible_dataset_collections
+
+    @property
     def active_contents(self):
         """ Return all active contents ordered by hid.
         """
@@ -1596,32 +1727,26 @@ class History(HasTags, Dictifiable, UsesAnnotations, HasName):
     def __collection_contents_iter(self, **kwds):
         return self.__filter_contents(HistoryDatasetCollectionAssociation, **kwds)
 
-    def copy_tags_from(self, target_user, source_history):
-        for src_shta in source_history.tags:
-            new_shta = src_shta.copy()
-            new_shta.user = target_user
-            self.tags.append(new_shta)
 
-
-class HistoryUserShareAssociation(object):
+class HistoryUserShareAssociation(RepresentById):
     def __init__(self):
         self.history = None
         self.user = None
 
 
-class UserRoleAssociation(object):
+class UserRoleAssociation(RepresentById):
     def __init__(self, user, role):
         self.user = user
         self.role = role
 
 
-class GroupRoleAssociation(object):
+class GroupRoleAssociation(RepresentById):
     def __init__(self, group, role):
         self.group = group
         self.role = role
 
 
-class Role(Dictifiable):
+class Role(Dictifiable, RepresentById):
     dict_collection_visible_keys = ['id', 'name']
     dict_element_visible_keys = ['id', 'name', 'description', 'type']
     private_id = None
@@ -1640,7 +1765,7 @@ class Role(Dictifiable):
         self.deleted = deleted
 
 
-class UserQuotaAssociation(Dictifiable):
+class UserQuotaAssociation(Dictifiable, RepresentById):
     dict_element_visible_keys = ['user']
 
     def __init__(self, user, quota):
@@ -1648,7 +1773,7 @@ class UserQuotaAssociation(Dictifiable):
         self.quota = quota
 
 
-class GroupQuotaAssociation(Dictifiable):
+class GroupQuotaAssociation(Dictifiable, RepresentById):
     dict_element_visible_keys = ['group']
 
     def __init__(self, group, quota):
@@ -1656,7 +1781,7 @@ class GroupQuotaAssociation(Dictifiable):
         self.quota = quota
 
 
-class Quota(Dictifiable):
+class Quota(Dictifiable, RepresentById):
     dict_collection_visible_keys = ['id', 'name']
     dict_element_visible_keys = ['id', 'name', 'description', 'bytes', 'operation', 'display_amount', 'default', 'users', 'groups']
     valid_operations = ('+', '-', '=')
@@ -1690,7 +1815,7 @@ class Quota(Dictifiable):
             return galaxy.util.nice_size(self.bytes)
 
 
-class DefaultQuotaAssociation(Quota, Dictifiable):
+class DefaultQuotaAssociation(Quota, Dictifiable, RepresentById):
     dict_element_visible_keys = ['type']
     types = Bunch(
         UNREGISTERED='unregistered',
@@ -1703,7 +1828,7 @@ class DefaultQuotaAssociation(Quota, Dictifiable):
         self.quota = quota
 
 
-class DatasetPermissions(object):
+class DatasetPermissions(RepresentById):
     def __init__(self, action, dataset, role=None, role_id=None):
         self.action = action
         self.dataset = dataset
@@ -1713,7 +1838,7 @@ class DatasetPermissions(object):
             self.role_id = role_id
 
 
-class LibraryPermissions(object):
+class LibraryPermissions(RepresentById):
     def __init__(self, action, library_item, role):
         self.action = action
         if isinstance(library_item, Library):
@@ -1723,7 +1848,7 @@ class LibraryPermissions(object):
         self.role = role
 
 
-class LibraryFolderPermissions(object):
+class LibraryFolderPermissions(RepresentById):
     def __init__(self, action, library_item, role):
         self.action = action
         if isinstance(library_item, LibraryFolder):
@@ -1733,7 +1858,7 @@ class LibraryFolderPermissions(object):
         self.role = role
 
 
-class LibraryDatasetPermissions(object):
+class LibraryDatasetPermissions(RepresentById):
     def __init__(self, action, library_item, role):
         self.action = action
         if isinstance(library_item, LibraryDataset):
@@ -1743,7 +1868,7 @@ class LibraryDatasetPermissions(object):
         self.role = role
 
 
-class LibraryDatasetDatasetAssociationPermissions(object):
+class LibraryDatasetDatasetAssociationPermissions(RepresentById):
     def __init__(self, action, library_item, role):
         self.action = action
         if isinstance(library_item, LibraryDatasetDatasetAssociation):
@@ -1753,14 +1878,14 @@ class LibraryDatasetDatasetAssociationPermissions(object):
         self.role = role
 
 
-class DefaultUserPermissions(object):
+class DefaultUserPermissions(RepresentById):
     def __init__(self, user, action, role):
         self.user = user
         self.action = action
         self.role = role
 
 
-class DefaultHistoryPermissions(object):
+class DefaultHistoryPermissions(RepresentById):
     def __init__(self, history, action, role):
         self.history = history
         self.action = action
@@ -1773,7 +1898,7 @@ class StorableObject(object):
         self.id = id
 
 
-class Dataset(StorableObject):
+class Dataset(StorableObject, RepresentById):
     states = Bunch(NEW='new',
                    UPLOAD='upload',
                    QUEUED='queued',
@@ -1872,6 +1997,9 @@ class Dataset(StorableObject):
             self.external_extra_files_path = extra_files_path
     extra_files_path = property(get_extra_files_path, set_extra_files_path)
 
+    def extra_files_path_exists(self):
+        return self.object_store.exists(self, extra_dir=self._extra_files_path or "dataset_%d_files" % self.id, dir_only=True)
+
     def _calculate_size(self):
         if self.external_filename:
             try:
@@ -1894,10 +2022,17 @@ class Dataset(StorableObject):
             else:
                 return self._calculate_size()
 
-    def set_size(self):
-        """Sets the size of the data on disk"""
+    def set_size(self, no_extra_files=False):
+        """Sets the size of the data on disk.
+
+        If the caller is sure there are no extra files, pass no_extra_files as True to optimize subsequent
+        calls to get_total_size or set_total_size - potentially avoiding both a database flush and check against
+        the file system.
+        """
         if not self.file_size:
             self.file_size = self._calculate_size()
+            if no_extra_files:
+                self.total_size = self.file_size
 
     def get_total_size(self):
         if self.total_size is not None:
@@ -1967,6 +2102,18 @@ class Dataset(StorableObject):
         return False
 
 
+def datatype_for_extension(extension, datatypes_registry=None):
+    if datatypes_registry is None:
+        datatypes_registry = _get_datatypes_registry()
+    if not extension or extension == 'auto' or extension == '_sniff_':
+        extension = 'data'
+    ret = datatypes_registry.get_datatype_by_extension(extension)
+    if ret is None:
+        log.warning("Datatype class not found for extension '%s'" % extension)
+        return datatypes_registry.get_datatype_by_extension('data')
+    return ret
+
+
 class DatasetInstance(object):
     """A base class for all 'dataset instances', HDAs, LDAs, etc"""
     states = Dataset.states
@@ -2004,6 +2151,9 @@ class DatasetInstance(object):
         self.parent_id = parent_id
         self.validation_errors = validation_errors
 
+    def update(self):
+        self.update_time = galaxy.model.orm.now.now()
+
     @property
     def ext(self):
         return self.extension
@@ -2029,6 +2179,8 @@ class DatasetInstance(object):
     state = property(get_dataset_state, set_dataset_state)
 
     def get_file_name(self):
+        if self.dataset.purged:
+            return ""
         return self.dataset.get_file_name()
 
     def set_file_name(self, filename):
@@ -2045,16 +2197,12 @@ class DatasetInstance(object):
     def extra_files_path(self):
         return self.dataset.extra_files_path
 
+    def extra_files_path_exists(self):
+        return self.dataset.extra_files_path_exists()
+
     @property
     def datatype(self):
-        extension = self.extension
-        if not extension or extension == 'auto' or extension == '_sniff_':
-            extension = 'data'
-        ret = _get_datatypes_registry().get_datatype_by_extension(extension)
-        if ret is None:
-            log.warning("Datatype class not found for extension '%s'" % extension)
-            return _get_datatypes_registry().get_datatype_by_extension('data')
-        return ret
+        return datatype_for_extension(self.extension)
 
     def get_metadata(self):
         # using weakref to store parent (to prevent circ ref),
@@ -2062,6 +2210,10 @@ class DatasetInstance(object):
         if not hasattr(self, '_metadata_collection') or self._metadata_collection.parent != self:
             self._metadata_collection = galaxy.model.metadata.MetadataCollection(self)
         return self._metadata_collection
+
+    @property
+    def set_metadata_requires_flush(self):
+        return self.metadata.requires_dataset_id
 
     def set_metadata(self, bunch):
         # Needs to accept a MetadataCollection, a bunch, or a dict
@@ -2094,9 +2246,9 @@ class DatasetInstance(object):
             return galaxy.util.nice_size(self.dataset.get_size())
         return self.dataset.get_size()
 
-    def set_size(self):
+    def set_size(self, **kwds):
         """Sets and gets the size of the data on disk"""
-        return self.dataset.set_size()
+        return self.dataset.set_size(**kwds)
 
     def get_total_size(self):
         return self.dataset.get_total_size()
@@ -2399,7 +2551,7 @@ class DatasetInstance(object):
 
 
 class HistoryDatasetAssociation(DatasetInstance, HasTags, Dictifiable, UsesAnnotations,
-                                HasName):
+                                HasName, RepresentById):
     """
     Resource class that creates a relation between a dataset and a user history.
     """
@@ -2427,7 +2579,8 @@ class HistoryDatasetAssociation(DatasetInstance, HasTags, Dictifiable, UsesAnnot
         state = inspect(self)
         changes = {}
 
-        for attr in state.attrs:
+        for attr in state.mapper.columns:
+            # We only create a new version if columns of the HDA table have changed, and ignore relationships.
             hist = state.get_history(attr.key, True)
 
             if not hist.has_changes():
@@ -2453,12 +2606,15 @@ class HistoryDatasetAssociation(DatasetInstance, HasTags, Dictifiable, UsesAnnot
             self.version = self.version + 1 if self.version else 1
             session.add(past_hda)
 
-    def copy(self, parent_id=None, copy_tags=None):
+    def copy(self, parent_id=None, copy_tags=None, force_flush=True, copy_hid=True, new_name=None):
         """
         Create a copy of this HDA.
         """
-        hda = HistoryDatasetAssociation(hid=self.hid,
-                                        name=self.name,
+        hid = None
+        if copy_hid:
+            hid = self.hid
+        hda = HistoryDatasetAssociation(hid=hid,
+                                        name=new_name or self.name,
                                         info=self.info,
                                         blurb=self.blurb,
                                         peek=self.peek,
@@ -2469,19 +2625,26 @@ class HistoryDatasetAssociation(DatasetInstance, HasTags, Dictifiable, UsesAnnot
                                         visible=self.visible,
                                         deleted=self.deleted,
                                         parent_id=parent_id,
-                                        copied_from_history_dataset_association=self)
+                                        copied_from_history_dataset_association=self,
+                                        flush=False)
         # update init non-keywords as well
         hda.purged = self.purged
         hda.copy_tags_to(copy_tags)
         object_session(self).add(hda)
-        object_session(self).flush()
-        hda.set_size()
-        # Need to set after flushed, as MetadataFiles require dataset.id
+        flushed = False
+        # May need to set after flushed, as MetadataFiles require dataset.id
+        if hda.set_metadata_requires_flush:
+            object_session(self).flush([self])
+            flushed = True
         hda.metadata = self.metadata
+        # In some instances peek relies on dataset_id, i.e. gmaj.zip for viewing MAFs
         if not self.datatype.copy_safe_peek:
-            # In some instances peek relies on dataset_id, i.e. gmaj.zip for viewing MAFs
+            if not flushed:
+                object_session(self).flush([self])
+
             hda.set_peek()
-        object_session(self).flush()
+        if force_flush:
+            object_session(self).flush()
         return hda
 
     def copy_tags_to(self, copy_tags=None):
@@ -2606,7 +2769,7 @@ class HistoryDatasetAssociation(DatasetInstance, HasTags, Dictifiable, UsesAnnot
                     uuid=(lambda uuid: str(uuid) if uuid else None)(hda.dataset.uuid),
                     hid=hda.hid,
                     file_ext=hda.ext,
-                    peek=(lambda hda: hda.display_peek() if hda.peek and hda.peek != 'no peek' else None)(hda),
+                    peek=unicodify(hda.display_peek()) if hda.peek and hda.peek != 'no peek' else None,
                     model_class=self.__class__.__name__,
                     name=hda.name,
                     deleted=hda.deleted,
@@ -2632,8 +2795,6 @@ class HistoryDatasetAssociation(DatasetInstance, HasTags, Dictifiable, UsesAnnot
 
         if hda.extended_metadata is not None:
             rval['extended_metadata'] = hda.extended_metadata.data
-
-        rval['peek'] = to_unicode(hda.display_peek())
 
         for name, spec in hda.metadata.spec.items():
             val = hda.metadata.get(name)
@@ -2664,17 +2825,8 @@ class HistoryDatasetAssociation(DatasetInstance, HasTags, Dictifiable, UsesAnnot
         return ((type_coerce(cls.content_type, types.Unicode) + u'-' +
                  type_coerce(cls.id, types.Unicode)).label('type_id'))
 
-    def copy_tags_from(self, target_user, source_hda):
-        """
-        Copy tags from `source_hda` to this HDA and assign them the user `target_user`.
-        """
-        for source_tag_assoc in source_hda.tags:
-            new_tag_assoc = source_tag_assoc.copy()
-            new_tag_assoc.user = target_user
-            self.tags.append(new_tag_assoc)
 
-
-class HistoryDatasetAssociationHistory(object):
+class HistoryDatasetAssociationHistory(RepresentById):
     def __init__(self,
                  history_dataset_association_id,
                  name,
@@ -2695,21 +2847,21 @@ class HistoryDatasetAssociationHistory(object):
         self._metadata = metadata
 
 
-class HistoryDatasetAssociationDisplayAtAuthorization(object):
+class HistoryDatasetAssociationDisplayAtAuthorization(RepresentById):
     def __init__(self, hda=None, user=None, site=None):
         self.history_dataset_association = hda
         self.user = user
         self.site = site
 
 
-class HistoryDatasetAssociationSubset(object):
+class HistoryDatasetAssociationSubset(RepresentById):
     def __init__(self, hda, subset, location):
         self.hda = hda
         self.subset = subset
         self.location = location
 
 
-class Library(Dictifiable, HasName):
+class Library(Dictifiable, HasName, RepresentById):
     permitted_actions = get_permitted_actions(filter='LIBRARY')
     dict_collection_visible_keys = ['id', 'name']
     dict_element_visible_keys = ['id', 'deleted', 'name', 'description', 'synopsis', 'root_folder_id', 'create_time']
@@ -2760,7 +2912,7 @@ class Library(Dictifiable, HasName):
         return roles
 
 
-class LibraryFolder(Dictifiable, HasName):
+class LibraryFolder(Dictifiable, HasName, RepresentById):
     dict_element_visible_keys = ['id', 'parent_id', 'name', 'description', 'item_count', 'genome_build', 'update_time', 'deleted']
 
     def __init__(self, name=None, description=None, item_count=0, order_id=None):
@@ -2810,7 +2962,7 @@ class LibraryFolder(Dictifiable, HasName):
         return f.library_root[0]
 
 
-class LibraryDataset(object):
+class LibraryDataset(RepresentById):
     # This class acts as a proxy to the currently selected LDDA
     upload_options = [('upload_file', 'Upload files'),
                       ('upload_directory', 'Upload directory of files'),
@@ -2894,7 +3046,7 @@ class LibraryDataset(object):
         return rval
 
 
-class LibraryDatasetDatasetAssociation(DatasetInstance, HasName):
+class LibraryDatasetDatasetAssociation(DatasetInstance, HasName, RepresentById):
     def __init__(self,
                  copied_from_history_dataset_association=None,
                  copied_from_library_dataset_dataset_association=None,
@@ -3029,19 +3181,19 @@ class LibraryDatasetDatasetAssociation(DatasetInstance, HasName):
         return rval
 
 
-class ExtendedMetadata(object):
+class ExtendedMetadata(RepresentById):
     def __init__(self, data):
         self.data = data
 
 
-class ExtendedMetadataIndex(object):
+class ExtendedMetadataIndex(RepresentById):
     def __init__(self, extended_metadata, path, value):
         self.extended_metadata = extended_metadata
         self.path = path
         self.value = value
 
 
-class LibraryInfoAssociation(object):
+class LibraryInfoAssociation(RepresentById):
     def __init__(self, library, form_definition, info, inheritable=False):
         self.library = library
         self.template = form_definition
@@ -3049,7 +3201,7 @@ class LibraryInfoAssociation(object):
         self.inheritable = inheritable
 
 
-class LibraryFolderInfoAssociation(object):
+class LibraryFolderInfoAssociation(RepresentById):
     def __init__(self, folder, form_definition, info, inheritable=False):
         self.folder = folder
         self.template = form_definition
@@ -3057,7 +3209,7 @@ class LibraryFolderInfoAssociation(object):
         self.inheritable = inheritable
 
 
-class LibraryDatasetDatasetInfoAssociation(object):
+class LibraryDatasetDatasetInfoAssociation(RepresentById):
     def __init__(self, library_dataset_dataset_association, form_definition, info):
         # TODO: need to figure out if this should be inheritable to the associated LibraryDataset
         self.library_dataset_dataset_association = library_dataset_dataset_association
@@ -3069,7 +3221,7 @@ class LibraryDatasetDatasetInfoAssociation(object):
         return True  # always allow inheriting, used for replacement
 
 
-class ValidationError(object):
+class ValidationError(RepresentById):
     def __init__(self, message=None, err_type=None, attributes=None):
         self.message = message
         self.err_type = err_type
@@ -3082,7 +3234,7 @@ class DatasetToValidationErrorAssociation(object):
         self.validation_error = validation_error
 
 
-class ImplicitlyConvertedDatasetAssociation(object):
+class ImplicitlyConvertedDatasetAssociation(RepresentById):
 
     def __init__(self, id=None, parent=None, dataset=None, file_type=None, deleted=False, purged=False, metadata_safe=True):
         self.id = id
@@ -3121,7 +3273,7 @@ class ImplicitlyConvertedDatasetAssociation(object):
 DEFAULT_COLLECTION_NAME = "Unnamed Collection"
 
 
-class DatasetCollection(Dictifiable, UsesAnnotations):
+class DatasetCollection(Dictifiable, UsesAnnotations, RepresentById):
     """
     """
     dict_collection_visible_keys = ['id', 'collection_type']
@@ -3137,11 +3289,85 @@ class DatasetCollection(Dictifiable, UsesAnnotations):
         id=None,
         collection_type=None,
         populated=True,
+        element_count=None
     ):
         self.id = id
         self.collection_type = collection_type
         if not populated:
             self.populated_state = DatasetCollection.populated_states.NEW
+        self.element_count = element_count
+
+    @property
+    def dataset_states_and_extensions_summary(self):
+        if not hasattr(self, '_dataset_states_and_extensions_summary'):
+            db_session = object_session(self)
+
+            dc = alias(DatasetCollection.table)
+            de = alias(DatasetCollectionElement.table)
+            hda = alias(HistoryDatasetAssociation.table)
+            dataset = alias(Dataset.table)
+
+            select_from = dc.outerjoin(de, de.c.dataset_collection_id == dc.c.id)
+
+            depth_collection_type = self.collection_type
+            while ":" in depth_collection_type:
+                child_collection = alias(DatasetCollection.table)
+                child_collection_element = alias(DatasetCollectionElement.table)
+                select_from = select_from.outerjoin(child_collection, child_collection.c.id == de.c.child_collection_id)
+                select_from = select_from.outerjoin(child_collection_element, child_collection_element.c.dataset_collection_id == child_collection.c.id)
+
+                de = child_collection_element
+                depth_collection_type = depth_collection_type.split(":", 1)[1]
+
+            select_from = select_from.outerjoin(hda, hda.c.id == de.c.hda_id).outerjoin(dataset, hda.c.dataset_id == dataset.c.id)
+            select_stmt = select([hda.c.extension, dataset.c.state]).select_from(select_from).where(dc.c.id == self.id).distinct()
+            extensions = set()
+            states = set()
+            for extension, state in db_session.execute(select_stmt).fetchall():
+                states.add(state)
+                extensions.add(extension)
+
+            self._dataset_states_and_extensions_summary = (states, extensions)
+
+        return self._dataset_states_and_extensions_summary
+
+    @property
+    def populated_optimized(self):
+        if not hasattr(self, '_populated_optimized'):
+            _populated_optimized = True
+            if ":" not in self.collection_type:
+                _populated_optimized = self.populated_state == DatasetCollection.populated_states.OK
+            else:
+                db_session = object_session(self)
+
+                dc = alias(DatasetCollection.table)
+                de = alias(DatasetCollectionElement.table)
+
+                select_from = dc.outerjoin(de, de.c.dataset_collection_id == dc.c.id)
+
+                collection_depth_aliases = [dc]
+
+                depth_collection_type = self.collection_type
+                while ":" in depth_collection_type:
+                    child_collection = alias(DatasetCollection.table)
+                    child_collection_element = alias(DatasetCollectionElement.table)
+                    select_from = select_from.outerjoin(child_collection, child_collection.c.id == de.c.child_collection_id)
+                    select_from = select_from.outerjoin(child_collection_element, child_collection_element.c.dataset_collection_id == child_collection.c.id)
+
+                    collection_depth_aliases.append(child_collection)
+
+                    de = child_collection_element
+                    depth_collection_type = depth_collection_type.split(":", 1)[1]
+
+                select_stmt = select(list(map(lambda dc: dc.c.populated_state, collection_depth_aliases))).select_from(select_from).where(dc.c.id == self.id).distinct()
+                for populated_states in db_session.execute(select_stmt).fetchall():
+                    for populated_state in populated_states:
+                        if populated_state != DatasetCollection.populated_states.OK:
+                            _populated_optimized = False
+
+            self._populated_optimized = _populated_optimized
+
+        return self._populated_optimized
 
     @property
     def populated(self):
@@ -3149,6 +3375,44 @@ class DatasetCollection(Dictifiable, UsesAnnotations):
         if top_level_populated and self.has_subcollections:
             return all(e.child_collection.populated for e in self.elements)
         return top_level_populated
+
+    @property
+    def dataset_action_tuples(self):
+        if not hasattr(self, '_dataset_action_tuples'):
+            db_session = object_session(self)
+
+            dc = alias(DatasetCollection.table)
+            de = alias(DatasetCollectionElement.table)
+            hda = alias(HistoryDatasetAssociation.table)
+            dataset = alias(Dataset.table)
+            dataset_permission = alias(DatasetPermissions.table)
+
+            select_from = dc.outerjoin(de, de.c.dataset_collection_id == dc.c.id)
+
+            depth_collection_type = self.collection_type
+            while ":" in depth_collection_type:
+                child_collection = alias(DatasetCollection.table)
+                child_collection_element = alias(DatasetCollectionElement.table)
+                select_from = select_from.outerjoin(child_collection, child_collection.c.id == de.c.child_collection_id)
+                select_from = select_from.outerjoin(child_collection_element, child_collection_element.c.dataset_collection_id == child_collection.c.id)
+
+                de = child_collection_element
+                depth_collection_type = depth_collection_type.split(":", 1)[1]
+
+            select_from = select_from.outerjoin(hda, hda.c.id == de.c.hda_id).outerjoin(dataset, hda.c.dataset_id == dataset.c.id)
+            select_from = select_from.outerjoin(dataset_permission, dataset.c.id == dataset_permission.c.dataset_id)
+
+            select_stmt = select([dataset_permission.c.action, dataset_permission.c.role_id]).select_from(select_from).where(dc.c.id == self.id).distinct()
+
+            _dataset_action_tuples = []
+            for _dataset_action_tuple in db_session.execute(select_stmt).fetchall():
+                if _dataset_action_tuple[0] is None:
+                    continue
+                _dataset_action_tuples.append(_dataset_action_tuple)
+
+            self._dataset_action_tuples = _dataset_action_tuples
+
+        return self._dataset_action_tuples
 
     @property
     def waiting_for_elements(self):
@@ -3195,6 +3459,17 @@ class DatasetCollection(Dictifiable, UsesAnnotations):
         return elements
 
     @property
+    def first_dataset_element(self):
+        for element in self.elements:
+            if element.is_collection:
+                first_element = element.child_collection.first_dataset_element
+                if first_element:
+                    return first_element
+            else:
+                return element
+        return None
+
+    @property
     def state(self):
         # TODO: DatasetCollection state handling...
         return 'ok'
@@ -3214,6 +3489,7 @@ class DatasetCollection(Dictifiable, UsesAnnotations):
     def copy(self, destination=None, element_destination=None):
         new_collection = DatasetCollection(
             collection_type=self.collection_type,
+            element_count=self.element_count
         )
         for element in self.elements:
             element.copy_to_collection(
@@ -3230,6 +3506,7 @@ class DatasetCollection(Dictifiable, UsesAnnotations):
             if element.element_object in replacements:
                 if element.element_type == 'hda':
                     element.hda = replacements[element.element_object]
+                    element.hda.visible = False
                 # TODO: handle the case where elements are collections
 
     def set_from_dict(self, new_data):
@@ -3310,7 +3587,8 @@ class DatasetCollectionInstance(HasName):
 class HistoryDatasetCollectionAssociation(DatasetCollectionInstance,
                                           HasTags,
                                           Dictifiable,
-                                          UsesAnnotations):
+                                          UsesAnnotations,
+                                          RepresentById):
     """ Associates a DatasetCollection with a History. """
     editable_keys = ('name', 'deleted', 'visible')
 
@@ -3434,7 +3712,7 @@ class HistoryDatasetCollectionAssociation(DatasetCollectionInstance,
         return hdca
 
 
-class LibraryDatasetCollectionAssociation(DatasetCollectionInstance):
+class LibraryDatasetCollectionAssociation(DatasetCollectionInstance, RepresentById):
     """ Associates a DatasetCollection with a library folder. """
     editable_keys = ('name', 'deleted')
 
@@ -3462,7 +3740,7 @@ class LibraryDatasetCollectionAssociation(DatasetCollectionInstance):
         return dict_value
 
 
-class DatasetCollectionElement(Dictifiable):
+class DatasetCollectionElement(Dictifiable, RepresentById):
     """ Associates a DatasetInstance (hda or ldda) with a DatasetCollection. """
     # actionable dataset id needs to be available via API...
     dict_collection_visible_keys = ['id', 'element_type', 'element_index', 'element_identifier']
@@ -3572,7 +3850,7 @@ class DatasetCollectionElement(Dictifiable):
         return new_element
 
 
-class Event(object):
+class Event(RepresentById):
     def __init__(self, message=None, history=None, user=None, galaxy_session=None):
         self.history = history
         self.galaxy_session = galaxy_session
@@ -3581,7 +3859,7 @@ class Event(object):
         self.message = message
 
 
-class GalaxySession(object):
+class GalaxySession(RepresentById):
     def __init__(self,
                  id=None,
                  user=None,
@@ -3621,7 +3899,7 @@ class GalaxySession(object):
     total_disk_usage = property(get_disk_usage, set_disk_usage)
 
 
-class GalaxySessionToHistoryAssociation(object):
+class GalaxySessionToHistoryAssociation(RepresentById):
     def __init__(self, galaxy_session, history):
         self.galaxy_session = galaxy_session
         self.history = history
@@ -3633,7 +3911,7 @@ class UCI(object):
         self.user = None
 
 
-class StoredWorkflow(HasTags, Dictifiable):
+class StoredWorkflow(HasTags, Dictifiable, RepresentById):
 
     dict_collection_visible_keys = ['id', 'name', 'published', 'deleted']
     dict_element_visible_keys = ['id', 'name', 'published', 'deleted']
@@ -3647,7 +3925,22 @@ class StoredWorkflow(HasTags, Dictifiable):
         self.latest_workflow_id = None
         self.workflows = []
 
+    def get_internal_version(self, version):
+        if version is None:
+            return self.latest_workflow
+        if len(self.workflows) <= version:
+            raise Exception("Version does not exist")
+        return list(reversed(self.workflows))[version]
+
+    def show_in_tool_panel(self, user_id):
+        sa_session = object_session(self)
+        return bool(sa_session.query(StoredWorkflowMenuEntry).filter(
+            StoredWorkflowMenuEntry.stored_workflow_id == self.id,
+            StoredWorkflowMenuEntry.user_id == user_id,
+        ).count())
+
     def copy_tags_from(self, target_user, source_workflow):
+        # Override to only copy owner tags.
         for src_swta in source_workflow.owner_tags:
             new_swta = src_swta.copy()
             new_swta.user = target_user
@@ -3659,7 +3952,7 @@ class StoredWorkflow(HasTags, Dictifiable):
         return rval
 
 
-class Workflow(Dictifiable):
+class Workflow(Dictifiable, RepresentById):
 
     dict_collection_visible_keys = ['name', 'has_cycles', 'has_errors']
     dict_element_visible_keys = ['name', 'has_cycles', 'has_errors']
@@ -3767,7 +4060,7 @@ class Workflow(Dictifiable):
         return "Workflow[id=%d%s]" % (self.id, extra)
 
 
-class WorkflowStep(object):
+class WorkflowStep(RepresentById):
 
     def __init__(self):
         self.id = None
@@ -3776,12 +4069,44 @@ class WorkflowStep(object):
         self.tool_inputs = None
         self.tool_errors = None
         self.position = None
-        self.input_connections = []
+        self.inputs = []
         self.config = None
         self.label = None
         self.uuid = uuid4()
         self.workflow_outputs = []
         self._input_connections_by_name = None
+
+    def get_input(self, input_name):
+        for step_input in self.inputs:
+            if step_input.name == input_name:
+                return step_input
+
+        return None
+
+    def get_or_add_input(self, input_name):
+        step_input = self.get_input(input_name)
+
+        if step_input is None:
+            step_input = WorkflowStepInput(self)
+            step_input.name = input_name
+        return step_input
+
+    def add_connection(self, input_name, output_name, output_step, input_subworkflow_step_index=None):
+        step_input = self.get_or_add_input(input_name)
+
+        conn = WorkflowStepConnection()
+        conn.input_step_input = step_input
+        conn.output_name = output_name
+        conn.output_step = output_step
+        if input_subworkflow_step_index is not None:
+            input_subworkflow_step = self.subworkflow.step_by_index(input_subworkflow_step_index)
+            conn.input_subworkflow_step = input_subworkflow_step
+        return conn
+
+    @property
+    def input_connections(self):
+        connections = [_ for step_input in self.inputs for _ in step_input.connections]
+        return connections
 
     @property
     def unique_workflow_outputs(self):
@@ -3856,7 +4181,7 @@ class WorkflowStep(object):
         copied_step.position = self.position
         copied_step.config = self.config
         copied_step.label = self.label
-        copied_step.input_connections = copy_list(self.input_connections)
+        copied_step.inputs = copy_list(self.inputs, copied_step)
 
         subworkflow_step_mapping = {}
         subworkflow = self.subworkflow
@@ -3867,8 +4192,7 @@ class WorkflowStep(object):
                 subworkflow_step_mapping[subworkflow_step.id] = copied_subworkflow_step
 
         for old_conn, new_conn in zip(self.input_connections, copied_step.input_connections):
-            # new_conn.input_step = new_
-            new_conn.input_step = step_mapping[old_conn.input_step_id]
+            new_conn.input_step_input = copied_step.get_or_add_input(old_conn.input_name)
             new_conn.output_step = step_mapping[old_conn.output_step_id]
             if old_conn.input_subworkflow_step_id:
                 new_conn.input_subworkflow_step = subworkflow_step_mapping[old_conn.input_subworkflow_step_id]
@@ -3883,7 +4207,31 @@ class WorkflowStep(object):
         return "WorkflowStep[index=%d,type=%s]" % (self.order_index, self.type)
 
 
-class WorkflowStepConnection(object):
+class WorkflowStepInput(RepresentById):
+    default_merge_type = None
+    default_scatter_type = None
+
+    def __init__(self, workflow_step):
+        self.workflow_step = workflow_step
+        self.name = None
+        self.default_value = None
+        self.default_value_set = False
+        self.merge_type = self.default_merge_type
+        self.scatter_type = self.default_scatter_type
+
+    def copy(self, copied_step):
+        copied_step_input = WorkflowStepInput(copied_step)
+        copied_step_input.name = self.name
+        copied_step_input.default_value = self.default_value
+        copied_step_input.default_value_set = self.default_value_set
+        copied_step_input.merge_type = self.merge_type
+        copied_step_input.scatter_type = self.scatter_type
+
+        copied_step_input.connections = copy_list(self.connections)
+        return copied_step_input
+
+
+class WorkflowStepConnection(RepresentById):
     # Constant used in lieu of output_name and input_name to indicate an
     # implicit connection between two steps that is not dependent on a dataset
     # or a dataset collection. Allowing for instance data manager steps to setup
@@ -3894,27 +4242,33 @@ class WorkflowStepConnection(object):
     def __init__(self):
         self.output_step_id = None
         self.output_name = None
-        self.input_step_id = None
-        self.input_name = None
-
-    def set_non_data_connection(self):
-        self.output_name = WorkflowStepConnection.NON_DATA_CONNECTION
-        self.input_name = WorkflowStepConnection.NON_DATA_CONNECTION
+        self.input_step_input_id = None
 
     @property
     def non_data_connection(self):
-        return (self.output_name == WorkflowStepConnection.NON_DATA_CONNECTION and
-                self.input_name == WorkflowStepConnection.NON_DATA_CONNECTION)
+        return (self.output_name == self.input_name == WorkflowStepConnection.NON_DATA_CONNECTION)
+
+    @property
+    def input_name(self):
+        return self.input_step_input.name
+
+    @property
+    def input_step(self):
+        return self.input_step_input and self.input_step_input.workflow_step
+
+    @property
+    def input_step_id(self):
+        input_step = self.input_step
+        return input_step and input_step.id
 
     def copy(self):
         # TODO: handle subworkflow ids...
         copied_connection = WorkflowStepConnection()
         copied_connection.output_name = self.output_name
-        copied_connection.input_name = self.input_name
         return copied_connection
 
 
-class WorkflowOutput(object):
+class WorkflowOutput(RepresentById):
 
     def __init__(self, workflow_step, output_name=None, label=None, uuid=None):
         self.workflow_step = workflow_step
@@ -3932,14 +4286,14 @@ class WorkflowOutput(object):
         return copied_output
 
 
-class StoredWorkflowUserShareAssociation(object):
+class StoredWorkflowUserShareAssociation(RepresentById):
 
     def __init__(self):
         self.stored_workflow = None
         self.user = None
 
 
-class StoredWorkflowMenuEntry(object):
+class StoredWorkflowMenuEntry(RepresentById):
 
     def __init__(self):
         self.stored_workflow = None
@@ -3947,7 +4301,7 @@ class StoredWorkflowMenuEntry(object):
         self.order_index = None
 
 
-class WorkflowInvocation(UsesCreateAndUpdateTime, Dictifiable):
+class WorkflowInvocation(UsesCreateAndUpdateTime, Dictifiable, RepresentById):
     dict_collection_visible_keys = ['id', 'update_time', 'workflow_id', 'history_id', 'uuid', 'state']
     dict_element_visible_keys = ['id', 'update_time', 'workflow_id', 'history_id', 'uuid', 'state']
     states = Bunch(
@@ -3966,7 +4320,8 @@ class WorkflowInvocation(UsesCreateAndUpdateTime, Dictifiable):
     def create_subworkflow_invocation_for_step(self, step):
         assert step.type == "subworkflow"
         subworkflow_invocation = WorkflowInvocation()
-        return self.attach_subworkflow_invocation_for_step(step, subworkflow_invocation)
+        self.attach_subworkflow_invocation_for_step(step, subworkflow_invocation)
+        return subworkflow_invocation
 
     def attach_subworkflow_invocation_for_step(self, step, subworkflow_invocation):
         assert step.type == "subworkflow"
@@ -4075,7 +4430,7 @@ class WorkflowInvocation(UsesCreateAndUpdateTime, Dictifiable):
         else:
             raise Exception("Unknown output type encountered")
 
-    def to_dict(self, view='collection', value_mapper=None, step_details=False):
+    def to_dict(self, view='collection', value_mapper=None, step_details=False, legacy_job_state=False):
         rval = super(WorkflowInvocation, self).to_dict(view=view, value_mapper=value_mapper)
         if view == 'element':
             steps = []
@@ -4084,7 +4439,19 @@ class WorkflowInvocation(UsesCreateAndUpdateTime, Dictifiable):
                     v = step.to_dict(view='element')
                 else:
                     v = step.to_dict(view='collection')
-                steps.append(v)
+                if legacy_job_state:
+                    step_jobs = step.jobs
+                    if step_jobs:
+                        for step_job in step_jobs:
+                            v_clone = v.copy()
+                            v_clone["state"] = step_job.state
+                            v_clone["job_id"] = step_job.id
+                            steps.append(v_clone)
+                    else:
+                        v["state"] = None
+                        steps.append(v)
+                else:
+                    steps.append(v)
             rval['steps'] = steps
 
             inputs = {}
@@ -4145,10 +4512,20 @@ class WorkflowInvocation(UsesCreateAndUpdateTime, Dictifiable):
             request_to_content.workflow_step_id = step_id
             self.input_dataset_collections.append(request_to_content)
         else:
-            request_to_content = WorkflowRequestInputStepParmeter()
+            request_to_content = WorkflowRequestInputStepParameter()
             request_to_content.parameter_value = content
             request_to_content.workflow_step_id = step_id
             self.input_step_parameters.append(request_to_content)
+
+    @property
+    def resource_parameters(self):
+        resource_type = WorkflowRequestInputParameter.types.RESOURCE_PARAMETERS
+        _resource_parameters = {}
+        for input_parameter in self.input_parameters:
+            if input_parameter.type == resource_type:
+                _resource_parameters[input_parameter.name] = input_parameter.value
+
+        return _resource_parameters
 
     def has_input_for_step(self, step_id):
         for content in self.input_datasets:
@@ -4160,12 +4537,12 @@ class WorkflowInvocation(UsesCreateAndUpdateTime, Dictifiable):
         return False
 
 
-class WorkflowInvocationToSubworkflowInvocationAssociation(Dictifiable):
+class WorkflowInvocationToSubworkflowInvocationAssociation(Dictifiable, RepresentById):
     dict_collection_visible_keys = ['id', 'workflow_step_id', 'workflow_invocation_id', 'subworkflow_invocation_id']
     dict_element_visible_keys = ['id', 'workflow_step_id', 'workflow_invocation_id', 'subworkflow_invocation_id']
 
 
-class WorkflowInvocationStep(Dictifiable):
+class WorkflowInvocationStep(Dictifiable, RepresentById):
     dict_collection_visible_keys = ['id', 'update_time', 'job_id', 'workflow_step_id', 'state', 'action']
     dict_element_visible_keys = ['id', 'update_time', 'job_id', 'workflow_step_id', 'state', 'action']
     states = Bunch(
@@ -4216,6 +4593,10 @@ class WorkflowInvocationStep(Dictifiable):
         # Following no longer makes sense...
         # rval['state'] = self.job.state if self.job is not None else None
         if view == 'element':
+            jobs = []
+            for job in self.jobs:
+                jobs.append(job.to_dict())
+
             outputs = {}
             for output_assoc in self.output_datasets:
                 name = output_assoc.output_name
@@ -4235,30 +4616,19 @@ class WorkflowInvocationStep(Dictifiable):
 
             rval['outputs'] = outputs
             rval['output_collections'] = output_collections
+            rval['jobs'] = jobs
         return rval
 
 
-class WorkflowInvocationStepJobAssociation(Dictifiable):
-    dict_collection_visible_keys = ('id', 'job_id', 'workflow_invocation_step_id')
-    dict_element_visible_keys = ('id', 'job_id', 'workflow_invocation_step_id')
-
-
-class WorkflowRequest(Dictifiable):
-    dict_collection_visible_keys = ['id', 'name', 'type', 'state', 'history_id', 'workflow_id']
-    dict_element_visible_keys = ['id', 'name', 'type', 'state', 'history_id', 'workflow_id']
-
-    def to_dict(self, view='collection', value_mapper=None):
-        rval = super(WorkflowRequest, self).to_dict(view=view, value_mapper=value_mapper)
-        return rval
-
-
-class WorkflowRequestInputParameter(Dictifiable):
+class WorkflowRequestInputParameter(Dictifiable, RepresentById):
     """ Workflow-related parameters not tied to steps or inputs.
     """
     dict_collection_visible_keys = ['id', 'name', 'value', 'type']
     types = Bunch(
         REPLACEMENT_PARAMETERS='replacements',
-        META_PARAMETERS='meta',  #
+        STEP_PARAMETERS='step',
+        META_PARAMETERS='meta',
+        RESOURCE_PARAMETERS='resource',
     )
 
     def __init__(self, name=None, value=None, type=None):
@@ -4267,7 +4637,7 @@ class WorkflowRequestInputParameter(Dictifiable):
         self.type = type
 
 
-class WorkflowRequestStepState(Dictifiable):
+class WorkflowRequestStepState(Dictifiable, RepresentById):
     """ Workflow step value parameters.
     """
     dict_collection_visible_keys = ['id', 'name', 'value', 'workflow_step_id']
@@ -4279,45 +4649,45 @@ class WorkflowRequestStepState(Dictifiable):
         self.type = type
 
 
-class WorkflowRequestToInputDatasetAssociation(Dictifiable):
+class WorkflowRequestToInputDatasetAssociation(Dictifiable, RepresentById):
     """ Workflow step input dataset parameters.
     """
     dict_collection_visible_keys = ['id', 'workflow_invocation_id', 'workflow_step_id', 'dataset_id', 'name']
 
 
-class WorkflowRequestToInputDatasetCollectionAssociation(Dictifiable):
+class WorkflowRequestToInputDatasetCollectionAssociation(Dictifiable, RepresentById):
     """ Workflow step input dataset collection parameters.
     """
     dict_collection_visible_keys = ['id', 'workflow_invocation_id', 'workflow_step_id', 'dataset_collection_id', 'name']
 
 
-class WorkflowRequestInputStepParmeter(Dictifiable):
+class WorkflowRequestInputStepParameter(Dictifiable, RepresentById):
     """ Workflow step parameter inputs.
     """
     dict_collection_visible_keys = ['id', 'workflow_invocation_id', 'workflow_step_id', 'parameter_value']
 
 
-class WorkflowInvocationOutputDatasetAssociation(Dictifiable):
+class WorkflowInvocationOutputDatasetAssociation(Dictifiable, RepresentById):
     """Represents links to output datasets for the workflow."""
     dict_collection_visible_keys = ['id', 'workflow_invocation_id', 'workflow_step_id', 'dataset_id', 'name']
 
 
-class WorkflowInvocationOutputDatasetCollectionAssociation(Dictifiable):
+class WorkflowInvocationOutputDatasetCollectionAssociation(Dictifiable, RepresentById):
     """Represents links to output dataset collections for the workflow."""
     dict_collection_visible_keys = ['id', 'workflow_invocation_id', 'workflow_step_id', 'dataset_collection_id', 'name']
 
 
-class WorkflowInvocationStepOutputDatasetAssociation(Dictifiable):
+class WorkflowInvocationStepOutputDatasetAssociation(Dictifiable, RepresentById):
     """Represents links to output datasets for the workflow."""
     dict_collection_visible_keys = ['id', 'workflow_invocation_step_id', 'dataset_id', 'output_name']
 
 
-class WorkflowInvocationStepOutputDatasetCollectionAssociation(Dictifiable):
+class WorkflowInvocationStepOutputDatasetCollectionAssociation(Dictifiable, RepresentById):
     """Represents links to output dataset collections for the workflow."""
     dict_collection_visible_keys = ['id', 'workflow_invocation_step_id', 'dataset_collection_id', 'output_name']
 
 
-class MetadataFile(StorableObject):
+class MetadataFile(StorableObject, RepresentById):
 
     def __init__(self, dataset=None, name=None):
         super(MetadataFile, self).__init__(id=None)
@@ -4353,7 +4723,7 @@ class MetadataFile(StorableObject):
             return os.path.abspath(os.path.join(path, "metadata_%d.dat" % self.id))
 
 
-class FormDefinition(Dictifiable):
+class FormDefinition(Dictifiable, RepresentById):
     # The following form_builder classes are supported by the FormDefinition class.
     supported_field_types = [AddressField, CheckboxField, PasswordField, SelectField, TextArea, TextField, WorkflowField, WorkflowMappingField, HistoryField]
     types = Bunch(USER_INFO='User Information')
@@ -4393,18 +4763,18 @@ class FormDefinition(Dictifiable):
         return gridfields
 
 
-class FormDefinitionCurrent(object):
+class FormDefinitionCurrent(RepresentById):
     def __init__(self, form_definition=None):
         self.latest_form = form_definition
 
 
-class FormValues(object):
+class FormValues(RepresentById):
     def __init__(self, form_def=None, content=None):
         self.form_definition = form_def
         self.content = content
 
 
-class UserAddress(object):
+class UserAddress(RepresentById):
     def __init__(self, user=None, desc=None, name=None, institution=None,
                  address=None, city=None, state=None, postal_code=None,
                  country=None, phone=None):
@@ -4432,14 +4802,251 @@ class UserAddress(object):
                 'phone'        : sanitize_html(self.phone)}
 
 
-class UserOpenID(object):
+class UserOpenID(RepresentById):
     def __init__(self, user=None, session=None, openid=None):
         self.user = user
         self.session = session
         self.openid = openid
 
 
-class Page(Dictifiable):
+class PSAAssociation(AssociationMixin, RepresentById):
+
+    # This static property is set at: galaxy.authnz.psa_authnz.PSAAuthnz
+    sa_session = None
+
+    def __init__(self, server_url=None, handle=None, secret=None, issued=None, lifetime=None, assoc_type=None):
+        self.server_url = server_url
+        self.handle = handle
+        self.secret = secret
+        self.issued = issued
+        self.lifetime = lifetime
+        self.assoc_type = assoc_type
+
+    def save(self):
+        self.sa_session.add(self)
+        self.sa_session.flush()
+
+    @classmethod
+    def store(cls, server_url, association):
+        try:
+            assoc = cls.sa_session.query(cls).filter_by(server_url=server_url, handle=association.handle)[0]
+        except IndexError:
+            assoc = cls(server_url=server_url, handle=association.handle)
+        assoc.secret = base64.encodestring(association.secret).decode()
+        assoc.issued = association.issued
+        assoc.lifetime = association.lifetime
+        assoc.assoc_type = association.assoc_type
+        cls.sa_session.add(assoc)
+        cls.sa_session.flush()
+
+    @classmethod
+    def get(cls, *args, **kwargs):
+        return cls.sa_session.query(cls).filter_by(*args, **kwargs)
+
+    @classmethod
+    def remove(cls, ids_to_delete):
+        cls.sa_session.query(cls).filter(cls.id.in_(ids_to_delete)).delete(synchronize_session='fetch')
+
+
+class PSACode(CodeMixin, RepresentById):
+    __table_args__ = (UniqueConstraint('code', 'email'),)
+
+    # This static property is set at: galaxy.authnz.psa_authnz.PSAAuthnz
+    sa_session = None
+
+    def __init__(self, email, code):
+        self.email = email
+        self.code = code
+
+    def save(self):
+        self.sa_session.add(self)
+        self.sa_session.flush()
+
+    @classmethod
+    def get_code(cls, code):
+        return cls.sa_session.query(cls).filter(cls.code == code).first()
+
+
+class PSANonce(NonceMixin, RepresentById):
+
+    # This static property is set at: galaxy.authnz.psa_authnz.PSAAuthnz
+    sa_session = None
+
+    def __init__(self, server_url, timestamp, salt):
+        self.server_url = server_url
+        self.timestamp = timestamp
+        self.salt = salt
+
+    def save(self):
+        self.sa_session.add(self)
+        self.sa_session.flush()
+
+    @classmethod
+    def use(cls, server_url, timestamp, salt):
+        try:
+            return cls.sa_session.query(cls).filter_by(server_url=server_url, timestamp=timestamp, salt=salt)[0]
+        except IndexError:
+            instance = cls(server_url=server_url, timestamp=timestamp, salt=salt)
+            cls.sa_session.add(instance)
+            cls.sa_session.flush()
+            return instance
+
+
+class PSAPartial(PartialMixin, RepresentById):
+
+    # This static property is set at: galaxy.authnz.psa_authnz.PSAAuthnz
+    sa_session = None
+
+    def __init__(self, token, data, next_step, backend):
+        self.token = token
+        self.data = data
+        self.next_step = next_step
+        self.backend = backend
+
+    def save(self):
+        self.sa_session.add(self)
+        self.sa_session.flush()
+
+    @classmethod
+    def load(cls, token):
+        return cls.sa_session.query(cls).filter(cls.token == token).first()
+
+    @classmethod
+    def destroy(cls, token):
+        partial = cls.load(token)
+        if partial:
+            cls.sa_session.delete(partial)
+
+
+class UserAuthnzToken(UserMixin, RepresentById):
+    __table_args__ = (UniqueConstraint('provider', 'uid'),)
+
+    # This static property is set at: galaxy.authnz.psa_authnz.PSAAuthnz
+    sa_session = None
+
+    def __init__(self, provider, uid, extra_data=None, lifetime=None, assoc_type=None, user=None):
+        self.provider = provider
+        self.uid = uid
+        self.user_id = user.id
+        self.extra_data = extra_data
+        self.lifetime = lifetime
+        self.assoc_type = assoc_type
+
+    def get_id_token(self, strategy):
+        if self.access_token_expired():
+            # Access and ID tokens have same expiration time;
+            # hence, if one is expired, the other is expired too.
+            self.refresh_token(strategy)
+        return self.extra_data.get('id_token', None) if self.extra_data is not None else None
+
+    def set_extra_data(self, extra_data=None):
+        if super(UserAuthnzToken, self).set_extra_data(extra_data):
+            self.sa_session.add(self)
+            self.sa_session.flush()
+
+    def save(self):
+        self.sa_session.add(self)
+        self.sa_session.flush()
+
+    @classmethod
+    def username_max_length(cls):
+        # Note: This is the maximum field length set for the username column of the galaxy_user table.
+        # A better alternative is to retrieve this number from the table, instead of this const value.
+        return 255
+
+    @classmethod
+    def user_model(cls):
+        return User
+
+    @classmethod
+    def changed(cls, user):
+        cls.sa_session.add(user)
+        cls.sa_session.flush()
+
+    @classmethod
+    def user_query(cls):
+        return cls.sa_session.query(cls.user_model())
+
+    @classmethod
+    def user_exists(cls, *args, **kwargs):
+        return cls.user_query().filter_by(*args, **kwargs).count() > 0
+
+    @classmethod
+    def get_username(cls, user):
+        return getattr(user, 'username', None)
+
+    @classmethod
+    def create_user(cls, *args, **kwargs):
+        model = cls.user_model()
+        instance = model(*args, **kwargs)
+        instance.set_random_password()
+        cls.sa_session.add(instance)
+        cls.sa_session.flush()
+        return instance
+
+    @classmethod
+    def get_user(cls, pk):
+        return cls.user_query().get(pk)
+
+    @classmethod
+    def get_users_by_email(cls, email):
+        return cls.user_query().filter_by(email=email)
+
+    @classmethod
+    def get_social_auth(cls, provider, uid):
+        uid = str(uid)
+        try:
+            return cls.sa_session.query(cls).filter_by(provider=provider, uid=uid)[0]
+        except IndexError:
+            return None
+
+    @classmethod
+    def get_social_auth_for_user(cls, user, provider=None, id=None):
+        qs = cls.sa_session.query(cls).filter_by(user_id=user.id)
+        if provider:
+            qs = qs.filter_by(provider=provider)
+        if id:
+            qs = qs.filter_by(id=id)
+        return qs
+
+    @classmethod
+    def create_social_auth(cls, user, uid, provider):
+        uid = str(uid)
+        instance = cls(user=user, uid=uid, provider=provider)
+        cls.sa_session.add(instance)
+        cls.sa_session.flush()
+        return instance
+
+
+class CloudAuthz(RepresentById):
+    def __init__(self, user_id, provider, config, authn_id, description=""):
+        self.id = None
+        self.user_id = user_id
+        self.provider = provider
+        self.config = config
+        self.authn_id = authn_id
+        self.tokens = None
+        self.last_update = datetime.now()
+        self.last_activity = datetime.now()
+        self.description = description
+
+    def __eq__(self, other):
+        if not isinstance(other, CloudAuthz):
+            return False
+        return self.equals(other.user_id, other.provider, other.authn_id, other.config)
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def equals(self, user_id, provider, authn_id, config):
+        return (self.user_id == user_id and
+                self.provider == provider and
+                self.authn_id == authn_id and
+                len({k: self.config[k] for k in self.config if k in config and
+                     self.config[k] == config[k]}) == len(self.config))
+
+
+class Page(Dictifiable, RepresentById):
     dict_element_visible_keys = ['id', 'title', 'latest_revision_id', 'slug', 'published', 'importable', 'deleted']
 
     def __init__(self):
@@ -4461,7 +5068,7 @@ class Page(Dictifiable):
         return rval
 
 
-class PageRevision(Dictifiable):
+class PageRevision(Dictifiable, RepresentById):
     dict_element_visible_keys = ['id', 'page_id', 'title', 'content']
 
     def __init__(self):
@@ -4476,13 +5083,13 @@ class PageRevision(Dictifiable):
         return rval
 
 
-class PageUserShareAssociation(object):
+class PageUserShareAssociation(RepresentById):
     def __init__(self):
         self.page = None
         self.user = None
 
 
-class Visualization(object):
+class Visualization(RepresentById):
     def __init__(self, id=None, user=None, type=None, title=None, dbkey=None, slug=None, latest_revision=None):
         self.id = id
         self.user = user
@@ -4517,7 +5124,7 @@ class Visualization(object):
         return copy_viz
 
 
-class VisualizationRevision(object):
+class VisualizationRevision(RepresentById):
     def __init__(self, visualization=None, title=None, dbkey=None, config=None):
         self.id = None
         self.visualization = visualization
@@ -4540,13 +5147,13 @@ class VisualizationRevision(object):
         )
 
 
-class VisualizationUserShareAssociation(object):
+class VisualizationUserShareAssociation(RepresentById):
     def __init__(self):
         self.visualization = None
         self.user = None
 
 
-class TransferJob(object):
+class TransferJob(RepresentById):
     # These states are used both by the transfer manager's IPC and the object
     # state in the database.  Not all states are used by both.
     states = Bunch(NEW='new',
@@ -4567,7 +5174,7 @@ class TransferJob(object):
         self.params = params
 
 
-class Tag(object):
+class Tag(RepresentById):
     def __init__(self, id=None, type=None, parent_id=None, name=None):
         self.id = id
         self.type = type
@@ -4575,7 +5182,7 @@ class Tag(object):
         self.name = name
 
     def __str__(self):
-        return "Tag(id=%s, type=%i, parent_id=%s, name=%s)" % (self.id, self.type, self.parent_id, self.name)
+        return "Tag(id=%s, type=%i, parent_id=%s, name=%s)" % (self.id, self.type or -1, self.parent_id, self.name)
 
 
 class ItemTagAssociation(Dictifiable):
@@ -4603,47 +5210,47 @@ class ItemTagAssociation(Dictifiable):
         return new_ta
 
 
-class HistoryTagAssociation(ItemTagAssociation):
+class HistoryTagAssociation(ItemTagAssociation, RepresentById):
     pass
 
 
-class DatasetTagAssociation(ItemTagAssociation):
+class DatasetTagAssociation(ItemTagAssociation, RepresentById):
     pass
 
 
-class HistoryDatasetAssociationTagAssociation(ItemTagAssociation):
+class HistoryDatasetAssociationTagAssociation(ItemTagAssociation, RepresentById):
     pass
 
 
-class LibraryDatasetDatasetAssociationTagAssociation(ItemTagAssociation):
+class LibraryDatasetDatasetAssociationTagAssociation(ItemTagAssociation, RepresentById):
     pass
 
 
-class PageTagAssociation(ItemTagAssociation):
+class PageTagAssociation(ItemTagAssociation, RepresentById):
     pass
 
 
-class WorkflowStepTagAssociation(ItemTagAssociation):
+class WorkflowStepTagAssociation(ItemTagAssociation, RepresentById):
     pass
 
 
-class StoredWorkflowTagAssociation(ItemTagAssociation):
+class StoredWorkflowTagAssociation(ItemTagAssociation, RepresentById):
     pass
 
 
-class VisualizationTagAssociation(ItemTagAssociation):
+class VisualizationTagAssociation(ItemTagAssociation, RepresentById):
     pass
 
 
-class HistoryDatasetCollectionTagAssociation(ItemTagAssociation):
+class HistoryDatasetCollectionTagAssociation(ItemTagAssociation, RepresentById):
     pass
 
 
-class LibraryDatasetCollectionTagAssociation(ItemTagAssociation):
+class LibraryDatasetCollectionTagAssociation(ItemTagAssociation, RepresentById):
     pass
 
 
-class ToolTagAssociation(ItemTagAssociation):
+class ToolTagAssociation(ItemTagAssociation, RepresentById):
     def __init__(self, id=None, user=None, tool_id=None, tag_id=None, user_tname=None, value=None):
         self.id = id
         self.user = user
@@ -4654,47 +5261,36 @@ class ToolTagAssociation(ItemTagAssociation):
         self.user_value = None
 
 
-class WorkRequestTagAssociation(ItemTagAssociation):
-    def __init__(self, id=None, user=None, workflow_request_id=None, tag_id=None, user_tname=None, value=None):
-        self.id = id
-        self.user = user
-        self.workflow_request_id = workflow_request_id
-        self.tag_id = tag_id
-        self.user_tname = user_tname
-        self.value = None
-        self.user_value = None
-
-
 # Item annotation classes.
-class HistoryAnnotationAssociation(object):
+class HistoryAnnotationAssociation(RepresentById):
     pass
 
 
-class HistoryDatasetAssociationAnnotationAssociation(object):
+class HistoryDatasetAssociationAnnotationAssociation(RepresentById):
     pass
 
 
-class StoredWorkflowAnnotationAssociation(object):
+class StoredWorkflowAnnotationAssociation(RepresentById):
     pass
 
 
-class WorkflowStepAnnotationAssociation(object):
+class WorkflowStepAnnotationAssociation(RepresentById):
     pass
 
 
-class PageAnnotationAssociation(object):
+class PageAnnotationAssociation(RepresentById):
     pass
 
 
-class VisualizationAnnotationAssociation(object):
+class VisualizationAnnotationAssociation(RepresentById):
     pass
 
 
-class HistoryDatasetCollectionAnnotationAssociation(object):
+class HistoryDatasetCollectionAssociationAnnotationAssociation(RepresentById):
     pass
 
 
-class LibraryDatasetCollectionAnnotationAssociation(object):
+class LibraryDatasetCollectionAnnotationAssociation(RepresentById):
     pass
 
 
@@ -4711,63 +5307,63 @@ class ItemRatingAssociation(object):
         pass
 
 
-class HistoryRatingAssociation(ItemRatingAssociation):
+class HistoryRatingAssociation(ItemRatingAssociation, RepresentById):
     def set_item(self, history):
         self.history = history
 
 
-class HistoryDatasetAssociationRatingAssociation(ItemRatingAssociation):
+class HistoryDatasetAssociationRatingAssociation(ItemRatingAssociation, RepresentById):
     def set_item(self, history_dataset_association):
         self.history_dataset_association = history_dataset_association
 
 
-class StoredWorkflowRatingAssociation(ItemRatingAssociation):
+class StoredWorkflowRatingAssociation(ItemRatingAssociation, RepresentById):
     def set_item(self, stored_workflow):
         self.stored_workflow = stored_workflow
 
 
-class PageRatingAssociation(ItemRatingAssociation):
+class PageRatingAssociation(ItemRatingAssociation, RepresentById):
     def set_item(self, page):
         self.page = page
 
 
-class VisualizationRatingAssociation(ItemRatingAssociation):
+class VisualizationRatingAssociation(ItemRatingAssociation, RepresentById):
     def set_item(self, visualization):
         self.visualization = visualization
 
 
-class HistoryDatasetCollectionRatingAssociation(ItemRatingAssociation):
+class HistoryDatasetCollectionRatingAssociation(ItemRatingAssociation, RepresentById):
     def set_item(self, dataset_collection):
         self.dataset_collection = dataset_collection
 
 
-class LibraryDatasetCollectionRatingAssociation(ItemRatingAssociation):
+class LibraryDatasetCollectionRatingAssociation(ItemRatingAssociation, RepresentById):
     def set_item(self, dataset_collection):
         self.dataset_collection = dataset_collection
 
 
 # Data manager classes.
-class DataManagerHistoryAssociation(object):
+class DataManagerHistoryAssociation(RepresentById):
     def __init__(self, id=None, history=None, user=None):
         self.id = id
         self.history = history
         self.user = user
 
 
-class DataManagerJobAssociation(object):
+class DataManagerJobAssociation(RepresentById):
     def __init__(self, id=None, job=None, data_manager_id=None):
         self.id = id
         self.job = job
         self.data_manager_id = data_manager_id
 
 
-class UserPreference(object):
+class UserPreference(RepresentById):
     def __init__(self, name=None, value=None):
         self.name = name
         self.value = value
 
 
-class UserAction(object):
+class UserAction(RepresentById):
     def __init__(self, id=None, create_time=None, user_id=None, session_id=None, action=None, params=None, context=None):
         self.id = id
         self.create_time = create_time
@@ -4778,7 +5374,7 @@ class UserAction(object):
         self.context = context
 
 
-class APIKeys(object):
+class APIKeys(RepresentById):
     def __init__(self, id=None, user_id=None, key=None):
         self.id = id
         self.user_id = user_id

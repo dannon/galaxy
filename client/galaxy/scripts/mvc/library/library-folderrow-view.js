@@ -1,6 +1,12 @@
+import _ from "underscore";
+import $ from "jquery";
+import Backbone from "backbone";
+import { getAppRoot } from "onload/loadConfig";
+import { getGalaxyInstance } from "app";
 import mod_toastr from "toastr";
 import mod_library_model from "mvc/library/library-model";
 import mod_library_dataset_view from "mvc/library/library-dataset-view";
+
 var FolderRowView = Backbone.View.extend({
     events: {
         "click .undelete_dataset_btn": "undeleteDataset",
@@ -30,6 +36,7 @@ var FolderRowView = Backbone.View.extend({
         this.options = _.extend(this.options, options);
         var folder_item = this.options.model;
         var template = null;
+        let Galaxy = getGalaxyInstance();
 
         if (folder_item.get("type") === "folder" || folder_item.get("model_class") === "LibraryFolder") {
             this.options.type = "folder";
@@ -98,12 +105,14 @@ var FolderRowView = Backbone.View.extend({
 
     /* Show the page with dataset details. */
     showDatasetDetails: function() {
+        let Galaxy = getGalaxyInstance();
         Galaxy.libraries.datasetView = new mod_library_dataset_view.LibraryDatasetView({ id: this.id });
     },
 
     /* Undelete the dataset on server and render the row again. */
     undeleteDataset: function(event) {
         $(".tooltip").hide();
+        let Galaxy = getGalaxyInstance();
         var that = this;
         var dataset_id = $(event.target)
             .closest("tr")
@@ -119,7 +128,7 @@ var FolderRowView = Backbone.View.extend({
                 mod_toastr.success("Dataset undeleted. Click this to see it.", "", {
                     onclick: function() {
                         var folder_id = that.model.get("folder_id");
-                        window.location = `${Galaxy.root}library/list#folders/${folder_id}/datasets/${that.id}`;
+                        window.location = `${getAppRoot()}library/list#folders/${folder_id}/datasets/${that.id}`;
                     }
                 });
             },
@@ -135,6 +144,7 @@ var FolderRowView = Backbone.View.extend({
 
     /* Undelete the folder on server and render the row again. */
     undeleteFolder: function(event) {
+        let Galaxy = getGalaxyInstance();
         $(".tooltip").hide();
         var that = this;
         var folder_id = $(event.target)
@@ -173,6 +183,7 @@ var FolderRowView = Backbone.View.extend({
     },
 
     saveModifications: function() {
+        let Galaxy = getGalaxyInstance();
         var folder = Galaxy.libraries.folderListView.collection.get(this.$el.data("id"));
         var is_changed = false;
         var new_name = this.$el.find(".input_folder_name").val();
@@ -226,17 +237,17 @@ var FolderRowView = Backbone.View.extend({
         this.render();
         old_element.replaceWith(this.$el);
         /* now we attach new tooltips to the newly created row element */
-        this.$el.find("[data-toggle]").tooltip();
+        this.$el.find('[data-toggle="tooltip"]').tooltip({ trigger: "hover" });
     },
 
     templateRowFolder: function() {
         return _.template(
             [
                 '<tr class="folder_row light library-row" data-id="<%- content_item.id %>">',
-                "<td>",
+                '<td class="mid">',
                 '<span title="Folder" class="fa fa-folder-o"/>',
                 "</td>",
-                '<td style="text-align: center; "><input style="margin: 0;" type="checkbox"></td>',
+                '<td class="mid"><input style="margin: 0;" type="checkbox"></td>',
                 "<% if(!edit_mode) { %>",
                 "<td>",
                 '<a href="#folders/<%- content_item.id %>"><%- content_item.get("name") %></a>',
@@ -256,18 +267,18 @@ var FolderRowView = Backbone.View.extend({
                 "<td></td>",
                 "<td>",
                 "<% if(edit_mode) { %>", // start edit mode
-                '<button data-toggle="tooltip" data-placement="top" title="Save changes" class="primary-button btn-xs save_folder_btn" type="button" style="<% if(button_config.save_folder_btn === false) { print("display:none;") } %>">',
+                '<button data-toggle="tooltip" data-placement="top" title="Save changes" class="primary-button btn-sm save_folder_btn" type="button" style="<% if(button_config.save_folder_btn === false) { print("display:none;") } %>">',
                 '<span class="fa fa-floppy-o"/> Save',
                 "</button>",
-                '<button data-toggle="tooltip" data-placement="top" title="Discard changes" class="primary-button btn-xs cancel_folder_btn" type="button" style="<% if(button_config.cancel_folder_btn === false) { print("display:none;") } %>">',
+                '<button data-toggle="tooltip" data-placement="top" title="Discard changes" class="primary-button btn-sm cancel_folder_btn" type="button" style="<% if(button_config.cancel_folder_btn === false) { print("display:none;") } %>">',
                 '<span class="fa fa-times"/> Cancel',
                 "</button>",
                 "<% } else if (!edit_mode){%>", // start no edit mode
-                '<button data-toggle="tooltip" data-placement="top" title="Modify \'<%- content_item.get("name") %>\'" class="primary-button btn-xs edit_folder_btn" type="button" style="<% if(button_config.edit_folder_btn === false) { print("display:none;") } %>">',
+                '<button data-toggle="tooltip" data-placement="top" title="Modify \'<%- content_item.get("name") %>\'" class="primary-button btn-sm edit_folder_btn" type="button" style="<% if(button_config.edit_folder_btn === false) { print("display:none;") } %>">',
                 '<span class="fa fa-pencil"/> Edit',
                 "</button>",
                 '<a href="#/folders/<%- content_item.id %>/permissions">',
-                '<button data-toggle="tooltip" data-placement="top" class="primary-button btn-xs permission_folder_btn" title="Permissions of \'<%- content_item.get("name") %>\'" style="<% if(button_config.permission_folder_btn === false) { print("display:none;") } %>">',
+                '<button data-toggle="tooltip" data-placement="top" class="primary-button btn-sm permission_folder_btn" title="Permissions of \'<%- content_item.get("name") %>\'" style="<% if(button_config.permission_folder_btn === false) { print("display:none;") } %>">',
                 '<span class="fa fa-group"/> Manage',
                 "</button>",
                 "</a>",
@@ -282,10 +293,10 @@ var FolderRowView = Backbone.View.extend({
         return _.template(
             [
                 '<tr class="dataset_row light library-row" data-id="<%- content_item.id %>">',
-                "<td>",
+                '<td class="mid">',
                 '<span title="Dataset" class="fa fa-file-o"/>',
                 "</td>",
-                '<td style="text-align: center; ">',
+                '<td class="mid">',
                 '<input style="margin: 0;" type="checkbox">',
                 "</td>",
                 "<td>",
@@ -304,17 +315,17 @@ var FolderRowView = Backbone.View.extend({
                 "</td>",
                 "<td>",
                 '<% if (content_item.get("is_unrestricted")) { %>',
-                '<span data-toggle="tooltip" data-placement="top" title="Unrestricted dataset" style="color:grey;" class="fa fa-globe fa-lg"/>',
+                '<span data-toggle="tooltip" data-placement="top" title="Unrestricted dataset" style="color:grey;" class="fa fa-globe"/>',
                 "<% } %>",
                 '<% if (content_item.get("is_private")) { %>',
-                '<span data-toggle="tooltip" data-placement="top" title="Private dataset" style="color:grey;" class="fa fa-key fa-lg"/>',
+                '<span data-toggle="tooltip" data-placement="top" title="Private dataset" style="color:grey;" class="fa fa-key"/>',
                 "<% } %>",
                 '<% if ((content_item.get("is_unrestricted") === false) && (content_item.get("is_private") === false)) { %>',
-                '<span data-toggle="tooltip" data-placement="top" title="Restricted dataset" style="color:grey;" class="fa fa-shield fa-lg"/>',
+                '<span data-toggle="tooltip" data-placement="top" title="Restricted dataset" style="color:grey;" class="fa fa-shield"/>',
                 "<% } %>",
                 '<% if (content_item.get("can_manage")) { %>',
                 '<a href="#folders/<%- content_item.get("folder_id") %>/datasets/<%- content_item.id %>/permissions">',
-                '<button data-toggle="tooltip" data-placement="top" class="primary-button btn-xs permissions-dataset-btn" title="Permissions of \'<%- content_item.get("name") %>\'">',
+                '<button data-toggle="tooltip" data-placement="top" class="primary-button btn-sm permissions-dataset-btn" title="Permissions of \'<%- content_item.get("name") %>\'">',
                 '<span class="fa fa-group"/> Manage',
                 "</button>",
                 "</a>",
@@ -329,7 +340,7 @@ var FolderRowView = Backbone.View.extend({
         return _.template(
             [
                 '<tr class="active deleted_dataset library-row" data-id="<%- content_item.id %>">',
-                "<td>",
+                '<td class="mid">',
                 '<span title="Dataset" class="fa fa-file-o"/>',
                 "</td>",
                 "<td></td>",
@@ -354,8 +365,8 @@ var FolderRowView = Backbone.View.extend({
                 "<% } %>",
                 "</td>",
                 "<td>",
-                '<span data-toggle="tooltip" data-placement="top" title="Marked deleted" style="color:grey;" class="fa fa-ban fa-lg"/>',
-                '<button data-toggle="tooltip" data-placement="top" title="Undelete \'<%- content_item.get("name") %>\'" class="primary-button btn-xs undelete_dataset_btn" type="button" style="margin-left:1em;">',
+                '<span data-toggle="tooltip" data-placement="top" title="Marked deleted" style="color:grey;" class="fa fa-ban"/>',
+                '<button data-toggle="tooltip" data-placement="top" title="Undelete \'<%- content_item.get("name") %>\'" class="primary-button btn-sm undelete_dataset_btn" type="button" style="margin-left:1em;">',
                 '<span class="fa fa-unlock"/> Undelete',
                 "</button>",
                 "</td>",
@@ -368,7 +379,7 @@ var FolderRowView = Backbone.View.extend({
         return _.template(
             [
                 '<tr class="active deleted_folder light library-row" data-id="<%- content_item.id %>">',
-                "<td>",
+                '<td class="mid">',
                 '<span title="Folder" class="fa fa-folder-o"/>',
                 "</td>",
                 "<td></td>",
@@ -387,8 +398,8 @@ var FolderRowView = Backbone.View.extend({
                 "</td>",
                 "<td></td>",
                 "<td>",
-                '<span data-toggle="tooltip" data-placement="top" title="Marked deleted" style="color:grey;" class="fa fa-ban fa-lg"/>',
-                '<button data-toggle="tooltip" data-placement="top" title="Undelete \'<%- content_item.get("name") %>\'" class="primary-button btn-xs undelete_folder_btn" type="button" style="margin-left:1em;">',
+                '<span data-toggle="tooltip" data-placement="top" title="Marked deleted" style="color:grey;" class="fa fa-ban"/>',
+                '<button data-toggle="tooltip" data-placement="top" title="Undelete \'<%- content_item.get("name") %>\'" class="primary-button btn-sm undelete_folder_btn" type="button" style="margin-left:1em;">',
                 '<span class="fa fa-unlock"/> Undelete',
                 "</button>",
                 "</td>",

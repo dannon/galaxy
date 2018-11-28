@@ -156,10 +156,10 @@ class ToolValidator(object):
                     return tmp_filename
         return None
 
-    def get_list_of_copied_sample_files(self, repo, ctx, dir):
+    def get_list_of_copied_sample_files(self, repo, changeset_revision, dir):
         """
         Find all sample files (files in the repository with the special .sample extension)
-        in the reversed repository manifest up to ctx.  Copy each discovered file to dir and
+        in the reversed repository manifest up to changeset_revision. Copy each discovered file to dir and
         return the list of filenames.  If a .sample file was added in a changeset and then
         deleted in a later changeset, it will be returned in the deleted_sample_files list.
         The caller will set the value of app.config.tool_data_path to dir in order to load
@@ -167,7 +167,7 @@ class ToolValidator(object):
         """
         deleted_sample_files = []
         sample_files = []
-        for changeset in hg_util.reversed_upper_bounded_changelog(repo, ctx):
+        for changeset in hg_util.reversed_upper_bounded_changelog(repo, changeset_revision):
             changeset_ctx = repo.changectx(changeset)
             for ctx_file in changeset_ctx.files():
                 ctx_file_name = basic_util.strip_path(ctx_file)
@@ -202,7 +202,6 @@ class ToolValidator(object):
         """
         message = ''
         sample_files = self.copy_disk_sample_files_to_dir(repo_files_dir, work_dir)
-        tool_data_table_config = None
         if sample_files:
             if 'tool_data_table_conf.xml.sample' in sample_files:
                 # Load entries into the tool_data_tables if the tool requires them.
@@ -216,25 +215,22 @@ class ToolValidator(object):
     def handle_sample_files_and_load_tool_from_tmp_config(self, repo, repository_id, changeset_revision,
                                                           tool_config_filename, work_dir):
         tool = None
+        valid = False
         message = ''
-        ctx = hg_util.get_changectx_for_changeset(repo, changeset_revision)
         # We're not currently doing anything with the returned list of deleted_sample_files here.  It is
         # intended to help handle sample files that are in the manifest, but have been deleted from disk.
-        sample_files, deleted_sample_files = self.get_list_of_copied_sample_files(repo, ctx, dir=work_dir)
+        sample_files, deleted_sample_files = self.get_list_of_copied_sample_files(repo, changeset_revision, dir=work_dir)
         if sample_files:
             if 'tool_data_table_conf.xml.sample' in sample_files:
                 # Load entries into the tool_data_tables if the tool requires them.
                 tool_data_table_config = os.path.join(work_dir, 'tool_data_table_conf.xml')
-                if tool_data_table_config:
-                    error, message = self.stdtm.handle_sample_tool_data_table_conf_file(tool_data_table_config,
-                                                                                       persist=False)
-                    if error:
-                        log.debug(message)
+                error, message = self.stdtm.handle_sample_tool_data_table_conf_file(tool_data_table_config,
+                                                                                   persist=False)
         manifest_ctx, ctx_file = hg_util.get_ctx_file_path_from_manifest(tool_config_filename, repo, changeset_revision)
         if manifest_ctx and ctx_file:
-            tool, message2 = self.load_tool_from_tmp_config(repo, repository_id, manifest_ctx, ctx_file, work_dir)
+            tool, valid, message2 = self.load_tool_from_tmp_config(repo, repository_id, manifest_ctx, ctx_file, work_dir)
             message = self.concat_messages(message, message2)
-        return tool, message, sample_files
+        return tool, valid, message, sample_files
 
     def load_tool_from_changeset_revision(self, repository_id, changeset_revision, tool_config_filename):
         """
@@ -246,7 +242,7 @@ class ToolValidator(object):
         """
         repository = repository_util.get_repository_in_tool_shed(self.app, repository_id)
         repo_files_dir = repository.repo_path(self.app)
-        repo = hg_util.get_repo_for_repository(self.app, repository=None, repo_path=repo_files_dir, create=False)
+        repo = hg_util.get_repo_for_repository(self.app, repo_path=repo_files_dir)
         tool_config_filepath = repository_util.get_absolute_path_to_file_in_repository(repo_files_dir, tool_config_filename)
         work_dir = tempfile.mkdtemp(prefix="tmp-toolshed-ltfcr")
         can_use_disk_file = self.can_use_tool_config_disk_file(repository,
@@ -274,7 +270,7 @@ class ToolValidator(object):
                                                                             displaying_invalid_tool=True)
                     message = self.concat_messages(message, message2)
         else:
-            tool, message, sample_files = \
+            tool, valid, message, sample_files = \
                 self.handle_sample_files_and_load_tool_from_tmp_config(repo,
                                                                        repository_id,
                                                                        changeset_revision,
@@ -283,7 +279,7 @@ class ToolValidator(object):
         basic_util.remove_dir(work_dir)
         # Reset the tool_data_tables by loading the empty tool_data_table_conf.xml file.
         self.stdtm.reset_tool_data_tables()
-        return repository, tool, message
+        return repository, tool, valid, message
 
     def load_tool_from_config(self, repository_id, full_path):
         tool_source = get_tool_source(
@@ -309,6 +305,7 @@ class ToolValidator(object):
 
     def load_tool_from_tmp_config(self, repo, repository_id, ctx, ctx_file, work_dir):
         tool = None
+        valid = False
         message = ''
         tmp_tool_config = hg_util.get_named_tmpfile_from_ctx(ctx, ctx_file, work_dir)
         if tmp_tool_config:
@@ -318,8 +315,9 @@ class ToolValidator(object):
             # Look for external files required by the tool config.
             tmp_code_files = []
             external_paths = Tool.get_externally_referenced_paths(tmp_tool_config)
+            changeset_revision = str(ctx)
             for path in external_paths:
-                tmp_code_file_name = hg_util.copy_file_from_manifest(repo, ctx, path, work_dir)
+                tmp_code_file_name = hg_util.copy_file_from_manifest(repo, changeset_revision, path, work_dir)
                 if tmp_code_file_name:
                     tmp_code_files.append(tmp_code_file_name)
             tool, valid, message = self.load_tool_from_config(repository_id, tmp_tool_config)
@@ -332,4 +330,4 @@ class ToolValidator(object):
                 os.unlink(tmp_tool_config)
             except Exception:
                 pass
-        return tool, message
+        return tool, valid, message

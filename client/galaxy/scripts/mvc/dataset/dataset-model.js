@@ -1,3 +1,7 @@
+import _ from "underscore";
+import jQuery from "jquery";
+import Backbone from "backbone";
+import { getAppRoot } from "onload/loadConfig";
 import STATES from "mvc/dataset/states";
 import BASE_MVC from "mvc/base-mvc";
 import _l from "utils/localization";
@@ -54,9 +58,13 @@ var DatasetAssociation = Backbone.Model.extend(BASE_MVC.LoggableMixin).extend(
                 this._setUpListeners();
             },
 
+            _getDatasetId: function() {
+                return this.get("id");
+            },
+
             /** returns misc. web urls for rendering things like re-run, display, etc. */
             _generateUrls: function() {
-                var id = this.get("id");
+                const id = this._getDatasetId();
                 if (!id) {
                     return {};
                 }
@@ -72,7 +80,7 @@ var DatasetAssociation = Backbone.Model.extend(BASE_MVC.LoggableMixin).extend(
                     meta_download: `dataset/get_metadata_file?hda_id=${id}&metadata_name=`
                 };
                 _.each(urls, (value, key) => {
-                    urls[key] = Galaxy.root + value;
+                    urls[key] = getAppRoot() + value;
                 });
                 this.urls = urls;
                 return urls;
@@ -257,7 +265,7 @@ var DatasetAssociationCollection = Backbone.Collection.extend(BASE_MVC.LoggableM
         model: DatasetAssociation,
 
         /** root api url */
-        urlRoot: `${Galaxy.root}api/datasets`,
+        urlRoot: `${getAppRoot()}api/datasets`,
 
         /** url fn */
         url: function() {

@@ -1,11 +1,11 @@
-/* global define */
+/* global QUnit */
+import $ from "jquery";
 import testApp from "qunit/test-app";
 import sinon from "sinon";
 import Ui from "mvc/ui/ui-misc";
 import SelectContent from "mvc/ui/ui-select-content";
 import Drilldown from "mvc/ui/ui-drilldown";
 import Slider from "mvc/ui/ui-slider";
-import Thumbnails from "mvc/ui/ui-thumbnails";
 import Tabs from "mvc/ui/ui-tabs";
 
 QUnit.module("Ui test", {
@@ -20,6 +20,7 @@ QUnit.module("Ui test", {
 });
 
 QUnit.test("tabs", function(assert) {
+    assert.ok($.fn);
     var self = this;
     var tabs = new Tabs.View({});
     var collection = tabs.collection;
@@ -27,15 +28,11 @@ QUnit.test("tabs", function(assert) {
     var _test = function() {
         self.clock.tick(window.WAIT_FADE);
         collection.each(function(model, index) {
-            var $tab_element = tabs.$("#tab-" + model.id);
+            var $tab_element = tabs.$("#tab-" + model.id + " .nav-link");
             var $tab_content = tabs.$("#" + model.id);
             var is_current = model.id == tabs.model.get("current");
             assert.ok($tab_content.hasClass("active") == is_current, "Active state of content.");
             assert.ok($tab_element.hasClass("active") == is_current, "Active state of element.");
-            assert.ok(
-                $tab_element.css("display") == (model.get("hidden") ? "none" : "list-item"),
-                "Element visibility."
-            );
         });
     };
     $("body").prepend(tabs.$el);
@@ -63,82 +60,6 @@ QUnit.test("tabs", function(assert) {
     _test();
 });
 
-QUnit.test("thumbnails", function(assert) {
-    var _test = function(options) {
-        assert.ok(thumb.$(".tab-pane").length == options.ntabs, "Two tabs found.");
-        assert.ok(thumb.$(".ui-thumbnails-item").length == options.nitems, "Thumbnail item.");
-        assert.ok(
-            $(thumb.$(".ui-thumbnails-image")[options.index]).attr("src") == options.image_src,
-            "Correct image source"
-        );
-        assert.ok($(thumb.$(".ui-thumbnails-title")[options.index]).html() == options.title, "Correct title with icon");
-        assert.ok(
-            $(thumb.$(".ui-thumbnails-description-text")[options.index]).html() == options.description,
-            "Correct description"
-        );
-    };
-    var thumb = new Thumbnails.View({
-        title_default: "title_default",
-        title_list: "title_list",
-        collection: [
-            {
-                id: "id",
-                regular: true,
-                title: "title",
-                title_icon: "title_icon",
-                image_src: "image_src",
-                description: "description"
-            }
-        ]
-    });
-    var model = thumb.model;
-    $("body").prepend(thumb.$el);
-    _test({
-        index: 0,
-        ntabs: 2,
-        nitems: 2,
-        image_src: "image_src",
-        title: '<span class="fa title_icon"></span>title',
-        description: "description"
-    });
-    thumb.collection.add({
-        id: "id_a",
-        regular: true,
-        title: "title_a",
-        title_icon: "title_icon_a",
-        image_src: "image_src_a",
-        description: "description_a"
-    });
-    this.clock.tick(window.WAIT_FADE);
-    _test({
-        index: 1,
-        ntabs: 2,
-        nitems: 4,
-        image_src: "image_src_a",
-        title: '<span class="fa title_icon_a"></span>title_a',
-        description: "description_a"
-    });
-});
-
-QUnit.test("button-default", function(assert) {
-    var button = new Ui.Button({ title: "title" });
-    var model = button.model;
-    $("body").prepend(button.$el);
-    assert.ok(button.$title.html() == "title", "Has correct title");
-    model.set("title", "_title");
-    assert.ok(button.$title.html() == "_title", "Has correct new title");
-    assert.ok(!button.$el.attr("disabled"), "Button active");
-    model.set("disabled", true);
-    assert.ok(button.$el.attr("disabled"), "Button disabled");
-    model.set("disabled", false);
-    assert.ok(!button.$el.attr("disabled"), "Button active, again");
-    model.set("wait", true);
-    assert.ok(button.$title.html() == model.get("wait_text"), "Shows correct wait text");
-    model.set("wait_text", "wait_text");
-    assert.ok(button.$title.html() == "wait_text", "Shows correct new wait text");
-    model.set("wait", false);
-    assert.ok(button.$title.html() == model.get("title"), "Shows correct regular title");
-});
 QUnit.test("button-default", function(assert) {
     var button = new Ui.Button({ title: "title" });
     var model = button.model;
@@ -159,8 +80,8 @@ QUnit.test("button-default", function(assert) {
     assert.ok(button.$title.html() == model.get("title"), "Shows correct regular title");
 });
 
-QUnit.test("button-icon", function(assert) {
-    var button = new Ui.ButtonIcon({ title: "title" });
+QUnit.test("button-default", function(assert) {
+    var button = new Ui.Button({ title: "title" });
     var model = button.model;
     $("body").prepend(button.$el);
     assert.ok(button.$title.html() == "title", "Has correct title");
@@ -171,6 +92,12 @@ QUnit.test("button-icon", function(assert) {
     assert.ok(button.$el.attr("disabled"), "Button disabled");
     model.set("disabled", false);
     assert.ok(!button.$el.attr("disabled"), "Button active, again");
+    model.set("wait", true);
+    assert.ok(button.$title.html() == model.get("wait_text"), "Shows correct wait text");
+    model.set("wait_text", "wait_text");
+    assert.ok(button.$title.html() == "wait_text", "Shows correct new wait text");
+    model.set("wait", false);
+    assert.ok(button.$title.html() == model.get("title"), "Shows correct regular title");
 });
 
 QUnit.test("button-check", function(assert) {
@@ -244,7 +171,7 @@ QUnit.test("options", function(assert) {
                 "All button in correct state: " + options.all_icon
             );
         assert.ok(
-            obj.$menu.find(".ui-button-check").length === (Boolean(options.all_icon) ? 1 : 0),
+            obj.$menu.find(".ui-button-check").length === (options.all_icon ? 1 : 0),
             "All button available: " + Boolean(options.all_active)
         );
     }
@@ -689,16 +616,6 @@ QUnit.test("select-default", function(assert) {
     });
 });
 
-QUnit.test("label", function(assert) {
-    var label = new Ui.Label({
-        title: "_title"
-    });
-    $("body").prepend(label.$el);
-    assert.ok(label.$el.html() === "_title", "Correct title");
-    label.model.set("title", "_new_title");
-    assert.ok(label.$el.html() === "_new_title", "Correct new title");
-});
-
 QUnit.test("slider", function(assert) {
     var input = new Slider.View({ min: 1, max: 100, value: 10 });
     $("body").prepend(input.$el);
@@ -942,7 +859,7 @@ QUnit.test("select-content", function(assert) {
     $("body").prepend(select.$el);
     var _testEmptySelect = function(tag, txt_extension, txt_label) {
         var field = select.fields[tag == "first" ? 0 : select.fields.length - 1];
-        var $select = select.$(".ui-select:" + tag);
+        select.$(".ui-select:" + tag);
         assert.ok(field.data[0].value == "__null__", tag + " option has correct empty value.");
         assert.ok(
             field.data[0].label == "No " + txt_extension + txt_label + " available.",

@@ -91,7 +91,7 @@ def verify(
             if attributes is None:
                 attributes = {}
             compare = attributes.get('compare', 'diff')
-            if attributes.get('ftype', None) == 'bam':
+            if attributes.get('ftype', None) in ['bam', 'qname_sorted.bam', 'qname_input_sorted.bam', 'unsorted.bam']:
                 local_fh, temp_name = _bam_to_sam(local_name, temp_name)
                 local_name = local_fh.name
             if compare == 'diff':
@@ -190,6 +190,7 @@ def files_diff(file1, file2, attributes=None):
             else:
                 raise AssertionError("Binary data detected, not displaying diff")
         if attributes.get('sort', False):
+            local_file.sort()
             history_data.sort()
         allowed_diff_count = int(attributes.get('lines_diff', 0))
         diff = list(difflib.unified_diff(local_file, history_data, "local_file", "history_data"))

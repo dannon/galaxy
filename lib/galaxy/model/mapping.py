@@ -20,13 +20,13 @@ from sqlalchemy import (
     not_,
     Numeric,
     select,
-    String,
-    Table,
+    String, Table,
     TEXT,
     Text,
     true,
     Unicode,
-    UniqueConstraint
+    UniqueConstraint,
+    VARCHAR
 )
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.orderinglist import ordering_list
@@ -91,6 +91,59 @@ model.UserOpenID.table = Table(
     Column("user_id", Integer, ForeignKey("galaxy_user.id"), index=True),
     Column("openid", TEXT, index=True, unique=True),
     Column("provider", TrimmedString(255)))
+
+model.PSAAssociation.table = Table(
+    "psa_association", metadata,
+    Column('id', Integer, primary_key=True),
+    Column('server_url', VARCHAR(255)),
+    Column('handle', VARCHAR(255)),
+    Column('secret', VARCHAR(255)),
+    Column('issued', Integer),
+    Column('lifetime', Integer),
+    Column('assoc_type', VARCHAR(64)))
+
+model.PSACode.table = Table(
+    "psa_code", metadata,
+    Column('id', Integer, primary_key=True),
+    Column('email', VARCHAR(200)),
+    Column('code', VARCHAR(32)))
+
+model.PSANonce.table = Table(
+    "psa_nonce", metadata,
+    Column('id', Integer, primary_key=True),
+    Column('server_url', VARCHAR(255)),
+    Column('timestamp', Integer),
+    Column('salt', VARCHAR(40)))
+
+model.PSAPartial.table = Table(
+    "psa_partial", metadata,
+    Column('id', Integer, primary_key=True),
+    Column('token', VARCHAR(32)),
+    Column('data', TEXT),
+    Column('next_step', Integer),
+    Column('backend', VARCHAR(32)))
+
+model.UserAuthnzToken.table = Table(
+    "oidc_user_authnz_tokens", metadata,
+    Column('id', Integer, primary_key=True),
+    Column('user_id', Integer, ForeignKey("galaxy_user.id"), index=True),
+    Column('uid', VARCHAR(255)),
+    Column('provider', VARCHAR(32)),
+    Column('extra_data', JSONType, nullable=True),
+    Column('lifetime', Integer),
+    Column('assoc_type', VARCHAR(64)))
+
+model.CloudAuthz.table = Table(
+    "cloudauthz", metadata,
+    Column('id', Integer, primary_key=True),
+    Column('user_id', Integer, ForeignKey("galaxy_user.id"), index=True),
+    Column('provider', String(255)),
+    Column('config', JSONType),
+    Column('authn_id', Integer, ForeignKey("oidc_user_authnz_tokens.id"), index=True),
+    Column('tokens', JSONType),
+    Column('last_update', DateTime),
+    Column('last_activity', DateTime),
+    Column('description', TEXT))
 
 model.PasswordResetToken.table = Table(
     "password_reset_token", metadata,
@@ -624,16 +677,13 @@ model.JobImportHistoryArchive.table = Table(
     Column("history_id", Integer, ForeignKey("history.id"), index=True),
     Column("archive_dir", TEXT))
 
-
-JOB_METRIC_MAX_LENGTH = 1023
-
 model.JobMetricText.table = Table(
     "job_metric_text", metadata,
     Column("id", Integer, primary_key=True),
     Column("job_id", Integer, ForeignKey("job.id"), index=True),
     Column("plugin", Unicode(255)),
     Column("metric_name", Unicode(255)),
-    Column("metric_value", Unicode(JOB_METRIC_MAX_LENGTH)))
+    Column("metric_value", Unicode(model.JOB_METRIC_MAX_LENGTH)))
 
 model.TaskMetricText.table = Table(
     "task_metric_text", metadata,
@@ -641,7 +691,7 @@ model.TaskMetricText.table = Table(
     Column("task_id", Integer, ForeignKey("task.id"), index=True),
     Column("plugin", Unicode(255)),
     Column("metric_name", Unicode(255)),
-    Column("metric_value", Unicode(JOB_METRIC_MAX_LENGTH)))
+    Column("metric_value", Unicode(model.JOB_METRIC_MAX_LENGTH)))
 
 model.JobMetricNumeric.table = Table(
     "job_metric_numeric", metadata,
@@ -649,7 +699,7 @@ model.JobMetricNumeric.table = Table(
     Column("job_id", Integer, ForeignKey("job.id"), index=True),
     Column("plugin", Unicode(255)),
     Column("metric_name", Unicode(255)),
-    Column("metric_value", Numeric(22, 7)))
+    Column("metric_value", Numeric(model.JOB_METRIC_PRECISION, model.JOB_METRIC_SCALE)))
 
 model.TaskMetricNumeric.table = Table(
     "task_metric_numeric", metadata,
@@ -657,7 +707,7 @@ model.TaskMetricNumeric.table = Table(
     Column("task_id", Integer, ForeignKey("task.id"), index=True),
     Column("plugin", Unicode(255)),
     Column("metric_name", Unicode(255)),
-    Column("metric_value", Numeric(22, 7)))
+    Column("metric_value", Numeric(model.JOB_METRIC_PRECISION, model.JOB_METRIC_SCALE)))
 
 
 model.GenomeIndexToolData.table = Table(
@@ -848,7 +898,6 @@ model.WorkflowStep.table = Table(
     Column("subworkflow_id", Integer, ForeignKey("workflow.id"), index=True, nullable=True),
     Column("type", String(64)),
     Column("tool_id", TEXT),
-    # Reserved for future
     Column("tool_version", TEXT),
     Column("tool_inputs", JSONType),
     Column("tool_errors", JSONType),
@@ -858,6 +907,23 @@ model.WorkflowStep.table = Table(
     Column("uuid", UUIDType),
     # Column( "input_connections", JSONType ),
     Column("label", Unicode(255)))
+
+
+model.WorkflowStepInput.table = Table(
+    "workflow_step_input", metadata,
+    Column("id", Integer, primary_key=True),
+    Column("workflow_step_id", Integer, ForeignKey("workflow_step.id"), index=True),
+    Column("name", TEXT),
+    Column("merge_type", TEXT),
+    Column("scatter_type", TEXT),
+    Column("value_from", JSONType),
+    Column("value_from_type", TEXT),
+    Column("default_value", JSONType),
+    Column("default_value_set", Boolean, default=False),
+    Column("runtime_value", Boolean, default=False),
+    UniqueConstraint("workflow_step_id", "name"),
+)
+
 
 model.WorkflowRequestStepState.table = Table(
     "workflow_request_step_states", metadata,
@@ -876,7 +942,7 @@ model.WorkflowRequestInputParameter.table = Table(
     Column("value", TEXT),
     Column("type", Unicode(255)))
 
-model.WorkflowRequestInputStepParmeter.table = Table(
+model.WorkflowRequestInputStepParameter.table = Table(
     "workflow_request_input_step_parameter", metadata,
     Column("id", Integer, primary_key=True),
     Column("workflow_invocation_id", Integer, ForeignKey("workflow_invocation.id"), index=True),
@@ -904,9 +970,8 @@ model.WorkflowStepConnection.table = Table(
     "workflow_step_connection", metadata,
     Column("id", Integer, primary_key=True),
     Column("output_step_id", Integer, ForeignKey("workflow_step.id"), index=True),
-    Column("input_step_id", Integer, ForeignKey("workflow_step.id"), index=True),
+    Column("input_step_input_id", Integer, ForeignKey("workflow_step_input.id"), index=True),
     Column("output_name", TEXT),
-    Column("input_name", TEXT),
     Column("input_subworkflow_step_id", Integer, ForeignKey("workflow_step.id"), index=True),
 )
 
@@ -1284,7 +1349,7 @@ model.VisualizationAnnotationAssociation.table = Table(
     Column("user_id", Integer, ForeignKey("galaxy_user.id"), index=True),
     Column("annotation", TEXT, index=True))
 
-model.HistoryDatasetCollectionAnnotationAssociation.table = Table(
+model.HistoryDatasetCollectionAssociationAnnotationAssociation.table = Table(
     "history_dataset_collection_annotation_association", metadata,
     Column("id", Integer, primary_key=True),
     Column("history_dataset_collection_id", Integer,
@@ -1420,6 +1485,29 @@ mapper(model.UserOpenID, model.UserOpenID.table, properties=dict(
         primaryjoin=(model.UserOpenID.table.c.user_id == model.User.table.c.id),
         backref='openids',
         order_by=desc(model.UserOpenID.table.c.update_time))
+))
+
+mapper(model.PSAAssociation, model.PSAAssociation.table, properties=None)
+
+mapper(model.PSACode, model.PSACode.table, properties=None)
+
+mapper(model.PSANonce, model.PSANonce.table, properties=None)
+
+mapper(model.PSAPartial, model.PSAPartial.table, properties=None)
+
+mapper(model.UserAuthnzToken, model.UserAuthnzToken.table, properties=dict(
+    user=relation(model.User,
+                  primaryjoin=(model.UserAuthnzToken.table.c.user_id == model.User.table.c.id),
+                  backref='social_auth')
+))
+
+mapper(model.CloudAuthz, model.CloudAuthz.table, properties=dict(
+    user=relation(model.User,
+                  primaryjoin=(model.CloudAuthz.table.c.user_id == model.User.table.c.id),
+                  backref='cloudauthz'),
+    authn=relation(model.UserAuthnzToken,
+                   primaryjoin=(model.CloudAuthz.table.c.authn_id == model.UserAuthnzToken.table.c.id),
+                   backref='cloudauthz')
 ))
 
 mapper(model.ValidationError, model.ValidationError.table)
@@ -1623,6 +1711,8 @@ mapper(model.User, model.User.table, properties=dict(
     api_keys=relation(model.APIKeys,
         backref="user",
         order_by=desc(model.APIKeys.table.c.create_time)),
+    cloudauthzs=relation(model.CloudAuthz,
+                         primaryjoin=model.CloudAuthz.table.c.user_id == model.User.table.c.id),
 ))
 
 mapper(model.PasswordResetToken, model.PasswordResetToken.table,
@@ -1962,7 +2052,7 @@ mapper(model.JobExternalOutputMetadata, model.JobExternalOutputMetadata.table, p
 mapper(model.JobExportHistoryArchive, model.JobExportHistoryArchive.table, properties=dict(
     job=relation(model.Job),
     history=relation(model.History),
-    dataset=relation(model.Dataset)
+    dataset=relation(model.Dataset, backref='job_export_history_archive')
 ))
 
 mapper(model.JobImportHistoryArchive, model.JobImportHistoryArchive.table, properties=dict(
@@ -1972,7 +2062,7 @@ mapper(model.JobImportHistoryArchive, model.JobImportHistoryArchive.table, prope
 
 mapper(model.GenomeIndexToolData, model.GenomeIndexToolData.table, properties=dict(
     job=relation(model.Job, backref='job'),
-    dataset=relation(model.Dataset),
+    dataset=relation(model.Dataset, backref='genome_index_tool_data'),
     user=relation(model.User),
     deferred=relation(model.DeferredJob, backref='deferred_job'),
     transfer=relation(model.TransferJob, backref='transfer_job')
@@ -2069,8 +2159,8 @@ simple_mapping(model.HistoryDatasetCollectionAssociation,
     tags=relation(model.HistoryDatasetCollectionTagAssociation,
         order_by=model.HistoryDatasetCollectionTagAssociation.table.c.id,
         backref='dataset_collections'),
-    annotations=relation(model.HistoryDatasetCollectionAnnotationAssociation,
-        order_by=model.HistoryDatasetCollectionAnnotationAssociation.table.c.id,
+    annotations=relation(model.HistoryDatasetCollectionAssociationAnnotationAssociation,
+        order_by=model.HistoryDatasetCollectionAssociationAnnotationAssociation.table.c.id,
         backref="dataset_collections"),
     ratings=relation(model.HistoryDatasetCollectionRatingAssociation,
         order_by=model.HistoryDatasetCollectionRatingAssociation.table.c.id,
@@ -2144,6 +2234,13 @@ mapper(model.WorkflowStep, model.WorkflowStep.table, properties=dict(
         backref="workflow_steps")
 ))
 
+mapper(model.WorkflowStepInput, model.WorkflowStepInput.table, properties=dict(
+    workflow_step=relation(model.WorkflowStep,
+        backref=backref("inputs", uselist=True),
+        cascade="all",
+        primaryjoin=(model.WorkflowStepInput.table.c.workflow_step_id == model.WorkflowStep.table.c.id))
+))
+
 mapper(model.WorkflowOutput, model.WorkflowOutput.table, properties=dict(
     workflow_step=relation(model.WorkflowStep,
         backref='workflow_outputs',
@@ -2151,10 +2248,10 @@ mapper(model.WorkflowOutput, model.WorkflowOutput.table, properties=dict(
 ))
 
 mapper(model.WorkflowStepConnection, model.WorkflowStepConnection.table, properties=dict(
-    input_step=relation(model.WorkflowStep,
-        backref="input_connections",
+    input_step_input=relation(model.WorkflowStepInput,
+        backref="connections",
         cascade="all",
-        primaryjoin=(model.WorkflowStepConnection.table.c.input_step_id == model.WorkflowStep.table.c.id)),
+        primaryjoin=(model.WorkflowStepConnection.table.c.input_step_input_id == model.WorkflowStepInput.table.c.id)),
     input_subworkflow_step=relation(model.WorkflowStep,
         backref=backref("parent_workflow_input_connections", uselist=True),
         primaryjoin=(model.WorkflowStepConnection.table.c.input_subworkflow_step_id == model.WorkflowStep.table.c.id),
@@ -2173,7 +2270,8 @@ mapper(model.StoredWorkflow, model.StoredWorkflow.table, properties=dict(
     workflows=relation(model.Workflow,
         backref='stored_workflow',
         cascade="all, delete-orphan",
-        primaryjoin=(model.StoredWorkflow.table.c.id == model.Workflow.table.c.stored_workflow_id)),
+        primaryjoin=(model.StoredWorkflow.table.c.id == model.Workflow.table.c.stored_workflow_id),
+        order_by=-model.Workflow.id),
     latest_workflow=relation(model.Workflow,
         post_update=True,
         primaryjoin=(model.StoredWorkflow.table.c.latest_workflow_id == model.Workflow.table.c.id),
@@ -2219,7 +2317,7 @@ mapper(model.WorkflowInvocation, model.WorkflowInvocation.table, properties=dict
     history=relation(model.History, backref=backref('workflow_invocations', uselist=True)),
     input_parameters=relation(model.WorkflowRequestInputParameter),
     step_states=relation(model.WorkflowRequestStepState),
-    input_step_parameters=relation(model.WorkflowRequestInputStepParmeter),
+    input_step_parameters=relation(model.WorkflowRequestInputStepParameter),
     input_datasets=relation(model.WorkflowRequestToInputDatasetAssociation),
     input_dataset_collections=relation(model.WorkflowRequestToInputDatasetCollectionAssociation),
     subworkflow_invocations=relation(model.WorkflowInvocationToSubworkflowInvocationAssociation,
@@ -2254,7 +2352,7 @@ simple_mapping(model.WorkflowRequestStepState,
     workflow_invocation=relation(model.WorkflowInvocation),
     workflow_step=relation(model.WorkflowStep))
 
-simple_mapping(model.WorkflowRequestInputStepParmeter,
+simple_mapping(model.WorkflowRequestInputStepParameter,
     workflow_invocation=relation(model.WorkflowInvocation),
     workflow_step=relation(model.WorkflowStep))
 
@@ -2417,7 +2515,7 @@ annotation_mapping(model.StoredWorkflowAnnotationAssociation, stored_workflow=mo
 annotation_mapping(model.WorkflowStepAnnotationAssociation, workflow_step=model.WorkflowStep)
 annotation_mapping(model.PageAnnotationAssociation, page=model.Page)
 annotation_mapping(model.VisualizationAnnotationAssociation, visualization=model.Visualization)
-annotation_mapping(model.HistoryDatasetCollectionAnnotationAssociation,
+annotation_mapping(model.HistoryDatasetCollectionAssociationAnnotationAssociation,
     history_dataset_collection=model.HistoryDatasetCollectionAssociation)
 annotation_mapping(model.LibraryDatasetCollectionAnnotationAssociation,
     library_dataset_collection=model.LibraryDatasetCollectionAssociation)
@@ -2484,12 +2582,16 @@ def db_next_hid(self, n=1):
     :rtype:     int
     :returns:   the next history id
     """
-    conn = object_session(self).connection()
+    session = object_session(self)
     table = self.table
-    trans = conn.begin()
+    trans = session.begin()
     try:
-        next_hid = select([table.c.hid_counter], table.c.id == self.id, for_update=True).scalar()
-        table.update(table.c.id == self.id).execute(hid_counter=(next_hid + n))
+        if "postgres" not in session.bind.dialect.name:
+            next_hid = select([table.c.hid_counter], table.c.id == model.cached_id(self), for_update=True).scalar()
+            table.update(table.c.id == self.id).execute(hid_counter=(next_hid + n))
+        else:
+            stmt = table.update().where(table.c.id == model.cached_id(self)).values(hid_counter=(table.c.hid_counter + n)).returning(table.c.hid_counter)
+            next_hid = session.execute(stmt).scalar() - n
         trans.commit()
         return next_hid
     except Exception:
@@ -2501,11 +2603,11 @@ model.History._next_hid = db_next_hid
 
 
 def _workflow_invocation_update(self):
-    conn = object_session(self).connection()
+    session = object_session(self)
     table = self.table
     now_val = now()
     stmt = table.update().values(update_time=now_val).where(and_(table.c.id == self.id, table.c.update_time < now_val))
-    conn.execute(stmt)
+    session.execute(stmt)
 
 
 model.WorkflowInvocation.update = _workflow_invocation_update

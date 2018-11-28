@@ -8,32 +8,6 @@ import Drilldown from "mvc/ui/ui-drilldown";
 import Buttons from "mvc/ui/ui-buttons";
 import Modal from "mvc/ui/ui-modal";
 
-/** Label wrapper */
-export var Label = Backbone.View.extend({
-    tagName: "label",
-    initialize: function(options) {
-        this.model = (options && options.model) || new Backbone.Model(options);
-        this.tagName = options.tagName || this.tagName;
-        this.setElement($(`<${this.tagName}/>`));
-        this.listenTo(this.model, "change", this.render, this);
-        this.render();
-    },
-    title: function(new_title) {
-        this.model.set("title", new_title);
-    },
-    value: function() {
-        return this.model.get("title");
-    },
-    render: function() {
-        this.$el
-            .removeClass()
-            .addClass("ui-label")
-            .addClass(this.model.get("cls"))
-            .html(this.model.get("title"));
-        return this;
-    }
-});
-
 /** Displays messages used e.g. in the tool form */
 export var Message = Backbone.View.extend({
     initialize: function(options) {
@@ -47,24 +21,20 @@ export var Message = Backbone.View.extend({
                 fade: true
             }).set(options);
         this.listenTo(this.model, "change", this.render, this);
+        if (options && options.active_tab) {
+            this.active_tab = options.active_tab;
+        }
         this.render();
     },
     update: function(options) {
         this.model.set(options);
     },
     render: function() {
+        var status = this.model.get("status");
         this.$el
             .removeClass()
-            .addClass("ui-message")
+            .addClass(`alert alert-${status} mt-2`)
             .addClass(this.model.get("cls"));
-        var status = this.model.get("status");
-        if (this.model.get("large")) {
-            this.$el.addClass(
-                `${(status == "success" && "done") || (status == "danger" && "error") || status}messagelarge`
-            );
-        } else {
-            this.$el.addClass("alert").addClass(`alert-${status}`);
-        }
         if (this.model.get("message")) {
             this.$el.html(this.messageForDisplay());
             this.$el[this.model.get("fade") ? "fadeIn" : "show"]();
@@ -76,7 +46,7 @@ export var Message = Backbone.View.extend({
                 }, 3000);
             }
         } else {
-            this.$el.fadeOut();
+            this.$el.hide();
         }
         return this;
     },
@@ -181,6 +151,53 @@ export var Hidden = Backbone.View.extend({
     }
 });
 
+/** Creates an input element which switches between select and text field */
+export var TextSelect = Backbone.View.extend({
+    initialize: function(options) {
+        this.select = new options.SelectClass.View(options);
+        this.model = this.select.model;
+        this.text = new Input({
+            onchange: this.model.get("onchange")
+        });
+        this.on("change", () => {
+            if (this.model.get("onchange")) {
+                this.model.get("onchange")(this.value());
+            }
+        });
+        this.setElement(
+            $("<div/>")
+                .append(this.select.$el)
+                .append(this.text.$el)
+        );
+        this.update(options);
+    },
+    wait: function() {
+        this.select.wait();
+    },
+    unwait: function() {
+        this.select.unwait();
+    },
+    value: function(new_val) {
+        var element = this.textmode ? this.text : this.select;
+        return element.value(new_val);
+    },
+    update: function(input_def) {
+        var data = input_def.data;
+        if (!data) {
+            data = [];
+            _.each(input_def.options, option => {
+                data.push({ label: option[0], value: option[1] });
+            });
+        }
+        var v = this.value();
+        this.textmode = input_def.textable && (!$.isArray(data) || data.length === 0);
+        this.text.$el[this.textmode ? "show" : "hide"]();
+        this.select.$el[this.textmode ? "hide" : "show"]();
+        this.select.update({ data: data });
+        this.value(v);
+    }
+});
+
 /** Creates a upload element input field */
 export var Upload = Backbone.View.extend({
     initialize: function(options) {
@@ -192,7 +209,7 @@ export var Upload = Backbone.View.extend({
                 .append(
                     (this.$file = $("<input/>")
                         .attr("type", "file")
-                        .addClass("ui-margin-bottom"))
+                        .addClass("mb-1"))
                 )
                 .append(
                     (this.$text = $("<textarea/>")
@@ -237,8 +254,7 @@ export var Upload = Backbone.View.extend({
  * what we need where we need it, allowing for better package optimization.
  */
 
-export let Button = Buttons.ButtonDefault;
-export let ButtonIcon = Buttons.ButtonIcon;
+export let Button = Buttons.Button;
 export let ButtonCheck = Buttons.ButtonCheck;
 export let ButtonMenu = Buttons.ButtonMenu;
 export let ButtonLink = Buttons.ButtonLink;
@@ -248,13 +264,11 @@ export let Radio = Options.Radio;
 export { Select, Slider, Drilldown };
 
 export default {
-    Button: Buttons.ButtonDefault,
-    ButtonIcon: Buttons.ButtonIcon,
+    Button: Buttons.Button,
     ButtonCheck: Buttons.ButtonCheck,
     ButtonMenu: Buttons.ButtonMenu,
     ButtonLink: Buttons.ButtonLink,
     Input: Input,
-    Label: Label,
     Message: Message,
     UnescapedMessage: UnescapedMessage,
     Upload: Upload,
@@ -263,6 +277,7 @@ export default {
     Checkbox: Options.Checkbox,
     Radio: Options.Radio,
     Select: Select,
+    TextSelect: TextSelect,
     Hidden: Hidden,
     Slider: Slider,
     Drilldown: Drilldown

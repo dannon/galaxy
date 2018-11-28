@@ -1,3 +1,5 @@
+import _ from "underscore";
+import { getAppRoot } from "onload/loadConfig";
 import DATASET_MODEL from "mvc/dataset/dataset-model";
 import BASE_MVC from "mvc/base-mvc";
 import Utils from "utils/utils";
@@ -60,10 +62,17 @@ var DatasetCollectionElementMixin = {
 
     /** merge the attributes of the sub-object 'object' into this model */
     _mergeObject: function(attributes) {
-        // if we don't preserve and correct ids here, the element id becomes the object id
-        // and collision in backbone's _byId will occur and only
+        // Don't let the dataset ID replace the DCE's ID so record it as the
+        // element_id and when fetching dataset details below use the element_id
+        // instead of this.id.
+        const object = attributes.object;
+        let elementId = this.elementId;
+        if (object) {
+            elementId = attributes.object.id;
+            delete attributes.object.id;
+        }
         _.extend(attributes, attributes.object, {
-            element_id: attributes.id
+            element_id: elementId
         });
         delete attributes.object;
         return attributes;
@@ -121,9 +130,18 @@ var DatasetDCE = DATASET_MODEL.DatasetAssociation.extend(
                 if (!this.has("history_id")) {
                     console.warn("no endpoint for non-hdas within a collection yet");
                     // (a little silly since this api endpoint *also* points at hdas)
-                    return `${Galaxy.root}api/datasets`;
+                    return `${getAppRoot()}api/datasets`;
                 }
-                return `${Galaxy.root}api/histories/${this.get("history_id")}/contents/${this.get("id")}`;
+                const datasetId = this._getDatasetId();
+                const url = `${getAppRoot()}api/histories/${this.get("history_id")}/contents/${datasetId}`;
+                return url;
+            },
+
+            _getDatasetId: function() {
+                // I'm a DCE acting as dataset, this URL needs to be the dataset URL so
+                // use element_id instead of id. See note above in _mergeObject and
+                // discussion on #3782 for more context.
+                return this.get("element_id");
             },
 
             defaults: _.extend(
@@ -133,7 +151,9 @@ var DatasetDCE = DATASET_MODEL.DatasetAssociation.extend(
             ),
 
             _downloadQueryParameters: function() {
-                var fileExt = this.get("file_ext");
+                // Setting the file extension to just 'data' defers that
+                // decision to the serverside, setting based on the datatype.
+                var fileExt = this.get("file_ext") || "data";
                 var elementIdentifier = this.get("element_identifier");
                 var parentHdcaId = this.get("parent_hdca_id");
                 return `?to_ext=${fileExt}&hdca_id=${parentHdcaId}&element_identifier=${elementIdentifier}`;
@@ -227,10 +247,10 @@ var DatasetCollection = Backbone.Model.extend(BASE_MVC.LoggableMixin)
                 //TODO: same patterns as DatasetCollectionElement _createObjectModel - refactor to BASE_MVC.hasSubModel?
                 var elements = this.get("elements") || [];
                 this.unset("elements", { silent: true });
-                var self = this;
+                var parentHdcaId = this.get("parent_hdca_id") || this.get("id");
                 _.each(elements, (element, index) => {
                     _.extend(element, {
-                        parent_hdca_id: self.get("id")
+                        parent_hdca_id: parentHdcaId
                     });
                 });
                 this.elements = new collectionClass(elements);

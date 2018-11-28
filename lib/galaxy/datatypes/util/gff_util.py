@@ -8,6 +8,8 @@ from bx.tabular.io import Comment, Header
 
 from galaxy.util.odict import odict
 
+FASTA_DIRECTIVE = '##FASTA'
+
 
 class GFFInterval(GenomicInterval):
     """
@@ -144,6 +146,7 @@ class GFFReaderWrapper(NiceReaderWrapper):
         self.cur_offset = 0
         self.seed_interval = None
         self.seed_interval_line_len = 0
+        self.__end_of_intervals = False
 
     def parse_row(self, line):
         interval = GFFInterval(self, line.split("\t"), self.chrom_col, self.feature_col,
@@ -176,6 +179,8 @@ class GFFReaderWrapper(NiceReaderWrapper):
         #
         # Get next GFFFeature
         #
+        if self.__end_of_intervals:
+            raise StopIteration("End of Intervals")
         raw_size = self.seed_interval_line_len
 
         # If there is no seed interval, set one. Also, if there are no more
@@ -183,7 +188,7 @@ class GFFReaderWrapper(NiceReaderWrapper):
         if not self.seed_interval:
             while not self.seed_interval:
                 try:
-                    self.seed_interval = GenomicIntervalReader.next(self)
+                    self.seed_interval = super(GenomicIntervalReader, self).__next__()
                 except ParseError as e:
                     handle_parse_error(e)
                 # TODO: When no longer supporting python 2.4 use finally:
@@ -210,9 +215,9 @@ class GFFReaderWrapper(NiceReaderWrapper):
         feature_intervals.append(self.seed_interval)
         while True:
             try:
-                interval = GenomicIntervalReader.next(self)
+                interval = super(GenomicIntervalReader, self).__next__()
                 raw_size += len(self.current_line)
-            except StopIteration as e:
+            except StopIteration:
                 # No more intervals to read, but last feature needs to be
                 # returned.
                 interval = None
@@ -228,6 +233,9 @@ class GFFReaderWrapper(NiceReaderWrapper):
 
             # Ignore comments.
             if isinstance(interval, Comment):
+                if self.current_line.rstrip() == FASTA_DIRECTIVE:
+                    self.__end_of_intervals = True
+                    break
                 continue
 
             # Determine if interval is part of feature.

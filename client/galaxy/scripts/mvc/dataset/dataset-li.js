@@ -1,3 +1,7 @@
+import _ from "underscore";
+import $ from "jquery";
+import Backbone from "backbone";
+import { getGalaxyInstance } from "app";
 import LIST_ITEM from "mvc/list/list-item";
 import STATES from "mvc/dataset/states";
 import faIconButton from "ui/fa-icon-button";
@@ -82,7 +86,7 @@ var DatasetListItemView = _super.extend(
             if (view.model.inReadyState() && !view.model.hasDetails()) {
                 return view.model.fetch({ silent: true });
             }
-            return jQuery.when();
+            return $.when();
         },
 
         // ......................................................................... removal
@@ -162,6 +166,7 @@ var DatasetListItemView = _super.extend(
                 // add frame manager option onclick event
                 var self = this;
                 displayBtnData.onclick = ev => {
+                    let Galaxy = getGalaxyInstance();
                     if (Galaxy.frame && Galaxy.frame.active) {
                         // Add dataset to frames.
                         Galaxy.frame.addDataset(self.model.get("id"));
@@ -259,6 +264,7 @@ var DatasetListItemView = _super.extend(
                 target: this.linkTarget,
                 faIcon: "fa-info-circle",
                 onclick: function(ev) {
+                    let Galaxy = getGalaxyInstance();
                     if (Galaxy.frame && Galaxy.frame.active) {
                         Galaxy.frame.add({
                             title: _l("Dataset details"),
@@ -326,7 +332,7 @@ var DatasetListItemView = _super.extend(
                 [
                     "<% _.each(_.sortBy(_.uniq(tags), function(x) { return x }), function(tag){ %>",
                     '<% if (tag.indexOf("name:") == 0){ %>',
-                    '<span class="label label-info"><%- tag.slice(5) %></span>',
+                    '<span class="badge badge-primary badge-tags"><%- tag.slice(5) %></span>',
                     "<% } %>",
                     "<% }); %>"
                 ].join("")
@@ -502,7 +508,12 @@ DatasetListItemView.prototype.templates = (() => {
         "dataset"
     );
     summaryTemplates[STATES.PAUSED] = BASE_MVC.wrapTemplate(
-        ["<div>", _l('This job is paused. Use the "Resume Paused Jobs" in the history menu to resume'), "</div>"],
+        [
+            "<div>",
+            _l('This job is paused. Use the "Resume Paused Jobs" in the history menu to resume'),
+            "</div>",
+            '<div class="info"><%- dataset.misc_info %></div>'
+        ],
         "dataset"
     );
     summaryTemplates[STATES.ERROR] = BASE_MVC.wrapTemplate(

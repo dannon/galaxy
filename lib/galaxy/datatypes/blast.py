@@ -30,20 +30,24 @@
 
 Covers the ``blastxml`` format and the BLAST databases.
 """
+import io
 import logging
 import os
 from time import sleep
 
+from galaxy.util import smart_str
 from .data import (
     Data,
     get_file_peek,
     Text
 )
+from .sniff import build_sniff_from_prefix
 from .xml import GenericXml
 
 log = logging.getLogger(__name__)
 
 
+@build_sniff_from_prefix
 class BlastXml(GenericXml):
     """NCBI Blast XML Output data"""
     file_ext = "blastxml"
@@ -59,31 +63,31 @@ class BlastXml(GenericXml):
             dataset.peek = 'file does not exist'
             dataset.blurb = 'file purged from disk'
 
-    def sniff(self, filename):
+    def sniff_prefix(self, file_prefix):
         """Determines whether the file is blastxml
 
         >>> from galaxy.datatypes.sniff import get_test_fname
         >>> fname = get_test_fname('megablast_xml_parser_test1.blastxml')
         >>> BlastXml().sniff(fname)
         True
-        >>> fname = get_test_fname('tblastn_four_human_vs_rhodopsin.xml')
+        >>> fname = get_test_fname('tblastn_four_human_vs_rhodopsin.blastxml')
         >>> BlastXml().sniff(fname)
         True
         >>> fname = get_test_fname('interval.interval')
         >>> BlastXml().sniff(fname)
         False
         """
-        with open(filename) as handle:
-            line = handle.readline()
-            if line.strip() != '<?xml version="1.0"?>':
-                return False
-            line = handle.readline()
-            if line.strip() not in ['<!DOCTYPE BlastOutput PUBLIC "-//NCBI//NCBI BlastOutput/EN" "http://www.ncbi.nlm.nih.gov/dtd/NCBI_BlastOutput.dtd">',
-                                    '<!DOCTYPE BlastOutput PUBLIC "-//NCBI//NCBI BlastOutput/EN" "NCBI_BlastOutput.dtd">']:
-                return False
-            line = handle.readline()
-            if line.strip() != '<BlastOutput>':
-                return False
+        handle = file_prefix.string_io()
+        line = handle.readline()
+        if line.strip() != '<?xml version="1.0"?>':
+            return False
+        line = handle.readline()
+        if line.strip() not in ['<!DOCTYPE BlastOutput PUBLIC "-//NCBI//NCBI BlastOutput/EN" "http://www.ncbi.nlm.nih.gov/dtd/NCBI_BlastOutput.dtd">',
+                                '<!DOCTYPE BlastOutput PUBLIC "-//NCBI//NCBI BlastOutput/EN" "NCBI_BlastOutput.dtd">']:
+            return False
+        line = handle.readline()
+        if line.strip() != '<BlastOutput>':
+            return False
         return True
 
     def merge(split_files, output_file):
@@ -96,6 +100,7 @@ class BlastXml(GenericXml):
                              % (split_files, output_file))
         with open(output_file, "w") as out:
             h = None
+            old_header = None
             for f in split_files:
                 if not os.path.isfile(f):
                     log.warning("BLAST XML file %s missing, retry in 1s..." % f)
@@ -147,7 +152,7 @@ class BlastXml(GenericXml):
                 if f == split_files[0]:
                     out.write(header)
                     old_header = header
-                elif old_header[:300] != header[:300]:
+                elif old_header is not None and old_header[:300] != header[:300]:
                     # Enough to check <BlastOutput_program> and <BlastOutput_version> match
                     h.close()
                     raise ValueError("BLAST XML headers don't match for %s and %s - have:\n%s\n...\n\nAnd:\n%s\n...\n"
@@ -166,7 +171,7 @@ class BlastXml(GenericXml):
     merge = staticmethod(merge)
 
 
-class _BlastDb(object):
+class _BlastDb(Data):
     """Base class for BLAST database datatype."""
 
     def set_peek(self, dataset, is_multi_byte=False):
@@ -187,14 +192,19 @@ class _BlastDb(object):
 
     def display_data(self, trans, data, preview=False, filename=None,
                      to_ext=None, size=None, offset=None, **kwd):
-        """Documented as an old display method, but still gets called via tests etc
-
-        This allows us to format the data shown in the central pane via the "eye" icon.
         """
-        if filename is not None and filename != "index":
-            # Change nothing - important for the unit tests to access child files:
-            return Data.display_data(self, trans, data, preview, filename,
-                                     to_ext, size, offset, **kwd)
+        If preview is `True` allows us to format the data shown in the central pane via the "eye" icon.
+        If preview is `False` triggers download.
+        """
+        if not preview:
+            return super(_BlastDb, self).display_data(trans,
+                                                      data=data,
+                                                      preview=preview,
+                                                      filename=filename,
+                                                      to_ext=to_ext,
+                                                      size=size,
+                                                      offset=offset,
+                                                      **kwd)
         if self.file_ext == "blastdbn":
             title = "This is a nucleotide BLAST database"
         elif self.file_ext == "blastdbp":
@@ -207,14 +217,14 @@ class _BlastDb(object):
         msg = ""
         try:
             # Try to use any text recorded in the dummy index file:
-            with open(data.file_name, "rU") as handle:
+            with io.open(data.file_name, "rU", encoding='utf-8') as handle:
                 msg = handle.read().strip()
         except Exception:
             pass
         if not msg:
             msg = title
         # Galaxy assumes HTML for the display of composite datatypes,
-        return "<html><head><title>%s</title></head><body><pre>%s</pre></body></html>" % (title, msg)
+        return smart_str("<html><head><title>%s</title></head><body><pre>%s</pre></body></html>" % (title, msg))
 
     def merge(split_files, output_file):
         """Merge BLAST databases (not implemented for now)."""

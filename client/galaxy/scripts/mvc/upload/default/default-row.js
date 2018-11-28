@@ -4,6 +4,7 @@ import Utils from "utils/utils";
 import UploadModel from "mvc/upload/upload-model";
 import UploadSettings from "mvc/upload/upload-settings";
 import Popover from "mvc/ui/ui-popover";
+import UploadExtension from "mvc/upload/upload-extension";
 import Select from "mvc/ui/ui-select";
 export default Backbone.View.extend({
     /** Dictionary of upload states and associated icons */
@@ -19,6 +20,7 @@ export default Backbone.View.extend({
     initialize: function(app, options) {
         var self = this;
         this.app = app;
+        this.list_extensions = app.list_extensions;
         this.model = options.model;
         this.setElement(this._template(options.model));
         this.$mode = this.$(".upload-mode");
@@ -34,7 +36,7 @@ export default Backbone.View.extend({
         this.$percentage = this.$(".upload-percentage");
 
         // append popup to settings icon
-        this.settings = new Popover.View({
+        this.settings = new Popover({
             title: _l("Upload configuration"),
             container: this.$(".upload-settings"),
             placement: "bottom"
@@ -58,7 +60,7 @@ export default Backbone.View.extend({
         // create select extension
         this.select_extension = new Select.View({
             css: "upload-extension",
-            data: self.app.list_extensions,
+            data: _.filter(this.list_extensions, ext => !ext.composite_files),
             container: this.$(".upload-extension"),
             value: default_extension,
             onchange: function(extension) {
@@ -80,11 +82,17 @@ export default Backbone.View.extend({
         // handle extension info popover
         this.$(".upload-extension-info")
             .on("click", e => {
-                self.app.showExtensionInfo({
-                    $el: $(e.target),
-                    title: self.select_extension.text(),
-                    extension: self.select_extension.value()
-                });
+                let upload_ext = this.upload_extension;
+                if (upload_ext) {
+                    if (upload_ext.extension_popup.visible) {
+                        upload_ext.extension_popup.hide();
+                    } else {
+                        upload_ext.extension_popup.remove();
+                        this._makeUploadExtensionsPopover(e);
+                    }
+                } else {
+                    this._makeUploadExtensionsPopover(e);
+                }
             })
             .on("mousedown", e => {
                 e.preventDefault();
@@ -105,6 +113,11 @@ export default Backbone.View.extend({
                 url_paste: $(e.target).val(),
                 file_size: $(e.target).val().length
             });
+        });
+
+        // handle text editing event
+        this.$title.on("change input", e => {
+            self.model.set({ file_name: $(e.target).val() });
         });
 
         // model events
@@ -148,7 +161,7 @@ export default Backbone.View.extend({
     /** Render type */
     _refreshType: function() {
         var options = this.model.attributes;
-        this.$title.html(_.escape(options.file_name));
+        this.$title.val(_.escape(options.file_name));
         this.$size.html(Utils.bytesToString(options.file_size));
         this.$mode
             .removeClass()
@@ -207,6 +220,7 @@ export default Backbone.View.extend({
         this.model.set("enabled", status == "init");
         var enabled = this.model.get("enabled");
         this.$text_content.attr("disabled", !enabled);
+        this.$title.attr("disabled", !enabled);
         if (enabled) {
             this.select_genome.enable();
             this.select_extension.enable();
@@ -217,13 +231,13 @@ export default Backbone.View.extend({
         this.$info_progress.show();
         this.$el.removeClass().addClass("upload-row");
         if (status == "success") {
-            this.$el.addClass("success");
+            this.$el.addClass("table-success");
             this.$percentage.html("100%");
         } else if (status == "error") {
-            this.$el.addClass("danger");
+            this.$el.addClass("table-danger");
             this.$info_progress.hide();
         } else if (status == "warning") {
-            this.$el.addClass("warning");
+            this.$el.addClass("table-warning");
             this.$info_progress.hide();
         }
     },
@@ -242,21 +256,59 @@ export default Backbone.View.extend({
 
     /** Attach file info popup */
     _showSettings: function() {
-        if (!this.settings.visible) {
-            this.settings.empty();
-            this.settings.append(new UploadSettings(this).$el);
-            this.settings.show();
-        } else {
-            this.settings.hide();
-        }
+        this.settings.show(new UploadSettings(this).$el);
+    },
+
+    /** Make extension popover */
+    _makeUploadExtensionsPopover: function(e) {
+        this.upload_extension = new UploadExtension({
+            $el: $(e.target),
+            title: this.select_extension.text(),
+            extension: this.select_extension.value(),
+            list: this.list_extensions
+        });
     },
 
     /** View template */
     _template: function(options) {
-        return `<tr id="upload-row-${
-            options.id
-        }" class="upload-row"><td><div class="upload-text-column"><div class="upload-mode"/><div class="upload-title"/><div class="upload-text"><div class="upload-text-info">You can tell Galaxy to download data from web by entering URL in this box (one per line). You can also directly paste the contents of a file.</div><textarea class="upload-text-content form-control"/></div></div></td><td><div class="upload-size"/></td><td><div class="upload-extension" style="float: left;"/>&nbsp;&nbsp<div class="upload-extension-info upload-icon-button fa fa-search"/></td><td><div class="upload-genome"/></td><td><div class="upload-settings upload-icon-button fa fa-gear"/></td><td><div class="upload-info"><div class="upload-info-text"/><div class="upload-info-progress progress"><div class="upload-progress-bar progress-bar progress-bar-success"/><div class="upload-percentage">0%</div></div></div></td><td><div class="upload-symbol ${
-            this.status_classes.init
-        }"/></td></tr>`;
+        return `<tr id="upload-row-${options.id}" class="upload-row">
+                    <td>
+                        <div class="upload-text-column">
+                            <div class="upload-mode"/>
+                            <input class="upload-title ml-2 border rounded"/>
+                            <div class="upload-text">
+                                <div class="upload-text-info">
+                                    You can tell Galaxy to download data from web by entering URL in this box (one per line). You can also directly paste the contents of a file.
+                                </div>
+                                <textarea class="upload-text-content form-control"/>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="upload-size"/>
+                    </td>
+                    <td>
+                        <div class="upload-extension float-left mr-1"/>
+                        <div class="upload-extension-info upload-icon-button fa fa-search"/>
+                    </td>
+                    <td>
+                        <div class="upload-genome"/>
+                    </td>
+                    <td>
+                        <div class="upload-settings upload-icon-button fa fa-gear"/>
+                    </td>
+                    <td>
+                        <div class="upload-info">
+                            <div class="upload-info-text"/>
+                            <div class="upload-info-progress progress">
+                                <div class="upload-progress-bar progress-bar progress-bar-success"/>
+                                <div class="upload-percentage">0%</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="upload-symbol ${this.status_classes.init}"/>
+                    </td>
+                </tr>`;
     }
 });

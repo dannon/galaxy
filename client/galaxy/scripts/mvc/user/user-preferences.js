@@ -1,11 +1,18 @@
-import _l from "utils/localization";
 /** User Preferences view */
-import Form from "mvc/form/form-view";
+import _ from "underscore";
+import $ from "jquery";
+import Backbone from "backbone";
+import { getAppRoot } from "onload/loadConfig";
+import { getGalaxyInstance } from "app";
+import _l from "utils/localization";
+// import Form from "mvc/form/form-view";
 import Ui from "mvc/ui/ui-misc";
 import QueryStringParsing from "utils/query-string-parsing";
+
 /** Contains descriptive dictionaries describing user forms */
 var Model = Backbone.Model.extend({
     initialize: function(options) {
+        let Galaxy = getGalaxyInstance();
         options = options || {};
         options.user_id = options.user_id || Galaxy.user.id;
         this.set({
@@ -62,7 +69,7 @@ var Model = Backbone.Model.extend({
                 description: _l("Associate OpenIDs with your account."),
                 icon: "fa-openid",
                 onclick: function() {
-                    window.location.href = `${Galaxy.root}openids/list`;
+                    Galaxy.page.router.push(`${getAppRoot()}openids/list`);
                 }
             },
             custom_builds: {
@@ -70,7 +77,7 @@ var Model = Backbone.Model.extend({
                 description: _l("Add or remove custom builds using history datasets."),
                 icon: "fa-cubes",
                 onclick: function() {
-                    window.location.href = `${Galaxy.root}custom_builds`;
+                    Galaxy.page.router.push(`${getAppRoot()}custom_builds`);
                 }
             },
             logout: {
@@ -86,7 +93,7 @@ var Model = Backbone.Model.extend({
                                 Galaxy.modal.hide();
                             },
                             "Sign out": function() {
-                                window.location.href = `${Galaxy.root}user/logout?session_csrf_token=${
+                                window.location.href = `${getAppRoot()}user/logout?session_csrf_token=${
                                     Galaxy.session_csrf_token
                                 }`;
                             }
@@ -101,6 +108,7 @@ var Model = Backbone.Model.extend({
 /** View of the main user preference panel with links to individual user forms */
 var View = Backbone.View.extend({
     title: _l("User Preferences"),
+    active_tab: "user",
     initialize: function() {
         this.model = new Model();
         this.setElement("<div/>");
@@ -109,13 +117,13 @@ var View = Backbone.View.extend({
 
     render: function() {
         var self = this;
+        let Galaxy = getGalaxyInstance();
         var config = Galaxy.config;
-        $.getJSON(`${Galaxy.root}api/users/${Galaxy.user.id}`, data => {
+        $.getJSON(`${getAppRoot()}api/users/${Galaxy.user.id}`, data => {
             self.$preferences = $("<div/>")
-                .addClass("ui-panel")
                 .append($("<h2/>").append("User preferences"))
                 .append($("<p/>").append(`You are logged in as <strong>${_.escape(data.email)}</strong>.`))
-                .append((self.$table = $("<table/>").addClass("ui-panel-table")));
+                .append((self.$table = $("<table/>")));
             var message = QueryStringParsing.get("message");
             var status = QueryStringParsing.get("status");
             if (message && status) {
@@ -154,25 +162,30 @@ var View = Backbone.View.extend({
                 options.onclick();
             });
         } else {
-            $a.attr("href", `${Galaxy.root}user/${action}`);
+            $a.attr("href", `${getAppRoot()}user/${action}`);
         }
         this.$table.append($row);
     },
 
     _templateLink: function(options) {
-        return `<tr><td><div class="ui-panel-icon fa ${
-            options.icon
-        }"></td><td><a class="ui-panel-anchor" href="javascript:void(0)">${
-            options.title
-        }</a><div class="ui-form-info">${options.description}</div></td></tr>`;
+        return `<tr>
+                    <td class="align-top">
+                        <i class="ml-3 mr-3 fa fa-lg ${options.icon}">
+                    </td>
+                    <td>
+                        <a href="javascript:void(0)"><b>${options.title}</b></a>
+                        <div class="form-text text-muted">${options.description}</div>
+                    </td>
+                </tr>`;
     },
 
     _templateFooter: function(options) {
-        return `<p class="ui-panel-footer">You are using <strong>${
+        let Galaxy = getGalaxyInstance();
+        return `<p class="mt-2">You are using <strong>${
             options.nice_total_disk_usage
         }</strong> of disk space in this Galaxy instance. ${
             Galaxy.config.enable_quotas ? `Your disk quota is: <strong>${options.quota}</strong>. ` : ""
-        }Is your usage more than expected? See the <a href="https://galaxyproject.org/learn/managing-datasets/" target="_blank">documentation</a> for tips on how to find all of the data in your account.</p>`;
+        }Is your usage more than expected? See the <a href="https://galaxyproject.org/learn/managing-datasets/" target="_blank"><b>documentation</b></a> for tips on how to find all of the data in your account.</p>`;
     }
 });
 
