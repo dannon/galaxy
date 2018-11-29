@@ -1,3 +1,4 @@
+import $ from "jquery";
 import _ from "underscore";
 import Backbone from "backbone";
 import { getGalaxyInstance } from "app";
@@ -5,7 +6,6 @@ import mod_toastr from "toastr";
 import mod_library_model from "mvc/library/library-model";
 import mod_library_libraryrow_view from "mvc/library/library-libraryrow-view";
 
->>>>>>> upstream/dev
 var LibraryListView = Backbone.View.extend({
     el: "#libraries_element",
 
