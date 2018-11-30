@@ -13,15 +13,6 @@ import visualization from "viz/visualization";
 import IconButton from "mvc/ui/icon-button";
 import query_string from "utils/query-string-parsing";
 import GridView from "mvc/grid/grid-view";
-// import Utils from "utils/utils";
-import "jquery-ui-bundle";
-import "jquery-mousewheel";
-//import "libs/jquery/jquery-ui";
-//DBTODO: jquery-ui usage, eliminate bundle?
-import "libs/jquery/select2";
-import "libs/farbtastic";
-import "libs/jquery/jquery.form";
-import "libs/jquery/jquery.rating";
 import "ui/editable-text";
 
 //import "style/scss/autocomplete_tagging.scss";
