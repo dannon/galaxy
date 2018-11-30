@@ -6,7 +6,6 @@
 var jQuery = require("jqueryVendor");
 
 require("imports-loader?jQuery=jqueryVendor!libs/jquery/jquery.autocomplete");
-require("imports-loader?jQuery=jqueryVendor!libs/jquery/jquery.event.hover");
 require("imports-loader?jQuery=jqueryVendor!jquery.event.drag");
 require("imports-loader?jQuery=jqueryVendor!jquery.event.drop");
 require("imports-loader?jQuery=jqueryVendor,define=>false!jquery-mousewheel");
