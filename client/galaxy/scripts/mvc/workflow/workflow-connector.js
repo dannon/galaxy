@@ -1,4 +1,4 @@
-import * as Toastr from "libs/toastr";
+import * as Toastr from "toastr";
 
 function Connector(handle1, handle2) {
     this.canvas = null;

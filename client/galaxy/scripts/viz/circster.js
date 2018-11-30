@@ -10,7 +10,6 @@ import visualization from "viz/visualization";
 import mod_utils from "utils/utils";
 import config from "utils/config";
 import mod_icon_btn from "mvc/ui/icon-button";
-import "libs/farbtastic";
 
 /**
  * Utility class for working with SVG.

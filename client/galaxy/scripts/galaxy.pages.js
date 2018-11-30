@@ -1,12 +1,9 @@
+import $ from "jquery";
 import _l from "utils/localization";
-import "libs/jquery/jquery.form";
 // DBTODO: Check wym here.
-import * as WYMeditor from "exports-loader?WYMeditor!libs/jquery/jquery.wymeditor";
-//import "libs/jquery/jquery.wymeditor";
-import "libs/jquery/jquery.autocomplete";
+import * as WYMeditor from "@bower_components/wymeditor/dist/wymeditor/jquery.wymeditor";
 import GridView from "mvc/grid/grid-view";
 
-/* global $ */
 /* global Galaxy */
 /* global show_modal */
 /* global hide_modal */
