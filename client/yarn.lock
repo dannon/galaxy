@@ -7014,11 +7014,12 @@ javascript-stringify@^1.6.0:
   resolved "https://registry.yarnpkg.com/javascript-stringify/-/javascript-stringify-1.6.0.tgz#142d111f3a6e3dae8f4a9afd77d45855b5a9cce3"
   integrity sha1-FC0RHzpuPa6PSpr9d9RYVbWpzOM=
 
-jquery-form@^3.50.0:
-  version "3.50.0"
-  resolved "https://registry.yarnpkg.com/jquery-form/-/jquery-form-3.50.0.tgz#d7c969b51e094e12da6991eb61ff5af25f59798f"
+jquery-form@^4.2.2:
+  version "4.2.2"
+  resolved "https://registry.yarnpkg.com/jquery-form/-/jquery-form-4.2.2.tgz#9f96fb141ec9cbe0cdaf58b4d3f1dcbb009cdd52"
+  integrity sha512-HJTef7DRBSg8ge/RNUw8rUTTtB3l8ozO0OhD16AzDl+eIXp4skgCqRTd9fYPsOzL+pN6+1B9wvbTLGjgikz8Tg==
   dependencies:
-    jquery ">=1.5"
+    jquery ">=1.7.2"
 
 jquery-migrate@~1.4:
   version "1.4.1"
@@ -7029,6 +7030,11 @@ jquery-mousewheel@^3.1.13:
   version "3.1.13"
   resolved "https://registry.yarnpkg.com/jquery-mousewheel/-/jquery-mousewheel-3.1.13.tgz#06f0335f16e353a695e7206bf50503cb523a6ee5"
   integrity sha1-BvAzXxbjU6aV5yBr9QUDy1I6buU=
+
+jquery-rating@^1.3.2:
+  version "1.3.2"
+  resolved "https://registry.yarnpkg.com/jquery-rating/-/jquery-rating-1.3.2.tgz#1c09ed46772d99db20adb6603965b824e4a38cf3"
+  integrity sha1-HAntRnctmdsgrbZgOWW4JOSjjPM=
 
 jquery-ui-bundle@^1.12.1-migrate:
   version "1.12.1-migrate"
@@ -7050,6 +7056,16 @@ jquery.cookie@^1.4.1:
   resolved "https://registry.yarnpkg.com/jquery.cookie/-/jquery.cookie-1.4.1.tgz#d63dce209eab691fe63316db08ca9e47e0f9385b"
   integrity sha1-1j3OIJ6raR/mMxbbCMqeR+D5OFs=
 
+jquery.event.drag@^2.2.2:
+  version "2.2.2"
+  resolved "https://registry.yarnpkg.com/jquery.event.drag/-/jquery.event.drag-2.2.2.tgz#11bbbf83f4c6ef5f3b5065564663913c9f964be1"
+  integrity sha1-Ebu/g/TG7187UGVWRmORPJ+WS+E=
+
+jquery.event.drop@^2.2.2:
+  version "2.2.2"
+  resolved "https://registry.yarnpkg.com/jquery.event.drop/-/jquery.event.drop-2.2.2.tgz#a634eab386d952870d3eb44dae23f6a17a5c1ebb"
+  integrity sha1-pjTqs4bZUocNPrRNriP2oXpcHrs=
+
 jquery.threedubmedia@^2.2.0:
   version "2.2.0"
   resolved "https://registry.yarnpkg.com/jquery.threedubmedia/-/jquery.threedubmedia-2.2.0.tgz#95747d2001f280847040b8c43dff7246f4336740"
@@ -7067,7 +7083,7 @@ jquery@>=1.12.0, jquery@>=1.9.1:
   version "3.2.1"
   resolved "https://registry.yarnpkg.com/jquery/-/jquery-3.2.1.tgz#5c4d9de652af6cd0a770154a631bba12b015c787"
 
-jquery@>=1.5, jquery@^3.0.0:
+jquery@>=1.7.2, jquery@^3.0.0:
   version "3.3.1"
   resolved "https://registry.yarnpkg.com/jquery/-/jquery-3.3.1.tgz#958ce29e81c9790f31be7792df5d4d95fc57fbca"
   integrity sha512-Ubldcmxp5np52/ENotGxlLe6aGMvmF4R8S6tZjsP6Knsaxd/xp3Zrh50cG93lR6nPXyUFwzN3ZSOQI0wRJNdGg==
