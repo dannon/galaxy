@@ -11,7 +11,7 @@ require("imports-loader?jQuery=jqueryVendor,define=>false!jquery-mousewheel");
 require("imports-loader?jQuery=jqueryVendor,define=>false!jquery-form/src/jquery.form.js");
 require("imports-loader?jQuery=jqueryVendor!select2");
 require("imports-loader?jQuery=jqueryVendor!jquery-rating");
-require("imports-loader?jQuery=jqueryVendor!jquery-ui");
+require("imports-loader?jQuery=jqueryVendor,define=>false!jquery-ui");
 require("imports-loader?jQuery=jqueryVendor!@bower_components/farbtastic");
 require("imports-loader?jQuery=jqueryVendor,$=jqueryVendor,define=>false!jquery.cookie");
 require("imports-loader?jQuery=jqueryVendor!@bower_components/dynatree/dist/jquery.dynatree");
