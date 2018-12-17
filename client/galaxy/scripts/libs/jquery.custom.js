@@ -4,6 +4,7 @@
  */
 
 var jQuery = require("jqueryVendor");
+require("imports-loader?jQuery=jqueryVendor!jquery-migrate");
 require("imports-loader?jQuery=jqueryVendor!@bower_components/jquery-autocomplete/src/jquery.autocomplete.js");
 require("imports-loader?jQuery=jqueryVendor!jquery.event.drag/jquery.event.drag.js");
 require("imports-loader?jQuery=jqueryVendor!jquery.event.drop/jquery.event.drop.js");
@@ -16,6 +17,5 @@ require("imports-loader?jQuery=jqueryVendor!@bower_components/farbtastic");
 require("imports-loader?jQuery=jqueryVendor,$=jqueryVendor,define=>false!jquery.cookie");
 require("imports-loader?jQuery=jqueryVendor!@bower_components/dynatree/dist/jquery.dynatree");
 require("imports-loader?jQuery=jqueryVendor!jquery.complexify");
-require("imports-loader?jQuery=jqueryVendor!jquery-migrate");
 
 module.exports = jQuery;
