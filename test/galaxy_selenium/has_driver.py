@@ -14,7 +14,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 UNSPECIFIED_TIMEOUT = object()
 
 
-class HasDriver:
+class HasDriver(object):
     TimeoutException = TimeoutException
 
     def assert_xpath(self, xpath):
@@ -153,12 +153,18 @@ class HasDriver:
             **kwds
         )
 
+    def click(self, selector_template):
+        element = self.driver.find_element(*selector_template.element_locator)
+        element.click()
+
+    def _timeout_message(self, on_str):
+        return "Timeout waiting on %s." % on_str
+
     def _wait_on(self, condition, on_str=None, **kwds):
         if on_str is None:
             on_str = str(condition)
-        message = "Timeout waiting on %s." % on_str
         wait = self.wait(**kwds)
-        return wait.until(condition, message)
+        return wait.until(condition, self._timeout_message(on_str))
 
     def action_chains(self):
         return ActionChains(self.driver)
@@ -168,6 +174,9 @@ class HasDriver:
 
     def send_escape(self, element):
         element.send_keys(Keys.ESCAPE)
+
+    def send_backspace(self, element):
+        element.send_keys(Keys.BACKSPACE)
 
     def wait(self, timeout=UNSPECIFIED_TIMEOUT, **kwds):
         if timeout is UNSPECIFIED_TIMEOUT:

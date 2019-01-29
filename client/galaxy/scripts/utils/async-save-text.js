@@ -1,39 +1,41 @@
-define(["jquery"], function(jQuery) {
-    "use_strict";
+import jQuery from "jquery";
+("use_strict");
 
-    var $ = jQuery;
-    // ============================================================================
-    /**
+var $ = jQuery;
+// ============================================================================
+/**
  * Edit and save text asynchronously.
  */
-    function async_save_text(
-        click_to_edit_elt,
-        text_elt_id,
-        save_url,
-        text_parm_name,
-        num_cols,
-        use_textarea,
-        num_rows,
-        on_start,
-        on_finish
-    ) {
-        // Set defaults if necessary.
-        if (num_cols === undefined) {
-            num_cols = 30;
-        }
-        if (num_rows === undefined) {
-            num_rows = 4;
-        }
+function async_save_text(
+    click_to_edit_elt,
+    text_elt_id,
+    save_url,
+    text_parm_name,
+    num_cols,
+    use_textarea,
+    num_rows,
+    on_start,
+    on_finish
+) {
+    // Set defaults if necessary.
+    if (num_cols === undefined) {
+        num_cols = 30;
+    }
+    if (num_rows === undefined) {
+        num_rows = 4;
+    }
 
-        // Set up input element.
-        $("#" + click_to_edit_elt).click(function() {
+    // Set up input element.
+    $(`#${click_to_edit_elt}`)
+        .off()
+        .click(() => {
             // Check if this is already active
             if ($("#renaming-active").length > 0) {
                 return;
             }
-            var text_elt = $("#" + text_elt_id),
-                old_text = text_elt.text(),
-                t;
+            var text_elt = $(`#${text_elt_id}`);
+            var old_text = text_elt.text();
+            var t;
 
             if (use_textarea) {
                 t = $("<textarea></textarea>")
@@ -66,11 +68,7 @@ define(["jquery"], function(jQuery) {
                         url: save_url,
                         data: ajax_data,
                         error: function() {
-                            alert(
-                                "Text editing for elt " +
-                                    text_elt_id +
-                                    " failed"
-                            );
+                            alert(`Text editing for elt ${text_elt_id} failed`);
                             // TODO: call finish or no? For now, let's not because error occurred.
                         },
                         success: function(processed_text) {
@@ -99,8 +97,7 @@ define(["jquery"], function(jQuery) {
 
             return;
         });
-    }
+}
 
-    // ============================================================================
-    return async_save_text;
-});
+// ============================================================================
+export default async_save_text;

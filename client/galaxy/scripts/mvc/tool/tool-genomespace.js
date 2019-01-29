@@ -1,31 +1,27 @@
 // Provides support for interacting with the GenomeSpace File Browser popup dialogue
-define([], function() {
-    // tool form templates
-    return {
-        openFileBrowser: function(options) {
-            var GS_UI_URL = window.Galaxy.config.genomespace_ui_url;
-            var GS_UPLOAD_URL =
-                GS_UI_URL + "upload/loadUrlToGenomespace.html?getLocation=true";
+import { getGalaxyInstance } from "app";
 
-            var newWin = window.open(
-                GS_UPLOAD_URL,
-                "GenomeSpace File Browser",
-                "height=360px,width=600px"
-            );
+// tool form templates
+export default {
+    openFileBrowser: function(options) {
+        let Galaxy = getGalaxyInstance();
+        var GS_UI_URL = Galaxy.config.genomespace_ui_url;
+        var GS_UPLOAD_URL = `${GS_UI_URL}upload/loadUrlToGenomespace.html?getLocation=true`;
 
-            successCalBack = options["successCallback"];
-            window.addEventListener(
-                "message",
-                function(e) {
-                    successCalBack(e.data);
-                },
-                false
-            );
+        var newWin = window.open(GS_UPLOAD_URL, "GenomeSpace File Browser", "height=360px,width=600px");
 
-            newWin.focus();
+        window.addEventListener(
+            "message",
+            e => {
+                if (options.successCallback && e.data.destination) {
+                    options.successCallback(e.data);
+                }
+            },
+            false
+        );
 
-            if (options["errorCallback"] != null)
-                newWin.setCallbackOnGSUploadError = config["errorCallback"];
-        }
-    };
-});
+        newWin.focus();
+
+        if (options["errorCallback"] != null) newWin.setCallbackOnGSUploadError = Galaxy.config["errorCallback"];
+    }
+};

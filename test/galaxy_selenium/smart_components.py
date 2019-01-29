@@ -39,7 +39,7 @@ class SmartTarget(object):
         self._has_driver = has_driver
 
     def __call__(self, *args, **kwds):
-        return self._wrap(self._target(*args, **kwds))
+        return self._wrap(self._target(*args[:], **kwds.copy()))
 
     def __getattr__(self, name):
         return self._wrap(getattr(self._target, name))
@@ -53,14 +53,23 @@ class SmartTarget(object):
         else:
             return simple_object
 
+    def all(self):
+        return self._has_driver.driver.find_elements(*self._target.element_locator)
+
     def wait_for_and_click(self, **kwds):
         return self._has_driver.wait_for_and_click(self._target, **kwds)
 
     def wait_for_visible(self, **kwds):
         return self._has_driver.wait_for_visible(self._target, **kwds)
 
+    def wait_for_clickable(self, **kwds):
+        return self._has_driver.wait_for_clickable(self._target, **kwds)
+
     def wait_for_text(self, **kwds):
         return self._has_driver.wait_for_visible(self._target, **kwds).text
+
+    def wait_for_value(self, **kwds):
+        return self._has_driver.wait_for_visible(self._target, **kwds).get_attribute("value")
 
     @property
     def is_displayed(self):
@@ -71,6 +80,9 @@ class SmartTarget(object):
 
     def wait_for_absent(self, **kwds):
         self._has_driver.wait_for_absent(self._target, **kwds)
+
+    def wait_for_present(self, **kwds):
+        return self._has_driver.wait_for_present(self._target, **kwds)
 
     def assert_absent(self, **kwds):
         self._has_driver.assert_absent(self._target, **kwds)
@@ -83,3 +95,6 @@ class SmartTarget(object):
 
     def has_class(self, class_name):
         return class_name in self._has_driver.driver.find_element(*self._target.element_locator).get_attribute("class")
+
+    def wait_for_and_send_keys(self, text):
+        self.wait_for_visible().send_keys(text)

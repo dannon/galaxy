@@ -12,7 +12,6 @@ from galaxy.jobs.runners import (
     AsynchronousJobState
 )
 from galaxy.util import asbool
-
 from .util.cli import CliInterface, split_params
 
 log = logging.getLogger(__name__)
@@ -208,8 +207,9 @@ class ShellJobRunner(AsynchronousJobRunner):
             job_states.update(job_interface.parse_status(cmd_out.stdout, job_ids))
         return job_states
 
-    def stop_job(self, job):
+    def stop_job(self, job_wrapper):
         """Attempts to delete a dispatched job"""
+        job = job_wrapper.get_job()
         try:
             shell_params, job_params = self.parse_destination_params(job.destination_params)
             shell, job_interface = self.get_cli_plugins(shell_params, job_params)

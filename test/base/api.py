@@ -15,18 +15,20 @@ from .api_util import (
     OTHER_USER,
     TEST_USER,
 )
-from .interactor import GalaxyInteractorApi as BaseInteractor
+from .interactor import TestCaseGalaxyInteractor as BaseInteractor
 from .testcase import FunctionalTestCase
 
 
-class UsesApiTestCaseMixin:
+class UsesApiTestCaseMixin(object):
 
-    def _api_url(self, path, params=None, use_key=None):
+    def _api_url(self, path, params=None, use_key=None, use_admin_key=None):
         if not params:
             params = {}
         url = "%s/api/%s" % (self.url, path)
         if use_key:
             params["key"] = self.galaxy_interactor.api_key
+        if use_admin_key:
+            params["key"] = self.galaxy_interactor.master_api_key
         query = urlencode(params)
         if query:
             url = "%s?%s" % (url, query)
@@ -75,6 +77,9 @@ class UsesApiTestCaseMixin:
 
     def _delete(self, *args, **kwds):
         return self.galaxy_interactor.delete(*args, **kwds)
+
+    def _put(self, *args, **kwds):
+        return self.galaxy_interactor.put(*args, **kwds)
 
     def _patch(self, *args, **kwds):
         return self.galaxy_interactor.patch(*args, **kwds)
@@ -129,3 +134,6 @@ class ApiTestInteractor(BaseInteractor):
 
     def patch(self, *args, **kwds):
         return self._patch(*args, **kwds)
+
+    def put(self, *args, **kwds):
+        return self._put(*args, **kwds)

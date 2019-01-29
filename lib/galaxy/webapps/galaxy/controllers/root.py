@@ -3,12 +3,12 @@ Contains the main interface in the Universe class
 """
 from __future__ import absolute_import
 
-import cgi
 import logging
 import os
 
 import requests
-from paste.httpexceptions import (
+from webob.compat import cgi_FieldStorage
+from webob.exc import (
     HTTPBadGateway,
     HTTPNotFound
 )
@@ -49,17 +49,15 @@ class RootController(controller.JSAppLauncher, UsesAnnotations):
 
     def _get_extended_config(self, trans):
         app = trans.app
-        user_requests = bool(trans.user and (trans.user.requests or app.security_agent.get_accessible_request_types(trans, trans.user)))
         config = {
             'active_view'                   : 'analysis',
             'enable_cloud_launch'           : app.config.get_bool('enable_cloud_launch', False),
+            'enable_webhooks'               : True if app.webhooks_registry.webhooks else False,
             # TODO: next two should be redundant - why can't we build one from the other?
             'toolbox'                       : app.toolbox.to_dict(trans, in_panel=False),
             'toolbox_in_panel'              : app.toolbox.to_dict(trans),
             'message_box_visible'           : app.config.message_box_visible,
-            'show_inactivity_warning'       : app.config.user_activation_on and trans.user and not trans.user.active,
-            # TODO: move to user
-            'user_requests'                 : user_requests
+            'show_inactivity_warning'       : app.config.user_activation_on and trans.user and not trans.user.active
         }
 
         # TODO: move to user
@@ -110,7 +108,6 @@ class RootController(controller.JSAppLauncher, UsesAnnotations):
         js_options = self._get_js_options(trans)
         config = js_options['config']
         config.update(self._get_extended_config(trans))
-
         return self.template(trans, 'analysis', options=js_options)
 
     @web.expose
@@ -120,8 +117,6 @@ class RootController(controller.JSAppLauncher, UsesAnnotations):
         """
         return self.template(trans, 'login',
                              redirect=redirect,
-                             # TODO: move into config
-                             openid_providers=[p.name for p in trans.app.openid_providers],
                              # an installation may have it's own welcome_url - show it here if they've set that
                              welcome_url=web.url_for(controller='root', action='welcome'),
                              show_welcome_with_login=trans.app.config.show_welcome_with_login)
@@ -154,7 +149,7 @@ class RootController(controller.JSAppLauncher, UsesAnnotations):
         if len(query) > 2:
             search_results = trans.app.toolbox_search.search(query)
             if 'tags[]' in kwd:
-                results = filter(lambda x: x in results, search_results)
+                results = [x for x in search_results if x in results]
             else:
                 results = search_results
         return results
@@ -221,7 +216,7 @@ class RootController(controller.JSAppLauncher, UsesAnnotations):
                     trans.response.headers["Content-Disposition"] = 'attachment; filename="GalaxyHistoryItem-%s-[%s]%s"' % (data.hid, fname, toext)
                 trans.log_event("Display dataset id: %s" % str(id))
                 try:
-                    return open(data.file_name)
+                    return open(data.file_name, 'rb')
                 except Exception:
                     return "This dataset contains no content"
             else:
@@ -253,20 +248,6 @@ class RootController(controller.JSAppLauncher, UsesAnnotations):
                 return "You are not allowed to access this dataset."
         else:
             return "No data with id=%d" % id
-
-    @web.expose
-    def peek(self, trans, id=None):
-        """Returns a 'peek' at the data.
-        """
-        # TODO: unused?
-        # TODO: unencoded id
-        data = trans.sa_session.query(self.app.model.HistoryDatasetAssociation).get(id)
-        if data:
-            yield "<html><body><pre>"
-            yield data.peek
-            yield "</pre></body></html>"
-        else:
-            yield "No data with id=%d" % id
 
     # ---- History management -----------------------------------------------
     @web.expose
@@ -439,7 +420,7 @@ class RootController(controller.JSAppLauncher, UsesAnnotations):
             rval += "%s: %s <br/>" % (k, trans.request.headers[k])
         for k in kwd:
             rval += "%s: %s <br/>" % (k, kwd[k])
-            if isinstance(kwd[k], cgi.FieldStorage):
+            if isinstance(kwd[k], cgi_FieldStorage):
                 rval += "-> %s" % kwd[k].file.read()
         return rval
 

@@ -42,7 +42,7 @@ def main():
         if word and word not in math_allowed:
             stop_err("Invalid expression '%s': term '%s' is not recognized or allowed" % (expression, word))
     symbols = set()
-    for symbol in re.compile('[^a-z0-9\s]+').findall(expression):
+    for symbol in re.compile(r'[^a-z0-9\s]+').findall(expression):
         if symbol and symbol not in ops_allowed:
             stop_err("Invalid expression '%s': operator '%s' is not recognized or allowed" % (expression, symbol))
         else:
@@ -59,7 +59,7 @@ def main():
         except Exception:
             pass
 
-    tmp_file = tempfile.NamedTemporaryFile('w+b')
+    tmp_file = tempfile.NamedTemporaryFile('w+')
     # Write the R header row to the temporary file
     hdr_str = "\t".join("c%s" % str(col + 1) for col in cols)
     tmp_file.write("%s\n" % hdr_str)

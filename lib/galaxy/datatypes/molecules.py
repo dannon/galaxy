@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import logging
 import os
+import re
 import subprocess
 
 from galaxy.datatypes import (
@@ -11,6 +12,7 @@ from galaxy.datatypes.binary import Binary
 from galaxy.datatypes.data import get_file_peek
 from galaxy.datatypes.metadata import MetadataElement
 from galaxy.datatypes.sniff import (
+    build_sniff_from_prefix,
     get_headers,
     iter_headers
 )
@@ -44,7 +46,7 @@ def count_lines(filename, non_empty=False):
     """
     try:
         if non_empty:
-            out = subprocess.Popen(['grep', '-cve', '^\s*$', filename], stdout=subprocess.PIPE)
+            out = subprocess.Popen(['grep', '-cve', r'^\s*$', filename], stdout=subprocess.PIPE)
         else:
             out = subprocess.Popen(['wc', '-l', filename], stdout=subprocess.PIPE)
         return int(out.communicate()[0].split()[0])
@@ -61,12 +63,11 @@ class GenericMolFile(data.Text):
 
     def set_peek(self, dataset, is_multi_byte=False):
         if not dataset.dataset.purged:
-            dataset.peek = get_file_peek(dataset.file_name, is_multi_byte=is_multi_byte)
             if (dataset.metadata.number_of_molecules == 1):
                 dataset.blurb = "1 molecule"
             else:
                 dataset.blurb = "%s molecules" % dataset.metadata.number_of_molecules
-            dataset.peek = data.get_file_peek(dataset.file_name, is_multi_byte=is_multi_byte)
+            dataset.peek = get_file_peek(dataset.file_name)
         else:
             dataset.peek = 'file does not exist'
             dataset.blurb = 'file purged from disk'
@@ -85,10 +86,11 @@ class MOL(GenericMolFile):
         dataset.metadata.number_of_molecules = 1
 
 
+@build_sniff_from_prefix
 class SDF(GenericMolFile):
     file_ext = "sdf"
 
-    def sniff(self, filename):
+    def sniff_prefix(self, file_prefix):
         """
         Try to guess if the file is a SDF2 file.
 
@@ -103,11 +105,9 @@ class SDF(GenericMolFile):
         >>> fname = get_test_fname('drugbank_drugs.sdf')
         >>> SDF().sniff(fname)
         True
-
         >>> fname = get_test_fname('github88.v3k.sdf')
         >>> SDF().sniff(fname)
         True
-
         >>> fname = get_test_fname('chebi_57262.v3k.mol')
         >>> SDF().sniff(fname)
         False
@@ -115,30 +115,29 @@ class SDF(GenericMolFile):
         m_end_found = False
         limit = 10000
         idx = 0
-        with open(filename) as in_file:
-            for line in in_file:
-                idx += 1
-                line = line.rstrip('\n\r')
-                if idx < 4:
-                    continue
-                elif idx == 4:
-                    if len(line) != 39 or not(line.endswith(' V2000') or
-                            line.endswith(' V3000')):
-                        return False
-                elif not m_end_found:
-                    if line == 'M  END':
-                        m_end_found = True
-                elif line == '$$$$':
-                    return True
-                if idx == limit:
-                    break
+        for line in file_prefix.line_iterator():
+            idx += 1
+            line = line.rstrip('\n\r')
+            if idx < 4:
+                continue
+            elif idx == 4:
+                if len(line) != 39 or not(line.endswith(' V2000') or
+                        line.endswith(' V3000')):
+                    return False
+            elif not m_end_found:
+                if line == 'M  END':
+                    m_end_found = True
+            elif line == '$$$$':
+                return True
+            if idx == limit:
+                break
         return False
 
     def set_meta(self, dataset, **kwd):
         """
         Set the number of molecules in dataset.
         """
-        dataset.metadata.number_of_molecules = count_special_lines("^\$\$\$\$$", dataset.file_name)
+        dataset.metadata.number_of_molecules = count_special_lines(r"^\$\$\$\$$", dataset.file_name)
 
     def split(cls, input_datasets, subdir_generator_function, split_params):
         """
@@ -171,9 +170,8 @@ class SDF(GenericMolFile):
         def _write_part_sdf_file(accumulated_lines):
             part_dir = subdir_generator_function()
             part_path = os.path.join(part_dir, os.path.basename(input_files[0]))
-            part_file = open(part_path, 'w')
-            part_file.writelines(accumulated_lines)
-            part_file.close()
+            with open(part_path, 'w') as part_file:
+                part_file.writelines(accumulated_lines)
 
         try:
             sdf_records = _read_sdf_records(input_files[0])
@@ -191,10 +189,11 @@ class SDF(GenericMolFile):
     split = classmethod(split)
 
 
+@build_sniff_from_prefix
 class MOL2(GenericMolFile):
     file_ext = "mol2"
 
-    def sniff(self, filename):
+    def sniff_prefix(self, file_prefix):
         """
         Try to guess if the file is a MOL2 file.
 
@@ -202,21 +201,19 @@ class MOL2(GenericMolFile):
         >>> fname = get_test_fname('drugbank_drugs.mol2')
         >>> MOL2().sniff(fname)
         True
-
         >>> fname = get_test_fname('drugbank_drugs.cml')
         >>> MOL2().sniff(fname)
         False
         """
         limit = 60
         idx = 0
-        with open(filename) as in_file:
-            for line in in_file:
-                line = line.rstrip('\n\r')
-                if line == '@<TRIPOS>MOLECULE':
-                    return True
-                idx += 1
-                if idx == limit:
-                    break
+        for line in file_prefix.line_iterator():
+            line = line.rstrip('\n\r')
+            if line == '@<TRIPOS>MOLECULE':
+                return True
+            idx += 1
+            if idx == limit:
+                break
         return False
 
     def set_meta(self, dataset, **kwd):
@@ -260,9 +257,8 @@ class MOL2(GenericMolFile):
         def _write_part_mol2_file(accumulated_lines):
             part_dir = subdir_generator_function()
             part_path = os.path.join(part_dir, os.path.basename(input_files[0]))
-            part_file = open(part_path, 'w')
-            part_file.writelines(accumulated_lines)
-            part_file.close()
+            with open(part_path, 'w') as part_file:
+                part_file.writelines(accumulated_lines)
 
         try:
             mol2_records = _read_mol2_records(input_files[0])
@@ -280,13 +276,14 @@ class MOL2(GenericMolFile):
     split = classmethod(split)
 
 
+@build_sniff_from_prefix
 class FPS(GenericMolFile):
     """
     chemfp fingerprint file: http://code.google.com/p/chem-fingerprints/wiki/FPS
     """
     file_ext = "fps"
 
-    def sniff(self, filename):
+    def sniff_prefix(self, file_prefix):
         """
         Try to guess if the file is a FPS file.
 
@@ -294,12 +291,11 @@ class FPS(GenericMolFile):
         >>> fname = get_test_fname('q.fps')
         >>> FPS().sniff(fname)
         True
-
         >>> fname = get_test_fname('drugbank_drugs.cml')
         >>> FPS().sniff(fname)
         False
         """
-        header = get_headers(filename, sep='\t', count=1)
+        header = get_headers(file_prefix, sep='\t', count=1)
         if header[0][0].strip() == '#FPS1':
             return True
         else:
@@ -333,9 +329,8 @@ class FPS(GenericMolFile):
         def _write_part_fingerprint_file(accumulated_lines):
             part_dir = subdir_generator_function()
             part_path = os.path.join(part_dir, os.path.basename(input_files[0]))
-            part_file = open(part_path, 'w')
-            part_file.writelines(accumulated_lines)
-            part_file.close()
+            with open(part_path, 'w') as part_file:
+                part_file.writelines(accumulated_lines)
 
         try:
             header_lines = []
@@ -370,19 +365,18 @@ class FPS(GenericMolFile):
         if not split_files:
             raise ValueError("No fps files given, %r, to merge into %s"
                              % (split_files, output_file))
-        out = open(output_file, "w")
-        first = True
-        for filename in split_files:
-            with open(filename) as handle:
-                for line in handle:
-                    if line.startswith('#'):
-                        if first:
+        with open(output_file, "w") as out:
+            first = True
+            for filename in split_files:
+                with open(filename) as handle:
+                    for line in handle:
+                        if line.startswith('#'):
+                            if first:
+                                out.write(line)
+                        else:
+                            # line is no header and not a comment, we assume the first header is written to out and we set 'first' to False
+                            first = False
                             out.write(line)
-                    else:
-                        # line is no header and not a comment, we assume the first header is written to out and we set 'first' to False
-                        first = False
-                        out.write(line)
-        out.close()
     merge = staticmethod(merge)
 
 
@@ -430,14 +424,6 @@ class OBFS(Binary):
         except Exception:
             return "OpenBabel Fastsearch Index"
 
-    def display_data(self, trans, data, preview=False, filename=None,
-                     to_ext=None, **kwd):
-        """Apparently an old display method, but still gets called.
-
-        This allows us to format the data shown in the central pane via the "eye" icon.
-        """
-        return "This is a OpenBabel Fastsearch format. You can speed up your similarity and substructure search with it."
-
     def get_mime(self):
         """Returns the mime type of the datatype (pretend it is text for peek)"""
         return 'text/plain'
@@ -471,21 +457,23 @@ class PHAR(GenericMolFile):
 
     def set_peek(self, dataset, is_multi_byte=False):
         if not dataset.dataset.purged:
-            dataset.peek = get_file_peek(dataset.file_name, is_multi_byte=is_multi_byte)
+            dataset.peek = get_file_peek(dataset.file_name)
             dataset.blurb = "pharmacophore"
         else:
             dataset.peek = 'file does not exist'
             dataset.blurb = 'file purged from disk'
 
 
+@build_sniff_from_prefix
 class PDB(GenericMolFile):
     """
     Protein Databank format.
     http://www.wwpdb.org/documentation/format33/v3.3.html
     """
     file_ext = "pdb"
+    MetadataElement(name="chain_ids", default=[], desc="Chain IDs", readonly=False, visible=True)
 
-    def sniff(self, filename):
+    def sniff_prefix(self, file_prefix):
         """
         Try to guess if the file is a PDB file.
 
@@ -493,12 +481,11 @@ class PDB(GenericMolFile):
         >>> fname = get_test_fname('5e5z.pdb')
         >>> PDB().sniff(fname)
         True
-
         >>> fname = get_test_fname('drugbank_drugs.cml')
         >>> PDB().sniff(fname)
         False
         """
-        headers = iter_headers(filename, sep=' ', count=300)
+        headers = iter_headers(file_prefix, sep=' ', count=300)
         h = t = c = s = k = e = False
         for line in headers:
             section_name = line[0].strip()
@@ -520,17 +507,35 @@ class PDB(GenericMolFile):
         else:
             return False
 
+    def set_meta(self, dataset, **kwd):
+        """
+        Find Chain_IDs for metadata.
+        """
+        try:
+            chain_ids = set()
+            with open(dataset.file_name, 'r') as fh:
+                for line in fh:
+                    if line.startswith('ATOM  ') or line.startswith('HETATM'):
+                        if line[21] != ' ':
+                            chain_ids.add(line[21])
+            dataset.metadata.chain_ids = list(chain_ids)
+        except Exception as e:
+            log.error('Error finding chain_ids: %s' % str(e))
+            raise
+
     def set_peek(self, dataset, is_multi_byte=False):
         if not dataset.dataset.purged:
             atom_numbers = count_special_lines("^ATOM", dataset.file_name)
             hetatm_numbers = count_special_lines("^HETATM", dataset.file_name)
-            dataset.peek = get_file_peek(dataset.file_name, is_multi_byte=is_multi_byte)
-            dataset.blurb = "%s atoms and %s HET-atoms" % (atom_numbers, hetatm_numbers)
+            chain_ids = ','.join(dataset.metadata.chain_ids) if len(dataset.metadata.chain_ids) > 0 else 'None'
+            dataset.peek = get_file_peek(dataset.file_name)
+            dataset.blurb = "%s atoms and %s HET-atoms\nchain_ids: %s" % (atom_numbers, hetatm_numbers, chain_ids)
         else:
             dataset.peek = 'file does not exist'
             dataset.blurb = 'file purged from disk'
 
 
+@build_sniff_from_prefix
 class PDBQT(GenericMolFile):
     """
     PDBQT Autodock and Autodock Vina format
@@ -538,7 +543,7 @@ class PDBQT(GenericMolFile):
     """
     file_ext = "pdbqt"
 
-    def sniff(self, filename):
+    def sniff_prefix(self, file_prefix):
         """
         Try to guess if the file is a PDBQT file.
 
@@ -546,12 +551,11 @@ class PDBQT(GenericMolFile):
         >>> fname = get_test_fname('NuBBE_1_obabel_3D.pdbqt')
         >>> PDBQT().sniff(fname)
         True
-
         >>> fname = get_test_fname('drugbank_drugs.cml')
         >>> PDBQT().sniff(fname)
         False
         """
-        headers = iter_headers(filename, sep=' ', count=300)
+        headers = iter_headers(file_prefix, sep=' ', count=300)
         h = t = c = s = k = False
         for line in headers:
             section_name = line[0].strip()
@@ -575,8 +579,110 @@ class PDBQT(GenericMolFile):
         if not dataset.dataset.purged:
             root_numbers = count_special_lines("^ROOT", dataset.file_name)
             branch_numbers = count_special_lines("^BRANCH", dataset.file_name)
-            dataset.peek = get_file_peek(dataset.file_name, is_multi_byte=is_multi_byte)
+            dataset.peek = get_file_peek(dataset.file_name)
             dataset.blurb = "%s roots and %s branches" % (root_numbers, branch_numbers)
+        else:
+            dataset.peek = 'file does not exist'
+            dataset.blurb = 'file purged from disk'
+
+
+@build_sniff_from_prefix
+class PQR(GenericMolFile):
+    """
+    Protein Databank format.
+    https://apbs-pdb2pqr.readthedocs.io/en/latest/formats/pqr.html
+    """
+    file_ext = "pqr"
+    MetadataElement(name="chain_ids", default=[], desc="Chain IDs", readonly=False, visible=True)
+
+    def get_matcher(self):
+        """
+        Atom and HETATM line fields are space separated, match group:
+          0: Field_name
+              A string which specifies the type of PQR entry: ATOM or HETATM.
+          1: Atom_number
+              An integer which provides the atom index.
+          2: Atom_name
+              A string which provides the atom name.
+          3: Residue_name
+              A string which provides the residue name.
+          5: Chain_ID   (Optional, group 4 is whole field)
+              An optional string which provides the chain ID of the atom.
+              Note that chain ID support is a new feature of APBS 0.5.0 and later versions.
+          6: Residue_number
+              An integer which provides the residue index.
+          7: X 8: Y 9: Z
+              3 floats which provide the atomic coordinates (in angstroms)
+          10: Charge
+              A float which provides the atomic charge (in electrons).
+          11: Radius
+              A float which provides the atomic radius (in angstroms).
+        """
+        pat = r'(ATOM|HETATM)\s+' +\
+              r'(\d+)\s+' +\
+              r'([A-Z0-9]+)\s+' +\
+              r'([A-Z0-9]+)\s+' +\
+              r'(([A-Z]?)\s+)?' +\
+              r'([-+]?\d*\.\d+|\d+)\s+' +\
+              r'([-+]?\d*\.\d+|\d+)\s+' +\
+              r'([-+]?\d*\.\d+|\d+)\s+' +\
+              r'([-+]?\d*\.\d+|\d+)\s+' +\
+              r'([-+]?\d*\.\d+|\d+)\s+'
+        return re.compile(pat)
+
+    def sniff_prefix(self, file_prefix):
+        """
+        Try to guess if the file is a PQR file.
+        >>> from galaxy.datatypes.sniff import get_test_fname
+        >>> fname = get_test_fname('5e5z.pqr')
+        >>> PQR().sniff(fname)
+        True
+        >>> fname = get_test_fname('drugbank_drugs.cml')
+        >>> PQR().sniff(fname)
+        False
+        """
+        prog = self.get_matcher()
+        headers = iter_headers(file_prefix, sep=None, comment_designator='REMARK   5', count=3000)
+        h = a = False
+        for line in headers:
+            section_name = line[0].strip()
+            if section_name == 'REMARK':
+                h = True
+            elif section_name == 'ATOM' or section_name == 'HETATM':
+                if prog.match(' '.join(line)):
+                    a = True
+                    break
+        if h * a:
+            return True
+        else:
+            return False
+
+    def set_meta(self, dataset, **kwd):
+        """
+        Find Optional Chain_IDs for metadata.
+        """
+        try:
+            prog = self.get_matcher()
+            chain_ids = set()
+            with open(dataset.file_name, 'r') as fh:
+                for line in fh:
+                    if line.startswith('REMARK'):
+                        continue
+                    match = prog.match(line.rstrip())
+                    if match and match.groups()[5]:
+                        chain_ids.add(match.groups()[5])
+            dataset.metadata.chain_ids = list(chain_ids)
+        except Exception as e:
+            log.error('Error finding chain_ids: %s' % str(e))
+            raise
+
+    def set_peek(self, dataset, is_multi_byte=False):
+        if not dataset.dataset.purged:
+            atom_numbers = count_special_lines("^ATOM", dataset.file_name)
+            hetatm_numbers = count_special_lines("^HETATM", dataset.file_name)
+            chain_ids = ','.join(dataset.metadata.chain_ids) if len(dataset.metadata.chain_ids) > 0 else 'None'
+            dataset.peek = get_file_peek(dataset.file_name)
+            dataset.blurb = "%s atoms and %s HET-atoms\nchain_ids: %s" % (atom_numbers, hetatm_numbers, str(chain_ids))
         else:
             dataset.peek = 'file does not exist'
             dataset.blurb = 'file purged from disk'
@@ -587,7 +693,7 @@ class grd(data.Text):
 
     def set_peek(self, dataset, is_multi_byte=False):
         if not dataset.dataset.purged:
-            dataset.peek = get_file_peek(dataset.file_name, is_multi_byte=is_multi_byte)
+            dataset.peek = get_file_peek(dataset.file_name)
             dataset.blurb = "grids for docking"
         else:
             dataset.peek = 'file does not exist'
@@ -606,6 +712,7 @@ class grdtgz(Binary):
             dataset.blurb = 'file purged from disk'
 
 
+@build_sniff_from_prefix
 class InChI(Tabular):
     file_ext = "inchi"
     column_names = ['InChI']
@@ -621,17 +728,16 @@ class InChI(Tabular):
 
     def set_peek(self, dataset, is_multi_byte=False):
         if not dataset.dataset.purged:
-            dataset.peek = get_file_peek(dataset.file_name, is_multi_byte=is_multi_byte)
             if (dataset.metadata.number_of_molecules == 1):
                 dataset.blurb = "1 molecule"
             else:
                 dataset.blurb = "%s molecules" % dataset.metadata.number_of_molecules
-            dataset.peek = data.get_file_peek(dataset.file_name, is_multi_byte=is_multi_byte)
+            dataset.peek = get_file_peek(dataset.file_name)
         else:
             dataset.peek = 'file does not exist'
             dataset.blurb = 'file purged from disk'
 
-    def sniff(self, filename):
+    def sniff_prefix(self, file_prefix):
         """
         Try to guess if the file is a InChI file.
 
@@ -639,16 +745,17 @@ class InChI(Tabular):
         >>> fname = get_test_fname('drugbank_drugs.inchi')
         >>> InChI().sniff(fname)
         True
-
         >>> fname = get_test_fname('drugbank_drugs.cml')
         >>> InChI().sniff(fname)
         False
         """
-        inchi_lines = iter_headers(filename, sep=' ', count=10)
+        inchi_lines = iter_headers(file_prefix, sep=' ', count=10)
+        found_lines = False
         for inchi in inchi_lines:
             if not inchi[0].startswith('InChI='):
                 return False
-        return True
+            found_lines = True
+        return found_lines
 
 
 class SMILES(Tabular):
@@ -666,12 +773,11 @@ class SMILES(Tabular):
 
     def set_peek(self, dataset, is_multi_byte=False):
         if not dataset.dataset.purged:
-            dataset.peek = get_file_peek(dataset.file_name, is_multi_byte=is_multi_byte)
             if dataset.metadata.number_of_molecules == 1:
                 dataset.blurb = "1 molecule"
             else:
                 dataset.blurb = "%s molecules" % dataset.metadata.number_of_molecules
-            dataset.peek = data.get_file_peek(dataset.file_name, is_multi_byte=is_multi_byte)
+            dataset.peek = get_file_peek(dataset.file_name)
         else:
             dataset.peek = 'file does not exist'
             dataset.blurb = 'file purged from disk'
@@ -711,6 +817,7 @@ class SMILES(Tabular):
     '''
 
 
+@build_sniff_from_prefix
 class CML(GenericXml):
     """
     Chemical Markup Language
@@ -723,21 +830,20 @@ class CML(GenericXml):
         """
         Set the number of lines of data in dataset.
         """
-        dataset.metadata.number_of_molecules = count_special_lines('^\s*<molecule', dataset.file_name)
+        dataset.metadata.number_of_molecules = count_special_lines(r'^\s*<molecule', dataset.file_name)
 
     def set_peek(self, dataset, is_multi_byte=False):
         if not dataset.dataset.purged:
-            dataset.peek = get_file_peek(dataset.file_name, is_multi_byte=is_multi_byte)
             if (dataset.metadata.number_of_molecules == 1):
                 dataset.blurb = "1 molecule"
             else:
                 dataset.blurb = "%s molecules" % dataset.metadata.number_of_molecules
-            dataset.peek = data.get_file_peek(dataset.file_name, is_multi_byte=is_multi_byte)
+            dataset.peek = get_file_peek(dataset.file_name)
         else:
             dataset.peek = 'file does not exist'
             dataset.blurb = 'file purged from disk'
 
-    def sniff(self, filename):
+    def sniff_prefix(self, file_prefix):
         """
         Try to guess if the file is a CML file.
 
@@ -745,18 +851,14 @@ class CML(GenericXml):
         >>> fname = get_test_fname('interval.interval')
         >>> CML().sniff(fname)
         False
-
         >>> fname = get_test_fname('drugbank_drugs.cml')
         >>> CML().sniff(fname)
         True
         """
-        with open(filename) as handle:
-            line = handle.readline()
-            if line.strip() != '<?xml version="1.0"?>':
+        for expected_string in ['<?xml version="1.0"?>', 'http://www.xml-cml.org/schema']:
+            if expected_string not in file_prefix.contents_header:
                 return False
-            line = handle.readline()
-            if line.strip().find('http://www.xml-cml.org/schema') == -1:
-                return False
+
         return True
 
     def split(cls, input_datasets, subdir_generator_function, split_params):
@@ -797,11 +899,10 @@ class CML(GenericXml):
         def _write_part_cml_file(accumulated_lines):
             part_dir = subdir_generator_function()
             part_path = os.path.join(part_dir, os.path.basename(input_files[0]))
-            part_file = open(part_path, 'w')
-            part_file.writelines(header_lines)
-            part_file.writelines(accumulated_lines)
-            part_file.writelines(footer_line)
-            part_file.close()
+            with open(part_path, 'w') as part_file:
+                part_file.writelines(header_lines)
+                part_file.writelines(accumulated_lines)
+                part_file.writelines(footer_line)
 
         try:
             cml_records = _read_cml_records(input_files[0])

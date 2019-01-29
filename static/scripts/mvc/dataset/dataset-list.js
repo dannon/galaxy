@@ -1,2 +1,0 @@
-"use strict";define(["mvc/list/list-view","mvc/dataset/dataset-li","mvc/base-mvc","utils/localization"],function(t,a,i,e){var s=t.ListPanel;return{DatasetList:s.extend({_logNamespace:"dataset",viewClass:a.DatasetListItemView,className:s.prototype.className+" dataset-list",noneFoundMsg:e("No matching datasets found"),initialize:function(t){s.prototype.initialize.call(this,t)},toString:function(){return"DatasetList("+this.collection+")"}})}});
-//# sourceMappingURL=../../../maps/mvc/dataset/dataset-list.js.map

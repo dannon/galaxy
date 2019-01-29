@@ -12,7 +12,7 @@ class RuntimeException(Exception):
     pass
 
 
-class UsesItemRatings:
+class UsesItemRatings(object):
     """
         Mixin for getting and setting item ratings.
 
@@ -95,7 +95,7 @@ class UsesItemRatings:
         return "%s=%i" % (item_fk.parent.name, item.id)
 
 
-class UsesAnnotations:
+class UsesAnnotations(object):
     """ Mixin for getting and setting item annotations. """
 
     def get_item_annotation_str(self, db_session, user, item):
@@ -128,6 +128,8 @@ class UsesAnnotations:
             annotation_assoc = annotation_assoc.filter_by(history=item)
         elif item.__class__ == galaxy.model.HistoryDatasetAssociation:
             annotation_assoc = annotation_assoc.filter_by(hda=item)
+        elif item.__class__ == galaxy.model.HistoryDatasetCollectionAssociation:
+            annotation_assoc = annotation_assoc.filter_by(history_dataset_collection=item)
         elif item.__class__ == galaxy.model.StoredWorkflow:
             annotation_assoc = annotation_assoc.filter_by(stored_workflow=item)
         elif item.__class__ == galaxy.model.WorkflowStep:

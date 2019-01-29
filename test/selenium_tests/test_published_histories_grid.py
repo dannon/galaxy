@@ -15,7 +15,7 @@ class HistoryGridTestCase(SharedStateSeleniumTestCase):
     @selenium_test
     def test_history_grid_search_standard(self):
         self.navigate_to_published_histories_page()
-
+        self.screenshot("histories_published_grid")
         self.published_grid_search_for(self.history1_name)
         self.assert_grid_histories_are([self.history1_name])
 
@@ -37,6 +37,7 @@ class HistoryGridTestCase(SharedStateSeleniumTestCase):
 
         # Search by name
         self.set_filter(name_filter_selector, self.history1_name)
+        self.screenshot("histories_published_grid_advanced")
         self.assert_grid_histories_are([self.history1_name])
         self.unset_filter('name', self.history1_name)
 
@@ -60,10 +61,16 @@ class HistoryGridTestCase(SharedStateSeleniumTestCase):
         self.assert_grid_histories_are([self.history1_name, self.history3_name], False)
         self.unset_filter('tags', self.history1_tags[0])
 
+    # Trying to address an intermittent failure by injecting a small rendering
+    # sleep. to be honest, I'm not sure that the timing is the issue, because
+    # this test never fails when run on its own, only when part of a longer test
+    # run, but there's so few moving parts here, I'm not sure what else to try.
     @selenium_test
     def test_history_grid_sort_by_name(self):
         self.navigate_to_published_histories_page()
+        self.sleep_for(self.wait_types.UX_RENDER)
         self.wait_for_and_click_selector('th#name-header > a')
+        self.sleep_for(self.wait_types.UX_RENDER)
         self.assert_grid_histories_are(sorted(self.all_histories))
 
     @selenium_test
@@ -88,9 +95,16 @@ class HistoryGridTestCase(SharedStateSeleniumTestCase):
         if tags is None:
             raise AssertionError('Failed to find history with name [%s]' % self.history1_name)
 
-        tag_button_selector = '.tag-area > .tag-button:first-child > .tag-name'
-        tag_button = tags.find_element_by_css_selector(tag_button_selector)
-        self.assertEqual(tag_button.text, self.history1_tags[0])
+        tag_button_selector = '.tag-area > .tag-button > .tag-name'
+        tag_buttons = tags.find_elements_by_css_selector(tag_button_selector)
+        tag_button_text = None
+        target_tag_button_text = self.history1_tags[0]
+        for tag_button in tag_buttons:
+            tag_button_text = tag_button.text
+            if tag_button_text == target_tag_button_text:
+                break
+
+        self.assertEqual(tag_button_text, target_tag_button_text)
         tag_button.click()
 
         self.assert_grid_histories_are([self.history1_name, self.history3_name], False)
@@ -203,9 +217,8 @@ class HistoryGridTestCase(SharedStateSeleniumTestCase):
 
     def publish_current_history(self):
         self.click_history_option('Share or Publish')
-        with self.main_panel():
-            self.wait_for_and_click_selector('input[name="make_accessible_and_publish"]')
-            self.wait_for_selector_clickable('input[name="disable_link_access_and_unpublish"]')
+        self.components.histories.sharing.make_accessible_and_publish.wait_for_and_click()
+        self.wait_for_selector_clickable('#disable_link_access_and_unpublish')
 
     def navigate_to_published_histories_page(self):
         self.home()

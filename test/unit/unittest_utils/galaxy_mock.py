@@ -10,14 +10,16 @@ from galaxy import (
     objectstore,
     quota
 )
+from galaxy.auth import AuthManager
 from galaxy.datatypes import registry
-from galaxy.jobs import NoopQueue
+from galaxy.jobs.manager import NoopManager
 from galaxy.managers import tags
 from galaxy.model import mapping
 from galaxy.tools.deps.containers import NullContainerFinder
 from galaxy.util.bunch import Bunch
 from galaxy.util.dbkeys import GenomeBuilds
 from galaxy.web import security
+from galaxy.web.stack import ApplicationStack
 
 
 # =============================================================================
@@ -68,13 +70,16 @@ class MockApp(object):
         self.init_datatypes()
         self.job_config = Bunch(
             dynamic_params=None,
+            destinations={}
         )
         self.tool_data_tables = {}
         self.dataset_collections_service = None
         self.container_finder = NullContainerFinder()
         self._toolbox_lock = MockLock()
         self.genome_builds = GenomeBuilds(self)
-        self.job_queue = NoopQueue()
+        self.job_manager = NoopManager()
+        self.application_stack = ApplicationStack()
+        self.auth_manager = AuthManager(self)
 
     def init_datatypes(self):
         datatypes_registry = registry.Registry()
@@ -101,7 +106,7 @@ class MockAppConfig(Bunch):
     def __init__(self, root=None, **kwargs):
         Bunch.__init__(self, **kwargs)
         root = root or '/tmp'
-        self.security = security.SecurityHelper(id_secret='bler')
+        self.security = security.SecurityHelper(id_secret='6e46ed6483a833c100e68cc3f1d0dd76')
         self.use_remote_user = kwargs.get('use_remote_user', False)
         self.file_path = '/tmp'
         self.jobs_directory = '/tmp'
@@ -118,8 +123,15 @@ class MockAppConfig(Bunch):
         self.expose_dataset_path = True
         self.allow_user_dataset_purge = True
         self.enable_old_display_applications = True
+        self.redact_username_in_logs = False
+        self.auth_config_file = "config/auth_conf.xml.sample"
+        self.error_email_to = "admin@email.to"
+        self.password_expiration_period = 0
 
         self.umask = 0o77
+
+        # Compliance related config
+        self.redact_email_in_job_name = False
 
         # Follow two required by GenomeBuilds
         self.len_file_path = os.path.join('tool-data', 'shared', 'ucsc', 'chrom')
@@ -127,6 +139,8 @@ class MockAppConfig(Bunch):
 
         self.migrated_tools_config = "/tmp/migrated_tools_conf.xml"
         self.preserve_python_environment = "always"
+        self.enable_beta_gdpr = False
+        self.legacy_eager_objectstore_initialization = True
 
         # set by MockDir
         self.root = root
@@ -136,7 +150,7 @@ class MockWebapp(object):
 
     def __init__(self, **kwargs):
         self.name = kwargs.get('name', 'galaxy')
-        self.security = security.SecurityHelper(id_secret='bler')
+        self.security = security.SecurityHelper(id_secret='6e46ed6483a833c100e68cc3f1d0dd76')
 
 
 class MockTrans(object):
@@ -147,14 +161,23 @@ class MockTrans(object):
         self.webapp = MockWebapp(**kwargs)
         self.sa_session = self.app.model.session
         self.workflow_building_mode = False
+        self.error_message = None
+        self.anonymous = False
+        self.debug = True
 
         self.galaxy_session = None
         self.__user = user
         self.security = self.app.security
         self.history = history
 
-        self.request = Bunch(headers={})
-        self.response = Bunch(headers={})
+        self.request = Bunch(headers={}, body=None)
+        self.response = Bunch(headers={}, set_content_type=lambda i : None)
+
+    def handle_user_login(self, user):
+        pass
+
+    def log_event(self, message):
+        pass
 
     def get_user(self):
         if self.galaxy_session:
@@ -180,12 +203,12 @@ class MockTrans(object):
 
     def fill_template(self, filename, template_lookup=None, **kwargs):
         template = template_lookup.get_template(filename)
-        template.output_encoding = 'utf-8'
         kwargs.update(h=MockTemplateHelpers())
         return template.render(**kwargs)
 
 
 class MockVisualizationsRegistry(object):
+    BUILT_IN_VISUALIZATIONS = ['trackster']
 
     def get_visualizations(self, trans, target):
         return []

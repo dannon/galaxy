@@ -1,22 +1,17 @@
+// eslint-disable-next-line no-undef
 define(["i18n!nls/locale"], function(localeStrings) {
     // =============================================================================
     /** Simple string replacement localization. Language data from galaxy/scripts/nls */
 
-    // support both requirejs and webpack from the same file
-    // if loaded via webpack, it will be a different format than via requirejs - convert
     if (localeStrings.hasOwnProperty("__root")) {
         //console.debug( 'amdi18n+webpack localization for ' + locale + ' loaded' );
-        var locale =
-            typeof navigator === "undefined"
-                ? "__root"
-                : (navigator.language ||
-                      navigator.userLanguage ||
-                      "__root"
-                  ).toLowerCase();
-        localeStrings =
-            localeStrings["__" + locale] ||
-            localeStrings["__" + locale.split("-")[0]] ||
-            localeStrings.__root;
+
+        let locale = sessionStorage.getItem("currentLocale");
+
+        if (locale) {
+            localeStrings =
+                localeStrings["__" + locale] || localeStrings["__" + locale.split("-")[0]] || localeStrings.__root;
+        }
 
         // } else {
         //     console.debug( 'i18n+requirejs localization for ' + locale + ' loaded' );
@@ -25,10 +20,10 @@ define(["i18n!nls/locale"], function(localeStrings) {
 
     // -----------------------------------------------------------------------------
     /** Attempt to get a localized string for strToLocalize. If not found, return
- *      the original strToLocalize.
- * @param {String} strToLocalize the string to localize
- * @returns either the localized string if found or strToLocalize if not found
- */
+     *      the original strToLocalize.
+     * @param {String} strToLocalize the string to localize
+     * @returns either the localized string if found or strToLocalize if not found
+     */
     var localize = function(strToLocalize) {
         // console.debug( 'amdi18n.localize:', strToLocalize, '->', localeStrings[ strToLocalize ] || strToLocalize );
 

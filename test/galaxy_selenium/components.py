@@ -1,13 +1,11 @@
 import re
 import string
-
 from abc import (
     ABCMeta,
     abstractproperty,
 )
 
 import six
-
 from selenium.webdriver.common.by import By
 
 from galaxy.util.bunch import Bunch
@@ -27,15 +25,16 @@ class Target(object):
 
 class SelectorTemplate(Target):
 
-    def __init__(self, selector, selector_type, children={}, kwds=None, with_classes=None):
+    def __init__(self, selector, selector_type, children=None, kwds=None, with_classes=None):
         self._selector = selector
         self.selector_type = selector_type
-        self._children = children
+        self._children = children or {}
         self.__kwds = kwds or {}
         self.with_classes = with_classes or []
 
     @staticmethod
-    def from_dict(raw_value, children={}):
+    def from_dict(raw_value, children=None):
+        children = children or {}
         if isinstance(raw_value, dict):
             return SelectorTemplate(raw_value["selector"], raw_value.get("type", "css"), children=children)
         else:
@@ -45,8 +44,17 @@ class SelectorTemplate(Target):
         assert self.selector_type == "css"
         return SelectorTemplate(self._selector, self.selector_type, kwds=self.__kwds, with_classes=self.with_classes + [class_], children=self._children)
 
+    def descendant(self, has_selector):
+        assert self.selector_type == "css"
+        if hasattr(has_selector, "selector"):
+            selector = has_selector.selector
+        else:
+            selector = has_selector
+
+        return SelectorTemplate(self.selector + " " + selector, self.selector_type, kwds=self.__kwds, children=self._children)
+
     def __call__(self, **kwds):
-        new_kwds = self.__kwds
+        new_kwds = self.__kwds.copy()
         new_kwds.update(**kwds)
         return SelectorTemplate(self._selector, self.selector_type, kwds=new_kwds, with_classes=self.with_classes, children=self._children)
 

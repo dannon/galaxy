@@ -1,5 +1,4 @@
 import os
-
 from copy import deepcopy
 from xml.etree import ElementInclude, ElementTree
 
@@ -142,7 +141,7 @@ def _expand_macro(element, expand_el, macros, tokens):
     # require this parent_map data structure but elementtree does not
     # track parents or recongnize .find('..').
     # TODO fix this now that we're not using elementtree
-    parent_map = dict((c, p) for p in element.getiterator() for c in p)
+    parent_map = dict((c, p) for p in element.iter() for c in p)
     _xml_replace(expand_el, expanded_elements, parent_map)
 
 
@@ -151,7 +150,7 @@ def _expand_yield_statements(macro_def, expand_el):
 
     expand_el_children = list(expand_el)
     macro_def_parent_map = \
-        dict((c, p) for macro_def_el in macro_def for p in macro_def_el.getiterator() for c in p)
+        dict((c, p) for macro_def_el in macro_def for p in macro_def_el.iter() for c in p)
 
     for yield_el in yield_els:
         _xml_replace(yield_el, expand_el_children, macro_def_parent_map)
@@ -229,9 +228,7 @@ def _imported_macro_paths_from_el(macros_el):
         macro_import_els = macros_el.findall("import")
     for macro_import_el in macro_import_els:
         raw_import_path = macro_import_el.text
-        tool_relative_import_path = \
-            os.path.basename(raw_import_path)  # Sanitize this
-        imported_macro_paths.append(tool_relative_import_path)
+        imported_macro_paths.append(raw_import_path)
     return imported_macro_paths
 
 

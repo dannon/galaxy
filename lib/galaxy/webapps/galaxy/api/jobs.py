@@ -12,6 +12,7 @@ from sqlalchemy import or_
 from galaxy import exceptions
 from galaxy import model
 from galaxy import util
+from galaxy.managers.datasets import DatasetManager
 from galaxy.managers.jobs import JobSearch
 from galaxy.web import _future_expose_api as expose_api
 from galaxy.web import _future_expose_api_anonymous as expose_api_anonymous
@@ -26,6 +27,7 @@ class JobController(BaseAPIController, UsesLibraryMixinItems):
 
     def __init__(self, app):
         super(JobController, self).__init__(app)
+        self.dataset_manager = DatasetManager(app)
         self.job_search = JobSearch(app)
 
     @expose_api
@@ -62,7 +64,7 @@ class JobController(BaseAPIController, UsesLibraryMixinItems):
         :returns:   list of dictionaries containing summary job information
         """
         state = kwd.get('state', None)
-        is_admin = trans.user_is_admin()
+        is_admin = trans.user_is_admin
         user_details = kwd.get('user_details', False)
 
         if is_admin:
@@ -111,7 +113,7 @@ class JobController(BaseAPIController, UsesLibraryMixinItems):
 
         return out
 
-    @expose_api
+    @expose_api_anonymous
     def show(self, trans, id, **kwd):
         """
         show( trans, id )
@@ -128,13 +130,16 @@ class JobController(BaseAPIController, UsesLibraryMixinItems):
         :returns:   dictionary containing full description of job data
         """
         job = self.__get_job(trans, id)
-        is_admin = trans.user_is_admin()
+        is_admin = trans.user_is_admin
         job_dict = self.encode_all_ids(trans, job.to_dict('element', system_details=is_admin), True)
         full_output = util.asbool(kwd.get('full', 'false'))
         if full_output:
             job_dict.update(dict(stderr=job.stderr, stdout=job.stdout))
             if is_admin:
-                job_dict['user_email'] = job.user.email
+                if job.user:
+                    job_dict['user_email'] = job.user.email
+                else:
+                    job_dict['user_email'] = None
 
                 def metric_to_dict(metric):
                     metric_name = metric.metric_name
@@ -171,7 +176,7 @@ class JobController(BaseAPIController, UsesLibraryMixinItems):
     @expose_api
     def outputs(self, trans, id, **kwd):
         """
-        show( trans, id )
+        outputs( trans, id )
         * GET /api/jobs/{id}/outputs
             returns output datasets created by job
 
@@ -182,6 +187,46 @@ class JobController(BaseAPIController, UsesLibraryMixinItems):
         :returns:   dictionary containing output dataset associations
         """
         job = self.__get_job(trans, id)
+        return self.__dictify_associations(trans, job.output_datasets, job.output_library_datasets)
+
+    @expose_api
+    def delete(self, trans, id, **kwd):
+        """
+        delete( trans, id )
+        * Delete /api/jobs/{id}
+            cancels specified job
+
+        :type   id: string
+        :param  id: Encoded job id
+        """
+        job = self.__get_job(trans, id)
+        if not job.finished:
+            job.mark_deleted(self.app.config.track_jobs_in_database)
+            trans.sa_session.flush()
+            self.app.job_manager.stop(job)
+            return True
+        else:
+            return False
+
+    @expose_api
+    def resume(self, trans, id, **kwd):
+        """
+        * PUT /api/jobs/{id}/resume
+            Resumes a paused job
+
+        :type   id: string
+        :param  id: Encoded job id
+
+        :rtype:     dictionary
+        :returns:   dictionary containing output dataset associations
+        """
+        job = self.__get_job(trans, id)
+        if not job:
+            raise exceptions.ObjectNotFound("Could not access job with id '%s'" % id)
+        if job.state == job.states.PAUSED:
+            job.resume()
+        else:
+            exceptions.RequestParameterInvalidException("Job with id '%s' is not paused" % (job.tool_id))
         return self.__dictify_associations(trans, job.output_datasets, job.output_library_datasets)
 
     @expose_api_anonymous
@@ -212,7 +257,7 @@ class JobController(BaseAPIController, UsesLibraryMixinItems):
     def __dictify_associations(self, trans, *association_lists):
         rval = []
         for association_list in association_lists:
-            rval.extend(map(lambda a: self.__dictify_association(trans, a), association_list))
+            rval.extend(self.__dictify_association(trans, a) for a in association_list)
         return rval
 
     def __dictify_association(self, trans, job_dataset_association):
@@ -233,7 +278,9 @@ class JobController(BaseAPIController, UsesLibraryMixinItems):
         job = trans.sa_session.query(trans.app.model.Job).filter(trans.app.model.Job.id == decoded_job_id).first()
         if job is None:
             raise exceptions.ObjectNotFound()
-        if not trans.user_is_admin() and job.user != trans.user:
+        belongs_to_user = (job.user == trans.user) if job.user else (job.session_id == trans.get_galaxy_session().id)
+        if not trans.user_is_admin and not belongs_to_user:
+            # Check access granted via output datasets.
             if not job.output_datasets:
                 raise exceptions.ItemAccessibilityException("Job has no output datasets.")
             for data_assoc in job.output_datasets:
@@ -274,7 +321,7 @@ class JobController(BaseAPIController, UsesLibraryMixinItems):
             raise exceptions.ObjectAttributeMissingException("No inputs defined")
         inputs = payload.get('inputs', {})
         # Find files coming in as multipart file data and add to inputs.
-        for k, v in payload.iteritems():
+        for k, v in payload.items():
             if k.startswith('files_') or k.startswith('__files_'):
                 inputs[k] = v
         request_context = WorkRequestContext(app=trans.app, user=trans.user, history=trans.history)
@@ -283,16 +330,18 @@ class JobController(BaseAPIController, UsesLibraryMixinItems):
             return []
         params_dump = [tool.params_to_strings(param, self.app, nested=True) for param in all_params]
         jobs = []
-        for param_dump in params_dump:
+        for param_dump, param in zip(params_dump, all_params):
             job = self.job_search.by_tool_input(trans=trans,
                                                 tool_id=tool_id,
+                                                tool_version=tool.version,
+                                                param=param,
                                                 param_dump=param_dump,
                                                 job_state=payload.get('state'))
             if job:
                 jobs.append(job)
         return [self.encode_all_ids(trans, single_job.to_dict('element'), True) for single_job in jobs]
 
-    @expose_api
+    @expose_api_anonymous
     def error(self, trans, id, **kwd):
         """
         error( trans, id )
@@ -315,10 +364,17 @@ class JobController(BaseAPIController, UsesLibraryMixinItems):
         # Get job
         job = self.__get_job(trans, id)
         tool = trans.app.toolbox.get_tool(job.tool_id, tool_version=job.tool_version) or None
+        email = kwd.get('email')
+        if not email and not trans.anonymous:
+            email = trans.user.email
         messages = trans.app.error_reports.default_error_plugin.submit_report(
-            dataset, job, tool, user_submission=True, user=trans.user,
-            email=kwd.get('email', trans.user.email),
-            message=kwd.get('message', None)
+            dataset=dataset,
+            job=job,
+            tool=tool,
+            user_submission=True,
+            user=trans.user,
+            email=email,
+            message=kwd.get('message')
         )
 
         return {'messages': messages}

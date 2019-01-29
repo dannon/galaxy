@@ -18,6 +18,7 @@ class SavedHistoriesTestCase(SharedStateSeleniumTestCase):
     def test_history_switch(self):
         self._login()
         self.navigate_to_saved_histories_page()
+        self.screenshot("histories_saved_grid")
         self.click_popup_option(self.history2_name, 'Switch')
         self.sleep_for(self.wait_types.UX_RENDER)
 
@@ -42,7 +43,7 @@ class SavedHistoriesTestCase(SharedStateSeleniumTestCase):
 
         # Publish the history
         self.click_popup_option(self.history2_name, 'Share or Publish')
-        self.wait_for_and_click_selector('input[name="make_accessible_and_publish"]')
+        self.components.histories.sharing.make_accessible_and_publish.wait_for_and_click()
 
         self.navigate_to_saved_histories_page()
 
@@ -314,11 +315,8 @@ class SavedHistoriesTestCase(SharedStateSeleniumTestCase):
         if history_menu_button is None:
             raise AssertionError('Failed to find history with name [%s]' % history_name)
 
-        popup_menu_button = history_menu_button.find_element_by_css_selector('.popup')
-        x_offset = popup_menu_button.size['width'] - 5
-        y_offset = popup_menu_button.size['height'] - 5
-        self.action_chains().move_to_element_with_offset(popup_menu_button, x_offset, y_offset).click().perform()
-
+        popup_menu_button = history_menu_button.find_element_by_css_selector('.dropdown-toggle')
+        popup_menu_button.click()
         popup_option = self.driver.find_element_by_link_text(option_label)
         popup_option.click()
 
@@ -328,7 +326,7 @@ class SavedHistoriesTestCase(SharedStateSeleniumTestCase):
         for row in grid.find_elements_by_tag_name('tr'):
             td = row.find_elements_by_tag_name('td')
             if td[1].text == history_name:
-                tags_cell = td[3]
+                tags_cell = td[4]
                 break
 
         if tags_cell is None:

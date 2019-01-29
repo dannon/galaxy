@@ -1,12 +1,18 @@
 from __future__ import absolute_import
 
 import logging
+import os
 from json import loads
 
+import yaml
 from markupsafe import escape
-from paste.httpexceptions import HTTPNotFound, HTTPBadRequest
+from paste.httpexceptions import (
+    HTTPBadRequest,
+    HTTPNotFound
+)
 from six import string_types
 from sqlalchemy import and_, desc, false, or_, true
+from sqlalchemy.orm import eagerload, undefer
 
 from galaxy import managers, model, util, web
 from galaxy.datatypes.interval import Bed
@@ -18,12 +24,12 @@ from galaxy.visualization.data_providers.phyloviz import PhylovizDataProvider
 from galaxy.visualization.genomes import decode_dbkey
 from galaxy.visualization.genomes import GenomeRegion
 from galaxy.visualization.plugins import registry
-from galaxy.web import error
-from galaxy.web.base.controller import BaseUIController, SharableMixin, UsesVisualizationMixin
+from galaxy.web.base.controller import (
+    BaseUIController,
+    SharableMixin,
+    UsesVisualizationMixin
+)
 from galaxy.web.framework.helpers import grids, time_ago
-
-import os
-import yaml
 
 log = logging.getLogger(__name__)
 
@@ -112,7 +118,6 @@ class TracksterSelectionGrid(grids.Grid):
     title = "Insert into visualization"
     model_class = model.Visualization
     default_sort_key = "-update_time"
-    use_async = True
     use_paging = False
     show_item_checkboxes = True
     columns = [
@@ -176,7 +181,7 @@ class VisualizationListGrid(grids.Grid):
         grids.GridOperation("Open", allow_multiple=False, url_args=get_url_args),
         grids.GridOperation("Edit Attributes", allow_multiple=False, url_args=dict(controller="", action='visualizations/edit')),
         grids.GridOperation("Copy", allow_multiple=False, condition=(lambda item: not item.deleted)),
-        grids.GridOperation("Share or Publish", allow_multiple=False, condition=(lambda item: not item.deleted), url_args=dict(action='sharing')),
+        grids.GridOperation("Share or Publish", allow_multiple=False, condition=(lambda item: not item.deleted), url_args=dict(controller="", action="visualizations/sharing")),
         grids.GridOperation("Delete", condition=(lambda item: not item.deleted), confirm="Are you sure you want to delete this visualization?"),
     ]
 
@@ -187,7 +192,6 @@ class VisualizationListGrid(grids.Grid):
 class VisualizationAllPublishedGrid(grids.Grid):
     # Grid definition
     use_panels = True
-    use_async = True
     title = "Published Visualizations"
     model_class = model.Visualization
     default_sort_key = "update_time"
@@ -208,8 +212,8 @@ class VisualizationAllPublishedGrid(grids.Grid):
     )
 
     def build_initial_query(self, trans, **kwargs):
-        # Join so that searching history.user makes sense.
-        return trans.sa_session.query(self.model_class).join(model.User.table)
+        # See optimization description comments and TODO for tags in matching public histories query.
+        return trans.sa_session.query(self.model_class).join("user").options(eagerload("user").load_only("username"), eagerload("annotations"), undefer("average_rating"))
 
     def apply_query_filter(self, trans, query, **kwargs):
         return query.filter(self.model_class.deleted == false()).filter(self.model_class.published == true())
@@ -236,7 +240,6 @@ class VisualizationController(BaseUIController, SharableMixin, UsesVisualization
     @web.require_login("see all available libraries")
     def list_libraries(self, trans, **kwargs):
         """List all libraries that can be used for selecting datasets."""
-        kwargs['dict_format'] = True
         return self._libraries_grid(trans, **kwargs)
 
     @web.expose
@@ -245,7 +248,6 @@ class VisualizationController(BaseUIController, SharableMixin, UsesVisualization
     def list_history_datasets(self, trans, **kwargs):
         """List a history's datasets that can be added to a visualization."""
         kwargs['show_item_checkboxes'] = 'True'
-        kwargs['dict_format'] = True
         return self._history_datasets_grid(trans, **kwargs)
 
     @web.expose
@@ -254,19 +256,16 @@ class VisualizationController(BaseUIController, SharableMixin, UsesVisualization
     def list_library_datasets(self, trans, **kwargs):
         """List a library's datasets that can be added to a visualization."""
         kwargs['show_item_checkboxes'] = 'True'
-        kwargs['dict_format'] = True
         return self._library_datasets_grid(trans, **kwargs)
 
     @web.expose
     @web.json
     def list_tracks(self, trans, **kwargs):
-        kwargs['dict_format'] = True
         return self._tracks_grid(trans, **kwargs)
 
     @web.expose
     @web.json
     def list_published(self, trans, *args, **kwargs):
-        kwargs['dict_format'] = True
         grid = self._published_list_grid(trans, **kwargs)
         grid['shared_by_others'] = self._get_shared(trans)
         return grid
@@ -288,7 +287,6 @@ class VisualizationController(BaseUIController, SharableMixin, UsesVisualization
                     self.copy(trans, **kwargs)
             session.flush()
         kwargs['embedded'] = True
-        kwargs['dict_format'] = True
         if message and status:
             kwargs['message'] = sanitize_text(message)
             kwargs['status'] = status
@@ -404,42 +402,7 @@ class VisualizationController(BaseUIController, SharableMixin, UsesVisualization
             # Redirect to load galaxy frames.
             return trans.show_ok_message(
                 message="""Visualization "%s" has been imported. <br>You can <a href="%s">start using this visualization</a> or %s."""
-                % (visualization.title, web.url_for(controller='visualization'), referer_message), use_panels=True)
-
-    @web.expose
-    @web.require_login("share Galaxy visualizations")
-    def sharing(self, trans, id, **kwargs):
-        """ Handle visualization sharing. """
-
-        # Get session and visualization.
-        session = trans.sa_session
-        visualization = self.get_visualization(trans, id, check_ownership=True)
-
-        # Do operation on visualization.
-        if 'make_accessible_via_link' in kwargs:
-            self._make_item_accessible(trans.sa_session, visualization)
-        elif 'make_accessible_and_publish' in kwargs:
-            self._make_item_accessible(trans.sa_session, visualization)
-            visualization.published = True
-        elif 'publish' in kwargs:
-            visualization.published = True
-        elif 'disable_link_access' in kwargs:
-            visualization.importable = False
-        elif 'unpublish' in kwargs:
-            visualization.published = False
-        elif 'disable_link_access_and_unpublish' in kwargs:
-            visualization.importable = visualization.published = False
-        elif 'unshare_user' in kwargs:
-            user = session.query(model.User).get(self.decode_id(kwargs['unshare_user']))
-            if not user:
-                error("User not found for provided id")
-            association = session.query(model.VisualizationUserShareAssociation) \
-                                 .filter_by(user=user, visualization=visualization).one()
-            session.delete(association)
-
-        session.flush()
-
-        return trans.fill_template("/sharing_base.mako", item=visualization, controller_list='visualizations', use_panels=True)
+                % (visualization.title, web.url_for('/visualizations/list'), referer_message), use_panels=True)
 
     @web.expose
     @web.require_login("share Galaxy visualizations")
@@ -473,7 +436,7 @@ class VisualizationController(BaseUIController, SharableMixin, UsesVisualization
                 viz_title = escape(visualization.title)
                 other_email = escape(other.email)
                 trans.set_message("Visualization '%s' shared with user '%s'" % (viz_title, other_email))
-                return trans.response.send_redirect(web.url_for(controller='visualization', action='sharing', id=id))
+                return trans.response.send_redirect(web.url_for("/visualizations/sharing?id=%s" % id))
         return trans.fill_template("/ind_share_base.mako",
                                    message=msg,
                                    messagetype=mtype,
@@ -621,7 +584,7 @@ class VisualizationController(BaseUIController, SharableMixin, UsesVisualization
                 v.slug = v_slug
                 v.dbkey = v_dbkey
                 if v_annotation:
-                    v_annotation = sanitize_html(v_annotation, 'utf-8', 'text/html')
+                    v_annotation = sanitize_html(v_annotation)
                     self.add_item_annotation(trans.sa_session, trans.get_user(), v, v_annotation)
                 trans.sa_session.add(v)
                 trans.sa_session.flush()
@@ -730,7 +693,7 @@ class VisualizationController(BaseUIController, SharableMixin, UsesVisualization
         """
 
         # define app configuration
-        app = {'jscript' : "viz/trackster"}
+        app = {"jscript" : "trackster"}
 
         # get dataset to add
         id = kwargs.get("id", None)
@@ -774,7 +737,7 @@ class VisualizationController(BaseUIController, SharableMixin, UsesVisualization
             }
 
         # fill template
-        return trans.fill_template('galaxy.panels.mako', config={'right_panel': True, 'app': app})
+        return trans.fill_template('galaxy.panels.mako', config={'right_panel': True, 'app': app, 'bundle': 'extended'})
 
     @web.expose
     def circster(self, trans, id=None, hda_ldda=None, dataset_id=None, dbkey=None):
@@ -830,13 +793,13 @@ class VisualizationController(BaseUIController, SharableMixin, UsesVisualization
 
         # define app configuration for generic mako template
         app = {
-            'jscript'       : "viz/circster",
+            'jscript'       : "circster",
             'viz_config'    : viz_config,
             'genome'        : genome
         }
 
         # fill template
-        return trans.fill_template('galaxy.panels.mako', config={'app' : app})
+        return trans.fill_template('galaxy.panels.mako', config={'app' : app, 'bundle': 'extended'})
 
     @web.expose
     def sweepster(self, trans, id=None, hda_ldda=None, dataset_id=None, regions=None):

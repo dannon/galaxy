@@ -16,6 +16,7 @@ from galaxy.exceptions import (
     ConfigDoesNotAllowException,
 )
 from galaxy.util import (
+    asbool,
     inflector,
     relpath,
     sanitize_for_filename
@@ -27,7 +28,7 @@ from galaxy.util.expressions import ExpressionContext
 log = logging.getLogger(__name__)
 
 
-class Group(object, Dictifiable):
+class Group(Dictifiable):
 
     dict_collection_visible_keys = ['name', 'type']
 
@@ -92,7 +93,8 @@ class Repeat(Group):
             if '__index__' in d:
                 rval_dict['__index__'] = d['__index__']
             for input in self.inputs.values():
-                rval_dict[input.name] = input.value_to_basic(d[input.name], app)
+                if input.name in d:
+                    rval_dict[input.name] = input.value_to_basic(d[input.name], app)
             rval.append(rval_dict)
         return rval
 
@@ -160,7 +162,8 @@ class Section(Group):
     def value_to_basic(self, value, app):
         rval = {}
         for input in self.inputs.values():
-            rval[input.name] = input.value_to_basic(value[input.name], app)
+            if input.name in value:  # parameter might be absent in unverified workflow
+                rval[input.name] = input.value_to_basic(value[input.name], app)
         return rval
 
     def value_from_basic(self, value, app, ignore_errors=False):
@@ -211,6 +214,14 @@ class UploadDataset(Group):
         dataset_name = context.get('files_metadata|base_name', None)
         if dataset_name is None:
             dataset_name = context.get('files_metadata', {}).get('base_name', None)
+        if dataset_name is None:
+            filenames = list()
+            for composite_file in context.get('files', []):
+                if not composite_file.get('ftp_files', ''):
+                    filenames.append((composite_file.get('file_data') or {}).get('filename', ''))
+                else:
+                    filenames.append(composite_file.get('ftp_files', [])[0])
+            dataset_name = os.path.commonprefix(filenames).rstrip('.') or None
         if dataset_name is None:
             dataset_name = 'Uploaded Composite Dataset (%s)' % self.get_file_type(context)
         return dataset_name
@@ -274,29 +285,38 @@ class UploadDataset(Group):
             if '__index__' in d:
                 rval_dict['__index__'] = d['__index__']
             for input in self.inputs.values():
-                rval_dict[input.name] = input.value_to_basic(d[input.name], app)
+                if input.name in d:
+                    rval_dict[input.name] = input.value_to_basic(d[input.name], app)
             rval.append(rval_dict)
         return rval
 
     def value_from_basic(self, value, app, ignore_errors=False):
         rval = []
         for i, d in enumerate(value):
-            rval_dict = {}
-            # If the special __index__ key is not set, create it (for backward
-            # compatibility)
-            rval_dict['__index__'] = d.get('__index__', i)
-            # Restore child inputs
-            for input in self.inputs.values():
-                if ignore_errors and input.name not in d:  # this wasn't tested
-                    rval_dict[input.name] = input.get_initial_value(None, d)
-                else:
-                    rval_dict[input.name] = input.value_from_basic(d[input.name], app, ignore_errors)
-            rval.append(rval_dict)
+            try:
+                rval_dict = {}
+                # If the special __index__ key is not set, create it (for backward
+                # compatibility)
+                rval_dict['__index__'] = d.get('__index__', i)
+                # Restore child inputs
+                for input in self.inputs.values():
+                    if ignore_errors and input.name not in d:  # this wasn't tested
+                        rval_dict[input.name] = input.get_initial_value(None, d)
+                    else:
+                        rval_dict[input.name] = input.value_from_basic(d[input.name], app, ignore_errors)
+                rval.append(rval_dict)
+            except Exception as e:
+                if not ignore_errors:
+                    raise e
         return rval
 
     def get_file_count(self, trans, context):
         file_count = context.get("file_count", "auto")
-        return len(self.get_datatype(trans, context).writable_files) if file_count == "auto" else int(file_count)
+        if file_count == "auto":
+            d_type = self.get_datatype(trans, context)
+            return len(d_type.writable_files) if d_type else 1
+        else:
+            return int(file_count)
 
     def get_initial_value(self, trans, context):
         file_count = self.get_file_count(trans, context)
@@ -329,7 +349,7 @@ class UploadDataset(Group):
         def get_url_paste_urls_or_filename(group_incoming, override_name=None, override_info=None):
             url_paste_file = group_incoming.get('url_paste', None)
             if url_paste_file is not None:
-                url_paste = open(url_paste_file, 'r').read(1024)
+                url_paste = open(url_paste_file, 'r').read()
 
                 def start_of_url(content):
                     start_of_url_paste = content.lstrip()[0:8].lower()
@@ -350,7 +370,7 @@ class UploadDataset(Group):
                                 continue  # non-url line, ignore
 
                             if "file://" in line:
-                                if not trans.user_is_admin():
+                                if not trans.user_is_admin:
                                     raise AdminRequiredException()
                                 elif not trans.app.config.allow_path_paste:
                                     raise ConfigDoesNotAllowException()
@@ -524,13 +544,14 @@ class UploadDataset(Group):
         d_type = self.get_datatype(trans, context)
         dbkey = self.get_dbkey(context)
         tag_using_filenames = context.get('tag_using_filenames', False)
+        force_composite = asbool(context.get('force_composite', 'False'))
         writable_files = d_type.writable_files
         writable_files_offset = 0
         groups_incoming = [None for _ in range(file_count)]
         for group_incoming in context.get(self.name, []):
             i = int(group_incoming['__index__'])
             groups_incoming[i] = group_incoming
-        if d_type.composite_type is not None:
+        if d_type.composite_type is not None or force_composite:
             # handle uploading of composite datatypes
             # Only one Dataset can be created
             dataset = Bunch()
@@ -553,10 +574,10 @@ class UploadDataset(Group):
                         if meta_name in metadata_name_substition_default_dict:
                             meta_value = sanitize_for_filename(meta_value, default=metadata_name_substition_default_dict[meta_name])
                         dataset.metadata[meta_name] = meta_value
-            dataset.precreated_name = dataset.name = self.get_composite_dataset_name(context)
+            dataset.name = self.get_composite_dataset_name(context)
             if dataset.datatype.composite_type == 'auto_primary_file':
                 # replace sniff here with just creating an empty file
-                temp_name, is_multi_byte = sniff.stream_to_file(StringIO(d_type.generate_primary_file(dataset)), prefix='upload_auto_primary_file')
+                temp_name = sniff.stream_to_file(StringIO(d_type.generate_primary_file(dataset)), prefix='upload_auto_primary_file')
                 dataset.primary_file = temp_name
                 dataset.to_posix_lines = True
                 dataset.auto_decompress = True
@@ -575,18 +596,23 @@ class UploadDataset(Group):
                 dataset.warnings.extend(warnings)
             if dataset.primary_file is None:  # remove this before finish, this should create an empty dataset
                 raise Exception('No primary dataset file was available for composite upload')
-            keys = [value.name for value in writable_files.values()]
-            for i, group_incoming in enumerate(groups_incoming[writable_files_offset :]):
+            if not force_composite:
+                keys = [value.name for value in writable_files.values()]
+            else:
+                keys = [str(index) for index in range(file_count)]
+            for i, group_incoming in enumerate(groups_incoming[writable_files_offset:]):
                 key = keys[i + writable_files_offset]
-                if group_incoming is None and not writable_files[list(writable_files.keys())[keys.index(key)]].optional:
+                if not force_composite and group_incoming is None and not writable_files[list(writable_files.keys())[keys.index(key)]].optional:
                     dataset.warnings.append("A required composite file (%s) was not specified." % (key))
                     dataset.composite_files[key] = None
                 else:
                     file_bunch, warnings = get_one_filename(group_incoming)
                     dataset.warnings.extend(warnings)
                     if file_bunch.path:
+                        if force_composite:
+                            key = group_incoming.get("NAME") or i
                         dataset.composite_files[key] = file_bunch.__dict__
-                    else:
+                    elif not force_composite:
                         dataset.composite_files[key] = None
                         if not writable_files[list(writable_files.keys())[keys.index(key)]].optional:
                             dataset.warnings.append("A required composite file (%s) was not specified." % (key))
@@ -684,7 +710,7 @@ class Conditional(Group):
         return cond_dict
 
 
-class ConditionalWhen(object, Dictifiable):
+class ConditionalWhen(Dictifiable):
     dict_collection_visible_keys = ['value']
 
     def __init__(self):

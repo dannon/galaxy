@@ -29,7 +29,8 @@
 #   directory: /tmp/reports/
 
 # Submit error reports to sentry. If a sentry_dsn is configured in your
-# galaxy.ini, then Galaxy will submit the job error to Sentry.
+# galaxy.ini, then Galaxy will submit the job error to Sentry. You may supply a
+# separate DSN for tool reports by supplying a ``custom_dsn`` parameter.
 - type: sentry
   user_submission: false
 
@@ -46,7 +47,7 @@
 # errors InfluxDB allowing you to notice relationships between tool errors and
 # other infrastructure issues.
 # - type: influxdb
-#   # All arguments prefixed with `influxdb_` are per http://influxdb-python.readthedocs.io/en/latest/api-documentation.html#influxdbclient
+#   # All arguments prefixed with `influxdb_` are per https://influxdb-python.readthedocs.io/en/latest/api-documentation.html#influxdbclient
 #   influxdb_host: 127.0.0.1
 #   influxdb_port: 8086
 #   influxdb_database: galaxy

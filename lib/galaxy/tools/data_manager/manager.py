@@ -317,16 +317,17 @@ class DataManager(object):
                         self.process_move(data_table_name, name, output_ref_values[name].extra_files_path, **data_table_value)
                         data_table_value[name] = self.process_value_translation(data_table_name, name, **data_table_value)
                 data_table.add_entry(data_table_value, persist=True, entry_source=self)
-                send_control_task(self.data_managers.app,
-                                  'reload_tool_data_tables',
-                                  noop_self=True,
-                                  kwargs={'table_name': data_table_name})
+            send_control_task(self.data_managers.app,
+                              'reload_tool_data_tables',
+                              noop_self=True,
+                              kwargs={'table_name': data_table_name})
         if self.undeclared_tables and data_tables_dict:
             # We handle the data move, by just moving all the data out of the extra files path
             # moving a directory and the target already exists, we move the contents instead
             log.debug('Attempting to add entries for undeclared tables: %s.', ', '.join(data_tables_dict.keys()))
             for ref_file in out_data.values():
-                util.move_merge(ref_file.extra_files_path, self.data_managers.app.config.galaxy_data_manager_data_path)
+                if ref_file.extra_files_path_exists():
+                    util.move_merge(ref_file.extra_files_path, self.data_managers.app.config.galaxy_data_manager_data_path)
             path_column_names = ['path']
             for data_table_name, data_table_values in data_tables_dict.items():
                 data_table = self.data_managers.app.tool_data_tables.get(data_table_name, None)
@@ -338,9 +339,9 @@ class DataManager(object):
                         if name in path_column_names:
                             data_table_value[name] = os.path.abspath(os.path.join(self.data_managers.app.config.galaxy_data_manager_data_path, value))
                     data_table.add_entry(data_table_value, persist=True, entry_source=self)
-                    send_control_task(self.data_managers.app, 'reload_tool_data_tables',
-                                      noop_self=True,
-                                      kwargs={'table_name': data_table_name})
+                send_control_task(self.data_managers.app, 'reload_tool_data_tables',
+                                  noop_self=True,
+                                  kwargs={'table_name': data_table_name})
         else:
             for data_table_name, data_table_values in data_tables_dict.items():
                 # tool returned extra data table entries, but data table was not declared in data manager
@@ -354,16 +355,16 @@ class DataManager(object):
             if source is None:
                 source = source_base_path
             else:
-                source = fill_template(source, GALAXY_DATA_MANAGER_DATA_PATH=self.data_managers.app.config.galaxy_data_manager_data_path, **kwd)
+                source = fill_template(source, GALAXY_DATA_MANAGER_DATA_PATH=self.data_managers.app.config.galaxy_data_manager_data_path, **kwd).strip()
             if move_dict['source_value']:
-                source = os.path.join(source, fill_template(move_dict['source_value'], GALAXY_DATA_MANAGER_DATA_PATH=self.data_managers.app.config.galaxy_data_manager_data_path, **kwd))
+                source = os.path.join(source, fill_template(move_dict['source_value'], GALAXY_DATA_MANAGER_DATA_PATH=self.data_managers.app.config.galaxy_data_manager_data_path, **kwd).strip())
             target = move_dict['target_base']
             if target is None:
                 target = self.data_managers.app.config.galaxy_data_manager_data_path
             else:
-                target = fill_template(target, GALAXY_DATA_MANAGER_DATA_PATH=self.data_managers.app.config.galaxy_data_manager_data_path, **kwd)
+                target = fill_template(target, GALAXY_DATA_MANAGER_DATA_PATH=self.data_managers.app.config.galaxy_data_manager_data_path, **kwd).strip()
             if move_dict['target_value']:
-                target = os.path.join(target, fill_template(move_dict['target_value'], GALAXY_DATA_MANAGER_DATA_PATH=self.data_managers.app.config.galaxy_data_manager_data_path, **kwd))
+                target = os.path.join(target, fill_template(move_dict['target_value'], GALAXY_DATA_MANAGER_DATA_PATH=self.data_managers.app.config.galaxy_data_manager_data_path, **kwd).strip())
 
             if move_dict['type'] == 'file':
                 dirs = os.path.split(target)[0]
@@ -373,7 +374,8 @@ class DataManager(object):
                     if e.errno != errno.EEXIST:
                         raise e
             # moving a directory and the target already exists, we move the contents instead
-            util.move_merge(source, target)
+            if os.path.exists(source):
+                util.move_merge(source, target)
 
             if move_dict.get('relativize_symlinks', False):
                 util.relativize_symlinks(target)
@@ -386,7 +388,7 @@ class DataManager(object):
         if data_table_name in self.value_translation_by_data_table_column and column_name in self.value_translation_by_data_table_column[data_table_name]:
             for value_translation in self.value_translation_by_data_table_column[data_table_name][column_name]:
                 if isinstance(value_translation, string_types):
-                    value = fill_template(value_translation, GALAXY_DATA_MANAGER_DATA_PATH=self.data_managers.app.config.galaxy_data_manager_data_path, **kwd)
+                    value = fill_template(value_translation, GALAXY_DATA_MANAGER_DATA_PATH=self.data_managers.app.config.galaxy_data_manager_data_path, **kwd).strip()
                 else:
                     value = value_translation(value)
         return value

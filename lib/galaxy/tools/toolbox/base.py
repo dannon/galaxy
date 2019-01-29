@@ -2,6 +2,7 @@ import logging
 import os
 import string
 import time
+from errno import ENOENT
 from xml.etree.ElementTree import ParseError
 
 from markupsafe import escape
@@ -9,8 +10,6 @@ from six import iteritems
 from six.moves.urllib.parse import urlparse
 
 from galaxy.exceptions import MessageException, ObjectNotFound
-# Next two are extra tool dependency not used by AbstractToolBox but by
-# BaseGalaxyToolBox.
 from galaxy.tools.deps import build_dependency_manager
 from galaxy.tools.loader_directory import looks_like_a_tool
 from galaxy.util import (
@@ -22,7 +21,6 @@ from galaxy.util import (
 from galaxy.util.bunch import Bunch
 from galaxy.util.dictifiable import Dictifiable
 from galaxy.util.odict import odict
-
 from .filters import FilterFactory
 from .integrated_panel import ManagesIntegratedToolPanelMixin
 from .lineages import LineageMap
@@ -38,7 +36,7 @@ from .tags import tool_tag_manager
 log = logging.getLogger(__name__)
 
 
-class AbstractToolBox(Dictifiable, ManagesIntegratedToolPanelMixin, object):
+class AbstractToolBox(Dictifiable, ManagesIntegratedToolPanelMixin):
     """
     Abstract container for managing a ToolPanel - containing tools and
     workflows optionally in labelled sections.
@@ -60,6 +58,9 @@ class AbstractToolBox(Dictifiable, ManagesIntegratedToolPanelMixin, object):
         # dictionary can instead hold multiple tools with different versions.
         self._tool_versions_by_id = {}
         self._workflows_by_id = {}
+        # Cache for tool's to_dict calls specific to toolbox. Invalidates on toolbox reload.
+        self._tool_to_dict_cache = {}
+        self._tool_to_dict_cache_admin = {}
         # In-memory dictionary that defines the layout of the tool panel.
         self._tool_panel = ToolPanelElements()
         self._index = 0
@@ -123,7 +124,7 @@ class AbstractToolBox(Dictifiable, ManagesIntegratedToolPanelMixin, object):
                     raise
             except Exception:
                 log.exception("Error loading tools defined in config %s", config_filename)
-        log.debug("Reading tools from config files finshed %s", execution_timer)
+        log.debug("Reading tools from config files finished %s", execution_timer)
 
     def _init_tools_from_config(self, config_filename):
         """
@@ -326,7 +327,7 @@ class AbstractToolBox(Dictifiable, ManagesIntegratedToolPanelMixin, object):
                             # If the tool is not defined in integrated_tool_panel.xml, append it to the tool panel.
                             panel_dict.append_tool(tool)
                             log_msg = "Loaded tool id: %s, version: %s into tool panel...." % (tool.id, tool.version)
-        if not hasattr(self.app, 'tool_cache') or tool_id in self.app.tool_cache._new_tool_ids:
+        if log_msg and (not hasattr(self.app, 'tool_cache') or tool_id in self.app.tool_cache._new_tool_ids):
             log.debug(log_msg)
 
     def _load_tool_panel(self):
@@ -445,6 +446,9 @@ class AbstractToolBox(Dictifiable, ManagesIntegratedToolPanelMixin, object):
                 for tool in self._tools_by_id.values():
                     if tool.old_id == tool_id:
                         rval.append(tool)
+                # if we don't have a lineage_map for this tool we need to sort by version,
+                # so that the last tool in rval is the newest tool.
+                rval.sort(key=lambda t: t.version)
             if rval:
                 if get_all_versions:
                     return rval
@@ -454,8 +458,8 @@ class AbstractToolBox(Dictifiable, ManagesIntegratedToolPanelMixin, object):
                         for tool in rval:
                             if tool.version == tool_version:
                                 return tool
-                    # No tool matches by version, simply return the first available tool found
-                    return rval[0]
+                    # No tool matches by version, simply return the newest matching tool
+                    return rval[-1]
             # We now likely have a Toolshed guid passed in, but no supporting database entries
             # If the tool exists by exact id and is loaded then provide exact match within a list
             if tool_id in self._tools_by_id:
@@ -544,7 +548,7 @@ class AbstractToolBox(Dictifiable, ManagesIntegratedToolPanelMixin, object):
             concrete_path = os.path.join(tool_path, path)
             if not os.path.exists(concrete_path):
                 # This is a lot faster than attempting to load a non-existing tool
-                raise IOError
+                raise IOError(ENOENT, os.strerror(ENOENT))
             tool_shed_repository = None
             can_load_into_panel_dict = True
 
@@ -585,8 +589,8 @@ class AbstractToolBox(Dictifiable, ManagesIntegratedToolPanelMixin, object):
             labels = item.labels
             if labels is not None:
                 tool.labels = labels
-        except IOError:
-            log.error("Error reading tool configuration file from path: %s" % path)
+        except (IOError, OSError) as exc:
+            log.error("Error reading tool configuration file from path '%s': %s", path, exc)
         except Exception:
             log.exception("Error reading tool from path: %s", path)
 
@@ -710,7 +714,7 @@ class AbstractToolBox(Dictifiable, ManagesIntegratedToolPanelMixin, object):
 
     def __watch_directory(self, directory, elems, integrated_elems, load_panel_dict, recursive, force_watch=False):
 
-        def quick_load(tool_file, async=True):
+        def quick_load(tool_file, async_load=True):
             try:
                 tool = self.load_tool(tool_file)
                 self.__add_tool(tool, load_panel_dict, elems)
@@ -718,7 +722,7 @@ class AbstractToolBox(Dictifiable, ManagesIntegratedToolPanelMixin, object):
                 key = 'tool_%s' % str(tool.id)
                 integrated_elems[key] = tool
 
-                if async:
+                if async_load:
                     self._load_tool_panel()
                     self._save_integrated_tool_panel()
                 return tool.id
@@ -735,7 +739,7 @@ class AbstractToolBox(Dictifiable, ManagesIntegratedToolPanelMixin, object):
             if os.path.isdir(child_path) and recursive:
                 self.__watch_directory(child_path, elems, integrated_elems, load_panel_dict, recursive)
             elif self._looks_like_a_tool(child_path):
-                quick_load(child_path, async=False)
+                quick_load(child_path, async_load=False)
                 tool_loaded = True
         if (tool_loaded or force_watch) and self._tool_watcher:
             self._tool_watcher.watch_directory(directory, quick_load)
@@ -747,26 +751,43 @@ class AbstractToolBox(Dictifiable, ManagesIntegratedToolPanelMixin, object):
         if use_cached:
             tool = self.load_tool_from_cache(config_file)
         if not tool or guid and guid != tool.guid:
-            tool = self.create_tool(config_file=config_file, repository_id=repository_id, guid=guid, **kwds)
+            try:
+                tool = self.create_tool(config_file=config_file, repository_id=repository_id, guid=guid, **kwds)
+            except Exception:
+                # If the tool is broken but still exists we can load it from the cache
+                tool = self.load_tool_from_cache(config_file, recover_tool=True)
+                if tool:
+                    log.exception("Tool '%s' is not valid:" % config_file)
+                    tool.tool_errors = 'Current on-disk tool is not valid'
+                else:
+                    raise
             if tool.tool_shed_repository or not guid:
                 self.add_tool_to_cache(tool, config_file)
+            self.watch_tool(tool)
+        return tool
+
+    def watch_tool(self, tool):
         if not tool.id.startswith("__"):
             # do not monitor special tools written to tmp directory - no reason
             # to monitor such a large directory.
             if self._tool_watcher:
-                self._tool_watcher.watch_file(config_file, tool.id)
+                self._tool_watcher.watch_file(tool.config_file, tool.id)
             if self._tool_config_watcher:
                 [self._tool_config_watcher.watch_file(macro_path) for macro_path in tool._macro_paths]
-        return tool
 
     def add_tool_to_cache(self, tool, config_file):
         tool_cache = getattr(self.app, 'tool_cache', None)
         if tool_cache:
             self.app.tool_cache.cache_tool(config_file, tool)
 
-    def load_tool_from_cache(self, config_file):
+    def load_tool_from_cache(self, config_file, recover_tool=False):
         tool_cache = getattr(self.app, 'tool_cache', None)
-        tool = tool_cache and tool_cache.get_tool(config_file)
+        tool = None
+        if tool_cache:
+            if recover_tool:
+                tool = tool_cache.get_removed_tool(config_file)
+            else:
+                tool = tool_cache.get_tool(config_file)
         return tool
 
     def load_hidden_lib_tool(self, path):
@@ -926,30 +947,45 @@ class AbstractToolBox(Dictifiable, ManagesIntegratedToolPanelMixin, object):
             if elt:
                 yield elt
 
+    def get_tool_to_dict(self, trans, tool):
+        """Return tool's to_dict.
+        Use cache if present, store to cache otherwise.
+        Note: The cached tool's to_dict is specific to the calls from toolbox.
+        """
+        if not trans.user_is_admin:
+            to_dict = self._tool_to_dict_cache.get(tool.id, None)
+            if not to_dict:
+                to_dict = tool.to_dict(trans, link_details=True)
+                self._tool_to_dict_cache[tool.id] = to_dict
+        else:
+            to_dict = self._tool_to_dict_cache_admin.get(tool.id, None)
+            if not to_dict:
+                to_dict = tool.to_dict(trans, link_details=True)
+                self._tool_to_dict_cache_admin[tool.id] = to_dict
+        return to_dict
+
     def to_dict(self, trans, in_panel=True, **kwds):
         """
-        to_dict toolbox.
+        Create a dictionary representation of the toolbox.
+        Uses primitive cache for toolbox-specific tool 'to_dict's.
         """
+        rval = []
         if in_panel:
             panel_elts = list(self.tool_panel_contents(trans, **kwds))
-            # Produce panel.
-            rval = []
-            kwargs = dict(
-                trans=trans,
-                link_details=True
-            )
             for elt in panel_elts:
-                rval.append(elt.to_dict(**kwargs))
+                # Only use cache for objects that are Tools.
+                if hasattr(elt, "tool_type"):
+                    rval.append(self.get_tool_to_dict(trans, elt))
+                else:
+                    kwargs = dict(trans=trans, link_details=True, toolbox=self)
+                    rval.append(elt.to_dict(**kwargs))
         else:
             filter_method = self._build_filter_method(trans)
-            tools = []
             for id, tool in self._tools_by_id.items():
                 tool = filter_method(tool, panel_item_types.TOOL)
                 if not tool:
                     continue
-                tools.append(tool.to_dict(trans, link_details=True))
-            rval = tools
-
+                rval.append(self.get_tool_to_dict(trans, tool))
         return rval
 
     def _lineage_in_panel(self, panel_dict, tool=None, tool_lineage=None):
@@ -960,8 +996,7 @@ class AbstractToolBox(Dictifiable, ManagesIntegratedToolPanelMixin, object):
             assert tool is not None
             tool_lineage = tool.lineage
         if tool_lineage is not None:
-            lineage_tool_versions = reversed(tool_lineage.get_versions())
-            for lineage_tool_version in lineage_tool_versions:
+            for lineage_tool_version in reversed(tool_lineage.get_versions()):
                 lineage_tool = self._tool_from_lineage_version(lineage_tool_version)
                 if lineage_tool:
                     lineage_id = lineage_tool.id

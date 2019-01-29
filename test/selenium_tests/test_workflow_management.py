@@ -17,7 +17,7 @@ class WorkflowManagementTestCase(SeleniumTestCase):
         table_elements = self.workflow_index_table_elements()
         assert len(table_elements) == 1
 
-        new_workflow = table_elements[0].find_element_by_css_selector(".menubutton")
+        new_workflow = table_elements[0].find_element_by_css_selector("a.btn.btn-secondary")
         assert 'TestWorkflow1 (imported from uploaded file)' in new_workflow.text, new_workflow.text
 
     @selenium_test
@@ -27,7 +27,7 @@ class WorkflowManagementTestCase(SeleniumTestCase):
         self.workflow_index_click_option("View")
         title = self.wait_for_selector(".page-body h3")
         assert "TestWorkflow1" in title.text
-
+        self.screenshot("workflow_manage_view")
         # TODO: Test display of steps...
 
     @selenium_test
@@ -64,6 +64,7 @@ class WorkflowManagementTestCase(SeleniumTestCase):
             self.assertEqual(self.workflow_index_tags(), ["cooltag"])
 
         check_tags()
+        self.screenshot("workflow_manage_tags")
 
     @selenium_test
     def test_index_search(self):
@@ -71,6 +72,7 @@ class WorkflowManagementTestCase(SeleniumTestCase):
         self._workflow_import_from_url()
         self.workflow_index_rename("searchforthis")
         self._assert_showing_n_workflows(1)
+        self.screenshot("workflow_manage_search")
 
         self.workflow_index_search_for("doesnotmatch")
         self._assert_showing_n_workflows(0)
@@ -100,6 +102,7 @@ class WorkflowManagementTestCase(SeleniumTestCase):
 
         self.workflow_index_open()
         assert_published_column_text_is("Yes")
+        self.screenshot("workflow_manage_published")
 
     @retry_assertion_during_transitions
     def _assert_showing_n_workflows(self, n):

@@ -7,6 +7,7 @@ def inherit(context):
         return '/base.mako'
 %>
 <%inherit file="${inherit(context)}"/>
+<%namespace file="/webapps/tool_shed/common/common.mako" import="*" />
 
 <%def name="init()">
 <%
@@ -40,7 +41,7 @@ def inherit(context):
 
         ## An admin user may be creating a new user account, in which case we want to display the registration form.
         ## But if the current user is not an admin user, then don't display the registration form.
-        %if ( cntrller=='admin' and trans.user_is_admin() ) or not trans.user:
+        %if ( cntrller=='admin' and trans.user_is_admin ) or not trans.user:
             ${render_registration_form()}
 
             %if trans.app.config.get( 'terms_url', None ) is not None:
@@ -78,12 +79,12 @@ def inherit(context):
             }
 
             function renderError(message) {
-                if (!$(".errormessage").size()) {
-                    $('<div/>').addClass('errormessage').insertBefore('#registrationForm');
+                if (!$(".alert-danger").size()) {
+                    $('<div/>').addClass('alert alert-danger').insertBefore('#registrationForm');
                 }
                 console.debug( $( '#registrationForm' ) );
-                console.debug( '.errormessage:', $( '.errormessage' ) );
-                $(".errormessage").html(message);
+                console.debug( '.alert-danger:', $( '.alert-danger' ) );
+                $(".alert-danger").html(message);
             }
 
             $("[name='password']").complexify({'minimumChars':6}, function(valid, complexity){
@@ -126,10 +127,34 @@ def inherit(context):
         });
     </script>
 
-    <div id="registrationForm" class="toolForm">
+    <div id="registrationForm" class="card">
+        ## only display the prepopulate form to admins
+        %if show_user_prepopulate_form:
+            <form name="registration" id="prepopulateform" action="${form_action}" method="post" >
+                <input type="hidden" name="session_csrf_token" value="${trans.session_csrf_token}" />
+                <div class="card-header">Pre-populate an account through LDAP</div>
+                <div class="form-row">
+                    <label>Email address:</label>
+                    <input id="email_input" type="text" name="email" value="${email | h}" size="40"/>
+                    <input type="hidden" name="redirect" value="${redirect | h}" size="40"/>
+                </div>
+                <div class="form-row">
+                    <label>Username:</label>
+                    <input id="name_input" type="text" name="username" size="40" value="${username |h}"/>
+                    <div class="toolParamHelp">
+                        Depending on your LDAP configuration in your auth_conf.xml you can either provide an
+                        email address or username.
+                    </div>
+                </div>
+                <div class="form-row">
+                    <input type="submit" id="prepopulate" name="prepopulate_user_button" value="Prepopulate"/>
+                </div>
+            </form>
+            <br />
+        %endif
         <form name="registration" id="registration" action="${form_action}" method="post" >
             <input type="hidden" name="session_csrf_token" value="${trans.session_csrf_token}" />
-            <div class="toolFormTitle">Create account</div>
+            <div class="card-header">Create account</div>
             <div class="form-row">
                 <label>Email address:</label>
                 <input id="email_input" type="text" name="email" value="${email | h}" size="40"/>
@@ -169,11 +194,8 @@ def inherit(context):
             %if trans.app.config.smtp_server and trans.app.config.mailing_join_addr:
                 <div class="form-row">
                     <label>Subscribe to mailing list:</label>
-                    %if subscribe_checked:
-                        <% subscribe_check_box.checked = True %>
-                    %endif
-                    ${subscribe_check_box.get_html()}
-                    <p>See <a href="http://galaxyproject.org/wiki/Mailing%20Lists" target="_blank">
+                    ${render_checkbox(subscribe_check_box)}
+                    <p>See <a href="https://galaxyproject.org/mailing-lists/" target="_blank">
                     all Galaxy project mailing lists</a>.</p>
                 </div>
             %endif

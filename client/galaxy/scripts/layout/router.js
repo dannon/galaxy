@@ -1,7 +1,8 @@
-var jQuery = require("jquery"),
-    $ = jQuery,
-    QUERY_STRING = require("utils/query-string-parsing"),
-    Ui = require("mvc/ui/ui-misc");
+import $ from "jquery";
+import Backbone from "backbone";
+import { getGalaxyInstance } from "app";
+import QUERY_STRING from "utils/query-string-parsing";
+import Ui from "mvc/ui/ui-misc";
 
 var Router = Backbone.Router.extend({
     // TODO: not many client routes at this point - fill and remove from server.
@@ -17,16 +18,16 @@ var Router = Backbone.Router.extend({
         data.__identifer = Math.random()
             .toString(36)
             .substr(2);
-        if (!$.isEmptyObject(data)) {
-            url += url.indexOf("?") == -1 ? "?" : "&";
-            url += $.param(data, true);
-        }
+        url += url.indexOf("?") == -1 ? "?" : "&";
+        url += $.param(data, true);
+        let Galaxy = getGalaxyInstance();
         Galaxy.params = data;
         this.navigate(url, { trigger: true });
     },
 
     /** override to parse query string into obj and send to each route */
     execute: function(callback, args, name) {
+        let Galaxy = getGalaxyInstance();
         Galaxy.debug("router execute:", callback, args, name);
         var queryObj = QUERY_STRING.parse(args.pop());
         args.push(queryObj);
@@ -47,12 +48,11 @@ var Router = Backbone.Router.extend({
         this.page.display(
             new Ui.Message({
                 status: "danger",
-                message:
-                    "You must be logged in with proper credentials to make this request.",
+                message: "You must be logged in with proper credentials to make this request.",
                 persistent: true
             })
         );
     }
 });
 
-module.exports = Router;
+export default Router;

@@ -4,7 +4,7 @@ import logging
 import os
 import shutil
 import tempfile
-from json import dumps, loads
+from json import dumps, load
 
 from sqlalchemy.orm import eagerload_all
 from sqlalchemy.sql import expression
@@ -17,7 +17,7 @@ from galaxy.web.framework.helpers import to_unicode
 log = logging.getLogger(__name__)
 
 
-class JobImportHistoryArchiveWrapper(object, UsesAnnotations):
+class JobImportHistoryArchiveWrapper(UsesAnnotations):
     """
         Class provides support for performing jobs that import a history from
         an archive.
@@ -39,21 +39,6 @@ class JobImportHistoryArchiveWrapper(object, UsesAnnotations):
             """ Returns true if file is in directory. """
             abs_file_path = os.path.abspath(file_path)
             return os.path.split(abs_file_path)[0] == a_dir
-
-        def read_file_contents(file_path):
-            """ Read contents of a file. """
-            fp = open(file_path, 'rb')
-            buffsize = 1048576
-            file_contents = ''
-            try:
-                while True:
-                    file_contents += fp.read(buffsize)
-                    if not file_contents or len(file_contents) % buffsize != 0:
-                        break
-            except OverflowError:
-                pass
-            fp.close()
-            return file_contents
 
         def get_tag_str(tag, value):
             """ Builds a tag string for a tag, value pair. """
@@ -84,11 +69,10 @@ class JobImportHistoryArchiveWrapper(object, UsesAnnotations):
                 # Create history.
                 #
                 history_attr_file_name = os.path.join(archive_dir, 'history_attrs.txt')
-                history_attr_str = read_file_contents(history_attr_file_name)
-                history_attrs = loads(history_attr_str)
+                history_attrs = load(open(history_attr_file_name))
 
                 # Create history.
-                new_history = model.History(name='imported from archive: %s' % history_attrs['name'].encode('utf-8'),
+                new_history = model.History(name='imported from archive: %s' % history_attrs['name'],
                                             user=user)
                 new_history.importing = True
                 new_history.hid_counter = history_attrs['hid_counter']
@@ -110,32 +94,21 @@ class JobImportHistoryArchiveWrapper(object, UsesAnnotations):
                 # Create datasets.
                 #
                 datasets_attrs_file_name = os.path.join(archive_dir, 'datasets_attrs.txt')
-                datasets_attr_str = read_file_contents(datasets_attrs_file_name)
-                datasets_attrs = loads(datasets_attr_str)
+                datasets_attrs = load(open(datasets_attrs_file_name))
+                provenance_file_name = datasets_attrs_file_name + ".provenance"
 
-                if os.path.exists(datasets_attrs_file_name + ".provenance"):
-                    provenance_attr_str = read_file_contents(datasets_attrs_file_name + ".provenance")
-                    provenance_attrs = loads(provenance_attr_str)
+                if os.path.exists(provenance_file_name):
+                    provenance_attrs = load(open(provenance_file_name))
                     datasets_attrs += provenance_attrs
-
-                # Get counts of how often each dataset file is used; a file can
-                # be linked to multiple dataset objects (HDAs).
-                datasets_usage_counts = {}
-                for dataset_attrs in datasets_attrs:
-                    temp_dataset_file_name = \
-                        os.path.realpath(os.path.join(archive_dir, dataset_attrs['file_name']))
-                    if (temp_dataset_file_name not in datasets_usage_counts):
-                        datasets_usage_counts[temp_dataset_file_name] = 0
-                    datasets_usage_counts[temp_dataset_file_name] += 1
 
                 # Create datasets.
                 for dataset_attrs in datasets_attrs:
                     metadata = dataset_attrs['metadata']
 
                     # Create dataset and HDA.
-                    hda = model.HistoryDatasetAssociation(name=dataset_attrs['name'].encode('utf-8'),
+                    hda = model.HistoryDatasetAssociation(name=dataset_attrs['name'],
                                                           extension=dataset_attrs['extension'],
-                                                          info=dataset_attrs['info'].encode('utf-8'),
+                                                          info=dataset_attrs['info'],
                                                           blurb=dataset_attrs['blurb'],
                                                           peek=dataset_attrs['peek'],
                                                           designation=dataset_attrs['designation'],
@@ -167,26 +140,22 @@ class JobImportHistoryArchiveWrapper(object, UsesAnnotations):
                             os.path.realpath(os.path.abspath(os.path.join(archive_dir, dataset_attrs['file_name'])))
                         if not file_in_dir(temp_dataset_file_name, os.path.join(archive_dir, "datasets")):
                             raise MalformedContents("Invalid dataset path: %s" % temp_dataset_file_name)
-                        if datasets_usage_counts[temp_dataset_file_name] == 1:
-                            self.app.object_store.update_from_file(hda.dataset, file_name=temp_dataset_file_name, create=True)
+                        self.app.object_store.update_from_file(hda.dataset, file_name=temp_dataset_file_name, create=True)
 
-                            # Import additional files if present. Histories exported previously might not have this attribute set.
-                            dataset_extra_files_path = dataset_attrs.get('extra_files_path', None)
-                            if dataset_extra_files_path:
-                                try:
-                                    file_list = os.listdir(os.path.join(archive_dir, dataset_extra_files_path))
-                                except OSError:
-                                    file_list = []
+                        # Import additional files if present. Histories exported previously might not have this attribute set.
+                        dataset_extra_files_path = dataset_attrs.get('extra_files_path', None)
+                        if dataset_extra_files_path:
+                            try:
+                                file_list = os.listdir(os.path.join(archive_dir, dataset_extra_files_path))
+                            except OSError:
+                                file_list = []
 
-                                if file_list:
-                                    for extra_file in file_list:
-                                        self.app.object_store.update_from_file(
-                                            hda.dataset, extra_dir='dataset_%s_files' % hda.dataset.id,
-                                            alt_name=extra_file, file_name=os.path.join(archive_dir, dataset_extra_files_path, extra_file),
-                                            create=True)
-                        else:
-                            datasets_usage_counts[temp_dataset_file_name] -= 1
-                            shutil.copyfile(temp_dataset_file_name, hda.file_name)
+                            if file_list:
+                                for extra_file in file_list:
+                                    self.app.object_store.update_from_file(
+                                        hda.dataset, extra_dir='dataset_%s_files' % hda.dataset.id,
+                                        alt_name=extra_file, file_name=os.path.join(archive_dir, dataset_extra_files_path, extra_file),
+                                        create=True)
                         hda.dataset.set_total_size()  # update the filesize record in the database
 
                     # Set tags, annotations.
@@ -199,20 +168,13 @@ class JobImportHistoryArchiveWrapper(object, UsesAnnotations):
                             self.sa_session.flush()
                         """
 
-                    # Although metadata is set above, need to set metadata to recover BAI for BAMs.
-                    if hda.extension == 'bam':
-                        self.app.datatypes_registry.set_external_metadata_tool.tool_action.execute_via_app(
-                            self.app.datatypes_registry.set_external_metadata_tool, self.app, jiha.job.session_id,
-                            new_history.id, jiha.job.user, incoming={'input1': hda}, overwrite=False
-                        )
+                    self.app.datatypes_registry.set_external_metadata_tool.regenerate_imported_metadata_if_needed(
+                        hda, new_history, jiha.job
+                    )
 
                 #
                 # Create jobs.
                 #
-
-                # Read jobs attributes.
-                jobs_attr_file_name = os.path.join(archive_dir, 'jobs_attrs.txt')
-                jobs_attr_str = read_file_contents(jobs_attr_file_name)
 
                 # Decode jobs attributes.
                 def as_hda(obj_dct):
@@ -222,7 +184,8 @@ class JobImportHistoryArchiveWrapper(object, UsesAnnotations):
                         return self.sa_session.query(model.HistoryDatasetAssociation) \
                             .filter_by(history=new_history, hid=obj_dct['hid']).first()
                     return obj_dct
-                jobs_attrs = loads(jobs_attr_str, object_hook=as_hda)
+                jobs_attr_file_name = os.path.join(archive_dir, 'jobs_attrs.txt')
+                jobs_attrs = load(open(jobs_attr_file_name), object_hook=as_hda)
 
                 # Create each job.
                 for job_attrs in jobs_attrs:
@@ -260,7 +223,7 @@ class JobImportHistoryArchiveWrapper(object, UsesAnnotations):
 
                     # Set parameters. May be useful to look at metadata.py for creating parameters.
                     # TODO: there may be a better way to set parameters, e.g.:
-                    #   for name, value in tool.params_to_strings( incoming, trans.app ).iteritems():
+                    #   for name, value in tool.params_to_strings( incoming, trans.app ).items():
                     #       job.add_parameter( name, value )
                     # to make this work, we'd need to flesh out the HDA objects. The code below is
                     # relatively similar.
@@ -305,7 +268,7 @@ class JobImportHistoryArchiveWrapper(object, UsesAnnotations):
                 raise
 
 
-class JobExportHistoryArchiveWrapper(object, UsesAnnotations):
+class JobExportHistoryArchiveWrapper(UsesAnnotations):
     """
     Class provides support for performing jobs that export a history to an
     archive.

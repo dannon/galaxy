@@ -94,7 +94,6 @@ class Configuration(object):
         self.require_login = string_as_bool(kwargs.get("require_login", "False"))
         self.allow_user_creation = string_as_bool(kwargs.get("allow_user_creation", "True"))
         self.allow_user_deletion = string_as_bool(kwargs.get("allow_user_deletion", "False"))
-        self.enable_openid = string_as_bool(kwargs.get('enable_openid', False))
         self.template_path = resolve_path(kwargs.get("template_path", "templates"), self.root)
         self.template_cache = resolve_path(kwargs.get("template_cache_path", "database/compiled_templates/community"), self.root)
         self.admin_users = kwargs.get("admin_users", "")
@@ -105,7 +104,6 @@ class Configuration(object):
         self.smtp_username = kwargs.get('smtp_username', None)
         self.smtp_password = kwargs.get('smtp_password', None)
         self.smtp_ssl = kwargs.get('smtp_ssl', None)
-        self.start_job_runners = kwargs.get('start_job_runners', None)
         self.email_from = kwargs.get('email_from', None)
         self.nginx_upload_path = kwargs.get('nginx_upload_path', False)
         self.log_actions = string_as_bool(kwargs.get('log_actions', 'False'))
@@ -123,12 +121,6 @@ class Configuration(object):
         self.log_events = False
         self.cloud_controller_instance = False
         self.server_name = ''
-        self.job_manager = ''
-        self.default_job_handlers = []
-        self.default_cluster_job_runner = 'local:///'
-        self.job_handlers = []
-        self.tool_handlers = []
-        self.tool_runners = []
         # Error logging with sentry
         self.sentry_dsn = kwargs.get('sentry_dsn', None)
         # Where the tool shed hgweb.config file is stored - the default is the Galaxy installation directory.
@@ -141,13 +133,24 @@ class Configuration(object):
         global_conf = kwargs.get('global_conf', None)
         global_conf_parser = configparser.ConfigParser()
         self.global_conf_parser = global_conf_parser
-        if global_conf and "__file__" in global_conf:
+        if global_conf and "__file__" in global_conf and ".yml" not in global_conf["__file__"]:
             global_conf_parser.read(global_conf['__file__'])
         self.running_functional_tests = string_as_bool(kwargs.get('running_functional_tests', False))
         self.citation_cache_type = kwargs.get("citation_cache_type", "file")
         self.citation_cache_data_dir = resolve_path(kwargs.get("citation_cache_data_dir", "database/tool_shed_citations/data"), self.root)
         self.citation_cache_lock_dir = resolve_path(kwargs.get("citation_cache_lock_dir", "database/tool_shed_citations/locks"), self.root)
         self.password_expiration_period = timedelta(days=int(kwargs.get("password_expiration_period", 0)))
+
+        # Security/Policy Compliance
+        self.redact_username_during_deletion = False
+        self.redact_email_during_deletion = False
+        self.redact_username_in_logs = False
+        self.enable_beta_gdpr = string_as_bool(kwargs.get("enable_beta_gdpr", False))
+        if self.enable_beta_gdpr:
+            self.redact_username_during_deletion = True
+            self.redact_email_during_deletion = True
+            self.redact_username_in_logs = True
+            self.allow_user_deletion = True
 
     @property
     def shed_tool_data_path(self):

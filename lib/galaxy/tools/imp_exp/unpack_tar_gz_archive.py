@@ -49,7 +49,7 @@ def check_archive(archive_file, dest_dir):
     Ensure that a tar archive has no absolute paths or relative paths outside
     the archive.
     """
-    with tarfile.open(archive_file, mode='r:gz') as archive_fp:
+    with tarfile.open(archive_file, mode='r') as archive_fp:
         for arc_path in archive_fp.getnames():
             assert os.path.normpath(
                 os.path.join(
@@ -64,7 +64,7 @@ def unpack_archive(archive_file, dest_dir):
     """
     Unpack a tar and/or gzipped archive into a destination directory.
     """
-    archive_fp = tarfile.open(archive_file, mode='r:gz')
+    archive_fp = tarfile.open(archive_file, mode='r')
     archive_fp.extractall(path=dest_dir)
     archive_fp.close()
 
@@ -75,8 +75,8 @@ def main(options, args):
     archive_source, dest_dir = args
 
     if options.is_b64encoded:
-        archive_source = b64decode(archive_source)
-        dest_dir = b64decode(dest_dir)
+        archive_source = b64decode(archive_source).decode('utf-8')
+        dest_dir = b64decode(dest_dir).decode('utf-8')
 
     # Get archive from URL.
     if is_url:
@@ -93,7 +93,7 @@ if __name__ == "__main__":
     # Parse command line.
     parser = optparse.OptionParser()
     parser.add_option('-U', '--url', dest='is_url', action="store_true", help='Source is a URL.')
-    parser.add_option('-F', '--file', dest='is_file', action="store_true", help='Source is a URL.')
+    parser.add_option('-F', '--file', dest='is_file', action="store_true", help='Source is a file.')
     parser.add_option('-e', '--encoded', dest='is_b64encoded', action="store_true", default=False, help='Source and destination dir values are base64 encoded.')
     (options, args) = parser.parse_args()
     try:

@@ -9,12 +9,14 @@ from galaxy.datatypes.binary import Binary
 from galaxy.datatypes.data import get_file_peek
 from galaxy.datatypes.data import nice_size
 from galaxy.datatypes.metadata import MetadataElement
+from galaxy.datatypes.sniff import build_sniff_from_prefix
 
 MAX_HEADER_LINES = 500
 MAX_LINE_LEN = 2000
 COLOR_OPTS = ['COLOR_SCALARS', 'red', 'green', 'blue']
 
 
+@build_sniff_from_prefix
 class Ply(object):
     """
     The PLY format describes an object as a collection of vertices,
@@ -37,16 +39,14 @@ class Ply(object):
     def __init__(self, **kwd):
         raise NotImplementedError
 
-    def sniff(self, filename):
+    def sniff_prefix(self, file_prefix):
         """
         The structure of a typical PLY file:
         Header, Vertex List, Face List, (lists of other elements)
         """
-        with open(filename, "r") as fh:
-            if not self._is_ply_header(fh, self.subtype):
-                return False
-            return True
-        return False
+        if not self._is_ply_header(file_prefix.string_io(), self.subtype):
+            return False
+        return True
 
     def _is_ply_header(self, fh, subtype):
         """
@@ -102,7 +102,7 @@ class Ply(object):
 
     def set_peek(self, dataset, is_multi_byte=False):
         if not dataset.dataset.purged:
-            dataset.peek = get_file_peek(dataset.file_name, is_multi_byte=is_multi_byte)
+            dataset.peek = get_file_peek(dataset.file_name)
             dataset.blurb = "Faces: %s, Vertices: %s" % (str(dataset.metadata.face), str(dataset.metadata.vertex))
         else:
             dataset.peek = 'File does not exist'
@@ -131,9 +131,7 @@ class PlyBinary(Ply, Binary):
         Binary.__init__(self, **kwd)
 
 
-Binary.register_sniffable_binary_format("plybinary", "plybinary", PlyBinary)
-
-
+@build_sniff_from_prefix
 class Vtk(object):
     r"""
     The Visualization Toolkit provides a number of source and writer objects to
@@ -203,16 +201,14 @@ class Vtk(object):
     def __init__(self, **kwd):
         raise NotImplementedError
 
-    def sniff(self, filename):
+    def sniff_prefix(self, file_prefix):
         """
         VTK files can be either ASCII or binary, with two different
         styles of file formats: legacy or XML.  We'll assume if the
         file contains a valid VTK header, then it is a valid VTK file.
         """
-        with open(filename, "r") as fh:
-            if self._is_vtk_header(fh, self.subtype):
-                return True
-            return False
+        if self._is_vtk_header(file_prefix.string_io(), self.subtype):
+            return True
         return False
 
     def _is_vtk_header(self, fh, subtype):
@@ -429,7 +425,7 @@ class Vtk(object):
 
     def set_peek(self, dataset, is_multi_byte=False):
         if not dataset.dataset.purged:
-            dataset.peek = get_file_peek(dataset.file_name, is_multi_byte=is_multi_byte)
+            dataset.peek = get_file_peek(dataset.file_name)
             dataset.blurb = self.get_blurb(dataset)
         else:
             dataset.peek = 'File does not exist'
@@ -456,9 +452,6 @@ class VtkBinary(Vtk, Binary):
 
     def __init__(self, **kwd):
         Binary.__init__(self, **kwd)
-
-
-Binary.register_sniffable_binary_format("vtkbinary", "vtkbinary", VtkBinary)
 
 
 class STL(data.Data):

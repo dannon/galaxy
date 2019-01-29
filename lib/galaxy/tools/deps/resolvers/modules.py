@@ -7,13 +7,23 @@ it, hence support for it will be minimal. The Galaxy team eagerly welcomes
 community contribution and maintenance however.
 """
 import logging
-from os import environ, pathsep
-from os.path import exists, isdir, join
-from subprocess import PIPE, Popen
+from os import (
+    environ,
+    pathsep
+)
+from os.path import (
+    exists,
+    isdir,
+    join
+)
+from subprocess import (
+    PIPE,
+    Popen
+)
 
 from six import StringIO
 
-from ..resolvers import (
+from . import (
     Dependency,
     DependencyResolver,
     MappableDependencyResolver,
@@ -185,7 +195,7 @@ class ModuleDependency(Dependency):
     def exact(self):
         return self._exact
 
-    def shell_commands(self, requirement):
+    def shell_commands(self):
         module_to_load = self.module_name
         if self.module_version:
             module_to_load = '%s/%s' % (self.module_name, self.module_version)
