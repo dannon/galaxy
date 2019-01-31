@@ -859,39 +859,42 @@ class HierarchicalObjectStore(NestedObjectStore):
                     return True
         return False
 
-    def create(self, obj, **kwargs):
+    def create(self, obj, user=None, plugged_media=None, **kwargs):
         """Call the primary object store."""
-        # Iterates until: (a) a backend is determined and the dataset is successfully persisted on, or (b) if all
-        # the available backends are exhausted and then raise an exception. Backend are exhausted if (a) none can
-        # be chosen (e.g., if usage quota on the storage is hit), or (b) object store fails to use it (e.g., S3
-        # access and secret are invalid).
-        from_order = None
-        plugged_media = None
-        i = 1 + len(kwargs.get('plugged_media', None)) if kwargs.get('plugged_media', None) is not None else 1
-        while i > 0:
-            i -= 1
-            try:
-                # The following check is done because the `obj` object is either of type
-                # `galaxy.model.Dataset` or `galaxy.model.Job`.
-                dataset_size = obj.get_size() if hasattr(obj, 'get_size') else 0
-                plugged_media = pick_a_plugged_media(kwargs.get('plugged_media', None), kwargs.get('user', None),
-                                                     from_order, dataset_size)
-                if plugged_media is not None:
-                    from_order = plugged_media.order
-                    store = get_user_based_object_store(self.config, plugged_media)
-                    store.create(obj, **kwargs)
-                    plugged_media.association_with_dataset(obj)
-                    plugged_media.set_usage(plugged_media.usage + dataset_size)
-                else:
-                    from_order = 0
-                    self.backends[0].create(obj, **kwargs)
-                break
-            except Exception as e:
-                log.exception("Failed to persist the `{}` with ID `{}` on `{}` with the following error;"
-                              "now trying another persistence option, if any available. Error: {}"
-                              .format(obj, obj.id, "{} with ID {}".format(plugged_media.category, plugged_media.id)
-                                      if plugged_media is not None else "the default storage of this instance", str(e)))
-        # TODO: User should be notified if this operation is failed.
+        if plugged_media is not None:
+            # Iterates until: (a) a backend is determined and the dataset is successfully persisted on, or (b) if all
+            # the available backends are exhausted and then raise an exception. Backend are exhausted if (a) none can
+            # be chosen (e.g., if usage quota on the storage is hit), or (b) object store fails to use it (e.g., S3
+            # access and secret are invalid).
+            from_order = None
+            i = 1 + len(plugged_media)
+            while i > 0:
+                i -= 1
+                try:
+                    # The following check is necessary because the `obj` object can be
+                    # of either of following types:
+                    # - `galaxy.model.Dataset`
+                    # - `galaxy.model.Job`
+                    dataset_size = obj.get_size() if hasattr(obj, 'get_size') else 0
+                    chosen_plugged_media = pick_a_plugged_media(plugged_media, user, from_order, dataset_size)
+                    if chosen_plugged_media is not None:
+                        from_order = chosen_plugged_media.order
+                        store = get_user_based_object_store(self.config, chosen_plugged_media)
+                        store.create(obj, **kwargs)
+                        chosen_plugged_media.association_with_dataset(obj)
+                        chosen_plugged_media.set_usage(chosen_plugged_media.usage + dataset_size)
+                    else:
+                        from_order = 0
+                        self.backends[0].create(obj, **kwargs)
+                    break
+                except Exception as e:
+                    log.exception("Failed to persist the `{}` with ID `{}` on `{}` with the following error;"
+                                  "now trying another persistence option, if any available. Error: {}"
+                                  .format(obj, obj.id, "{} with ID {}".format(plugged_media.category, plugged_media.id)
+                                          if plugged_media is not None else "the default storage of this instance", str(e)))
+            # TODO: User should be notified if this operation is failed.
+        else:
+            self.backends[0].create(obj, **kwargs)
 
 
 def type_to_object_store_class(store, fsmon=False):
