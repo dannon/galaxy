@@ -27,7 +27,7 @@ PluggedMediaTable = Table(
     Column("quota", Numeric(15, 0)),
     Column("category", TEXT, default="local"),
     Column("path", TEXT),
-    Column("credentials", JSONType, nullable=True),
+    Column("authz_id", Integer, ForeignKey("cloudauthz.id")),
     Column("deleted", Boolean, index=True, default=False),
     Column("purged", Boolean, index=True, default=False),
     Column("purgeable", Boolean, default=True))

@@ -513,14 +513,14 @@ class PluggedMedia(object):
                        S3="s3",
                        AZURE="azure")
 
-    def __init__(self, user_id, category, path, credentials, order, quota=0, usage=0, purgeable=True):
+    def __init__(self, user_id, category, path, authz_id, order, quota=0, usage=0, purgeable=True):
         """
         Initializes a plugged media.
         :param user_id: the Galaxy user id for whom this plugged media is defined.
         :param category: is the type of this plugged media, its value is a key from `categories` bunch.
         :param path: a path in the plugged media to be used. For instance, a path on a local disk, or bucket name
         on AWS, or container name on Azure.
-        :param credentials: credentials to access the plugged media (if required).
+        :param authz_id: the id of AuthZ record to be used to obtain authorization to the media.
         :param order: A key which defines the hierarchical relation between this and other plugged media defined
         by the user. This key is used in Object Store to determine where to write to or read from a dataset. The
         value of this parameter can be any integer (+/-) excluding 0, as 0 is the default storage configuration
@@ -537,11 +537,7 @@ class PluggedMedia(object):
         self.category = category
         self.quota = quota
         self.path = path
-        if self.is_credentials_valid(credentials):
-            self.credentials = credentials
-        else:
-            raise ValueError("The credentials object is missing the required keys for authorizing access "
-                             "to the plugged media.")
+        self.authz_id = authz_id
         self.deleted = False
         self.purged = False
         self.purgeable = purgeable
@@ -566,23 +562,6 @@ class PluggedMedia(object):
             if assoc.dataset.purgable is False:
                 return False
         return True
-
-    def is_credentials_valid(self, credentials):
-        """
-        Checks if the credentials JSON object contains all the keys required to access the plugged media.
-        This function does not check for the authenticity of the credentials (e.g., it does not check if
-        AWS S3 access and secret key are valid, it only checks if they are given in the JSON object).
-        :param credentials: a JSON object containing credentials to access the plugged media.
-        :return: True if the credentials JSON object has all the credential keys for the selected plugged
-        media category (e.g., it should contain access and secret key for S3 category).
-        """
-        if self.category == self.categories.S3:
-            return "secret_key" in credentials and "access_key" in credentials
-        if self.category == self.categories.AZURE:
-            # TODO
-            return True
-        else:
-            return True
 
     def set_usage(self, amount):
         self.usage = amount

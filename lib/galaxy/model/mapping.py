@@ -75,7 +75,7 @@ model.PluggedMedia.table = Table(
     Column("quota", Numeric(15, 0)),
     Column("category", TEXT, nullable=False),
     Column("path", TEXT, nullable=False),
-    Column("credentials", JSONType, nullable=True),
+    Column("authz_id", Integer, ForeignKey("cloudauthz.id")),
     Column("deleted", Boolean, index=True, default=False),
     Column("purged", Boolean, index=True, default=False),
     Column("purgeable", Boolean, default=True))
@@ -1758,8 +1758,10 @@ mapper(model.PluggedMedia, model.PluggedMedia.table, properties=dict(
         model.PluggedMediaDatasetAssociation,
         primaryjoin=((model.PluggedMediaDatasetAssociation.table.c.plugged_media_id == model.PluggedMedia.table.c.id) &
                      (model.PluggedMediaDatasetAssociation.table.c.deleted == false()) &
-                     (model.PluggedMediaDatasetAssociation.table.c.purged == false()))
-    )
+                     (model.PluggedMediaDatasetAssociation.table.c.purged == false()))),
+    authz=relation(
+        model.CloudAuthz,
+        primaryjoin=(model.PluggedMedia.table.c.authz_id == model.CloudAuthz.table.c.id))
 ))
 
 mapper(model.PasswordResetToken, model.PasswordResetToken.table,

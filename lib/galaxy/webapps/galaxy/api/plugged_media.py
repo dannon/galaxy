@@ -117,13 +117,27 @@ class PluggedMediaController(BaseAPIController):
         except ValueError:
             return "Expect a float number for the `usage` attribute, but received `{}`.".format(payload.get("usage"))
 
+        encoded_authz_id = payload.get("authz_id", None)
+        if encoded_authz_id is None:
+            missing_arguments.append("authz_id")
+
+        try:
+            authz_id = self.decode_id(encoded_authz_id)
+        except exceptions.MalformedId as e:
+            return "Invalid authz ID. {}".format(e)
+
+        try:
+            trans.app.authnz_manager.can_user_assume_authz(trans, authz_id)
+        except Exception:
+            return "Invalid or inaccessible authorization record with given id."
+
         try:
             new_plugged_media = self.plugged_media_manager.create(
                 user_id=trans.user.id,
                 order=order,
                 category=category,
                 path=path,
-                credentials=payload.get("credentials", None),
+                authz_id=authz_id,
                 quota=quota,
                 usage=usage,
                 purgeable=purgeable)
