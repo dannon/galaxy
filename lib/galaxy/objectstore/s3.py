@@ -211,8 +211,9 @@ class S3ObjectStore(ObjectStore, CloudConfigMixin):
         self.conn = S3Connection(self.access_key, self.secret_key)
 
     def _configure_using_plugged_media(self, plugged_media):
-        self.access_key = plugged_media.credentials.get("access_key", None)
-        self.secret_key = plugged_media.credentials.get("secret_key", None)
+        credentials = plugged_media.get_credentials()
+        self.access_key = credentials.get("AccessKeyId", None)
+        self.secret_key = credentials.get("SecretAccessKey", None)
         if self.access_key is None or self.secret_key is None:
             log.debug(
                 'The plugged media with ID `{}` is missing access and/or secret key(s).'.format(plugged_media.id))
