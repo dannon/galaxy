@@ -541,6 +541,7 @@ class PluggedMedia(object):
         self.deleted = False
         self.purged = False
         self.purgeable = purgeable
+        self._credentials = None
 
     def association_with_dataset(self, dataset):
         qres = object_session(self).query(PluggedMediaDatasetAssociation).join(Dataset)\
@@ -565,6 +566,27 @@ class PluggedMedia(object):
 
     def set_usage(self, amount):
         self.usage = amount
+
+    def refresh_credentials(self, authnz_manager=None, sa_session=None):
+        if self.category == self.categories.LOCAL:
+            self._credentials = None
+
+        if authnz_manager is None or sa_session is None:
+            raise Exception("Both `authnz_manager` and `sa_session` are required "
+                            "to obtain credentials to sign requests to the PluggedMedia.")
+
+        # A possible improvement:
+        # The tokens returned by the following method are usually valid for
+        # a short period of time (e.g., 3600 seconds); hence, it might be
+        # good idea to re-use them within their lifetime.
+        if self.category == self.categories.S3 or self.category == self.categories.AZURE:
+            self._credentials = authnz_manager.get_cloud_access_credentials(self.authz, sa_session, self.user_id)
+
+    def get_credentials(self):
+        try:
+            return self._credentials
+        except NameError:
+            return None
 
 
 class PluggedMediaDatasetAssociation(object):
