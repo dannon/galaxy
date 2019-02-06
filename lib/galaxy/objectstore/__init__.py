@@ -588,7 +588,7 @@ class NestedObjectStore(ObjectStore):
 
     def _call_method(self, method, obj, default, default_is_exception, **kwargs):
         """Check all children object stores for the first one with the dataset."""
-        plugged_media = pick_a_plugged_media(kwargs.get('plugged_media', None), kwargs.get('user', None))
+        plugged_media = pick_a_plugged_media(kwargs.get('plugged_media', None))
         if plugged_media is not None:
             store = get_user_based_object_store(self.config, plugged_media)
             if store.exists(obj, **kwargs):
@@ -876,7 +876,7 @@ class HierarchicalObjectStore(NestedObjectStore):
                     # - `galaxy.model.Dataset`
                     # - `galaxy.model.Job`
                     dataset_size = obj.get_size() if hasattr(obj, 'get_size') else 0
-                    chosen_plugged_media = pick_a_plugged_media(plugged_media, user, from_order, dataset_size)
+                    chosen_plugged_media = pick_a_plugged_media(plugged_media, from_order, dataset_size)
                     if chosen_plugged_media is not None:
                         from_order = chosen_plugged_media.order
                         store = get_user_based_object_store(self.config, chosen_plugged_media)
@@ -979,7 +979,7 @@ def build_object_store_from_config(config, fsmon=False, config_xml=None, config_
         return objectstore_class(config=config, config_dict=config_dict, **objectstore_constructor_kwds)
 
 
-def pick_a_plugged_media(plugged_media, user=None, from_order=None, dataset_size=0):
+def pick_a_plugged_media(plugged_media, from_order=None, dataset_size=0):
     """
     This function receives a list of plugged media, and decides which one to be
     used for the object store operations. If a single plugged media is given
@@ -990,7 +990,6 @@ def pick_a_plugged_media(plugged_media, user=None, from_order=None, dataset_size
     NOTE: do not associate a dataset with a plugged media before the dataset is
     successfully persisted on the media.
     :param plugged_media: A list of plugged media defined/available for the user.
-    :param user: the galaxy user.
     :param from_order: is the order of a previously returned and failed plugged media,
     :param dataset_size: is the file size of the dataset.
     which this function should determine a plugged media in a lower order to that.
