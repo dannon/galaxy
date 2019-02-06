@@ -98,13 +98,15 @@ class Cloud(ObjectStore, CloudConfigMixin):
     def _configure_connection(self):
         log.debug("Configuring AWS-S3 Connection")
         aws_config = {'aws_access_key': self.access_key,
-                      'aws_secret_key': self.secret_key}
+                      'aws_secret_key': self.secret_key,
+                      'aws_session_token': self.session_token}
         self.conn = CloudProviderFactory().create_provider(ProviderList.AWS, aws_config)
 
     def _configure_using_plugged_media(self, plugged_media):
         credentials = plugged_media.get_credentials()
         self.access_key = credentials.get("AccessKeyId", None)
         self.secret_key = credentials.get("SecretAccessKey", None)
+        self.session_token = credentials.get("SessionToken", None)
         if self.access_key is None or self.secret_key is None:
             log.debug(
                 'The plugged media with ID `{}` is missing access and/or secret key(s).'.format(plugged_media.id))
