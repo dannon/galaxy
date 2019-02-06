@@ -137,41 +137,38 @@ class S3ObjectStore(ObjectStore, CloudConfigMixin):
     """
     store_type = 's3'
 
-    def __init__(self, config, config_dict, plugged_media=None):
+    def __init__(self, config, config_dict):
         super(S3ObjectStore, self).__init__(config)
 
         self.transfer_progress = 0
 
-        if plugged_media is not None:
-             self._configure_using_plugged_media(plugged_media)
-        else:
-            auth_dict = config_dict['auth']
-            bucket_dict = config_dict['bucket']
-            connection_dict = config_dict.get('connection', {})
-            cache_dict = config_dict['cache']
+        auth_dict = config_dict['auth']
+        bucket_dict = config_dict['bucket']
+        connection_dict = config_dict.get('connection', {})
+        cache_dict = config_dict['cache']
 
-            self.access_key = auth_dict.get('access_key')
-            self.secret_key = auth_dict.get('secret_key')
+        self.access_key = auth_dict.get('access_key')
+        self.secret_key = auth_dict.get('secret_key')
 
-            self.bucket = bucket_dict.get('name')
-            self.use_rr = bucket_dict.get('use_reduced_redundancy', False)
-            self.max_chunk_size = bucket_dict.get('max_chunk_size', 250)
+        self.bucket = bucket_dict.get('name')
+        self.use_rr = bucket_dict.get('use_reduced_redundancy', False)
+        self.max_chunk_size = bucket_dict.get('max_chunk_size', 250)
 
-            self.host = connection_dict.get('host', None)
-            self.port = connection_dict.get('port', 6000)
-            self.multipart = connection_dict.get('multipart', True)
-            self.is_secure = connection_dict.get('is_secure', True)
-            self.conn_path = connection_dict.get('conn_path', '/')
+        self.host = connection_dict.get('host', None)
+        self.port = connection_dict.get('port', 6000)
+        self.multipart = connection_dict.get('multipart', True)
+        self.is_secure = connection_dict.get('is_secure', True)
+        self.conn_path = connection_dict.get('conn_path', '/')
 
-            self.cache_size = cache_dict.get('size', -1)
-            self.staging_path = cache_dict.get('path') or self.config.object_store_cache_path
+        self.cache_size = cache_dict.get('size', -1)
+        self.staging_path = cache_dict.get('path') or self.config.object_store_cache_path
 
-            extra_dirs = dict(
-                (e['type'], e['path']) for e in config_dict.get('extra_dirs', []))
-            self.extra_dirs.update(extra_dirs)
+        extra_dirs = dict(
+            (e['type'], e['path']) for e in config_dict.get('extra_dirs', []))
+        self.extra_dirs.update(extra_dirs)
 
-            log.debug("Object cache dir:    %s", self.staging_path)
-            log.debug("       job work dir: %s", self.extra_dirs['job_work'])
+        log.debug("Object cache dir:    %s", self.staging_path)
+        log.debug("       job work dir: %s", self.extra_dirs['job_work'])
 
         self._initialize()
 
@@ -209,28 +206,6 @@ class S3ObjectStore(ObjectStore, CloudConfigMixin):
     def _configure_connection(self):
         log.debug("Configuring S3 Connection")
         self.conn = S3Connection(self.access_key, self.secret_key)
-
-    def _configure_using_plugged_media(self, plugged_media):
-        credentials = plugged_media.get_credentials()
-        self.access_key = credentials.get("AccessKeyId", None)
-        self.secret_key = credentials.get("SecretAccessKey", None)
-        if self.access_key is None or self.secret_key is None:
-            log.debug(
-                'The plugged media with ID `{}` is missing access and/or secret key(s).'.format(plugged_media.id))
-            raise KeyError('The selected S3 plugged media is missing access and/or secret key(s).')
-            # Note: if this exception is raised, it indicates that the plugged media `credentials` was not verified
-            # with the `is_credentials_valid` function when the plugged media was initialized, or when the
-            # `credentials` object was modified.
-        self.bucket = plugged_media.path
-        self.use_rr = False
-        self.max_chunk_size = 250
-        self.host = None
-        self.port = 6000
-        self.multipart = True
-        self.is_secure = True
-        self.conn_path = '/'
-        self.cache_size = -1
-        self.staging_path = self.config.object_store_cache_path
 
     @classmethod
     def parse_xml(clazz, config_xml):
