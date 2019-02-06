@@ -1041,7 +1041,7 @@ def get_user_based_object_store(config, plugged_media):
         return DiskObjectStore(config=config, file_path=plugged_media.path)
     elif plugged_media.category == categories.S3:
         from .cloud import Cloud
-        return Cloud(config=config, config_dict=None, plugged_media=plugged_media)
+        return Cloud(config=config, config_dict={}, plugged_media=plugged_media)
     elif plugged_media.category == categories.AZURE:
         raise NotImplementedError()
     else:
