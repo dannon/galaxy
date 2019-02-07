@@ -2416,8 +2416,8 @@ class DatasetInstance(object):
         return self.dataset.get_size(user)
 
     def set_size(self, user=None, **kwds):
-        """Sets and gets the size of the data on disk"""
-        return self.dataset.set_size(user, **kwds)
+        """Sets the size of the data on disk"""
+        self.dataset.set_size(user, **kwds)
 
     def get_total_size(self, user=None):
         return self.dataset.get_total_size(user)
@@ -3005,10 +3005,10 @@ class HistoryDatasetAssociation(DatasetInstance, HasTags, Dictifiable, UsesAnnot
             return galaxy.util.nice_size(self.dataset.get_size(user))
         return self.dataset.get_size(user)
 
-    def set_size(self):
-        """Returns the size of the data on disk"""
+    def set_size(self, **kwargs):
+        """Sets the size of the data on disk"""
         user = self.history.user if self.history else None
-        return self.dataset.set_size(user)
+        self.dataset.set_size(user)
 
     def get_total_size(self):
         user = self.history.user if self.history else None

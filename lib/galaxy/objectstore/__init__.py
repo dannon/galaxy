@@ -1121,7 +1121,7 @@ class ObjectStorePopulator(object):
         self.object_store = app.object_store
         self.object_store_id = None
 
-    def set_object_store_id(self, data):
+    def set_object_store_id(self, data, **kwargs):
         # Create an empty file immediately.  The first dataset will be
         # created in the "default" store, all others will be created in
         # the same store as the first.
