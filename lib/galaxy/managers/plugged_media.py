@@ -2,14 +2,15 @@
 Manager and Serializer for plugged media.
 """
 
-from galaxy import model
+import logging
+
 from galaxy import exceptions
+from galaxy import model
 from galaxy.managers import datasets
 from galaxy.managers import deletable
 from galaxy.managers import hdas
 from galaxy.managers import sharable
 
-import logging
 log = logging.getLogger(__name__)
 
 

@@ -48,7 +48,7 @@ class Cloud(ObjectStore, CloudConfigMixin):
         self.transfer_progress = 0
 
         if plugged_media is not None:
-             self._configure_using_plugged_media(plugged_media)
+            self._configure_using_plugged_media(plugged_media)
         else:
             auth_dict = config_dict['auth']
             bucket_dict = config_dict['bucket']
@@ -108,8 +108,7 @@ class Cloud(ObjectStore, CloudConfigMixin):
         self.secret_key = credentials.get("SecretAccessKey", None)
         self.session_token = credentials.get("SessionToken", None)
         if self.access_key is None or self.secret_key is None:
-            log.debug(
-                'The plugged media with ID `{}` is missing access and/or secret key(s).'.format(plugged_media.id))
+            log.debug('The plugged media with ID `{}` is missing access and/or secret key(s).'.format(plugged_media.id))
             raise KeyError('The selected S3 plugged media is missing access and/or secret key(s).')
             # Note: if this exception is raised, it indicates that the plugged media `credentials` was not verified
             # with the `is_credentials_valid` function when the plugged media was initialized, or when the

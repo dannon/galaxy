@@ -8,7 +8,7 @@ import datetime
 import logging
 
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, MetaData, Numeric, Table, TEXT
-from galaxy.model.custom_types import JSONType
+
 
 now = datetime.datetime.utcnow
 log = logging.getLogger(__name__)
