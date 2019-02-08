@@ -853,10 +853,9 @@ class HierarchicalObjectStore(NestedObjectStore):
                 store = get_user_based_object_store(self.config, pm)
                 if store.exists(obj, **kwargs):
                     return True
-        else:
-            for store in self.backends.values():
-                if store.exists(obj, **kwargs):
-                    return True
+        for store in self.backends.values():
+            if store.exists(obj, **kwargs):
+                return True
         return False
 
     def create(self, obj, user=None, plugged_media=None, **kwargs):
