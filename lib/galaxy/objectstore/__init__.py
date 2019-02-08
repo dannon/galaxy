@@ -587,16 +587,16 @@ class NestedObjectStore(ObjectStore):
             return str(obj)
 
     def _call_method(self, method, obj, default, default_is_exception, **kwargs):
-        """Check all children object stores for the first one with the dataset."""
+        """Check all children object stores for the first one with the dataset;
+        it first checks plugged media, if given, then evaluates other backends."""
         plugged_media = pick_a_plugged_media(kwargs.get('plugged_media', None))
         if plugged_media is not None:
             store = get_user_based_object_store(self.config, plugged_media)
             if store.exists(obj, **kwargs):
                 return store.__getattribute__(method)(obj, **kwargs)
-        else:
-            for key, store in self.backends.items():
-                if store.exists(obj, **kwargs):
-                    return store.__getattribute__(method)(obj, **kwargs)
+        for key, store in self.backends.items():
+            if store.exists(obj, **kwargs):
+                return store.__getattribute__(method)(obj, **kwargs)
         if default_is_exception:
             raise default('objectstore, _call_method failed: %s on %s, kwargs: %s'
                           % (method, self._repr_object_for_exception(obj), str(kwargs)))
@@ -1037,7 +1037,7 @@ def pick_a_plugged_media(plugged_media, from_order=None, dataset_size=0):
 def get_user_based_object_store(config, plugged_media):
     categories = plugged_media.__class__.categories
     if plugged_media.category == categories.LOCAL:
-        return DiskObjectStore(config=config, file_path=plugged_media.path)
+        return DiskObjectStore(config=config, config_dict={"files_dir": plugged_media.path})
     elif plugged_media.category == categories.S3:
         from .cloud import Cloud
         return Cloud(config=config, config_dict={}, plugged_media=plugged_media)
@@ -1045,7 +1045,7 @@ def get_user_based_object_store(config, plugged_media):
         raise NotImplementedError()
     else:
         raise Exception("Received a plugged media with a un-recognized category type ({}). "
-                        "The catory type should match either of the following categories: {}"
+                        "The category type should match either of the following categories: {}"
                         .format(plugged_media.category, categories))
         pass
 
