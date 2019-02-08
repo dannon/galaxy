@@ -1807,8 +1807,9 @@ class JobWrapper(HasResourceParameters):
             purged = dataset.purged
             if not purged and not clean_only:
                 plugged_media = job.user.active_plugged_media if job.user else None
-                for pm in plugged_media:
-                    pm.refresh_credentials(authnz_manager=self.app.authnz_manager, sa_session=self.sa_session)
+                if plugged_media is not None:
+                    for pm in plugged_media:
+                        pm.refresh_credentials(authnz_manager=self.app.authnz_manager, sa_session=self.sa_session)
                 self.object_store.update_from_file(dataset, user=job.user, plugged_media=plugged_media, create=True)
             else:
                 # If the dataset is purged and Galaxy is configured to write directly
