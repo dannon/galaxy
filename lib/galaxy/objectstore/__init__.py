@@ -539,7 +539,9 @@ class NestedObjectStore(ObjectStore):
 
     def create(self, obj, **kwargs):
         """Create a backing file in a random backend."""
-        plugged_media = pick_a_plugged_media(kwargs.get('plugged_media', None))
+        plugged_media = pick_a_plugged_media(
+            kwargs.get('plugged_media', None),
+            enough_quota_on_instance_level_media=kwargs.get("enough_quota_on_instance_level_media", False))
         if plugged_media is not None:
             store = get_user_based_object_store(self.config, plugged_media)
             store.create(obj, **kwargs)
@@ -589,7 +591,9 @@ class NestedObjectStore(ObjectStore):
     def _call_method(self, method, obj, default, default_is_exception, **kwargs):
         """Check all children object stores for the first one with the dataset;
         it first checks plugged media, if given, then evaluates other backends."""
-        plugged_media = pick_a_plugged_media(kwargs.get('plugged_media', None))
+        plugged_media = pick_a_plugged_media(
+            kwargs.get('plugged_media', None),
+            enough_quota_on_instance_level_media=kwargs.get("enough_quota_on_instance_level_media", False))
         if plugged_media is not None:
             store = get_user_based_object_store(self.config, plugged_media)
             if store.exists(obj, **kwargs):
@@ -875,7 +879,9 @@ class HierarchicalObjectStore(NestedObjectStore):
                     # - `galaxy.model.Dataset`
                     # - `galaxy.model.Job`
                     dataset_size = obj.get_size() if hasattr(obj, 'get_size') else 0
-                    chosen_plugged_media = pick_a_plugged_media(plugged_media, from_order, dataset_size)
+                    chosen_plugged_media = pick_a_plugged_media(
+                        plugged_media, from_order, dataset_size,
+                        enough_quota_on_instance_level_media=kwargs.get("enough_quota_on_instance_level_media", False))
                     if chosen_plugged_media is not None:
                         from_order = chosen_plugged_media.order
                         store = get_user_based_object_store(self.config, chosen_plugged_media)
@@ -978,7 +984,7 @@ def build_object_store_from_config(config, fsmon=False, config_xml=None, config_
         return objectstore_class(config=config, config_dict=config_dict, **objectstore_constructor_kwds)
 
 
-def pick_a_plugged_media(plugged_media, from_order=None, dataset_size=0):
+def pick_a_plugged_media(plugged_media, from_order=None, dataset_size=0, enough_quota_on_instance_level_media=False):
     """
     This function receives a list of plugged media, and decides which one to be
     used for the object store operations. If a single plugged media is given
@@ -990,8 +996,10 @@ def pick_a_plugged_media(plugged_media, from_order=None, dataset_size=0):
     successfully persisted on the media.
     :param plugged_media: A list of plugged media defined/available for the user.
     :param from_order: is the order of a previously returned and failed plugged media,
-    :param dataset_size: is the file size of the dataset.
     which this function should determine a plugged media in a lower order to that.
+    :param dataset_size: is the file size of the dataset.
+    :param enough_quota_on_instance_level_media: Sets if user has enough quota on
+    the default media (i.e., the instance-level persistence media) to persist the dataset.
     :return: A single plugged media, or None (if no plugged media is available, or
     if object store should use instance-level config).
     """
@@ -1016,21 +1024,16 @@ def pick_a_plugged_media(plugged_media, from_order=None, dataset_size=0):
             if plugged_media[i].usage + dataset_size <= plugged_media[i].quota:
                 return plugged_media[i]
         else:
-            return None
-            # TODO [when ObjectStore can assess user quota and usage on instance-level object store]:
-            # Remove the above return and replace it with the following:
-            #   if user_has_enough_quota_on_instalce_level_object_store_to_persist_this_dataset:
-            #       return None
-            #   elif plugged_media[i].usage + dataset_size <= plugged_media[i].quota:
-            #       return plugged_media[i]
+            if enough_quota_on_instance_level_media:
+                return None
+            elif plugged_media[i].usage + dataset_size <= plugged_media[i].quota:
+                return plugged_media[i]
         i -= 1
-    return None
-    # TODO [when ObjectStore can assess user quota and usage on instance-level object store]:
-    # Remove the above return and replace it with the following:
-    #   if user_has_enough_quota_on_instalce_level_object_store_to_persist_this_dataset:
-    #       return None
-    #   elif plugged_media[i].usage + dataset_size <= plugged_media[i].quota:
-    #       raise an_error_which_informs_the_user_that_there_is_no_enough_space_left_to_persist_the_dataset
+    if enough_quota_on_instance_level_media:
+        return None
+    elif plugged_media[i].usage + dataset_size <= plugged_media[i].quota:
+        # TODO: replace the following exception with a better approach.
+        raise Exception("User does not have enough quota to persist the dataset.")
 
 
 def get_user_based_object_store(config, plugged_media):

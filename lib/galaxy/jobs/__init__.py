@@ -1810,7 +1810,11 @@ class JobWrapper(HasResourceParameters):
                 if plugged_media is not None:
                     for pm in plugged_media:
                         pm.refresh_credentials(authnz_manager=self.app.authnz_manager, sa_session=self.sa_session)
-                self.object_store.update_from_file(dataset, user=job.user, plugged_media=plugged_media, create=True)
+                quota = self.app.quota_agent.get_quota(job.user)
+                usage = self.app.quota_agent.get_usage(user=job.user, history=job.history)
+                eqi = usage < quota
+                self.object_store.update_from_file(dataset, user=job.user, plugged_media=plugged_media, create=True,
+                                                   enough_quota_on_instance_level_media=eqi)
             else:
                 # If the dataset is purged and Galaxy is configured to write directly
                 # to the object store from jobs - be sure that file is cleaned up. This
