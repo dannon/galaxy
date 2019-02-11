@@ -3008,7 +3008,7 @@ class HistoryDatasetAssociation(DatasetInstance, HasTags, Dictifiable, UsesAnnot
     def set_size(self, **kwargs):
         """Sets the size of the data on disk"""
         user = self.history.user if self.history else None
-        self.dataset.set_size(user)
+        self.dataset.set_size(user=user, **kwargs)
 
     def get_total_size(self):
         user = self.history.user if self.history else None
