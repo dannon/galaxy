@@ -2417,7 +2417,7 @@ class DatasetInstance(object):
 
     def set_size(self, user=None, **kwds):
         """Sets the size of the data on disk"""
-        self.dataset.set_size(user, **kwds)
+        self.dataset.set_size(user=user, **kwds)
 
     def get_total_size(self, user=None):
         return self.dataset.get_total_size(user)
