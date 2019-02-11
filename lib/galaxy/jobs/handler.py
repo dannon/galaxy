@@ -555,7 +555,8 @@ class JobHandlerQueue(Monitors):
         # total quota on all their media, ObjectStore raises appropriate
         # exception(s).
         if state == JOB_READY and self.app.config.enable_quotas and \
-                (job.user.active_plugged_media is None or len(job.user.active_plugged_media) == 0):
+                (job.user is not None and
+                 (job.user.active_plugged_media is None or len(job.user.active_plugged_media) == 0)):
             quota = self.app.quota_agent.get_quota(job.user)
             if quota is not None:
                 try:
