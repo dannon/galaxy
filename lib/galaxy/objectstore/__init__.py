@@ -94,6 +94,26 @@ class ObjectStore(object):
         000/obj.id)
     """
 
+    # Used for user-based objectstore.
+    # At job initiation, Objectstore decides at what
+    # _path_ on which _backend_ the result of job shall
+    # be persisted, considering only instance-level
+    # objectstore configuration and neglecting user's
+    # plugged media.
+    # After job has completed, the resulting dataset is
+    # staged at a path depending on which _backend_
+    # was initially selected, before signaling objectstore
+    # to persist the dataset.
+    # For instance, if initially an S3 bucket was selected,
+    # the result of job execution is staged in S3 cache path
+    # as defined in the ObjectStore config.
+    #
+    # If user has defined a plugged media, and that is
+    # chosen as the media where the result of job shall
+    # be persisted; then this variable is used to inform
+    # the media where the dataset is _staged_.
+    dataset_staging_path = None
+
     def __init__(self, config, config_dict={}, **kwargs):
         """
         :type config: object
@@ -596,6 +616,9 @@ class NestedObjectStore(ObjectStore):
             enough_quota_on_instance_level_media=kwargs.get("enough_quota_on_instance_level_media", False))
         if plugged_media is not None:
             store = get_user_based_object_store(self.config, plugged_media)
+            for k, s in self.backends.items():
+                if s.exists(obj, **kwargs):
+                    store.dataset_staging_path = s.get_filename(obj)
             if store.exists(obj, **kwargs):
                 return store.__getattribute__(method)(obj, **kwargs)
         for key, store in self.backends.items():
@@ -855,6 +878,9 @@ class HierarchicalObjectStore(NestedObjectStore):
         if plugged_media is not None:
             for pm in plugged_media:
                 store = get_user_based_object_store(self.config, pm)
+                for s in self.backends.values():
+                    if s.exists(obj, **kwargs):
+                        store.dataset_staging_path = s.get_filename(obj)
                 if store.exists(obj, **kwargs):
                     return True
         for store in self.backends.values():
@@ -883,6 +909,7 @@ class HierarchicalObjectStore(NestedObjectStore):
                         plugged_media, from_order, dataset_size,
                         enough_quota_on_instance_level_media=kwargs.get("enough_quota_on_instance_level_media", False))
                     if chosen_plugged_media is not None:
+                        chosen_plugged_media.dataset_staging_path = self.backends[0].get_filename(obj)
                         from_order = chosen_plugged_media.order
                         store = get_user_based_object_store(self.config, chosen_plugged_media)
                         store.create(obj, **kwargs)
@@ -897,7 +924,7 @@ class HierarchicalObjectStore(NestedObjectStore):
                                   "now trying another persistence option, if any available. Error: {}"
                                   .format(obj, obj.id, "{} with ID {}".format(plugged_media.category, plugged_media.id)
                                           if plugged_media is not None else "the default storage of this instance", str(e)))
-            # TODO: User should be notified if this operation is failed.
+            # TODO: User should be notified if this operation has failed.
         else:
             self.backends[0].create(obj, **kwargs)
 

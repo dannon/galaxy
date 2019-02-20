@@ -57,6 +57,7 @@ class Cloud(ObjectStore, CloudConfigMixin):
 
             self.access_key = auth_dict.get('access_key')
             self.secret_key = auth_dict.get('secret_key')
+            self.session_token = None
 
             self.bucket = bucket_dict.get('name')
             self.use_rr = bucket_dict.get('use_reduced_redundancy', False)
@@ -263,7 +264,10 @@ class Cloud(ObjectStore, CloudConfigMixin):
         return rel_path
 
     def _get_cache_path(self, rel_path):
-        return os.path.abspath(os.path.join(self.staging_path, rel_path))
+        if self.dataset_staging_path is not None:
+            return self.dataset_staging_path
+        else:
+            return os.path.abspath(os.path.join(self.staging_path, rel_path))
 
     def _get_transfer_progress(self):
         return self.transfer_progress
