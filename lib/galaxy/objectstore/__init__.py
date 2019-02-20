@@ -608,22 +608,29 @@ class NestedObjectStore(ObjectStore):
         except AttributeError:
             return str(obj)
 
+    def _get_backend(self, obj, **kwargs):
+        """
+        Check all children object stores for the first one with the dataset;
+        it first checks plugged media, if given, then evaluates other backends.
+        """
+        for key, backend in self.backends.items():
+            if backend.exists(obj, **kwargs):
+                return backend
+        return None
+
     def _call_method(self, method, obj, default, default_is_exception, **kwargs):
-        """Check all children object stores for the first one with the dataset;
-        it first checks plugged media, if given, then evaluates other backends."""
+        backend = self._get_backend(obj, **kwargs)
         plugged_media = pick_a_plugged_media(
             kwargs.get('plugged_media', None),
             enough_quota_on_instance_level_media=kwargs.get("enough_quota_on_instance_level_media", False))
         if plugged_media is not None:
-            store = get_user_objectstore(self.config, plugged_media)
-            for k, s in self.backends.items():
-                if s.exists(obj, **kwargs):
-                    store.dataset_staging_path = s.get_filename(obj)
-            if store.exists(obj, **kwargs):
-                return store.__getattribute__(method)(obj, **kwargs)
-        for key, store in self.backends.items():
-            if store.exists(obj, **kwargs):
-                return store.__getattribute__(method)(obj, **kwargs)
+            user_backend = get_user_objectstore(self.config, plugged_media)
+            user_backend.dataset_staging_path = backend.get_filename(obj) if backend is not None else None
+            if user_backend.exists(obj, **kwargs):
+                backend = user_backend
+
+        if backend is not None:
+            return backend.__getattribute__(method)(obj, **kwargs)
         if default_is_exception:
             raise default('objectstore, _call_method failed: %s on %s, kwargs: %s'
                           % (method, self._repr_object_for_exception(obj), str(kwargs)))
