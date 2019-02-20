@@ -563,7 +563,7 @@ class NestedObjectStore(ObjectStore):
             kwargs.get('plugged_media', None),
             enough_quota_on_instance_level_media=kwargs.get("enough_quota_on_instance_level_media", False))
         if plugged_media is not None:
-            store = get_user_based_object_store(self.config, plugged_media)
+            store = get_user_objectstore(self.config, plugged_media)
             store.create(obj, **kwargs)
             plugged_media.association_with_dataset(obj)
         else:
@@ -615,7 +615,7 @@ class NestedObjectStore(ObjectStore):
             kwargs.get('plugged_media', None),
             enough_quota_on_instance_level_media=kwargs.get("enough_quota_on_instance_level_media", False))
         if plugged_media is not None:
-            store = get_user_based_object_store(self.config, plugged_media)
+            store = get_user_objectstore(self.config, plugged_media)
             for k, s in self.backends.items():
                 if s.exists(obj, **kwargs):
                     store.dataset_staging_path = s.get_filename(obj)
@@ -877,7 +877,7 @@ class HierarchicalObjectStore(NestedObjectStore):
         plugged_media = kwargs.get('plugged_media', None)
         if plugged_media is not None:
             for pm in plugged_media:
-                store = get_user_based_object_store(self.config, pm)
+                store = get_user_objectstore(self.config, pm)
                 for s in self.backends.values():
                     if s.exists(obj, **kwargs):
                         store.dataset_staging_path = s.get_filename(obj)
@@ -911,7 +911,7 @@ class HierarchicalObjectStore(NestedObjectStore):
                     if chosen_plugged_media is not None:
                         chosen_plugged_media.dataset_staging_path = self.backends[0].get_filename(obj)
                         from_order = chosen_plugged_media.order
-                        store = get_user_based_object_store(self.config, chosen_plugged_media)
+                        store = get_user_objectstore(self.config, chosen_plugged_media)
                         store.create(obj, **kwargs)
                         chosen_plugged_media.association_with_dataset(obj)
                         chosen_plugged_media.set_usage(chosen_plugged_media.usage + dataset_size)
@@ -1063,7 +1063,7 @@ def pick_a_plugged_media(plugged_media, from_order=None, dataset_size=0, enough_
         raise Exception("User does not have enough quota to persist the dataset.")
 
 
-def get_user_based_object_store(config, plugged_media):
+def get_user_objectstore(config, plugged_media):
     categories = plugged_media.__class__.categories
     if plugged_media.category == categories.LOCAL:
         return DiskObjectStore(config=config, config_dict={"files_dir": plugged_media.path})
