@@ -104,6 +104,7 @@ def app_factory(global_conf, load_app_kwds={}, **kwargs):
     webapp.add_client_route('/admin/data_manager{path_info:.*}', 'admin')
     webapp.add_client_route('/admin/error_stack', 'admin')
     webapp.add_client_route('/admin/users', 'admin')
+    webapp.add_client_route('/admin/users/create', 'admin')
     webapp.add_client_route('/admin/display_applications', 'admin')
     webapp.add_client_route('/admin/roles', 'admin')
     webapp.add_client_route('/admin/forms', 'admin')
@@ -694,6 +695,18 @@ def populate_api_routes(webapp, app):
                           '/api/users/{id}/custom_builds/{key}',
                           controller='users',
                           action='delete_custom_builds',
+                          conditions=dict(method=["DELETE"]))
+
+    webapp.mapper.connect('set_favorite_tool',
+                          '/api/users/{id}/favorites/{object_type}',
+                          controller='users',
+                          action='set_favorite',
+                          conditions=dict(method=["PUT"]))
+
+    webapp.mapper.connect('remove_favorite_tool',
+                          '/api/users/{id}/favorites/{object_type}/{object_id:.*?}',
+                          controller='users',
+                          action='remove_favorite',
                           conditions=dict(method=["DELETE"]))
 
     # ========================
