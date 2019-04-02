@@ -1,0 +1,33 @@
+// Taken from a github issue for toasted-> bs4 theme at
+// https://github.com/shakee93/vue-toasted/issues/99
+// Needs love.
+@import "~bootstrap/scss/functions";
+@import "~bootstrap/scss/variables";
+@import "~bootstrap/scss/mixins/alert";
+@import "~bootstrap/scss/mixins/border-radius";
+@import "~bootstrap/scss/mixins/gradients";
+
+.toasted-container {
+    &.top-right {
+        right: $spacer !important;
+    }
+    .toasted.toasted-primary {
+        padding: $alert-padding-y $alert-padding-x;
+        margin-bottom: $alert-margin-bottom;
+        border: $alert-border-width solid transparent;
+        box-shadow: $box-shadow-sm;
+        line-height: inherit;
+        font-size: inherit;
+        font-weight: inherit;
+        @include border-radius($alert-border-radius);
+        &.error {
+            @include alert-variant(theme-color-level('danger', $alert-bg-level), theme-color-level('danger', $alert-border-level), theme-color-level('danger', $alert-color-level));
+        }
+        &.success {
+            @include alert-variant(theme-color-level('success', $alert-bg-level), theme-color-level('success', $alert-border-level), theme-color-level('success', $alert-color-level));
+        }
+        &.info {
+            @include alert-variant(theme-color-level('info', $alert-bg-level), theme-color-level('info', $alert-border-level), theme-color-level('info', $alert-color-level));
+        }
+    }
+}
