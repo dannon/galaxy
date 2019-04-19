@@ -503,68 +503,66 @@ def populate_api_routes(webapp, app):
     webapp.mapper.connect('/api/datasets/{dataset_id}/converted/{ext}', controller='datasets', action='converted')
     webapp.mapper.connect('/api/datasets/{dataset_id}/permissions', controller='datasets', action='update_permissions', conditions=dict(method=["PUT"]))
 
-    # API refers to usages and invocations - these mean the same thing but the
-    # usage routes should be considered deprecated.
-    invoke_names = {
-        "invocations": "",
-        "usage": "_deprecated",
-    }
-    for noun, suffix in invoke_names.items():
-        name = "%s%s" % (noun, suffix)
-        webapp.mapper.connect(
-            'list_workflow_%s' % name,
-            '/api/workflows/{workflow_id}/%s' % noun,
-            controller='workflows',
-            action='index_invocations',
-            conditions=dict(method=['GET'])
-        )
-        webapp.mapper.connect(
-            'list_invocations',
-            '/api/invocations',
-            controller='workflows',
-            action='index_invocations',
-            conditions=dict(method=['GET'])
-        )
+    # ====================================
+    # ===== Workflow Invocations API =====
+    # ====================================
 
-        webapp.mapper.connect(
-            'workflow_%s_contents' % name,
-            '/api/workflows/{workflow_id}/%s/{invocation_id}' % noun,
-            controller='workflows',
-            action='show_invocation',
-            conditions=dict(method=['GET'])
-        )
+    webapp.mapper.connect(
+        'list_workflow_invocations',
+        '/api/workflows/{workflow_id}/invocations',
+        controller='workflows',
+        action='index_invocations',
+        conditions=dict(method=['GET'])
+    )
 
-        webapp.mapper.connect(
-            'cancel_workflow_%s' % name,
-            '/api/workflows/{workflow_id}/%s/{invocation_id}' % noun,
-            controller='workflows',
-            action='cancel_invocation',
-            conditions=dict(method=['DELETE'])
-        )
+    webapp.mapper.connect(
+        'list_invocations',
+        '/api/invocations',
+        controller='workflows',
+        action='index_invocations',
+        conditions=dict(method=['GET'])
+    )
 
-        webapp.mapper.connect(
-            'workflow_%s_step' % name,
-            '/api/workflows/{workflow_id}/%s/{invocation_id}/steps/{step_id}' % noun,
-            controller='workflows',
-            action='invocation_step',
-            conditions=dict(method=['GET'])
-        )
+    webapp.mapper.connect(
+        'workflow_invocations_contents',
+        '/api/workflows/{workflow_id}/invocations/{invocation_id}',
+        controller='workflows',
+        action='show_invocation',
+        conditions=dict(method=['GET'])
+    )
 
-        webapp.mapper.connect(
-            'workflow_%s_step_update' % name,
-            '/api/workflows/{workflow_id}/%s/{invocation_id}/steps/{step_id}' % noun,
-            controller='workflows',
-            action='update_invocation_step',
-            conditions=dict(method=['PUT'])
-        )
+    webapp.mapper.connect(
+        'cancel_workflow_invocations',
+        '/api/workflows/{workflow_id}/invocations/{invocation_id}',
+        controller='workflows',
+        action='cancel_invocation',
+        conditions=dict(method=['DELETE'])
+    )
 
-        webapp.mapper.connect(
-            'workflow_%s' % name,
-            '/api/workflows/{workflow_id}/%s' % noun,
-            controller='workflows',
-            action='invoke',
-            conditions=dict(method=['POST'])
-        )
+    webapp.mapper.connect(
+        'workflow_invocations_step',
+        '/api/workflows/{workflow_id}/invocations/{invocation_id}/steps/{step_id}',
+        controller='workflows',
+        action='invocation_step',
+        conditions=dict(method=['GET'])
+    )
+
+    webapp.mapper.connect(
+        'workflow_invocations_step_update',
+        '/api/workflows/{workflow_id}/invocations/{invocation_id}/steps/{step_id}',
+        controller='workflows',
+        action='update_invocation_step',
+        conditions=dict(method=['PUT'])
+    )
+
+    webapp.mapper.connect(
+        'workflow_invocations',
+        '/api/workflows/{workflow_id}/invocations',
+        controller='workflows',
+        action='invoke',
+        conditions=dict(method=['POST'])
+    )
+
     # ============================
     # ===== AUTHENTICATE API =====
     # ============================
