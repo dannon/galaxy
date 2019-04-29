@@ -1,4 +1,6 @@
 import $ from "jquery";
+import { fromEvent } from "rxjs";
+import { takeUntil, mergeMap } from "rxjs/operators";
 
 // FIXME: merge scroll panel into CanvasManager, clean up hardcoded stuff.
 class ScrollPanel {
@@ -92,7 +94,7 @@ class CanvasManager {
         this.canvasZoom = zoomLevels[defaultZoomLevel];
         this.initZoomControls();
         // Make overview box draggable
-        this.init_drag();
+        this.initDrag();
         // Initialize Copy & Paste events
         this.init_copy_paste();
     }
@@ -123,46 +125,61 @@ class CanvasManager {
         this.cv.closest("#workflow-canvas-body").append(zoomControl);
     }
 
-    init_drag() {
+    initDrag() {
         var self = this;
-        var move = (x, y) => {
-            x = Math.min(x, self.cv.width() / 2);
-            x = Math.max(x, -self.cc.width() + self.cv.width() / 2);
-            y = Math.min(y, self.cv.height() / 2);
-            y = Math.max(y, -self.cc.height() + self.cv.height() / 2);
-            self.cc.css({
+
+        const move = (dX, dY) => {
+            const cOffset = this.cc.data('offset');
+            const cX = cOffset ? cOffset.oX : 0;
+            const cY = cOffset ? cOffset.oY : 0;
+            let x = cX + dX;
+            let y = cY + dY;
+            x = Math.min(x, this.cv.width() / 2);
+            x = Math.max(x, -this.cc.width() + this.cv.width() / 2);
+            y = Math.min(y, this.cv.height() / 2);
+            y = Math.max(y, -this.cc.height() + this.cv.height() / 2);
+            this.cc.data('offset', {'oX': x, 'oY': y});
+            this.cc.css({
                 left: x,
                 top: y
             });
-            self.cv.css({
+            this.cv.css({
                 "background-position-x": x,
                 "background-position-y": y
             });
-            self.update_viewport_overlay();
+            this.update_viewport_overlay();
         };
-        // Dragging within canvas background
+
+
         this.cc.each(function() {
             this.scroll_panel = new ScrollPanel(this);
         });
-        var x_adjust;
-        var y_adjust;
-        this.cv
-            .bind("click", function() {
-                document.activeElement.blur();
+        this.cv.bind("click", function() {
+            document.activeElement.blur();
+        });
+
+        const target = this.cc.get(0);
+        const mouseup$ = fromEvent(document, 'mouseup');
+        const mousemove$ = fromEvent(document, 'mousemove');
+        const mousedown$ = fromEvent(target, 'mousedown');
+
+        // Construct drag observable
+        const drag$ = mousedown$.pipe(
+            mergeMap(e => {
+                const move$ = mousemove$.pipe(takeUntil(mouseup$));
+                mouseup$.subscribe(()=>{
+                    // THIS IS NOT RIGHT -- it generates additional subscriptions for every move
+                    this.app.workflow.fit_canvas_to_nodes();
+                    this.draw_overview();
+                });
+                return move$;
             })
-            .bind("dragstart", function() {
-                var o = $(this).offset();
-                var p = self.cc.position();
-                y_adjust = p.top - o.top;
-                x_adjust = p.left - o.left;
-            })
-            .bind("drag", (e, d) => {
-                move((d.offsetX + x_adjust) / this.canvasZoom, (d.offsetY + y_adjust) / this.canvasZoom);
-            })
-            .bind("dragend", () => {
-                self.app.workflow.fit_canvas_to_nodes();
-                self.draw_overview();
-            });
+        );
+
+        drag$.subscribe((e) => {
+            move(e.movementX, e.movementY);
+        });
+
         this.overview.click(e => {
             if (self.overview.hasClass("blockaclick")) {
                 self.overview.removeClass("blockaclick");
