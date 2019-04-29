@@ -94,7 +94,7 @@ var BaseInputTerminalView = TerminalView.extend({
         dropstart: "onDropStart",
         dropend: "onDropEnd",
         drop: "onDrop",
-        hover: "onHover"
+        mouseover: "onMouseover"
     },
     onDropInit: function(e, d) {
         var terminal = this.el.terminal;
@@ -142,7 +142,7 @@ var BaseInputTerminalView = TerminalView.extend({
             new Connector(d.drag.terminal, terminal).redraw();
         }
     },
-    onHover: function() {
+    onMouseover: function() {
         let element = this.el;
         let terminal = element.terminal;
         // If connected, create a popup to allow disconnection

@@ -14,8 +14,6 @@ import IconButton from "mvc/ui/icon-button";
 import query_string from "utils/query-string-parsing";
 import GridView from "mvc/grid/grid-view";
 // import Utils from "utils/utils";
-import "libs/jquery/jquery.event.drag";
-import "libs/jquery/jquery.event.hover";
 import "jquery-mousewheel";
 import "libs/jquery/jquery-ui";
 import "libs/jquery/select2";
