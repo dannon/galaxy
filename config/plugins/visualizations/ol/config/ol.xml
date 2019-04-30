@@ -12,5 +12,5 @@
     <params>
         <param type="dataset" var_name_in_template="hda" required="true">dataset_id</param>
     </params>
-    <template>map.mako</template>
+    <template>ol.mako</template>
 </visualization>
