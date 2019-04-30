@@ -1,15 +1,13 @@
-var raster = new ol.layer.Tile({
-    source: new ol.source.OSM()
-});
-
+var tile = new ol.layer.Tile({source: new ol.source.OSM()});
 var source = new ol.source.Vector({wrapX: false});
-
-var vector = new ol.layer.Vector({
-    source: source
-});
+var vector = new ol.layer.Vector({source: source});
+var scaleLineControl = new ol.control.ScaleLine();
 
 var map = new ol.Map({
-    layers: [raster, vector],
+    controls: ol.control.defaults().extend([
+          scaleLineControl
+    ]),
+    layers: [tile, vector],
     target: 'map-view',
     view: new ol.View({
       center: [-11000000, 4600000],
@@ -17,12 +15,23 @@ var map = new ol.Map({
     })
 });
 
+var graticule = new ol.Graticule({
+    strokeStyle: new ol.style.Stroke({
+        color: 'rgba(255,120,0,0.9)',
+        width: 2,
+        lineDash: [0.5, 4]
+    }),
+    showLabels: true
+});
+
+graticule.setMap(map);
+
 var typeSelect = document.getElementById('geometry-type');
 
 var draw;
 
-function addInteraction() {
-    var value = typeSelect.value;
+var addInteraction = () => {
+    let value = typeSelect.value;
     if (value !== 'None') {
         draw = new ol.interaction.Draw({
             source: source,
@@ -33,20 +42,20 @@ function addInteraction() {
     }
 }
 
-typeSelect.onchange = function() {
+typeSelect.onchange = () => {
     map.removeInteraction(draw);
     addInteraction();
 };
 
 addInteraction();
 
-document.getElementById('export-png').addEventListener('click', function(e) {
-    map.once('rendercomplete', function(event) {
-        var canvas = event.context.canvas;
+document.getElementById('export-png').addEventListener('click', e => {
+    map.once('rendercomplete', event => {
+        let canvas = event.context.canvas;
         if (navigator.msSaveBlob) {
             navigator.msSaveBlob(canvas.msToBlob(), 'map.png');
         } else {
-            canvas.toBlob(function(blob) {
+            canvas.toBlob(blob => {
                 saveAs(blob, 'map.png');
             });
         }
@@ -54,3 +63,4 @@ document.getElementById('export-png').addEventListener('click', function(e) {
     map.renderSync();
 });
 
+console.log(ol);
