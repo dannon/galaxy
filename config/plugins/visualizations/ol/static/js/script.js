@@ -51,11 +51,13 @@ addInteraction();
 document.getElementById('export-png').addEventListener('click', e => {
     map.once('rendercomplete', event => {
         let canvas = event.context.canvas;
+        let fileName = Math.random().toString(11).replace('0.', '');
+        fileName += '.png';
         if (navigator.msSaveBlob) {
-            navigator.msSaveBlob(canvas.msToBlob(), 'map.png');
+            navigator.msSaveBlob(canvas.msToBlob(), fileName);
         } else {
             canvas.toBlob(blob => {
-                saveAs(blob, 'map.png');
+                saveAs(blob, fileName);
             });
         }
     });
