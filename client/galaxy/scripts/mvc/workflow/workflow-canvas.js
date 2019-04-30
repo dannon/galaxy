@@ -177,7 +177,7 @@ class CanvasManager {
         );
 
         drag$.subscribe((e) => {
-            move(e.movementX, e.movementY);
+            move(e.movementX / this.canvasZoom, e.movementY / this.canvasZoom);
         });
 
         this.overview.click(e => {
