@@ -125,24 +125,34 @@ class CanvasManager {
         this.cv.closest("#workflow-canvas-body").append(zoomControl);
     }
 
+    setCanvasPosition(oX, oY, width, height) {
+        const cssData = { left: oX, top: oY };
+        if (width) {
+            cssData.width = width;
+        }
+        if (height) {
+            cssData.height = height;
+        }
+        this.cc.data("offset", { oX: oX, oY: oY });
+        this.cc.css(cssData);
+    }
+
     initDrag() {
         var self = this;
 
         const move = (dX, dY) => {
             const cOffset = this.cc.data("offset");
-            const cX = cOffset ? cOffset.oX : 0;
-            const cY = cOffset ? cOffset.oY : 0;
+            const cX = cOffset && cOffset.oX ? cOffset.oX : 0;
+            const cY = cOffset && cOffset.oY ? cOffset.oY : 0;
             let x = cX + dX;
             let y = cY + dY;
             x = Math.min(x, this.cv.width() / 2);
             x = Math.max(x, -this.cc.width() + this.cv.width() / 2);
             y = Math.min(y, this.cv.height() / 2);
             y = Math.max(y, -this.cc.height() + this.cv.height() / 2);
-            this.cc.data("offset", { oX: x, oY: y });
-            this.cc.css({
-                left: x,
-                top: y
-            });
+
+            this.setCanvasPosition(x, y);
+
             this.cv.css({
                 "background-position-x": x,
                 "background-position-y": y

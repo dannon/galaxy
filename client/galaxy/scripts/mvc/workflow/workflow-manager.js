@@ -452,12 +452,9 @@ class Workflow {
         width = Math.max(width, -left + parent.width());
         height = Math.max(height, -top + parent.height());
         // Grow the canvas container
-        this.canvas_container.css({
-            left: left / canvasZoom,
-            top: top / canvasZoom,
-            width: width,
-            height: height
-        });
+        const oX = left / canvasZoom;
+        const oY = top / canvasZoom;
+        this.app.canvas_manager.setCanvasPosition(oX, oY, width, height);
         // Move elements back if needed
         this.canvas_container.children().each(function() {
             var p = $(this).position();
