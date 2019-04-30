@@ -2,11 +2,10 @@ var tile = new ol.layer.Tile({source: new ol.source.OSM()});
 var source = new ol.source.Vector({wrapX: false});
 var vector = new ol.layer.Vector({source: source});
 var scaleLineControl = new ol.control.ScaleLine();
+var fullScreen = new ol.control.FullScreen();
 
 var map = new ol.Map({
-    controls: ol.control.defaults().extend([
-          scaleLineControl
-    ]),
+    controls: ol.control.defaults().extend([scaleLineControl, fullScreen]),
     layers: [tile, vector],
     target: 'map-view',
     view: new ol.View({
@@ -62,5 +61,3 @@ document.getElementById('export-png').addEventListener('click', e => {
     });
     map.renderSync();
 });
-
-console.log(ol);
