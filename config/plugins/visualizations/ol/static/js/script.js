@@ -17,7 +17,7 @@ var map = new ol.Map({
     })
 });
 
-var typeSelect = document.getElementById('type');
+var typeSelect = document.getElementById('geometry-type');
 
 var draw;
 

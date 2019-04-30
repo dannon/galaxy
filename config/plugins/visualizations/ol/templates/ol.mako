@@ -16,14 +16,16 @@
 </head>
 <body class="body-map-view">
     <div id="map-view" class="map"></div>
-    <label>Geometry type &nbsp;</label>
-    <select id="type">
-        <option value="Point">Point</option>
-        <option value="LineString">LineString</option>
-        <option value="Polygon">Polygon</option>
-        <option value="Circle">Circle</option>
-    </select>
-    <a id="export-png" class="btn btn-default"><i class="fa fa-download"></i>Export</a>
+    <div class="map-options">
+        <select id="geometry-type" class="form-control">
+            <option value="None">Select geometry type</option>
+            <option value="Point">Point</option>
+            <option value="LineString">LineString</option>
+            <option value="Polygon">Polygon</option>
+            <option value="Circle">Circle</option>
+        </select>
+        <button id="export-png" type="button" class="btn btn-secondary btn-sm"><i class="fa fa-download"></i>Export</button>
+    </div>
     ${h.javascript_link( app_root + "js/script.js")}
 </body>
 </html>
