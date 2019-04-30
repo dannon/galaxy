@@ -129,7 +129,7 @@ class CanvasManager {
         var self = this;
 
         const move = (dX, dY) => {
-            const cOffset = this.cc.data('offset');
+            const cOffset = this.cc.data("offset");
             const cX = cOffset ? cOffset.oX : 0;
             const cY = cOffset ? cOffset.oY : 0;
             let x = cX + dX;
@@ -138,7 +138,7 @@ class CanvasManager {
             x = Math.max(x, -this.cc.width() + this.cv.width() / 2);
             y = Math.min(y, this.cv.height() / 2);
             y = Math.max(y, -this.cc.height() + this.cv.height() / 2);
-            this.cc.data('offset', {'oX': x, 'oY': y});
+            this.cc.data("offset", { oX: x, oY: y });
             this.cc.css({
                 left: x,
                 top: y
@@ -150,7 +150,6 @@ class CanvasManager {
             this.update_viewport_overlay();
         };
 
-
         this.cc.each(function() {
             this.scroll_panel = new ScrollPanel(this);
         });
@@ -159,15 +158,15 @@ class CanvasManager {
         });
 
         const target = this.cc.get(0);
-        const mouseup$ = fromEvent(document, 'mouseup');
-        const mousemove$ = fromEvent(document, 'mousemove');
-        const mousedown$ = fromEvent(target, 'mousedown');
+        const mouseup$ = fromEvent(document, "mouseup");
+        const mousemove$ = fromEvent(document, "mousemove");
+        const mousedown$ = fromEvent(target, "mousedown");
 
         // Construct drag observable
         const drag$ = mousedown$.pipe(
             mergeMap(e => {
                 const move$ = mousemove$.pipe(takeUntil(mouseup$));
-                mouseup$.subscribe(()=>{
+                mouseup$.subscribe(() => {
                     // THIS IS NOT RIGHT -- it generates additional subscriptions for every move
                     this.app.workflow.fit_canvas_to_nodes();
                     this.draw_overview();
@@ -176,7 +175,7 @@ class CanvasManager {
             })
         );
 
-        drag$.subscribe((e) => {
+        drag$.subscribe(e => {
             move(e.movementX / this.canvasZoom, e.movementY / this.canvasZoom);
         });
 
