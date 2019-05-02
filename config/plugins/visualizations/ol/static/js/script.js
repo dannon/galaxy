@@ -139,7 +139,6 @@ var MapViewer = (function(mv) {
                 zoom: 2
             })
         });
-
         var graticule = new ol.Graticule({
             strokeStyle: new ol.style.Stroke({
                 color: 'rgba(255,120,0,0.9)',
@@ -148,33 +147,23 @@ var MapViewer = (function(mv) {
             }),
             showLabels: true
         });
-
         graticule.setMap(map);
         mv.setInteractions(map, vSource);
         mv.exportMap(map);
     };
     
     mv.loadFile = function(filePath, fileType) {
-          
         if (fileType === 'geojson') {
-            let vectorSource = new ol.source.Vector({
-                format: new ol.format.GeoJSON(),
-                url: filePath
-            })
-            mv.setMap(vectorSource);
+            mv.setMap(new ol.source.Vector({format: new ol.format.GeoJSON(), url: filePath}));
         }
         else if (fileType === 'shp') {
-            loadshp({url: filePath, encoding: 'big5', EPSG: 3826}, function(geojson) {
-                console.log(geojson);
-                var updated_geojson = {'type': geojson["type"], 'features': geojson["features"]};
-                let vectorSource = new ol.source.Vector({
-                    features: (new ol.format.GeoJSON()).readFeatures(updated_geojson)
-                });
-                mv.setMap(vectorSource);
+            loadshp({url: filePath, encoding: 'utf-8', EPSG: 4326}, function(geojson) {
+                var URL = window.URL || window.webkitURL || window.mozURL;
+		var url = URL.createObjectURL(new Blob([JSON.stringify(geojson)], {type: "application/json"}));
+		mv.setMap(new ol.source.Vector({format: new ol.format.GeoJSON(), url: url}));
             });
         }
     };
-    
     return mv;
 }(MapViewer || {}));
 
