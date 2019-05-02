@@ -44,11 +44,7 @@ var MapViewer = (function(mv) {
         });
     };
     
-    mv.loadFile = function(filePath) {
-
-        var tile = new ol.layer.Tile({source: new ol.source.OSM()});
-        var fullScreen = new ol.control.FullScreen();     
-        
+    mv.setMap = function(vSource) {
         var styles = {
             'Polygon': new ol.style.Style({
                 stroke: new ol.style.Stroke({
@@ -121,22 +117,19 @@ var MapViewer = (function(mv) {
             }),
         };
         
+        var tile = new ol.layer.Tile({source: new ol.source.OSM()});
+        var fullScreen = new ol.control.FullScreen();
+        var scaleLineControl = new ol.control.ScaleLine();
+        
         var styleFunction = function(feature) {
             return styles[feature.getGeometry().getType()];
         };
-        
-        var vectorSource = new ol.source.Vector({
-            format: new ol.format.GeoJSON(),
-            url: filePath
-        })
-        
+    
         var vectorLayer = new ol.layer.Vector({
-            source: vectorSource,
+            source: vSource,
             style: styleFunction
         });
         
-        var scaleLineControl = new ol.control.ScaleLine();
-    
         var map = new ol.Map({
             controls: ol.control.defaults().extend([scaleLineControl, fullScreen]),
             layers: [tile, vectorLayer],
@@ -157,11 +150,31 @@ var MapViewer = (function(mv) {
         });
 
         graticule.setMap(map);
-        
-        mv.setInteractions(map, vectorSource);
+        mv.setInteractions(map, vSource);
         mv.exportMap(map);
     };
-
+    
+    mv.loadFile = function(filePath, fileType) {
+          
+        if (fileType === 'geojson') {
+            let vectorSource = new ol.source.Vector({
+                format: new ol.format.GeoJSON(),
+                url: filePath
+            })
+            mv.setMap(vectorSource);
+        }
+        else if (fileType === 'shp') {
+            loadshp({url: filePath, encoding: 'big5', EPSG: 3826}, function(geojson) {
+                console.log(geojson);
+                var updated_geojson = {'type': geojson["type"], 'features': geojson["features"]};
+                let vectorSource = new ol.source.Vector({
+                    features: (new ol.format.GeoJSON()).readFeatures(updated_geojson)
+                });
+                mv.setMap(vectorSource);
+            });
+        }
+    };
+    
     return mv;
 }(MapViewer || {}));
 

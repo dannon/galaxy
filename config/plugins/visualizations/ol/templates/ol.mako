@@ -14,7 +14,13 @@
     ${h.javascript_link( app_root + "js/jquery.min.js")}
     ${h.javascript_link( app_root + "js/ol.js")}
     ${h.javascript_link( app_root + "js/FileSaver.min.js")}
-    ${h.javascript_link( app_root + "js/shpgeojson.js")}
+    
+    ${h.javascript_link( app_root + "js/proj4.js")}
+    ${h.javascript_link( app_root + "js/jszip.js")}
+    ${h.javascript_link( app_root + "js/jszip-utils.js")}
+    ${h.javascript_link( app_root + "js/preprocess.js")}
+    ${h.javascript_link( app_root + "js/preview.js")}
+    
     
 </head>
 <body class="body-map-view">
@@ -32,7 +38,7 @@
     ${h.javascript_link( app_root + "js/script.js")}
     <script>
         $(document).ready(function() {
-            MapViewer.loadFile(`${h.url_for(controller='/datasets', action='index')}/${hda.id}/display`);
+            MapViewer.loadFile(`${h.url_for(controller='/datasets', action='index')}/${hda.id}/display`, `${hda.extension}`);
         });
     </script>
 </body>
