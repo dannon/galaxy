@@ -2,22 +2,21 @@ var MapViewer = (function(mv) {
 
     mv.defaultColor = '#ec1515';
 
-    mv.setInteractions = function(map, source) {
-    
-        var typeSelect = document.getElementById('geometry-type');
-        var drawInteraction;
-        
-        var addInteraction = () => {
-            let value = typeSelect.value;
-            if (value !== 'None') {
+    /** Set up events and methods for interactions with map view*/
+    mv.setInteractions = (map, source) => {
+
+        let $typeSelect = $('#geometry-type');
+        let drawInteraction, snapInteraction;
+        let addInteraction = () => {
+            let geometryType = $typeSelect[0].value;
+            if (geometryType !== 'None') {
                 drawInteraction = new ol.interaction.Draw({
                     source: source,
-                    type: typeSelect.value,
+                    type: geometryType,
                     freehand: true
                 });
-                
-                drawInteraction.on('drawstart',function(event) {
-                    var style = new ol.style.Style({
+                drawInteraction.on('drawstart', event => {
+                    let style = new ol.style.Style({
                         stroke: new ol.style.Stroke({
                             color: mv.defaultColor,
                             width: 2
@@ -29,20 +28,23 @@ var MapViewer = (function(mv) {
                     event.feature.setStyle(style);
                 });
                 map.addInteraction(drawInteraction);
+                snapInteraction = new ol.interaction.Snap({source: source});
+                map.addInteraction(snapInteraction);
             }
         };
-
-        typeSelect.onchange = () => {
-           map.removeInteraction(drawInteraction);
-           addInteraction();
-        };
-
         addInteraction();
+        // Onchange event for geometry select box
+        $typeSelect.change(e => {
+           map.removeInteraction(drawInteraction);
+           map.removeInteraction(snapInteraction);
+           addInteraction();
+        });
     };
     
-    mv.exportMap = function(map) {
-        document.getElementById('export-png').addEventListener('click', e => {
-            map.once('rendercomplete', event => {
+    /** Export the map view to PNG image*/
+    mv.exportMap = map => {
+        $('#export-png').on('click', e => {
+           map.once('rendercomplete', event => {
                 let canvas = event.context.canvas;
                 let fileName = Math.random().toString(11).replace('0.', '');
                 fileName += '.png';
@@ -55,10 +57,11 @@ var MapViewer = (function(mv) {
                 }
             });
             map.renderSync();
-        });
+        })
     };
     
-    mv.setUpColorPicker = function(map) {
+    /** Set up the color picker*/
+    mv.setUpColorPicker = map => {
         $("#color-text").spectrum({
             color: "#ec1515",
             showInput: true,
@@ -68,7 +71,7 @@ var MapViewer = (function(mv) {
             showSelectionPalette: true,
             maxSelectionSize: 10,
             preferredFormat: "hex",
-            change: function(color) {
+            change: color => {
                 mv.defaultColor = color.toHexString();
             },
             palette: [
@@ -90,32 +93,42 @@ var MapViewer = (function(mv) {
         });
     };
     
-    mv.setMap = function(vSource) {
+    /** Create the map view */
+    mv.setMap = vSource => {
         
-        var selectedStyles = mv.setStyle(mv.defaultColor);
-        var tile = new ol.layer.Tile({source: new ol.source.OSM()});
-        var fullScreen = new ol.control.FullScreen();
-        var scaleLineControl = new ol.control.ScaleLine();
-        
-        var styleFunction = function(feature) {
+        // get styles
+        let selectedStyles = mv.setStyle(mv.defaultColor);
+        let styleFunction = (feature) => {
             return selectedStyles[feature.getGeometry().getType()];
         };
-    
-        var vectorLayer = new ol.layer.Vector({
+        
+        let tile = new ol.layer.Tile({source: new ol.source.OSM()});
+        // add fullscreen handle
+        let fullScreen = new ol.control.FullScreen();
+        // add scale to the map
+        let scaleLineControl = new ol.control.ScaleLine();
+
+        // create vector with styles
+        let vectorLayer = new ol.layer.Vector({
             source: vSource,
             style: styleFunction
         });
         
-        var map = new ol.Map({
+        // create map view
+        let map = new ol.Map({
             controls: ol.control.defaults().extend([scaleLineControl, fullScreen]),
+            interactions: ol.interaction.defaults().extend([new ol.interaction.DragRotateAndZoom()]),
             layers: [tile, vectorLayer],
+            loadTilesWhileInteracting: true,
             target: 'map-view',
             view: new ol.View({
                 center: [0, 0],
                 zoom: 2
             })
         });
-        var graticule = new ol.Graticule({
+        
+        // add grid lines
+        let graticule = new ol.Graticule({
             strokeStyle: new ol.style.Stroke({
                 color: 'rgba(255, 120, 0, 0.9)',
                 width: 2,
@@ -123,14 +136,21 @@ var MapViewer = (function(mv) {
             }),
             showLabels: true
         });
+        
+        // modify the shapes
+        map.addInteraction(new ol.interaction.Modify({source: vSource}));
+        // add a slider for zooming in/out
+        map.addControl(new ol.control.ZoomSlider());
+        
         graticule.setMap(map);
         mv.setInteractions(map, vSource);
         mv.setUpColorPicker(map);
         mv.exportMap(map);
     };
     
-    mv.setStyle = function(selectedColor) {
-        var styles = {
+    /** Set the style properties of shapes */
+    mv.setStyle = selectedColor => {
+        let styles = {
             'Polygon': new ol.style.Style({
                 stroke: new ol.style.Stroke({
                     color: selectedColor,
@@ -208,18 +228,18 @@ var MapViewer = (function(mv) {
         return styles
     };
     
-    mv.loadFile = function(filePath, fileType) {
+    /** Load the map GeoJson and Shapefiles*/
+    mv.loadFile = (filePath, fileType) => {
         if (fileType === 'geojson') {
             mv.setMap(new ol.source.Vector({format: new ol.format.GeoJSON(), url: filePath}));
         }
         else if (fileType === 'shp') {
-            loadshp({url: filePath, encoding: 'utf-8', EPSG: 4326}, function(geojson) {
-                var URL = window.URL || window.webkitURL || window.mozURL;
-		var url = URL.createObjectURL(new Blob([JSON.stringify(geojson)], {type: "application/json"}));
+            loadshp({url: filePath, encoding: 'utf-8', EPSG: 4326}, geoJson => {
+                let URL = window.URL || window.webkitURL || window.mozURL;
+		let url = URL.createObjectURL(new Blob([JSON.stringify(geoJson)], {type: "application/json"}));
 		mv.setMap(new ol.source.Vector({format: new ol.format.GeoJSON(), url: url}));
             });
         }
     };
-    
     return mv;
 }(MapViewer || {}));
