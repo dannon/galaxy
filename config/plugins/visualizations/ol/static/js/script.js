@@ -1,25 +1,39 @@
-
 var MapViewer = (function(mv) {
+
+    mv.defaultColor = '#ec1515';
 
     mv.setInteractions = function(map, source) {
     
         var typeSelect = document.getElementById('geometry-type');
-        var draw;
-
+        var drawInteraction;
+        
         var addInteraction = () => {
             let value = typeSelect.value;
             if (value !== 'None') {
-                draw = new ol.interaction.Draw({
+                drawInteraction = new ol.interaction.Draw({
                     source: source,
                     type: typeSelect.value,
                     freehand: true
                 });
-                map.addInteraction(draw);
+                
+                drawInteraction.on('drawstart',function(event) {
+                    var style = new ol.style.Style({
+                        stroke: new ol.style.Stroke({
+                            color: mv.defaultColor,
+                            width: 2
+                        }),
+                        fill: new ol.style.Fill({
+                            color: 'rgba(0, 0, 255, 0.1)'
+                        })
+                    });
+                    event.feature.setStyle(style);
+                });
+                map.addInteraction(drawInteraction);
             }
         };
 
         typeSelect.onchange = () => {
-           map.removeInteraction(draw);
+           map.removeInteraction(drawInteraction);
            addInteraction();
         };
 
@@ -44,85 +58,47 @@ var MapViewer = (function(mv) {
         });
     };
     
+    mv.setUpColorPicker = function(map) {
+        $("#color-text").spectrum({
+            color: "#ec1515",
+            showInput: true,
+            className: "full-spectrum",
+            showInitial: true,
+            showPalette: true,
+            showSelectionPalette: true,
+            maxSelectionSize: 10,
+            preferredFormat: "hex",
+            change: function(color) {
+                mv.defaultColor = color.toHexString();
+            },
+            palette: [
+                ["rgb(0, 0, 0)", "rgb(67, 67, 67)", "rgb(102, 102, 102)",
+                 "rgb(204, 204, 204)", "rgb(217, 217, 217)","rgb(255, 255, 255)"],
+                ["rgb(152, 0, 0)", "rgb(255, 0, 0)", "rgb(255, 153, 0)", "rgb(255, 255, 0)", "rgb(0, 255, 0)",
+                 "rgb(0, 255, 255)", "rgb(74, 134, 232)", "rgb(0, 0, 255)", "rgb(153, 0, 255)", "rgb(255, 0, 255)"], 
+                ["rgb(230, 184, 175)", "rgb(244, 204, 204)", "rgb(252, 229, 205)", "rgb(255, 242, 204)", "rgb(217, 234, 211)", 
+                 "rgb(208, 224, 227)", "rgb(201, 218, 248)", "rgb(207, 226, 243)", "rgb(217, 210, 233)", "rgb(234, 209, 220)", 
+                 "rgb(221, 126, 107)", "rgb(234, 153, 153)", "rgb(249, 203, 156)", "rgb(255, 229, 153)", "rgb(182, 215, 168)", 
+                 "rgb(162, 196, 201)", "rgb(164, 194, 244)", "rgb(159, 197, 232)", "rgb(180, 167, 214)", "rgb(213, 166, 189)", 
+                 "rgb(204, 65, 37)", "rgb(224, 102, 102)", "rgb(246, 178, 107)", "rgb(255, 217, 102)", "rgb(147, 196, 125)", 
+                 "rgb(118, 165, 175)", "rgb(109, 158, 235)", "rgb(111, 168, 220)", "rgb(142, 124, 195)", "rgb(194, 123, 160)",
+                 "rgb(166, 28, 0)", "rgb(204, 0, 0)", "rgb(230, 145, 56)", "rgb(241, 194, 50)", "rgb(106, 168, 79)",
+                 "rgb(69, 129, 142)", "rgb(60, 120, 216)", "rgb(61, 133, 198)", "rgb(103, 78, 167)", "rgb(166, 77, 121)",
+                 "rgb(91, 15, 0)", "rgb(102, 0, 0)", "rgb(120, 63, 4)", "rgb(127, 96, 0)", "rgb(39, 78, 19)", 
+                 "rgb(12, 52, 61)", "rgb(28, 69, 135)", "rgb(7, 55, 99)", "rgb(32, 18, 77)", "rgb(76, 17, 48)"]
+            ]
+        });
+    };
+    
     mv.setMap = function(vSource) {
-        var styles = {
-            'Polygon': new ol.style.Style({
-                stroke: new ol.style.Stroke({
-                    color: 'red',
-                    width: 1
-                }),
-                fill: new ol.style.Fill({
-                    color: 'rgba(0, 0, 255, 0.1)'
-                })
-            }),
-            'Circle': new ol.style.Style({
-                stroke: new ol.style.Stroke({
-                    color: 'red',
-                    width: 1
-                }),
-                fill: new ol.style.Fill({
-                    color: 'rgba(0, 0, 255, 0.1)'
-                })
-            }),
-            'Point': new ol.style.Style({
-                image: new ol.style.Circle({
-                    radius: 5,
-                    fill: null,
-                    stroke: new ol.style.Stroke({color: 'red', width: 1})
-                })
-            }),
-            'LineString': new ol.style.Style({
-                stroke: new ol.style.Stroke({
-                    color: 'red',
-                    width: 1
-                })
-            }),
-            'MultiLineString': new ol.style.Style({
-                stroke: new ol.style.Stroke({
-                    color: 'red',
-                    width: 1
-                })
-            }),
-            'MultiPoint': new ol.style.Style({
-                image: new ol.style.Circle({
-                    radius: 5,
-                    fill: null,
-                    stroke: new ol.style.Stroke({color: 'red', width: 1})
-                })
-            }),
-            'MultiPolygon': new ol.style.Style({
-                stroke: new ol.style.Stroke({
-                    color: 'red',
-                    width: 1
-                }),
-                fill: new ol.style.Fill({
-                    color: 'rgba(0, 0, 255, 0.1)'
-                })
-            }),
-            'GeometryCollection': new ol.style.Style({
-                stroke: new ol.style.Stroke({
-                    color: 'red',
-                    width: 1
-                }),
-                fill: new ol.style.Fill({
-                    color: 'red'
-                }),
-                image: new ol.style.Circle({
-                    radius: 10,
-                    fill: null,
-                    stroke: new ol.style.Stroke({
-                        color: 'red'
-                    })
-                })
-            }),
-        };
         
+        var selectedStyles = mv.setStyle(mv.defaultColor);
         var tile = new ol.layer.Tile({source: new ol.source.OSM()});
         var fullScreen = new ol.control.FullScreen();
         var scaleLineControl = new ol.control.ScaleLine();
         
         var styleFunction = function(feature) {
-            return styles[feature.getGeometry().getType()];
+            return selectedStyles[feature.getGeometry().getType()];
         };
     
         var vectorLayer = new ol.layer.Vector({
@@ -141,7 +117,7 @@ var MapViewer = (function(mv) {
         });
         var graticule = new ol.Graticule({
             strokeStyle: new ol.style.Stroke({
-                color: 'rgba(255,120,0,0.9)',
+                color: 'rgba(255, 120, 0, 0.9)',
                 width: 2,
                 lineDash: [0.5, 4]
             }),
@@ -149,7 +125,87 @@ var MapViewer = (function(mv) {
         });
         graticule.setMap(map);
         mv.setInteractions(map, vSource);
+        mv.setUpColorPicker(map);
         mv.exportMap(map);
+    };
+    
+    mv.setStyle = function(selectedColor) {
+        var styles = {
+            'Polygon': new ol.style.Style({
+                stroke: new ol.style.Stroke({
+                    color: selectedColor,
+                    width: 1
+                }),
+                fill: new ol.style.Fill({
+                    color: 'rgba(0, 0, 255, 0.1)'
+                })
+            }),
+            'Circle': new ol.style.Style({
+                stroke: new ol.style.Stroke({
+                    color: selectedColor,
+                    width: 1
+                }),
+                fill: new ol.style.Fill({
+                    color: 'rgba(0, 0, 255, 0.1)'
+                })
+            }),
+            'Point': new ol.style.Style({
+                image: new ol.style.Circle({
+                    radius: 5,
+                    fill: new ol.style.Fill({
+                        color: 'rgba(0, 0, 255, 0.1)'
+                    }),
+                    stroke: new ol.style.Stroke({color: mv.defaultColor, width: 1})
+                })
+            }),
+            'LineString': new ol.style.Style({
+                stroke: new ol.style.Stroke({
+                    color: selectedColor,
+                    width: 1
+                })
+            }),
+            'MultiLineString': new ol.style.Style({
+                stroke: new ol.style.Stroke({
+                    color: selectedColor,
+                    width: 1
+                })
+            }),
+            'MultiPoint': new ol.style.Style({
+                image: new ol.style.Circle({
+                    radius: 5,
+                    fill: new ol.style.Fill({
+                        color: 'rgba(0, 0, 255, 0.1)'
+                    }),
+                    stroke: new ol.style.Stroke({color: mv.defaultColor, width: 1})
+                })
+            }),
+            'MultiPolygon': new ol.style.Style({
+                stroke: new ol.style.Stroke({
+                    color: selectedColor,
+                    width: 1
+                }),
+                fill: new ol.style.Fill({
+                    color: 'rgba(0, 0, 255, 0.1)'
+                })
+            }),
+            'GeometryCollection': new ol.style.Style({
+                stroke: new ol.style.Stroke({
+                    color: selectedColor,
+                    width: 1
+                }),
+                fill: new ol.style.Fill({
+                    color: selectedColor
+                }),
+                image: new ol.style.Circle({
+                    radius: 10,
+                    fill: null,
+                    stroke: new ol.style.Stroke({
+                        color: selectedColor
+                    })
+                })
+            })
+        }
+        return styles
     };
     
     mv.loadFile = function(filePath, fileType) {
@@ -164,7 +220,6 @@ var MapViewer = (function(mv) {
             });
         }
     };
+    
     return mv;
 }(MapViewer || {}));
-
-console.log(ol);
