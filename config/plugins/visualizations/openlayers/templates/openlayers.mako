@@ -1,5 +1,5 @@
 <%
-    app_root = h.url_for("/static/plugins/visualizations/ol/static/")
+    app_root = h.url_for("/static/plugins/visualizations/openlayers/static/")
 %>
 
 <!DOCTYPE html>
@@ -10,11 +10,11 @@
     ${h.stylesheet_link(app_root + 'css/bootstrap.min.css')}
     ${h.stylesheet_link(app_root + 'css/font-awesome.min.css')}
     ${h.stylesheet_link(app_root + 'css/spectrum.css')}
-    ${h.stylesheet_link(app_root + 'css/ol.css')}
+    ${h.stylesheet_link(app_root + 'css/openlayers.css')}
     
     ${h.stylesheet_link(app_root + 'css/map_view.css')}
     ${h.javascript_link(app_root + "js/jquery.min.js")}
-    ${h.javascript_link(app_root + "js/ol.js")}
+    ${h.javascript_link(app_root + "js/openlayers.js")}
     ${h.javascript_link(app_root + "js/filesaver.min.js")}
     ${h.javascript_link(app_root + "js/spectrum.js")}
     ${h.javascript_link(app_root + "js/proj4.js")}
