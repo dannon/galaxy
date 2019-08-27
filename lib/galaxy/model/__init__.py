@@ -31,6 +31,7 @@ from sqlalchemy import (
     not_,
     or_,
     select,
+    text,
     true,
     type_coerce,
     types)
@@ -42,13 +43,13 @@ from sqlalchemy.orm import (
 )
 from sqlalchemy.schema import UniqueConstraint
 
+import galaxy.exceptions
 import galaxy.model.metadata
 import galaxy.model.orm.now
 import galaxy.model.tags
 import galaxy.security.passwords
 import galaxy.util
 from galaxy.model.item_attrs import get_item_annotation_str, UsesAnnotations
-from galaxy.model.util import pgcalc
 from galaxy.security import get_permitted_actions
 from galaxy.util import (directory_hash_id, ready_name_for_url,
                          unicodify, unique_id)
@@ -288,11 +289,13 @@ class JobLike(object):
 
     def set_streams(self, tool_stdout, tool_stderr, job_stdout=None, job_stderr=None, job_messages=None):
         def shrink_and_unicodify(what, stream):
-            stream = galaxy.util.unicodify(stream) or u''
-            if (len(stream) > galaxy.util.DATABASE_MAX_STRING_SIZE):
-                stream = galaxy.util.shrink_string_by_size(tool_stdout, galaxy.util.DATABASE_MAX_STRING_SIZE, join_by="\n..\n", left_larger=True, beginning_on_size_error=True)
-                log.info("%s for %s %d is greater than %s, only a portion will be logged to database", what, type(self), self.id, galaxy.util.DATABASE_MAX_STRING_SIZE_PRETTY)
-            return stream
+            if len(stream) > galaxy.util.DATABASE_MAX_STRING_SIZE:
+                log.info("%s for %s %d is greater than %s, only a portion will be logged to database",
+                         what,
+                         type(self),
+                         self.id,
+                         galaxy.util.DATABASE_MAX_STRING_SIZE_PRETTY)
+            return galaxy.util.shrink_and_unicodify(stream)
 
         self.tool_stdout = shrink_and_unicodify('tool_stdout', tool_stdout)
         self.tool_stderr = shrink_and_unicodify('tool_stderr', tool_stderr)
@@ -319,26 +322,27 @@ class JobLike(object):
 
         return "%s[%s,tool_id=%s]" % (self.__class__.__name__, extra, self.tool_id)
 
-    def get_stdout(self):
-        stdout = self.tool_stdout
+    @property
+    def stdout(self):
+        stdout = self.tool_stdout or ''
         if self.job_stdout:
             stdout += "\n" + self.job_stdout
         return stdout
 
-    def set_stdout(self, stdout):
+    @stdout.setter
+    def stdout(self, stdout):
         raise NotImplementedError("Attempt to set stdout, must set tool_stdout or job_stdout")
 
-    def get_stderr(self):
-        stderr = self.tool_stderr
+    @property
+    def stderr(self):
+        stderr = self.tool_stderr or ''
         if self.job_stderr:
             stderr += "\n" + self.job_stderr
         return stderr
 
-    def set_stderr(self, stderr):
+    @stderr.setter
+    def stderr(self, stderr):
         raise NotImplementedError("Attempt to set stdout, must set tool_stderr or job_stderr")
-
-    stdout = property(get_stdout, set_stdout)
-    stderr = property(get_stderr, set_stderr)
 
 
 class User(Dictifiable, RepresentById):
@@ -504,43 +508,58 @@ class User(Dictifiable, RepresentById):
         HDAs in non-purged histories.
         """
         # maintain a list so that we don't double count
-        dataset_ids = []
-        total = 0
-        # this can be a huge number and can run out of memory, so we avoid the mappers
         db_session = object_session(self)
-        for history in db_session.query(History).enable_eagerloads(False).filter_by(user_id=self.id, purged=False).yield_per(1000):
-            for hda in db_session.query(HistoryDatasetAssociation).enable_eagerloads(False).filter_by(history_id=history.id, purged=False).yield_per(1000):
-                # TODO: def hda.counts_toward_disk_usage():
-                #   return ( not self.dataset.purged and not self.dataset.library_associations )
-                if hda.dataset.id not in dataset_ids and not hda.dataset.purged and not hda.dataset.library_associations:
-                    dataset_ids.append(hda.dataset.id)
-                    total += hda.dataset.get_total_size()
-        return total
+        return self._calculate_or_set_disk_usage(db_session, dryrun=True)
 
     def calculate_and_set_disk_usage(self):
         """
         Calculates and sets user disk usage.
         """
-        new = None
         db_session = object_session(self)
-        current = self.get_disk_usage()
-        if db_session.get_bind().dialect.name not in ('postgres', 'postgresql'):
-            done = False
-            while not done:
-                new = self.calculate_disk_usage()
-                db_session.refresh(self)
-                # make sure usage didn't change while calculating
-                # set done if it has not, otherwise reset current and iterate again.
-                if self.get_disk_usage() == current:
-                    done = True
-                else:
-                    current = self.get_disk_usage()
+        self._calculate_or_set_disk_usage(db_session, dryrun=False)
+
+    def _calculate_or_set_disk_usage(self, sa_session, dryrun=True):
+        """
+        Utility to calculate (returning a value) or just set the disk usage
+        (returning None / applying immediately)
+        """
+
+        ctes = """
+            WITH per_user_histories AS
+            (
+                SELECT history.id as id
+                FROM history
+                WHERE history.user_id = :id
+                    AND history.purged = false
+            ),
+            per_hist_hdas AS (
+                SELECT DISTINCT history_dataset_association.dataset_id as id
+                FROM history_dataset_association
+                WHERE history_dataset_association.purged = false
+                    AND history_dataset_association.history_id in (SELECT id from per_user_histories)
+            )
+        """
+
+        sql_calc = """
+            SELECT sum(coalesce(dataset.total_size, coalesce(dataset.file_size, 0)))
+            FROM dataset
+            LEFT OUTER JOIN library_dataset_dataset_association ON dataset.id = library_dataset_dataset_association.dataset_id
+            WHERE dataset.id in (SELECT id from per_hist_hdas)
+                AND library_dataset_dataset_association.id IS NULL
+        """
+
+        sql_update = """UPDATE galaxy_user
+                        SET disk_usage = (%s)
+                        WHERE id = :id""" % sql_calc
+        if dryrun:
+            r = sa_session.execute(ctes + sql_calc, {'id': self.id})
+            return r.fetchone()[0]
         else:
-            new = pgcalc(db_session, self.id)
-        if new not in (current, None):
-            self.set_disk_usage(new)
-            db_session.add(self)
-            db_session.flush()
+            r = sa_session.execute(ctes + sql_update, {'id': self.id})
+            sa_session.refresh(self)
+            # There is no RETURNING clause because sqlite does not support it, so
+            # we return None
+            return None
 
     @staticmethod
     def user_template_environment(user):
@@ -649,8 +668,8 @@ class TaskMetricNumeric(BaseJobMetric, RepresentById):
 
 
 class Job(JobLike, UsesCreateAndUpdateTime, Dictifiable, RepresentById):
-    dict_collection_visible_keys = ['id', 'state', 'exit_code', 'update_time', 'create_time']
-    dict_element_visible_keys = ['id', 'state', 'exit_code', 'update_time', 'create_time']
+    dict_collection_visible_keys = ['id', 'state', 'exit_code', 'update_time', 'create_time', 'galaxy_version']
+    dict_element_visible_keys = ['id', 'state', 'exit_code', 'update_time', 'create_time', 'galaxy_version']
 
     """
     A job represents a request to run a tool given input datasets, tool
@@ -923,6 +942,14 @@ class Job(JobLike, UsesCreateAndUpdateTime, Dictifiable, RepresentById):
     def add_post_job_action(self, pja):
         self.post_job_actions.append(PostJobActionAssociation(pja, self))
 
+    @property
+    def all_entry_points_configured(self):
+        # consider an actual DB attribute for this.
+        all_configured = True
+        for ep in self.realtimetool_entry_points:
+            all_configured = ep.configured and all_configured
+        return all_configured
+
     def set_state(self, state):
         """
         Save state history
@@ -1013,6 +1040,7 @@ class Job(JobLike, UsesCreateAndUpdateTime, Dictifiable, RepresentById):
         serialization_options.attach_identifier(id_encoder, self, job_attrs)
         job_attrs['tool_id'] = self.tool_id
         job_attrs['tool_version'] = self.tool_version
+        job_attrs['galaxy_version'] = self.galaxy_version
         job_attrs['state'] = self.state
         job_attrs['info'] = self.info
         job_attrs['traceback'] = self.traceback
@@ -1454,6 +1482,42 @@ class JobImportHistoryArchive(RepresentById):
         self.archive_dir = archive_dir
 
 
+class JobContainerAssociation(RepresentById):
+    def __init__(self, job=None, container_type=None, container_name=None, container_info=None):
+        self.job = job
+        self.container_type = container_type
+        self.container_name = container_name
+        self.container_info = container_info or {}
+
+
+class InteractiveToolEntryPoint(Dictifiable, RepresentById):
+    dict_collection_visible_keys = ['id', 'name', 'active']
+    dict_element_visible_keys = ['id', 'name', 'active']
+
+    def __init__(self, job=None, name=None, token=None, tool_port=None, host=None, port=None, protocol=None,
+                 entry_url=None, info=None, configured=False, deleted=False):
+        self.job = job
+        self.name = name
+        if not token:
+            token = uuid4().hex
+        self.token = token
+        self.tool_port = tool_port
+        self.host = host
+        self.port = port
+        self.protocol = protocol
+        self.entry_url = entry_url
+        self.info = info or {}
+        self.configured = configured
+        self.deleted = deleted
+
+    @property
+    def active(self):
+        if self.configured and not self.deleted:
+            # FIXME: don't included queued?
+            return not self.job.finished
+        return False
+
+
 class GenomeIndexToolData(RepresentById):
     def __init__(self, job=None, params=None, dataset=None, deferred_job=None,
                  transfer_job=None, fasta_path=None, created_time=None, modified_time=None,
@@ -1633,13 +1697,10 @@ class History(HasTags, Dictifiable, UsesAnnotations, HasName, RepresentById):
         set_genome = genome_build not in [None, '?']
         for i, dataset in enumerate(datasets):
             dataset.hid = base_hid + i
-            # Don't let SA manage this.
-            delattr(dataset, "history")
+            dataset.history = self
             dataset.history_id = cached_id(self)
             if set_genome:
                 self.genome_build = genome_build
-        for dataset in datasets:
-            dataset.history_id = cached_id(self)
         return datasets
 
     def add_dataset_collection(self, history_dataset_collection, set_hid=True):
@@ -2156,8 +2217,10 @@ class Dataset(StorableObject, RepresentById):
     def get_file_name(self):
         if not self.external_filename:
             assert self.object_store is not None, "Object Store has not been initialized for dataset %s" % self.id
-            filename = self.object_store.get_filename(self)
-            return filename
+            if self.object_store.exists(self):
+                return self.object_store.get_filename(self)
+            else:
+                return ''
         else:
             filename = self.external_filename
         # Make filename absolute
@@ -2175,9 +2238,15 @@ class Dataset(StorableObject, RepresentById):
         # actual database column so if SA instantiates this object - the
         # attribute won't exist yet.
         if not getattr(self, "external_extra_files_path", None):
-            return self.object_store.get_filename(self, dir_only=True, extra_dir=self._extra_files_rel_path)
+            if self.object_store.exists(self, dir_only=True, extra_dir=self._extra_files_rel_path):
+                return self.object_store.get_filename(self, dir_only=True, extra_dir=self._extra_files_rel_path)
+            return ''
         else:
             return os.path.abspath(self.external_extra_files_path)
+
+    def create_extra_files_path(self):
+        if not self.extra_files_path_exists():
+            self.object_store.create(self, dir_only=True, extra_dir=self._extra_files_rel_path)
 
     def set_extra_files_path(self, extra_files_path):
         if not extra_files_path:
@@ -2266,11 +2335,12 @@ class Dataset(StorableObject, RepresentById):
     def full_delete(self):
         """Remove the file and extra files, marks deleted and purged"""
         # os.unlink( self.file_name )
-        self.object_store.delete(self)
+        try:
+            self.object_store.delete(self)
+        except galaxy.exceptions.ObjectNotFound:
+            pass
         if self.object_store.exists(self, extra_dir=self._extra_files_rel_path, dir_only=True):
             self.object_store.delete(self, entire_dir=True, extra_dir=self._extra_files_rel_path, dir_only=True)
-        # if os.path.exists( self.extra_files_path ):
-        #     shutil.rmtree( self.extra_files_path )
         # TODO: purge metadata files
         self.deleted = True
         self.purged = True
@@ -2389,6 +2459,14 @@ class DatasetInstance(object):
         self.dataset = dataset
         self.parent_id = parent_id
         self.validation_errors = validation_errors
+
+    @property
+    def peek(self):
+        return self._peek
+
+    @peek.setter
+    def peek(self, peek):
+        self._peek = unicodify(peek, strip_null=True)
 
     def update(self):
         self.update_time = galaxy.model.orm.now.now()
@@ -2509,6 +2587,16 @@ class DatasetInstance(object):
     def has_data(self):
         """Detects whether there is any data"""
         return self.dataset.has_data()
+
+    def get_created_from_basename(self):
+        return self.dataset.created_from_basename
+
+    def set_created_from_basename(self, created_from_basename):
+        if self.dataset.created_from_basename is not None:
+            raise Exception("Underlying dataset already has a created_from_basename set.")
+        self.dataset.created_from_basename = created_from_basename
+
+    created_from_basename = property(get_created_from_basename, set_created_from_basename)
 
     def get_raw_data(self):
         """Returns the full data. To stream it open the file_name and read/write as needed"""
@@ -3393,9 +3481,11 @@ class LibraryDataset(RepresentById):
                     state=ldda.state,
                     name=ldda.name,
                     file_name=ldda.file_name,
+                    created_from_basename=ldda.created_from_basename,
                     uploaded_by=ldda.user.email,
                     message=ldda.message,
                     date_uploaded=ldda.create_time.isoformat(),
+                    update_time=ldda.update_time.isoformat(),
                     file_size=int(ldda.get_size()),
                     file_ext=ldda.ext,
                     data_type=ldda.datatype.__class__.__module__ + '.' + ldda.datatype.__class__.__name__,
@@ -3545,7 +3635,8 @@ class LibraryDatasetDatasetAssociation(DatasetInstance, HasName, RepresentById):
                     data_type=ldda.datatype.__class__.__module__ + '.' + ldda.datatype.__class__.__name__,
                     genome_build=ldda.dbkey,
                     misc_info=ldda.info,
-                    misc_blurb=ldda.blurb)
+                    misc_blurb=ldda.blurb,
+                    created_from_basename=ldda.created_from_basename)
         if ldda.dataset.uuid is None:
             rval['uuid'] = None
         else:
@@ -3562,6 +3653,32 @@ class LibraryDatasetDatasetAssociation(DatasetInstance, HasName, RepresentById):
                 val = getattr(ldda.datatype, name)
             rval['metadata_' + name] = val
         return rval
+
+    def update_parent_folder_update_times(self):
+        # sets the update_time for all continaing folders up the tree
+        ldda = self
+
+        sql = text(
+            '''
+                WITH RECURSIVE parent_folders_of(folder_id) AS
+                    (SELECT folder_id
+                    FROM library_dataset
+                    WHERE id = :library_dataset_id
+                    UNION ALL
+                    SELECT library_folder.parent_id
+                    FROM library_folder, parent_folders_of
+                    WHERE library_folder.id = parent_folders_of.folder_id )
+                UPDATE library_folder
+                SET update_time =
+                    (SELECT update_time
+                    FROM library_dataset_dataset_association
+                    WHERE id = :ldda_id)
+                WHERE exists (SELECT 1 FROM parent_folders_of
+                    WHERE library_folder.id = parent_folders_of.folder_id)
+            ''').execution_options(autocommit=True)
+        ret = object_session(self).execute(sql, {'library_dataset_id': ldda.library_dataset_id, 'ldda_id': ldda.id})
+        if ret.rowcount < 1:
+            log.warn('Attempt to updated parent folder times failed: {0} records updated.'.format(ret.rowcount))
 
 
 class ExtendedMetadata(RepresentById):
@@ -3650,7 +3767,7 @@ class ImplicitlyConvertedDatasetAssociation(RepresentById):
             try:
                 os.unlink(self.file_name)
             except Exception as e:
-                log.error("Failed to purge associated file (%s) from disk: %s" % (self.file_name, e))
+                log.error("Failed to purge associated file (%s) from disk: %s" % (self.file_name, unicodify(e)))
 
 
 DEFAULT_COLLECTION_NAME = "Unnamed Collection"
