@@ -487,9 +487,130 @@ function toGeojson(geojsonData) {
 
 
 var MapViewer = (function(mv) {
+    
+    /** Set the style properties of shapes */
+    mv.setStyle = selectedColor => {
+        let styles = {
+            'Polygon': new style.Style({
+                stroke: new style.Stroke({
+                    color: selectedColor,
+                    width: 1
+                }),
+                fill: new style.Fill({
+                    color: 'rgba(0, 0, 255, 0.1)'
+                })
+            }),
+            'Circle': new style.Style({
+                stroke: new style.Stroke({
+                    color: selectedColor,
+                    width: 1
+                }),
+                fill: new style.Fill({
+                    color: 'rgba(0, 0, 255, 0.1)'
+                })
+            }),
+            'Point': new style.Style({
+                image: new style.Circle({
+                    radius: 5,
+                    fill: new style.Fill({
+                        color: 'rgba(0, 0, 255, 0.1)'
+                    }),
+                    stroke: new style.Stroke({color: selectedColor, width: 1})
+                })
+            }),
+            'LineString': new style.Style({
+                stroke: new style.Stroke({
+                    color: selectedColor,
+                    width: 1
+                })
+            }),
+            'MultiLineString': new style.Style({
+                stroke: new style.Stroke({
+                    color: selectedColor,
+                    width: 1
+                })
+            }),
+            'MultiPoint': new style.Style({
+                image: new style.Circle({
+                    radius: 5,
+                    fill: new style.Fill({
+                        color: 'rgba(0, 0, 255, 0.1)'
+                    }),
+                    stroke: new style.Stroke({color: selectedColor, width: 1})
+                })
+            }),
+            'MultiPolygon': new style.Style({
+                stroke: new style.Stroke({
+                    color: selectedColor,
+                    width: 1
+                }),
+                fill: new style.Fill({
+                    color: 'rgba(0, 0, 255, 0.1)'
+                })
+            }),
+            'GeometryCollection': new style.Style({
+                stroke: new style.Stroke({
+                    color: selectedColor,
+                    width: 1
+                }),
+                fill: new style.Fill({
+                    color: selectedColor
+                }),
+                image: new style.Circle({
+                    radius: 10,
+                    fill: null,
+                    stroke: new style.Stroke({
+                        color: selectedColor
+                    })
+                })
+            })
+        }
+        return styles
+    };
+
+    /** Set up events and methods for interactions with map view*/
+    mv.setInteractions = (map, source, options) => {
+        console.log(options);
+        //let $typeSelect = $('#geometry-type');
+        let geometryType = options.chart.settings.get("geometry_type");
+        let geometryColor = options.chart.settings.get("geometry_color");
+        let drawInteraction, snapInteraction;
+        
+        let addInteraction = () => {
+            if (geometryType !== 'None') {
+                drawInteraction = new interaction.Draw({
+                    source: source,
+                    type: geometryType,
+                    freehand: true
+                });
+                drawInteraction.on('drawstart', event => {
+                    let sty = new style.Style({
+                        stroke: new style.Stroke({
+                            color: geometryColor,
+                            width: 2
+                        }),
+                        fill: new style.Fill({
+                            color: 'rgba(0, 0, 255, 0.1)'
+                        })
+                    });
+                    event.feature.setStyle(sty);
+                });
+                map.addInteraction(drawInteraction);
+                snapInteraction = new interaction.Snap({source: source});
+                map.addInteraction(snapInteraction);
+            }
+        };
+        addInteraction();
+    };
 
     /** Create the map view */
-    mv.setMap = (vSource, target) => {
+    mv.setMap = (vSource, target, options) => {
+        let geometryColor = options.chart.settings.get("geometry_color");
+        // get styles
+        let selectedStyles = mv.setStyle(geometryColor);
+        let styleFunction = (feature) => {
+            return selectedStyles[feature.getGeometry().getType()];
+        };
         
         let tile = new layer.Tile({source: new source.OSM()});
         // add fullscreen handle
@@ -498,7 +619,8 @@ var MapViewer = (function(mv) {
         let scaleLineControl = new control.ScaleLine();
         // create vector with styles
         let vectorLayer = new layer.Vector({
-            source: vSource
+            source: vSource,
+            style: styleFunction
         });
         let view = new View({
             center: [0, 0],
@@ -522,7 +644,13 @@ var MapViewer = (function(mv) {
             }),
             showLabels: true
         });
+        console.log(map);
+        // modify the shapes
+        map.addInteraction(new interaction.Modify({source: vSource}));
+        // add a slider for zooming in/out
+        map.addControl(new control.ZoomSlider());
         graticule.setMap(map);
+        mv.setInteractions(map, vSource, options);
     };
 
     /** Load the map GeoJson and Shapefiles*/
@@ -531,18 +659,17 @@ var MapViewer = (function(mv) {
         let formatType = new format.GeoJSON();
         if (fileType === 'geojson') {
             let sourceVec = new source.Vector({format: formatType, url: filePath});
-            mv.setMap(sourceVec, target);
-            chart.state( 'ok', 'Chart drawn.' );
+            mv.setMap(sourceVec, target, options);
+            chart.state('ok', 'Chart drawn.');
             options.process.resolve();  
         }
         else if (fileType === 'shp') {
-        
             loadshp({url: filePath, encoding: 'utf-8', EPSG: 4326}, geoJson => {
                 let URL = window.URL || window.webkitURL || window.mozURL;
 		let url = URL.createObjectURL(new Blob([JSON.stringify(geoJson)], {type: "application/json"}));
                 let sourceVec = new source.Vector({format: formatType, url: url});
-                mv.setMap(sourceVec, target);
-                chart.state( 'ok', 'Chart drawn.' );
+                mv.setMap(sourceVec, target, options);
+                chart.state('ok', 'Chart drawn.');
                 options.process.resolve(); 
             });
         }
@@ -550,7 +677,6 @@ var MapViewer = (function(mv) {
     return mv;
     
 }(MapViewer || {}));
-
 
 _.extend(window.bundleEntries || {}, {
     load: function(options) {
@@ -561,6 +687,7 @@ _.extend(window.bundleEntries || {}, {
         $.ajax({
             url     : dataset.download_url,
             success : function( content ) {
+                console.log(options);
                 MapViewer.loadFile(dataset.download_url, dataset.extension, options, chart);
             },
             error: function() {
