@@ -43,7 +43,6 @@ SHPParser.prototype.parseShape = function(dv, idx, length) {
         c=null,
         shape = {};
     shape.type = dv.getInt32(idx, true);
-    console.log(dv, idx, shape.type);
     idx += 4;
     var byteLen = length * 2;
     switch (shape.type) {
@@ -97,16 +96,12 @@ SHPParser.prototype.parseShape = function(dv, idx, length) {
 };
 
 SHPParser.prototype.parse = function(arrayBuffer, url) {
-    console.log("In SHPParser.prototype.parse");
-    console.log(arrayBuffer);
     var o = {},
         dv = new DataView(arrayBuffer),
         idx = 0;
     o.fileName = url;
     o.fileCode = dv.getInt32(idx, false);
-    //if (o.fileCode != 0x0000270a) {
-    //    throw (new Error("Unknown file code: " + o.fileCode));
-    //}
+
     idx += 6*4;
     o.wordLength = dv.getInt32(idx, false);
     o.byteLength = o.wordLength * 2;
@@ -125,8 +120,6 @@ SHPParser.prototype.parse = function(arrayBuffer, url) {
     o.maxM = dv.getFloat64(idx+56, true);
     idx += 8*8;
     o.records = [];
-    console.log("In SHPParser.prototype.parse");
-    console.log(idx, o);
     while (idx < o.byteLength) {
         var record = {};
         record.number = dv.getInt32(idx, false);
@@ -135,26 +128,21 @@ SHPParser.prototype.parse = function(arrayBuffer, url) {
         idx += 4;
         try {
             record.shape = this.parseShape(dv, idx, record.length);
-            console.log(record.shape);
         } catch(e) {
             console.log(e, record);
         }
         idx += record.length * 2;
         o.records.push(record);
     }
-    console.log(o);
     return o;
 };
 
 SHPParser.load = function(url, callback, returnData) {
-    console.log("In SHPParser.load");
     var xhr = new XMLHttpRequest();
     xhr.open('GET', url);
     xhr.responseType = 'arraybuffer';
     xhr.onload = function() {
         geojsonData['shp'] = new SHPParser().parse(xhr.response, url);
-        console.log("geojsonData['shp']");
-        console.log(geojsonData['shp']);
         callback(geojsonData['shp'], returnData);
         URL.revokeObjectURL(url);
     };
@@ -332,12 +320,14 @@ DBFParser.prototype.parse = function(arrayBuffer, src, response, encoding) {
             //console.log(idx, dv.getUint8(idx));
         }
         else {
+            console.log(idx, dv.byteLength)
             break;
         }
     }
     
     let responseText;
-
+    console.log("responseText");
+    console.log(responseText);
     idx += 1;
     o.fieldpos = idx;
     o.records = [];
@@ -440,11 +430,24 @@ function loadshp(config, returnData) {
             let zip = new JSZip.default();
             zip.loadAsync(data)
                 .then(function(zipFiles) {
+                    console.log(zip);
                     console.log(zipFiles);
                     shpString = zipFiles.file(/.shp$/i)[0].name;
                     dbfString = zipFiles.file(/.dbf$/i)[0].name;
-                    SHPParser.load(URL.createObjectURL(new Blob([zip.file(shpString)._data.compressedContent.buffer])), shpLoader, returnData);
-                    DBFParser.load(URL.createObjectURL(new Blob([zip.file(dbfString)._data.compressedContent.buffer])), encoding, dbfLoader, returnData);
+                    
+                    zipFiles.file(shpString).async('arraybuffer').then(function (content) {
+                        console.log(content);
+                        SHPParser.load(URL.createObjectURL(new Blob([content])), shpLoader, returnData);
+                    });
+                    
+                    zipFiles.file(dbfString).async('arraybuffer').then(function (content) {
+                        console.log(content);
+                        DBFParser.load(URL.createObjectURL(new Blob([content])), encoding, dbfLoader, returnData);
+                    });
+                    
+                    
+                    //SHPParser.load(URL.createObjectURL(new Blob([zip.file(shpString)._data.compressedContent.buffer])), shpLoader, returnData);
+                    //DBFParser.load(URL.createObjectURL(new Blob([zip.file(dbfString)._data.compressedContent.buffer])), encoding, dbfLoader, returnData);
                 })
         });
     }
