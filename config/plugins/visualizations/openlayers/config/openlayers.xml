@@ -47,6 +47,24 @@
             <type>color</type>
             <value>#ec1515</value>
         </input>
+        <input>
+            <label>Export map</label>
+            <name>export_map</name>
+            <help>Select to export</help>
+            <type>select</type>
+            <display>radio</display>
+            <value>no_export</value>
+            <data>
+                <data>
+                    <label>Export</label>
+                    <value>export</value>
+                </data>
+                <data>
+                    <label>Do not export</label>
+                    <value>no_export</value>
+                </data>
+            </data>
+        </input>
         
     </settings>
 </visualization>

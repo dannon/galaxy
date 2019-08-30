@@ -9,6 +9,7 @@ import {fromLonLat} from "ol/proj";
 import View from "../node_modules/ol/View.js";
 import Map from "../node_modules/ol/Map.js";
 import Graticule from "../node_modules/ol/Graticule.js";
+import * as fileSaver from "file-saver";
 
 import _ from "underscore";
 
@@ -486,6 +487,8 @@ function toGeojson(geojsonData) {
 }
 
 
+var gMap = null;
+
 var MapViewer = (function(mv) {
     
     /** Set the style properties of shapes */
@@ -570,8 +573,6 @@ var MapViewer = (function(mv) {
 
     /** Set up events and methods for interactions with map view*/
     mv.setInteractions = (map, source, options) => {
-        console.log(options);
-        //let $typeSelect = $('#geometry-type');
         let geometryType = options.chart.settings.get("geometry_type");
         let geometryColor = options.chart.settings.get("geometry_color");
         let drawInteraction, snapInteraction;
@@ -602,16 +603,26 @@ var MapViewer = (function(mv) {
         };
         addInteraction();
     };
+    
+    /** Export the map view to PNG image*/
+    mv.exportMap = (map, options) => {
+        map.once('rendercomplete', event => {
+            let canvas = event.context.canvas;
+            let fileName = Math.random().toString(11).replace('0.', '');
+            fileName += '.png';
+            if (navigator.msSaveBlob) {
+                navigator.msSaveBlob(canvas.msToBlob(), fileName);
+            } else {
+                canvas.toBlob(blob => {
+                    fileSaver.saveAs(blob, fileName);
+                });
+           }
+        });
+        map.renderSync();
+    }
 
     /** Create the map view */
-    mv.setMap = (vSource, target, options) => {
-        let geometryColor = options.chart.settings.get("geometry_color");
-        // get styles
-        let selectedStyles = mv.setStyle(geometryColor);
-        let styleFunction = (feature) => {
-            return selectedStyles[feature.getGeometry().getType()];
-        };
-        
+    mv.setMap = (vSource, target, options, styleFunction) => {
         let tile = new layer.Tile({source: new source.OSM()});
         // add fullscreen handle
         let fullScreen = new control.FullScreen();
@@ -622,10 +633,12 @@ var MapViewer = (function(mv) {
             source: vSource,
             style: styleFunction
         });
+        
         let view = new View({
             center: [0, 0],
             zoom: 2
         });
+        
         // create map view
         let map = new Map({
             controls: control.defaults().extend([scaleLineControl, fullScreen]),
@@ -635,6 +648,7 @@ var MapViewer = (function(mv) {
             loadTilesWhileInteracting: true,
             view: view
         });
+
         // add grid lines
         let graticule = new Graticule({
             strokeStyle: new style.Stroke({
@@ -644,22 +658,33 @@ var MapViewer = (function(mv) {
             }),
             showLabels: true
         });
-        console.log(map);
-        // modify the shapes
-        map.addInteraction(new interaction.Modify({source: vSource}));
-        // add a slider for zooming in/out
-        map.addControl(new control.ZoomSlider());
+        
         graticule.setMap(map);
-        mv.setInteractions(map, vSource, options);
+        map.addControl(new control.ZoomSlider());
+        return map;
     };
 
     /** Load the map GeoJson and Shapefiles*/
     mv.loadFile = (filePath, fileType, options, chart) => {
         let target = options.targets[0];
         let formatType = new format.GeoJSON();
+        let toExport = options.chart.settings.get("export_map");
+        let geometryColor = options.chart.settings.get("geometry_color");
+        let selectedStyles = mv.setStyle(geometryColor);
+        let styleFunction = (feature) => {
+            return selectedStyles[feature.getGeometry().getType()];
+        };
+        
+        if (gMap !== null && toExport === "export") {
+            mv.exportMap(gMap, options);
+        }
+        
         if (fileType === 'geojson') {
             let sourceVec = new source.Vector({format: formatType, url: filePath});
-            mv.setMap(sourceVec, target, options);
+            gMap = mv.setMap(sourceVec, target, options, styleFunction);
+            gMap.addInteraction(new interaction.Modify({source: sourceVec}));
+            mv.setInteractions(gMap, sourceVec, options);
+                
             chart.state('ok', 'Chart drawn.');
             options.process.resolve();  
         }
@@ -668,15 +693,18 @@ var MapViewer = (function(mv) {
                 let URL = window.URL || window.webkitURL || window.mozURL;
 		let url = URL.createObjectURL(new Blob([JSON.stringify(geoJson)], {type: "application/json"}));
                 let sourceVec = new source.Vector({format: formatType, url: url});
-                mv.setMap(sourceVec, target, options);
+                gMap = mv.setMap(sourceVec, target, options, styleFunction);
+                gMap.addInteraction(new interaction.Modify({source: sourceVec}));
+                mv.setInteractions(gMap, sourceVec, options);
                 chart.state('ok', 'Chart drawn.');
-                options.process.resolve(); 
+                options.process.resolve();
             });
         }
     };
     return mv;
     
 }(MapViewer || {}));
+
 
 _.extend(window.bundleEntries || {}, {
     load: function(options) {
@@ -687,7 +715,6 @@ _.extend(window.bundleEntries || {}, {
         $.ajax({
             url     : dataset.download_url,
             success : function( content ) {
-                console.log(options);
                 MapViewer.loadFile(dataset.download_url, dataset.extension, options, chart);
             },
             error: function() {
