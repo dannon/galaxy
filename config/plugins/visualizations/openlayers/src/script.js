@@ -605,7 +605,7 @@ var MapViewer = (function(mv) {
     };
     
     /** Export the map view to PNG image*/
-    mv.exportMap = (map, options) => {
+    mv.exportMap = map => {
         map.once('rendercomplete', event => {
             let canvas = event.context.canvas;
             let fileName = Math.random().toString(11).replace('0.', '');
@@ -658,7 +658,6 @@ var MapViewer = (function(mv) {
             }),
             showLabels: true
         });
-        
         graticule.setMap(map);
         map.addControl(new control.ZoomSlider());
         return map;
@@ -676,15 +675,14 @@ var MapViewer = (function(mv) {
         };
         
         if (gMap !== null && toExport === "export") {
-            mv.exportMap(gMap, options);
+            mv.exportMap(gMap);
         }
         
         if (fileType === 'geojson') {
             let sourceVec = new source.Vector({format: formatType, url: filePath});
             gMap = mv.setMap(sourceVec, target, options, styleFunction);
             gMap.addInteraction(new interaction.Modify({source: sourceVec}));
-            mv.setInteractions(gMap, sourceVec, options);
-                
+            mv.setInteractions(gMap, sourceVec, options);  
             chart.state('ok', 'Chart drawn.');
             options.process.resolve();  
         }
@@ -707,18 +705,17 @@ var MapViewer = (function(mv) {
 
 
 _.extend(window.bundleEntries || {}, {
-    load: function(options) {
-        var self = this,
-        chart    = options.chart,
-        dataset  = options.dataset,
-        settings = options.chart.settings;
+    load: options => {
+        var chart    = options.chart,
+            dataset  = options.dataset,
+            settings = options.chart.settings;
         $.ajax({
             url     : dataset.download_url,
-            success : function( content ) {
+            success : content => {
                 MapViewer.loadFile(dataset.download_url, dataset.extension, options, chart);
             },
-            error: function() {
-                chart.state( 'failed', 'Failed to access dataset.' );
+            error: () => {
+                chart.state('failed', 'Failed to access dataset.');
                 options.process.resolve();
             }
         });
