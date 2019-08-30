@@ -75,22 +75,6 @@ SHPParser.prototype.parseShape = function(dv, idx, length) {
             idx += 8;
         }
       break;
-
-    /*case 8: // MultiPoint (MBR, pointCount, points)
-    case 11: // PointZ (X, Y, Z, M)
-    case 13: // PolylineZ
-    case 15: // PolygonZ
-    case 18: // MultiPointZ
-    case 21: // PointM (X, Y, M)
-    case 23: // PolylineM
-    case 25: // PolygonM
-    case 28: // MultiPointM
-    case 31: // MultiPatch
-        throw new Error("Shape type not supported: "
-                      + shape.type + ':' +
-                      + SHP.getShapeName(shape.type));
-    default:
-        throw new Error("Unknown shape type at " + (idx-4) + ': ' + shape.type);*/
     }
     return shape;
 };
@@ -129,7 +113,7 @@ SHPParser.prototype.parse = function(arrayBuffer, url) {
         try {
             record.shape = this.parseShape(dv, idx, record.length);
         } catch(e) {
-            console.log(e, record);
+            break;
         }
         idx += record.length * 2;
         o.records.push(record);
@@ -155,7 +139,6 @@ var DBF = {};
 var DBFParser = function() {};
 
 DBFParser.load = function(url, encoding, callback, returnData) {
-    console.log("In DBFParser.load");
     var xhr = new XMLHttpRequest();
     xhr.open('GET', url);
     xhr.responseType = 'arraybuffer';
@@ -169,8 +152,6 @@ DBFParser.load = function(url, encoding, callback, returnData) {
 
         xhrText.onload = function() {
             geojsonData['dbf'] = new DBFParser().parse(xhr.response, url, xhrText.responseText, encoding);
-            console.log("geojsonData['dbf']");
-            console.log(geojsonData['dbf']);
             callback(geojsonData['dbf'], returnData);
             URL.revokeObjectURL(url);
         };
@@ -182,8 +163,6 @@ DBFParser.load = function(url, encoding, callback, returnData) {
 };
 
 DBFParser.prototype.parse = function(arrayBuffer, src, response, encoding) {
-    console.log("In DBFParser.prototype.parse");
-    console.log(arrayBuffer);
     var o = {},
         dv = new DataView(arrayBuffer),
         idx = 0,
@@ -270,22 +249,21 @@ DBFParser.prototype.parse = function(arrayBuffer, src, response, encoding) {
         charString.push(responseHeader.slice(0, 10).replace(/\0/g, ''))
         responseHeader =  responseHeader.slice(32, responseHeader.length);
     }
-    console.log(dv);
     while (true) {
         var field = {},
             nameArray = [];
 
         for (var i = 0, z=0; i < 10; i++) {
-            if (idx < dv.byteLength) {
+            try {
                 var letter = dv.getUint8(idx);
                 if (letter != 0) nameArray.push(String.fromCharCode(letter));
                 idx += 1;
             }
-            else {
+            catch(error) {
                 break;
             }
         }
-        if (idx < dv.byteLength) {
+        try {
             field.name = charString[index++];
             idx += 1;
             field.type = String.fromCharCode(dv.getUint8(idx));
@@ -309,25 +287,13 @@ DBFParser.prototype.parse = function(arrayBuffer, src, response, encoding) {
             field.indexFieldFlag = dv.getUint8(idx);
             idx += 1;
             o.fields.push(field);
-            //var test = dv.getUint8(idx);
-            // Checks for end of field descriptor array. Valid .dbf files will have this
-            // flag.
-        
-            //if (idx >= dv.byteLength) {
-                //break; //if (dv.getUint8(idx) == 0x0D) break;
-            //}
-            //console.log("EOF");
-            //console.log(idx, dv.getUint8(idx));
         }
-        else {
-            console.log(idx, dv.byteLength)
+        catch(error) {
             break;
         }
     }
     
     let responseText;
-    console.log("responseText");
-    console.log(responseText);
     idx += 1;
     o.fieldpos = idx;
     o.records = [];
@@ -399,55 +365,23 @@ function loadshp(config, returnData) {
         ]
     ]);
     
-    if(typeof url !== 'string') {
-        var reader = new FileReader();
-        /*reader.onload = function(e) {
-            var URL = window.URL || window.webkitURL || window.mozURL || window.msURL,
-                zip = new JSZip(e.target.result),
-                shpString =  zip.file(/.shp$/i)[0].name,
-                dbfString = zip.file(/.dbf$/i)[0].name,
-                prjString = zip.file(/.prj$/i)[0];
-            if(prjString) {
-                proj4.default.defs('EPSGUSER', zip.file(prjString.name).asText());
-                try {
-                  EPSGUser = proj4.default('EPSGUSER');
-                } catch (e) {
-                  console.error('Unsuported Projection: ' + e);
-                }
-            }
-            console.log(EPSGUser);
-            SHPParser.load(URL.createObjectURL(new Blob([zip.file(shpString).asArrayBuffer()])), shpLoader, returnData);
-            DBFParser.load(URL.createObjectURL(new Blob([zip.file(dbfString).asArrayBuffer()])), encoding, dbfLoader, returnData);
-        }
-        reader.readAsArrayBuffer(url);*/
-    } else {
+    if(typeof url === 'string') {
         JSZipUtils.getBinaryContent(url, function(err, data) {
-            console.log(data);
-            console.log(JSZip);
-            console.log(url);
             let URL = window.URL || window.webkitURL || window.mozURL || window.msURL
             let shpString, dbfString, prjString;
             let zip = new JSZip.default();
             zip.loadAsync(data)
                 .then(function(zipFiles) {
-                    console.log(zip);
-                    console.log(zipFiles);
                     shpString = zipFiles.file(/.shp$/i)[0].name;
                     dbfString = zipFiles.file(/.dbf$/i)[0].name;
                     
                     zipFiles.file(shpString).async('arraybuffer').then(function (content) {
-                        console.log(content);
                         SHPParser.load(URL.createObjectURL(new Blob([content])), shpLoader, returnData);
                     });
                     
                     zipFiles.file(dbfString).async('arraybuffer').then(function (content) {
-                        console.log(content);
                         DBFParser.load(URL.createObjectURL(new Blob([content])), encoding, dbfLoader, returnData);
                     });
-                    
-                    
-                    //SHPParser.load(URL.createObjectURL(new Blob([zip.file(shpString)._data.compressedContent.buffer])), shpLoader, returnData);
-                    //DBFParser.load(URL.createObjectURL(new Blob([zip.file(dbfString)._data.compressedContent.buffer])), encoding, dbfLoader, returnData);
                 })
         });
     }
@@ -468,27 +402,19 @@ function TransCoord(x, y) {
     }
 }
 
-function shpLoader(data, returnData) {
-    console.log("shpLoader");
-    console.log(data);
-    console.log(returnData);
+function shpLoader(data, returnData) {;
     inputData['shp'] = data;
     if(inputData['shp'] && inputData['dbf'])
-        if(returnData) returnData(  toGeojson(inputData)  );
+        if(returnData) returnData(toGeojson(inputData));
 }
 
 function dbfLoader(data, returnData) {
-    console.log("dbfLoader");
-    console.log(data);
-    console.log(returnData);
     inputData['dbf'] = data;
     if(inputData['shp'] && inputData['dbf'])
-        if(returnData) returnData(  toGeojson(inputData)  );
+        if(returnData) returnData(toGeojson(inputData));
 }
 
 function toGeojson(geojsonData) {
-    console.log("toGeojson");
-    console.log(geojsonData);
     var geojson = {},
         features = [],
         feature, geometry, points;
@@ -506,7 +432,6 @@ function toGeojson(geojsonData) {
         max_coordinate.y
     ];
     
-    console.log(min_coordinate, max_coordinate);
 
     geojson.features = features;
 
@@ -515,9 +440,6 @@ function toGeojson(geojsonData) {
         feature.type = 'Feature';
         geometry = feature.geometry = {};
         let properties = feature.properties = dbfRecords[i];
-        console.log(geometry);
-        console.log(feature);
-        console.log(properties);
         // point : 1 , polyline : 3 , polygon : 5, multipoint : 8
         switch(shpRecords[i].shape.type) {
             case 1:
@@ -604,11 +526,14 @@ var MapViewer = (function(mv) {
     };
 
     /** Load the map GeoJson and Shapefiles*/
-    mv.loadFile = (filePath, fileType, target) => {
+    mv.loadFile = (filePath, fileType, options, chart) => {
+        let target = options.targets[0];
         let formatType = new format.GeoJSON();
         if (fileType === 'geojson') {
             let sourceVec = new source.Vector({format: formatType, url: filePath});
             mv.setMap(sourceVec, target);
+            chart.state( 'ok', 'Chart drawn.' );
+            options.process.resolve();  
         }
         else if (fileType === 'shp') {
         
@@ -616,10 +541,9 @@ var MapViewer = (function(mv) {
                 let URL = window.URL || window.webkitURL || window.mozURL;
 		let url = URL.createObjectURL(new Blob([JSON.stringify(geoJson)], {type: "application/json"}));
                 let sourceVec = new source.Vector({format: formatType, url: url});
-                console.log("sourceVec");
-                console.log(sourceVec);
                 mv.setMap(sourceVec, target);
-		//mv.setMap(new source.Vector({format: new format.GeoJSON(), url: url}), target);
+                chart.state( 'ok', 'Chart drawn.' );
+                options.process.resolve(); 
             });
         }
     };
@@ -637,9 +561,7 @@ _.extend(window.bundleEntries || {}, {
         $.ajax({
             url     : dataset.download_url,
             success : function( content ) {
-                MapViewer.loadFile(dataset.download_url, dataset.extension, options.targets[0]);
-                chart.state( 'ok', 'Chart drawn.' );
-                options.process.resolve();  
+                MapViewer.loadFile(dataset.download_url, dataset.extension, options, chart);
             },
             error: function() {
                 chart.state( 'failed', 'Failed to access dataset.' );
