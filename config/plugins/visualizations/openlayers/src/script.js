@@ -487,9 +487,9 @@ function toGeojson(geojsonData) {
 }
 
 
-var gMap = null;
-
 var MapViewer = (function(mv) {
+
+    mv.gMap = null;
     
     /** Set the style properties of shapes */
     mv.setStyle = selectedColor => {
@@ -572,10 +572,10 @@ var MapViewer = (function(mv) {
     };
 
     /** Set up events and methods for interactions with map view*/
-    mv.setInteractions = (map, source, options) => {
+    mv.setInteractions = (source, options) => {
         let geometryType = options.chart.settings.get("geometry_type");
         let geometryColor = options.chart.settings.get("geometry_color");
-        let drawInteraction, snapInteraction;
+        let drawInteraction;
         
         let addInteraction = () => {
             if (geometryType !== 'None') {
@@ -596,17 +596,15 @@ var MapViewer = (function(mv) {
                     });
                     event.feature.setStyle(sty);
                 });
-                map.addInteraction(drawInteraction);
-                snapInteraction = new interaction.Snap({source: source});
-                map.addInteraction(snapInteraction);
+                mv.gMap.addInteraction(drawInteraction);
             }
         };
         addInteraction();
     };
     
     /** Export the map view to PNG image*/
-    mv.exportMap = map => {
-        map.once('rendercomplete', event => {
+    mv.exportMap = () => {
+        mv.gMap.once('rendercomplete', event => {
             let canvas = event.context.canvas;
             let fileName = Math.random().toString(11).replace('0.', '');
             fileName += '.png';
@@ -618,7 +616,7 @@ var MapViewer = (function(mv) {
                 });
            }
         });
-        map.renderSync();
+        mv.gMap.renderSync();
     }
 
     /** Create the map view */
@@ -640,7 +638,7 @@ var MapViewer = (function(mv) {
         });
         
         // create map view
-        let map = new Map({
+        mv.gMap = new Map({
             controls: control.defaults().extend([scaleLineControl, fullScreen]),
             interactions: interaction.defaults().extend([new interaction.DragRotateAndZoom()]),
             layers: [tile, vectorLayer],
@@ -658,9 +656,11 @@ var MapViewer = (function(mv) {
             }),
             showLabels: true
         });
-        graticule.setMap(map);
-        map.addControl(new control.ZoomSlider());
-        return map;
+
+        mv.gMap.addInteraction(new interaction.Modify({source: vSource}));
+        mv.gMap.addControl(new control.ZoomSlider());
+        graticule.setMap(mv.gMap);
+        mv.setInteractions(vSource, options);
     };
 
     /** Load the map GeoJson and Shapefiles*/
@@ -674,31 +674,30 @@ var MapViewer = (function(mv) {
             return selectedStyles[feature.getGeometry().getType()];
         };
         
-        if (gMap !== null && toExport === "export") {
-            mv.exportMap(gMap);
+        if (mv.gMap !== null && toExport === "export") {
+            mv.exportMap();
         }
-        
+
         if (fileType === 'geojson') {
-            let sourceVec = new source.Vector({format: formatType, url: filePath});
-            gMap = mv.setMap(sourceVec, target, options, styleFunction);
-            gMap.addInteraction(new interaction.Modify({source: sourceVec}));
-            mv.setInteractions(gMap, sourceVec, options);  
-            chart.state('ok', 'Chart drawn.');
-            options.process.resolve();  
+            let sourceVec = new source.Vector({format: formatType, url: filePath, wrapX: false});
+            mv.createMap(filePath, sourceVec, options, chart, styleFunction, target);
         }
         else if (fileType === 'shp') {
             loadshp({url: filePath, encoding: 'utf-8', EPSG: 4326}, geoJson => {
                 let URL = window.URL || window.webkitURL || window.mozURL;
 		let url = URL.createObjectURL(new Blob([JSON.stringify(geoJson)], {type: "application/json"}));
-                let sourceVec = new source.Vector({format: formatType, url: url});
-                gMap = mv.setMap(sourceVec, target, options, styleFunction);
-                gMap.addInteraction(new interaction.Modify({source: sourceVec}));
-                mv.setInteractions(gMap, sourceVec, options);
-                chart.state('ok', 'Chart drawn.');
-                options.process.resolve();
+                let sourceVec = new source.Vector({format: formatType, url: url, wrapX: false});
+                mv.createMap(url, sourceVec, options, chart, styleFunction, target);
             });
         }
     };
+    
+    mv.createMap = (filePath, sourceVec, options, chart, styleFunction, target) => {
+        mv.setMap(sourceVec, target, options, styleFunction);
+        chart.state('ok', 'Chart drawn.');
+        options.process.resolve();  
+    }
+    
     return mv;
     
 }(MapViewer || {}));
