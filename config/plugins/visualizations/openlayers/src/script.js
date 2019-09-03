@@ -674,7 +674,7 @@ var MapViewer = (function(mv) {
             return selectedStyles[feature.getGeometry().getType()];
         };
         
-        if (mv.gMap !== null && toExport === "export") {
+        if (toExport === "export") {
             mv.exportMap();
         }
 
