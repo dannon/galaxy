@@ -3,7 +3,7 @@
  */
 
 import axios from "axios";
-import { /*Credential, */IdentityProvider } from "./index";
+import { Credential, IdentityProvider } from "./index";
 import { getRootFromIndexLink } from "onload";
 
 const getUrl = path => getRootFromIndexLink() + path;
@@ -43,15 +43,19 @@ async function saveOrUpdate(model) {
 }*/
 
 export async function disconnectIdentity(doomed) {
-    //const model = Credential.create(doomed);
+    const model = Credential.create(doomed);
+    console.log("in disconnect service.js");
     if (doomed) {
-        const url = getUrl(`authnz/${doomed.id}`);
-        const response = await axios.disconnect(url);
+        console.log("in  if doomed service.js");
+        //const response = await axios.disconnect(getUrl(`authnz/${doomed.id}`));
+        const response = await axios.delete(getUrl(`authnz/${doomed.id}`));
         if (response.status != 200) {
             throw new Error("Delete failure.");
         }
+        console.log("end of if doomed service.js");
     }
-    return; //testing
+    console.log("end of doomed service.js");
+    return model; //testing
 }
 
 export async function deleteCredential(doomed) {

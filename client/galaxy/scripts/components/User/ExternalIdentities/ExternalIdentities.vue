@@ -13,7 +13,6 @@
         <b-list-group class="external-id-key">
             <ul class="operations">
                 <li  class="delete" v-for="item in filteredItems" v-bind:key="item">
-                    {{ item.provider }}
                     <button
                         :key="item.id"
                         :credential="credential"
@@ -23,6 +22,7 @@
                     >
                         <span>Disconnect External Identity</span>
                     </button>
+                    {{ item.provider }}
                 </li>
             </ul>
         </b-list-group>
@@ -99,23 +99,19 @@ export default {
             console.log(this.items);
         },
         onDisconnect(doomed) {
-            console.log("before on disconnect");
-            console.log(this.items);
             console.log(this.doomedItem);
             this.doomedItem = doomed;
+            console.log(this.doomedItem);
             if (doomed.id) {
+                // User must confirm that they want to disconnect the identity
                 this.$refs.deleteModal.show();
             } else {
                 this.removeItem(doomed);
                 this.doomedItem = null;
             }
-            console.log("after on disconnect");
-            console.log(this.items);
         },
         disconnectID() {
             // Called when the modal is closed with an "OK"
-            console.log("before disconnectID");
-            console.log(this.items);
             svc.disconnectIdentity() //here!!!!
                 .then(() => this.removeItem(this.doomedItem))
                 .catch(this.setError("Unable to disconnect external identity."))
