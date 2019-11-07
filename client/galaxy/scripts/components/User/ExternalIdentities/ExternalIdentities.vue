@@ -8,42 +8,68 @@
             <hgroup class="external-id-title">
                 <h1>Manage External Identities</h1>
             </hgroup>
+
+            <span>Users with existing Galaxy user accounts (e.g., via Galaxy username and password) can associate 
+                their account with their 3rd party identities. For instance, if a user associates their Galaxy 
+                account with their Google account, then they can login to Galaxy either using their Galaxy username 
+                and password, or their Google account. Whichever method they use they will be assuming same Galaxy 
+                user account, hence having access to the same histories, workflows, datasets, libraries, etc.
+                
+                <br>See more information, including a list of supported identity providers, 
+                <a href="https://galaxyproject.org/authnz/use/oidc/">here</a>.
+            </span>
         </header>
 
-        <b-list-group class="external-id-key">
-            <ul class="operations">
-                <li  class="delete" v-for="item in filteredItems" v-bind:key="item">
-                    <button
-                        :key="item.id"
-                        @click="onDisconnect(item)"
-                        aria-label="Disconnect External Identity"
-                        title="Disconnect External Identity"
-                    >
-                        <span>Disconnect External Identity</span>
-                    </button>
-                    {{ item.provider }}
-                    {{ item.email }}
-                </li>
-            </ul>
-        </b-list-group>
+        <div class="external-subheading" v-if="items.length">
+            <b-list-group class="external-id-key">
+                <h3>Connected External Identities</h3>
+                <ul class="operations">
+                    <li class="delete" v-for="item in filteredItems" v-bind:key="item">
+                        <button
+                            :key="item.id"
+                            @click="onDisconnect(item)"
+                            aria-label="Disconnect External Identity"
+                            title="Disconnect External Identity"
+                        >
+                            <span>Disconnect External Identity</span>
+                        </button>
+                        {{ item.provider.charAt(0).toUpperCase() + item.provider.slice(1) }}
+                         - {{ item.email }}
+                    </li>
+                </ul>
+            </b-list-group>
 
-        <b-modal
-            v-model="hasDoomed"
-            centered
-            id="disconnectIDModal"
-            ref="deleteModal"
-            title="Disconnect Identity?"
-            size="sm"
-            @ok="disconnectID"
-            @cancel="doomedItem = null"
-        >
-        </b-modal>
+            <b-modal
+                v-model="hasDoomed"
+                centered
+                id="disconnectIDModal"
+                ref="deleteModal"
+                title="Disconnect Identity?"
+                size="sm"
+                @ok="disconnectID"
+                @cancel="doomedItem = null"
+            >
+            </b-modal>
+
+            <b-alert dismissible fade variant="warning" :show="errorMessage !== null" @dismissed="errorMessage = null">
+                {{ errorMessage }}
+            </b-alert>
+        </div>
+
+        <div class="external-subheading" v-if="enable_oidc">
+            <h3> Connect Other External Identities</h3>
+            <b-button v-for="idp in oidc_idps" :key="idp" class="d-block mt-3" @click="submitOIDCLogin(idp)">
+                <i v-bind:class="oidc_idps_icons[idp]" /> Sign in with
+                {{ idp.charAt(0).toUpperCase() + idp.slice(1) }}
+            </b-button>
+        </div>
     </section>
 </template>
 
 <script>
 import Vue from "vue";
 import BootstrapVue from "bootstrap-vue";
+import { getGalaxyInstance } from "app";
 import ExternalIdKey from "./ExternalIdKey";
 import svc from "./service";
 
@@ -54,12 +80,30 @@ export default {
         ExternalIdKey
     },
     data() {
+        const galaxy = getGalaxyInstance();
+        const oidc_idps = galaxy.config.oidc;
+        // Icons to use for each IdP
+        const oidc_idps_icons = { google: "fa fa-google" };
+        // Add default icons to IdPs without icons
+        oidc_idps
+            .filter(function(key) {
+                return oidc_idps_icons[key] === undefined;
+            })
+            .forEach(function(idp) {
+                oidc_idps_icons[idp] = "fa fa-id-card";
+            });
+        
         return {
             items: [],
             showHelp: true,
             loading: false,
             doomedItem: null,
-            errorMessage: null
+            errorMessage: null,
+
+            enable_oidc: galaxy.config.enable_oidc,
+            oidc_idps: oidc_idps,
+            oidc_idps_icons: oidc_idps_icons,
+            //redirect: galaxy.params.redirect
         };
     },
     computed: {
@@ -95,12 +139,17 @@ export default {
         },
         onDisconnect(doomed) {
             this.doomedItem = doomed;
-            if (doomed.id) {
-                // User must confirm that they want to disconnect the identity
-                this.$refs.deleteModal.show();
+            if (this.items.length > 1 || svc.hasUsername()) {
+                if (doomed.id) {
+                    // User must confirm that they want to disconnect the identity
+                    this.$refs.deleteModal.show();
+                } else {
+                    this.removeItem(doomed);
+                    this.doomedItem = null;
+                }
             } else {
-                this.removeItem(doomed);
-                this.doomedItem = null;
+                this.setError("Before disconnecting this identity, you need to set your account password, "
+                + "in order to avoid being locked out of your account.");
             }
         },
         disconnectID() {
@@ -113,7 +162,27 @@ export default {
                 });
         },
         removeItem(item) {
-            this.items = this.items.filter(o => o !== item);
+            this.items = this.items.filter(o => o === item);
+        },
+        submitOIDCLogin(idp) {
+            const currentUrl = window.location.href;
+            svc.saveIdentity(idp)
+                .then(response => {
+                    if (response.data.redirect_uri) {
+                        //window.location.reload();
+                        //this.redirect = window.location.href;
+                        window.location = response.data.redirect_uri;
+                    }
+                    // Else do something intelligent or maybe throw an error -- what else does this endpoint possibly return?
+                })
+                .catch(error => {
+                    this.messageVariant = "danger";
+                    const message = error.response.data && error.response.data.err_msg;
+                    this.messageText = message || "Login failed for an unknown reason.";
+                })
+                /*.finally(() => {
+                    window.location.href = currentUrl;
+                })*/;
         },
         setError(msg) {
             return err => {
@@ -126,6 +195,57 @@ export default {
         this.loadIdentities();
     }
 };
+
+/*
+    data() {
+
+        return {
+            login: null,
+            password: null,
+            url: null,
+            provider: null,
+            messageText: null,
+            messageVariant: null,
+            
+
+            allowUserCreation: galaxy.config.allow_user_creation,
+            session_csrf_token: galaxy.session_csrf_token,
+            
+        };
+    },
+    methods: {
+        toggleLogin: function() {
+            if (this.$root.toggleLogin) {
+                this.$root.toggleLogin();
+            }
+        },
+        submitGalaxyLogin: function(method) {
+            const rootUrl = getAppRoot();
+            axios
+                .post(`${rootUrl}user/login`, this.$data)
+                .then(response => {
+                    if (response.data.message && response.data.status) {
+                        alert(response.data.message);
+                    }
+                    if (response.data.expired_user) {
+                        window.location = `${rootUrl}root/login?expired_user=${response.data.expired_user}`;
+                    } else if (response.data.redirect) {
+                        window.location = encodeURI(response.data.redirect);
+                    } else {
+                        window.location = `${rootUrl}`;
+                    }
+                })
+                .catch(error => {
+                    this.messageVariant = "danger";
+                    const message = error.response.data && error.response.data.err_msg;
+                    this.messageText = message || "Login failed for an unknown reason.";
+                });
+        },
+        
+        */
+
+
+
 </script>
 
 <style lang="scss">
@@ -176,11 +296,11 @@ export default {
                     color: $brand-primary;
                 }
             }
-
-            .cloudKeyHelp a {
-                @include fontawesome($fa-var-info-circle);
-            }
         }
+    }
+
+    .external-subheading {
+        margin-top: 1rem;
     }
 }
 

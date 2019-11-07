@@ -3,7 +3,7 @@
  */
 
 import axios from "axios";
-import { /*Credential,*/ IdentityProvider } from "./model/index";
+import { /*Credential, IdentityProvider*/ } from "./model/index";
 import { getRootFromIndexLink } from "onload";
 
 const getUrl = path => getRootFromIndexLink() + path;
@@ -24,15 +24,38 @@ export async function disconnectIdentity(doomed) {
 let identityProviders;
 
 export async function getIdentityProviders() {
-    if (!identityProviders) {
-        const url = getUrl("authnz");
-        const response = await axios.get(url);
-        if (response.status != 200) {
-            throw new Error("Unable to load connected external identities");
-        }
-        identityProviders = response.data.map(IdentityProvider.create);
+    const url = getUrl("authnz");
+    const response = await axios.get(url);
+    if (response.status != 200) {
+        throw new Error("Unable to load connected external identities");
     }
+    identityProviders = response.data;//.map(IdentityProvider.create);
     return identityProviders;
+}
+
+export async function saveIdentity(idp) {
+    const url = getUrl(`authnz/${idp}/login`);
+    const response = await axios.post(url);
+    if (response.status != 200) {
+        throw new Error("Save failure.");
+    }
+    return response;
+}
+
+export async function hasUsername() {
+    const result = getCurrentUser();
+    console.log(result.username);
+    return getCurrentUser().username;
+    //return true;
+}
+
+export async function getCurrentUser() {
+    const url = getUrl("api/users/current");
+    const response = await axios.get(url);
+    if (response.status != 200) {
+        throw new Error(response);
+    }
+    return response.data;
 }
 
 /*export async function getCredential(id) {
@@ -40,15 +63,6 @@ export async function getIdentityProviders() {
     const response = await axios.get(url);
     if (response.status != 200) {
         throw new Error("Unexpected response loading key.");
-    }
-    return Credential.create(response.data);
-}
-
-export async function saveCredential(newItem) {
-    const model = Credential.create(newItem);
-    const response = await saveOrUpdate(model);
-    if (response.status != 200) {
-        throw new Error("Save failure.");
     }
     return Credential.create(response.data);
 }
@@ -62,7 +76,8 @@ async function saveOrUpdate(model) {
 export default {
     //listIdentities,
     //getCredential,
-    //saveCredential,
+    saveIdentity,
     disconnectIdentity,
-    getIdentityProviders
+    getIdentityProviders,
+    hasUsername
 };
