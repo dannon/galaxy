@@ -3,8 +3,8 @@
  */
 
 import axios from "axios";
-import { /*Credential, IdentityProvider*/ } from "./model/index";
 import { getRootFromIndexLink } from "onload";
+import { getCurrentUser } from "store/userStore/queries.js";
 
 const getUrl = path => getRootFromIndexLink() + path;
 
@@ -12,12 +12,10 @@ export async function disconnectIdentity(doomed) {
     if (doomed) {
         const url = getUrl(`authnz/${doomed.provider}/disconnect/`);
         const response = await axios.delete(url);
-        if (response.status != 200) {
+        if (response && response.status != 200) {
             throw new Error("Delete failure.");
         }
     }
-    
-    return;
 }
 
 // Memoize results (basically never changes)
@@ -29,8 +27,7 @@ export async function getIdentityProviders() {
     if (response.status != 200) {
         throw new Error("Unable to load connected external identities");
     }
-    identityProviders = response.data;//.map(IdentityProvider.create);
-    return identityProviders;
+    return response.data;
 }
 
 export async function saveIdentity(idp) {
@@ -42,42 +39,8 @@ export async function saveIdentity(idp) {
     return response;
 }
 
-export async function hasUsername() {
-    const result = getCurrentUser();
-    console.log(result.username);
-    return getCurrentUser().username;
-    //return true;
-}
-
-export async function getCurrentUser() {
-    const url = getUrl("api/users/current");
-    const response = await axios.get(url);
-    if (response.status != 200) {
-        throw new Error(response);
-    }
-    return response.data;
-}
-
-/*export async function getCredential(id) {
-    const url = getUrl("api/cloud/authz/${id}");
-    const response = await axios.get(url);
-    if (response.status != 200) {
-        throw new Error("Unexpected response loading key.");
-    }
-    return Credential.create(response.data);
-}
-
-async function saveOrUpdate(model) {
-    return model.id
-        ? axios.put(getUrl(`api/cloud/authz/${model.id}`), model)
-        : axios.post(getUrl("api/cloud/authz"), model);
-}*/
-
 export default {
-    //listIdentities,
-    //getCredential,
     saveIdentity,
     disconnectIdentity,
-    getIdentityProviders,
-    hasUsername
+    getIdentityProviders
 };
