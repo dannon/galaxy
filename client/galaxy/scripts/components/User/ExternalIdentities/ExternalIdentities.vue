@@ -33,14 +33,12 @@
                         >
                             <span>Disconnect External Identity</span>
                         </button>
-                        {{ item.provider.charAt(0).toUpperCase() + item.provider.slice(1) }}
-                         - {{ item.email }}
+                        {{ item.provider.charAt(0).toUpperCase() + item.provider.slice(1) }} - {{ item.email }}
                     </li>
                 </ul>
             </b-list-group>
 
             <b-modal
-                v-model="hasDoomed"
                 centered
                 id="disconnectIDModal"
                 ref="deleteModal"
@@ -139,7 +137,7 @@ export default {
         },
         onDisconnect(doomed) {
             this.doomedItem = doomed;
-            if (this.items.length > 1 || svc.hasUsername()) {
+            if (this.items.length > 1) {
                 if (doomed.id) {
                     // User must confirm that they want to disconnect the identity
                     this.$refs.deleteModal.show();
@@ -155,14 +153,23 @@ export default {
         disconnectID() {
             // Called when the modal is closed with an "OK"
             svc.disconnectIdentity(this.doomedItem)
-                .then(() => this.removeItem(this.doomedItem))
-                .catch(this.setError("Unable to disconnect external identity."))
+                .then(() => {
+                    this.removeItem(this.doomedItem)
+                })
+                .catch(error => {
+                    if (error.data) {
+                        this.setError("Unable to disconnect external identity.")
+                    } else {
+                        this.removeItem(this.doomedItem)
+                    }
+                })
                 .finally(() => {
+                    this.removeItem(this.doomedItem)
                     this.doomedItem = null;
                 });
         },
         removeItem(item) {
-            this.items = this.items.filter(o => o === item);
+            this.items = this.items.filter(o => o != item);
         },
         submitOIDCLogin(idp) {
             const currentUrl = window.location.href;
@@ -172,17 +179,13 @@ export default {
                         //window.location.reload();
                         //this.redirect = window.location.href;
                         window.location = response.data.redirect_uri;
-                    }
-                    // Else do something intelligent or maybe throw an error -- what else does this endpoint possibly return?
+                    } 
                 })
                 .catch(error => {
                     this.messageVariant = "danger";
                     const message = error.response.data && error.response.data.err_msg;
                     this.messageText = message || "Login failed for an unknown reason.";
-                })
-                /*.finally(() => {
-                    window.location.href = currentUrl;
-                })*/;
+                });
         },
         setError(msg) {
             return err => {

@@ -34,7 +34,7 @@ class OIDC(JSAppLauncher):
         """
         rtv = []
         for authnz in trans.user.social_auth:
-            rtv.append({'id': trans.app.security.encode_id(authnz.id), 'provider': authnz.provider})
+            rtv.append({'id': trans.app.security.encode_id(authnz.id), 'provider': authnz.provider, 'email': authnz.uid})
         return rtv
 
     @web.json
