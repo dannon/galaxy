@@ -404,12 +404,14 @@ def disconnect(name=None, user=None, user_storage=None, strategy=None,
     Additionally, returning any value except for a(n) (empty) dictionary, will break the
     disconnect pipeline, and that value will be returned as a result of calling the `do_disconnect` function.
     """
-    user_authnz = user_storage.sa_session.query(user_storage).filter(user_storage.table.c.user_id == user.id,
+
+    sa_session = user_storage.sa_session
+    user_authnz = sa_session.query(user_storage).filter(user_storage.table.c.user_id == user.id,
                                                                        user_storage.table.c.provider == name).first()
     if user_authnz is None:
         return {'success': False, 'message': 'Not authenticated by any identity providers.'}
     # option A
-    user_storage.sa_session.delete(user_authnz)
+    sa_session.delete(user_authnz)
     # option B
     # user_authnz.extra_data = None
-    user_storage.sa_session.flush()
+    sa_session.flush()
