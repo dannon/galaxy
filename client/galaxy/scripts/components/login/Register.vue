@@ -148,13 +148,6 @@ export default {
                     // User can elect to add a third party id to their Galaxy account
                     this.$refs.extIdModal.show();
 
-                    /* testing 
-                    if (this.registered) {
-                    } else {
-                        this.removeItem(doomed);
-                        this.doomedItem = null;
-                    }*/
-
                     window.location = this.redirect || rootUrl;
                 })
                 .catch(error => {
