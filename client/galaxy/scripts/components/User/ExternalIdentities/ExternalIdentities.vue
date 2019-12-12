@@ -9,15 +9,16 @@
                 <h1>Manage External Identities</h1>
             </hgroup>
 
-            <span>Users with existing Galaxy user accounts (e.g., via Galaxy username and password) can associate 
+            <p>Users with existing Galaxy user accounts (e.g., via Galaxy username and password) can associate 
                 their account with their 3rd party identities. For instance, if a user associates their Galaxy 
                 account with their Google account, then they can login to Galaxy either using their Galaxy username 
                 and password, or their Google account. Whichever method they use they will be assuming same Galaxy 
                 user account, hence having access to the same histories, workflows, datasets, libraries, etc.
+            </p>
                 
-                <br>See more information, including a list of supported identity providers, 
+            <p>See more information, including a list of supported identity providers, 
                 <a href="https://galaxyproject.org/authnz/use/oidc/">here</a>.
-            </span>
+            </p>
         </header>
 
         <div class="external-subheading" v-if="items.length">
@@ -97,7 +98,6 @@ export default {
             loading: false,
             doomedItem: null,
             errorMessage: null,
-
             enable_oidc: galaxy.config.enable_oidc,
             oidc_idps: oidc_idps,
             oidc_idps_icons: oidc_idps_icons,
@@ -176,8 +176,6 @@ export default {
             svc.saveIdentity(idp)
                 .then(response => {
                     if (response.data.redirect_uri) {
-                        //window.location.reload();
-                        //this.redirect = window.location.href;
                         window.location = response.data.redirect_uri;
                     } 
                 })
@@ -198,55 +196,6 @@ export default {
         this.loadIdentities();
     }
 };
-
-/*
-    data() {
-
-        return {
-            login: null,
-            password: null,
-            url: null,
-            provider: null,
-            messageText: null,
-            messageVariant: null,
-            
-
-            allowUserCreation: galaxy.config.allow_user_creation,
-            session_csrf_token: galaxy.session_csrf_token,
-            
-        };
-    },
-    methods: {
-        toggleLogin: function() {
-            if (this.$root.toggleLogin) {
-                this.$root.toggleLogin();
-            }
-        },
-        submitGalaxyLogin: function(method) {
-            const rootUrl = getAppRoot();
-            axios
-                .post(`${rootUrl}user/login`, this.$data)
-                .then(response => {
-                    if (response.data.message && response.data.status) {
-                        alert(response.data.message);
-                    }
-                    if (response.data.expired_user) {
-                        window.location = `${rootUrl}root/login?expired_user=${response.data.expired_user}`;
-                    } else if (response.data.redirect) {
-                        window.location = encodeURI(response.data.redirect);
-                    } else {
-                        window.location = `${rootUrl}`;
-                    }
-                })
-                .catch(error => {
-                    this.messageVariant = "danger";
-                    const message = error.response.data && error.response.data.err_msg;
-                    this.messageText = message || "Login failed for an unknown reason.";
-                });
-        },
-        
-        */
-
 
 
 </script>
@@ -328,12 +277,12 @@ export default {
         @extend .my-3;
         @extend .pt-3;
 
-        // removes wierd double arrows on select
+        // removes weird double arrows on select
         .custom-select {
             background: none;
         }
 
-        // Undo butchering from base.css so side-by-side labels work
+        // Allow side-by-side labels to work
         .form-row {
             display: flex;
             input,

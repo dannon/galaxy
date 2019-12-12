@@ -35,6 +35,19 @@
                             </b-form-group>
                             <b-button name="create" type="submit" :disabled="disableCreate">Create</b-button>
                         </b-card-body>
+
+                        <b-modal
+                            v-model="hasRegistered"
+                            centered
+                            id="addExtId"
+                            ref="extIdModal"
+                            title="Add External Identity?"
+                            size="sm"
+                            @ok="addID"
+                            @cancel="null"
+                        >
+                        </b-modal>
+
                         <b-card-footer v-if="!isAdmin">
                             Already have an account?
                             <a id="login-toggle" href="javascript:void(0)" role="button" @click.prevent="toggleLogin"
@@ -91,6 +104,7 @@ export default {
             username: null,
             confirm: null,
             subscribe: null,
+            registered: false,
             messageText: null,
             messageVariant: null,
             session_csrf_token: galaxy.session_csrf_token,
@@ -103,6 +117,14 @@ export default {
         },
         showRegistrationWarning() {
             return this.registration_warning_message != null;
+        },
+        hasRegistered: {
+            get() {
+                return this.registered;
+            },
+            // This setter is here because vue-bootstrap modal
+            // tries to set this property for unfathomable reasons
+            set() {}
         }
     },
     methods: {
@@ -120,6 +142,19 @@ export default {
                     if (response.data.message && response.data.status) {
                         alert(response.data.message);
                     }
+
+                    this.registered = true;
+
+                    // User can elect to add a third party id to their Galaxy account
+                    this.$refs.extIdModal.show();
+
+                    /* testing 
+                    if (this.registered) {
+                    } else {
+                        this.removeItem(doomed);
+                        this.doomedItem = null;
+                    }*/
+
                     window.location = this.redirect || rootUrl;
                 })
                 .catch(error => {
@@ -132,3 +167,24 @@ export default {
     }
 };
 </script>
+
+<style lang="scss">
+@import "~bootstrap/scss/functions";
+@import "~bootstrap/scss/variables";
+@import "~bootstrap/scss/mixins";
+@import "~bootstrap/scss/utilities/spacing";
+
+@import "scss/theme/blue.scss";
+@import "scss/mixins";
+
+// Add external modal
+
+#addExtId {
+    .modal-body {
+        display: none;
+    }
+    .modal-dialog {
+        max-width: 300px;
+    }
+}
+</style>
