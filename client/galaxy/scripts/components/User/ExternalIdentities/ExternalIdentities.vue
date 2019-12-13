@@ -9,14 +9,16 @@
                 <h1>Manage External Identities</h1>
             </hgroup>
 
-            <p>Users with existing Galaxy user accounts (e.g., via Galaxy username and password) can associate 
-                their account with their 3rd party identities. For instance, if a user associates their Galaxy 
-                account with their Google account, then they can login to Galaxy either using their Galaxy username 
-                and password, or their Google account. Whichever method they use they will be assuming same Galaxy 
-                user account, hence having access to the same histories, workflows, datasets, libraries, etc.
+            <p>
+                Users with existing Galaxy user accounts (e.g., via Galaxy username and password) can associate their
+                account with their 3rd party identities. For instance, if a user associates their Galaxy account with
+                their Google account, then they can login to Galaxy either using their Galaxy username and password, or
+                their Google account. Whichever method they use they will be assuming same Galaxy user account, hence
+                having access to the same histories, workflows, datasets, libraries, etc.
             </p>
-                
-            <p>See more information, including a list of supported identity providers, 
+
+            <p>
+                See more information, including a list of supported identity providers,
                 <a href="https://galaxyproject.org/authnz/use/oidc/">here</a>.
             </p>
         </header>
@@ -56,7 +58,7 @@
         </div>
 
         <div class="external-subheading" v-if="enable_oidc">
-            <h3> Connect Other External Identities</h3>
+            <h3>Connect Other External Identities</h3>
             <b-button v-for="idp in oidc_idps" :key="idp" class="d-block mt-3" @click="submitOIDCLogin(idp)">
                 <i v-bind:class="oidc_idps_icons[idp]" /> Sign in with
                 {{ idp.charAt(0).toUpperCase() + idp.slice(1) }}
@@ -91,7 +93,7 @@ export default {
             .forEach(function(idp) {
                 oidc_idps_icons[idp] = "fa fa-id-card";
             });
-        
+
         return {
             items: [],
             showHelp: true,
@@ -100,7 +102,7 @@ export default {
             errorMessage: null,
             enable_oidc: galaxy.config.enable_oidc,
             oidc_idps: oidc_idps,
-            oidc_idps_icons: oidc_idps_icons,
+            oidc_idps_icons: oidc_idps_icons
             //redirect: galaxy.params.redirect
         };
     },
@@ -146,25 +148,27 @@ export default {
                     this.doomedItem = null;
                 }
             } else {
-                this.setError("Before disconnecting this identity, you need to set your account password, "
-                + "in order to avoid being locked out of your account.");
+                this.setError(
+                    "Before disconnecting this identity, you need to set your account password, " +
+                        "in order to avoid being locked out of your account."
+                );
             }
         },
         disconnectID() {
             // Called when the modal is closed with an "OK"
             svc.disconnectIdentity(this.doomedItem)
                 .then(() => {
-                    this.removeItem(this.doomedItem)
+                    this.removeItem(this.doomedItem);
                 })
                 .catch(error => {
                     if (error.data) {
-                        this.setError("Unable to disconnect external identity.")
+                        this.setError("Unable to disconnect external identity.");
                     } else {
-                        this.removeItem(this.doomedItem)
+                        this.removeItem(this.doomedItem);
                     }
                 })
                 .finally(() => {
-                    this.removeItem(this.doomedItem)
+                    this.removeItem(this.doomedItem);
                     this.doomedItem = null;
                 });
         },
@@ -177,7 +181,7 @@ export default {
                 .then(response => {
                     if (response.data.redirect_uri) {
                         window.location = response.data.redirect_uri;
-                    } 
+                    }
                 })
                 .catch(error => {
                     this.messageVariant = "danger";
@@ -196,8 +200,6 @@ export default {
         this.loadIdentities();
     }
 };
-
-
 </script>
 
 <style lang="scss">
@@ -208,7 +210,6 @@ export default {
 
 @import "scss/theme/blue.scss";
 @import "scss/mixins";
-
 
 .operations {
     margin-bottom: 0;
@@ -255,7 +256,6 @@ export default {
         margin-top: 1rem;
     }
 }
-
 
 // Single list item
 
@@ -312,7 +312,8 @@ export default {
     .operations {
         list-style-type: none;
 
-        .delete a, button {
+        .delete a,
+        button {
             @include fontawesome($fa-var-times);
         }
     }
