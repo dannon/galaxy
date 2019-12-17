@@ -38,18 +38,20 @@
                         </b-card-footer>
                     </b-card>
                 </b-form>
-                <div v-for="idp in oidc_idps" :key="idp" style="margin:0.5em">
-                    <span v-if="oidc_idps_icons[idp]">
-                        <b-button variant="link" class="d-block mt-3" @click="submitOIDCLogin(idp)">
-                            <img v-bind:src="oidc_idps_icons[idp]" height="45" v-bind:alt="idp" />
-                        </b-button>
-                    </span>
-                    <span v-else>
-                        <b-button class="d-block mt-3" @click="submitOIDCLogin(idp)">
-                            <i v-bind:class="oidc_idps[idp]" /> Sign in with
-                            {{ idp.charAt(0).toUpperCase() + idp.slice(1) }}
-                        </b-button>
-                    </span>
+                <div class="external-subheading" v-if="enable_oidc">
+                    <div v-for="idp in oidc_idps" :key="idp" style="margin:0.5em">
+                        <span v-if="oidc_idps_icons[idp]">
+                            <b-button variant="link" class="d-block mt-3" @click="submitOIDCLogin(idp)">
+                                <img v-bind:src="oidc_idps_icons[idp]" height="45" v-bind:alt="idp" />
+                            </b-button>
+                        </span>
+                        <span v-else>
+                            <b-button class="d-block mt-3" @click="submitOIDCLogin(idp)">
+                                <i v-bind:class="oidc_idps[idp]" /> Sign in with
+                                {{ idp.charAt(0).toUpperCase() + idp.slice(1) }}
+                            </b-button>
+                        </span>
+                    </div>
                 </div>
             </div>
             <div v-if="show_welcome_with_login" class="col">
@@ -138,10 +140,10 @@ export default {
             axios
                 .post(`${rootUrl}authnz/${idp}/login`)
                 .then(response => {
+                    console.log("response: " + response); //testing
                     if (response.data.redirect_uri) {
                         window.location = response.data.redirect_uri;
                     }
-                    // Else do something intelligent or maybe throw an error -- what else does this endpoint possibly return?
                 })
                 .catch(error => {
                     this.messageVariant = "danger";

@@ -4,7 +4,6 @@
 
 import axios from "axios";
 import { getRootFromIndexLink } from "onload";
-import { getCurrentUser } from "store/userStore/queries.js";
 
 const getUrl = path => getRootFromIndexLink() + path;
 
@@ -17,9 +16,6 @@ export async function disconnectIdentity(doomed) {
         }
     }
 }
-
-// Memoize results (basically never changes)
-let identityProviders;
 
 export async function getIdentityProviders() {
     const url = getUrl("authnz");

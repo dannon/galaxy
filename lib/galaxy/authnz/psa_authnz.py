@@ -407,7 +407,7 @@ def disconnect(name=None, user=None, user_storage=None, strategy=None,
 
     sa_session = user_storage.sa_session
     user_authnz = sa_session.query(user_storage).filter(user_storage.table.c.user_id == user.id,
-                                                                       user_storage.table.c.provider == name).first()
+                                                        user_storage.table.c.provider == name).first()
     if user_authnz is None:
         return {'success': False, 'message': 'Not authenticated by any identity providers.'}
     # option A

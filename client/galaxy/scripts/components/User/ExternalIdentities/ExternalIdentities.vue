@@ -71,15 +71,11 @@
 import Vue from "vue";
 import BootstrapVue from "bootstrap-vue";
 import { getGalaxyInstance } from "app";
-import ExternalIdKey from "./ExternalIdKey";
 import svc from "./service";
 
 Vue.use(BootstrapVue);
 
 export default {
-    components: {
-        ExternalIdKey
-    },
     data() {
         const galaxy = getGalaxyInstance();
         const oidc_idps = galaxy.config.oidc;
@@ -103,7 +99,6 @@ export default {
             enable_oidc: galaxy.config.enable_oidc,
             oidc_idps: oidc_idps,
             oidc_idps_icons: oidc_idps_icons
-            //redirect: galaxy.params.redirect
         };
     },
     computed: {
@@ -176,7 +171,6 @@ export default {
             this.items = this.items.filter(o => o != item);
         },
         submitOIDCLogin(idp) {
-            const currentUrl = window.location.href;
             svc.saveIdentity(idp)
                 .then(response => {
                     if (response.data.redirect_uri) {
