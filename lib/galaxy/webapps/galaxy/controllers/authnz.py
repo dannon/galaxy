@@ -66,7 +66,7 @@ class OIDC(JSAppLauncher):
         #heads = {"Content-Type": "text/plain"}
         heads = {"Content-Type": "text/html; charset=utf-8"}
         print("\n\n\n\n\n\n\n\ndata: ", data)
-        response = requests.post('https://cilogon.org/oauth2/token', json=data)#, headers=heads)
+        response = requests.post('https://cilogon.org/oauth2/token', data=data)#, headers=heads)
 
         print(response)
         print(response.text)
