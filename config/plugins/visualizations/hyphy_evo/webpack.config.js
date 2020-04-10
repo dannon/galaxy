@@ -10,7 +10,6 @@ module.exports = {
         path: path.resolve(__dirname, "static")
     },
     plugins: [
-        new MiniCssExtractPlugin(),
         new webpack.ProvidePlugin({
             $: "jquery",
             jQuery: "jquery",
@@ -39,69 +38,24 @@ module.exports = {
             {
                 test: /\.(sa|sc|c)ss$/,
                 use: [
-                    {
-                        loader: MiniCssExtractPlugin.loader,
-                        options: {
-                            hmr: process.env.NODE_ENV === "development"
-                        }
-                    },
+                    { loader: "style-loader"},
                     {
                         loader: "css-loader",
                         options: { sourceMap: true }
                     },
-                    /*
-                    {
-                        loader: "postcss-loader",
-                        options: {
-                            plugins: function() {
-                                return [require("autoprefixer")];
-                            }
-                        }
-                    },*/
                     {
                         loader: "sass-loader",
                     }
                 ]
             },
-            /*
-            {
-                test: require.resolve("jquery"),
-                use: [
-                    {
-                        loader: "expose-loader",
-                        query: "jQuery"
-                    },
-                    {
-                        loader: "expose-loader",
-                        query: "$"
-                    }
-                ]
-            },
-            {
-                test: require.resolve("d3"),
-                use: [
-                    {
-                        loader: "expose-loader",
-                        query: "d3"
-                    }
-                ]
-            },
-            {
-                test: require.resolve("underscore"),
-                use: [
-                    {
-                        loader: "expose-loader",
-                        query: "_"
-                    }
-                ]
-            }
-            */
         ]
     },
     resolve: {
         modules: ["node_modules"],
+        /*
         alias: {
             "phylotree.css": __dirname + "/node_modules/phylotree/build/phylotree.css"
         }
+        */
     }
 };
