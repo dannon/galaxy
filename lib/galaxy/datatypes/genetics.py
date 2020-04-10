@@ -1159,6 +1159,37 @@ class AllegroLOD(LinkageStudies):
         return True
 
 
+class HyPhyStructure(Html):
+    """Class describing a HyPhy composite dataset to be consumed by the HyPhy Site Evolution and Structural Viewer Visualization plugin"""
+    MetadataElement(name="base_name", desc="base name for HyPhy Structure dataset", default="HyPhy Structure", readonly=True, set_in_upload=True)
+    file_ext = "hyphy"
+    composite_type = 'auto_primary_file'
+    allow_datatype_change = False
+
+    def __init__(self, **kwd):
+        Html.__init__(self, **kwd)
+        self.add_composite_file('meme.json', description="MEME Output")
+        self.add_composite_file('full.fasta', description="Sequence FASTA")
+        self.add_composite_file('base.fasta', description="Base FASTA")
+        self.add_composite_file('pdb', description="PDB")
+
+    def generate_primary_file(self, dataset=None):
+        rval = ['<html><head><title>HyPhy Structure Composite Dataset</title></head><p/>']
+        rval.append('<div>This composite dataset is composed of the following files:<p/><ul>')
+        for composite_name, composite_file in self.get_composite_files(dataset=dataset).items():
+            fn = composite_name
+            desc = composite_file.get('description')
+            opt_text = ''
+            if composite_file.optional:
+                opt_text = ' (optional)'
+            if composite_file.get('description'):
+                rval.append('<li><a href="%s" type="text/plain">%s (%s)</a>%s</li>' % (fn, fn, desc, opt_text))
+            else:
+                rval.append('<li><a href="%s" type="text/plain">%s</a>%s</li>' % (fn, fn, opt_text))
+        rval.append('</ul></div></html>')
+        return "\n".join(rval)
+
+
 class HyPhy(Html):
     """Class describing a HyPhy composite dataset to be consumed by the HyPhy Visualization plugin"""
     MetadataElement(name="base_name", desc="base name for HyPhy dataset", default="HyPhy", readonly=True, set_in_upload=True)

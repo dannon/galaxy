@@ -14,13 +14,13 @@
     <script type="text/javascript">
       var raw_url = '${h.url_for( controller="/datasets", action="index" )}';
       var hda_id = '${trans.security.encode_id( hda.id )}';
-      var url = raw_url + '/' + hda_id + '/display?to_ext=json';
+      var url = raw_url + '/' + hda_id + '/display/';
       <!-- Test static dataset for just getting it working -->
       renderMeme(
-          '/static/coronahack/S-032420.fna.MEME.json',
-          '/static/coronahack/S-032420-full.fasta',
-          '/static/coronahack/S-032420-AA.fasta',
-          '/static/coronahack/S.pdb',
+          url + 'meme.json',
+          url + 'full.fasta',
+          url + 'base.fasta',
+          url + 'pdb',
           'viz'
       );
     </script>
