@@ -1,4 +1,4 @@
-import { render_fubar } from "coronavirus-visualization";
+import { render_meme }  from "coronavirus-visualization";
 import "coronavirus-visualization/styles.scss";
 
-window.renderFubar = render_fubar;
+window.renderMeme = render_meme;

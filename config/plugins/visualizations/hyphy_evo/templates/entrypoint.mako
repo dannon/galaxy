@@ -9,20 +9,20 @@
     <title>HyPhy Site Evolution and Structural Viewer</title>
   </head>
   <body>
-    <div id="hyphy-root" />
-    ${h.stylesheet_link( app_root + 'main.css' )}
+    <div id="viz" />
     ${h.javascript_link( app_root + 'script.js' )}
     <script type="text/javascript">
       var raw_url = '${h.url_for( controller="/datasets", action="index" )}';
       var hda_id = '${trans.security.encode_id( hda.id )}';
       var url = raw_url + '/' + hda_id + '/display?to_ext=json';
-      <!-- Test static dataset for rapid iteration -->
-      renderFubar(
-        "/static/coronahack/public/S.fna.FUBAR.json",
-        "/static/coronahack/public/S-full.fasta",
-        "/static/coronahack/public/S.pdb",
-        "/static/coronahack/public/S-map.csv",
-        "hyphy-root");
+      <!-- Test static dataset for just getting it working -->
+      renderMeme(
+          '/static/coronahack/S-032420.fna.MEME.json',
+          '/static/coronahack/S-032420-full.fasta',
+          '/static/coronahack/S-032420-AA.fasta',
+          '/static/coronahack/S.pdb',
+          'viz'
+      );
     </script>
   </body>
 </html>
