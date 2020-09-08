@@ -9,6 +9,7 @@ from collections import (
 )
 from errno import ENOENT
 
+import profilehooks
 from markupsafe import escape
 from six.moves.urllib.parse import urlparse
 
@@ -156,6 +157,7 @@ class AbstractToolBox(Dictifiable, ManagesIntegratedToolPanelMixin):
                 log.exception("Error loading tools defined in config %s", config_filename)
         log.debug("Reading tools from config files finished %s", execution_timer)
 
+    @profilehooks.profile
     def _init_tools_from_config(self, config_filename):
         """
         Read the configuration file and load each tool.  The following tags are currently supported:
