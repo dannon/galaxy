@@ -11,10 +11,10 @@
                     <b-input-group size="sm">
                         <b-form-input
                             class="mr-1"
-                            v-on:input="updateSearch($event)"
                             type="search"
                             id="filterInput"
                             placeholder="Search"
+                            @input="updateSearch($event)"
                         />
                     </b-input-group>
                     <button
@@ -171,11 +171,11 @@ Vue.use(BootstrapVue);
 export default {
     name: "FolderTopBar",
     props: {
-        folder_id: {
+        folderId: {
             type: String,
             required: true,
         },
-        include_deleted: {
+        includeDeleted: {
             type: Boolean,
             required: true,
         },

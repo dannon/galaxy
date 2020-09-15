@@ -94,7 +94,7 @@ export const getAnalysisRouter = (Galaxy) =>
             "(/)datasets/edit": "show_dataset_edit_attributes",
             "(/)datasets/error": "show_dataset_error",
             "(/)interactivetool_entry_points(/)list": "show_interactivetool_list",
-            "(/)library/folders(/)(:folder_id)": "show_library_folder",
+            "(/)library/folders(/)(:folderId)": "show_library_folder",
         },
 
         require_login: ["show_user", "show_user_form", "show_workflows", "show_cloud_auth", "show_external_ids"],
@@ -141,10 +141,10 @@ export const getAnalysisRouter = (Galaxy) =>
             this._display_vue_helper(InteractiveTools);
         },
 
-        show_library_folder: function (folder_id) {
+        show_library_folder: function (folderId) {
             this.page.toolPanel?.component.hide(0);
             this.page.panels.right.hide();
-            this._display_vue_helper(LibraryFolder, { folder_id: folder_id });
+            this._display_vue_helper(LibraryFolder, { folderId: folderId });
         },
 
         show_cloud_auth: function () {

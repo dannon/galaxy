@@ -9,9 +9,9 @@
                 @refreshTable="refreshTable"
                 @fetchFolderContents="fetchFolderContents($event)"
                 @deleteFromTable="deleteFromTable"
-                :folderContents="folderContents"
-                :include_deleted="include_deleted"
-                :folder_id="folder_id"
+                :folder-contents="folderContents"
+                :include-deleted="includeDeleted"
+                :folder-id="folderId"
                 :selected="selected"
                 :metadata="folder_metadata"
             />
@@ -22,7 +22,7 @@
                 striped
                 hover
                 :filter="filter"
-                :filterIncludedFields="filterOn"
+                :filter-included-fields="filterOn"
                 :fields="fields"
                 :items="folderContents"
                 :per-page="perPage"
@@ -276,7 +276,7 @@ Vue.use(BootstrapVue);
 
 export default {
     props: {
-        folder_id: {
+        folderId: {
             type: String,
             required: true,
         },
@@ -300,7 +300,7 @@ export default {
             perPage: 15,
             maxDescriptionLength: 40,
             filter: null,
-            include_deleted: false,
+            includeDeleted: false,
             filterOn: [],
         };
     },
@@ -324,11 +324,11 @@ export default {
         this.fetchFolderContents();
     },
     methods: {
-        fetchFolderContents(include_deleted = false) {
-            this.include_deleted = include_deleted;
+        fetchFolderContents(includeDeleted = false) {
+            this.includeDeleted = includeDeleted;
             this.hasLoaded = false;
             this.services
-                .getFolderContents(this.folder_id, include_deleted)
+                .getFolderContents(this.folderId, includeDeleted)
                 .then((response) => {
                     this.folderContents = response.folder_contents;
                     this.folder_metadata = response.metadata;
@@ -388,7 +388,7 @@ export default {
         },
         createContentLink(element) {
             if (element.type === "file")
-                return `${this.root}library/list#folders/${this.folder_id}/datasets/${element.id}`;
+                return `${this.root}library/list#folders/${this.folderId}/datasets/${element.id}`;
             else if (element.type === "folder") return `${this.root}library/folders/${element.id}`;
         },
         createPermissionLink(element) {
@@ -425,7 +425,7 @@ export default {
             } else {
                 this.services.newFolder(
                     {
-                        parent_id: this.folder_id,
+                        parent_id: this.folderId,
                         name: folder.name,
                         description: folder.description,
                     },
@@ -472,7 +472,7 @@ export default {
                         this.refreshTable();
                         Toast.success("Dataset undeleted. Click this to see it.", "", {
                             onclick: function () {
-                                window.location = `${getAppRoot()}library/list#folders/${this.folder_id}/datasets/${
+                                window.location = `${getAppRoot()}library/list#folders/${this.folderId}/datasets/${
                                     element.id
                                 }`;
                             },
