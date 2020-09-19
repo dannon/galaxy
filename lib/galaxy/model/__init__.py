@@ -52,8 +52,13 @@ import galaxy.util
 from galaxy.model.item_attrs import get_item_annotation_str, UsesAnnotations
 from galaxy.security import get_permitted_actions
 from galaxy.security.validate_user_input import validate_password_str
-from galaxy.util import (directory_hash_id, ready_name_for_url,
-                         unicodify, unique_id)
+from galaxy.util import (
+    directory_hash_id,
+    listify,
+    ready_name_for_url,
+    unicodify,
+    unique_id,
+)
 from galaxy.util.bunch import Bunch
 from galaxy.util.dictifiable import dict_for, Dictifiable
 from galaxy.util.form_builder import (AddressField, CheckboxField, HistoryField,
@@ -1555,6 +1560,22 @@ class JobExternalOutputMetadata(RepresentById):
         return None
 
 
+# Set up output dataset association for export history jobs. Because job
+# uses a Dataset rather than an HDA or LDA, it's necessary to set up a
+# fake dataset association that provides the needed attributes for
+# preparing a job.
+class FakeDatasetAssociation (object):
+    fake_dataset_association = True
+
+    def __init__(self, dataset=None):
+        self.dataset = dataset
+        self.file_name = dataset.file_name
+        self.metadata = dict()
+
+    def __eq__(self, other):
+        return isinstance(other, FakeDatasetAssociation) and self.dataset == other.dataset
+
+
 class JobExportHistoryArchive(RepresentById):
     def __init__(self, job=None, history=None, dataset=None, compressed=False,
                  history_attrs_filename=None):
@@ -1563,6 +1584,10 @@ class JobExportHistoryArchive(RepresentById):
         self.dataset = dataset
         self.compressed = compressed
         self.history_attrs_filename = history_attrs_filename
+
+    @property
+    def fda(self):
+        return FakeDatasetAssociation(self.dataset)
 
     @property
     def temp_directory(self):
@@ -3247,6 +3272,12 @@ class HistoryDatasetAssociation(DatasetInstance, HasTags, Dictifiable, UsesAnnot
         """
         return self.dataset.get_access_roles(trans)
 
+    def purge_usage_from_quota(self, user):
+        """Remove this HDA's quota_amount from user's quota.
+        """
+        if user:
+            user.adjust_total_disk_usage(-self.quota_amount(user))
+
     def quota_amount(self, user):
         """
         Return the disk space used for this HDA relevant to user quotas.
@@ -4408,6 +4439,14 @@ class HistoryDatasetCollectionAssociation(DatasetCollectionInstance,
         object_session(self).flush()
         return hdca
 
+    @property
+    def waiting_for_elements(self):
+        summary = self.job_state_summary
+        if summary.all_jobs > 0 and summary.deleted + summary.error + summary.failed + summary.ok == summary.all_jobs:
+            return False
+        else:
+            return self.collection.waiting_for_elements
+
     def contains_collection(self, collection_id):
         """Checks to see that the indicated collection is a member of the
         hdca by using a recursive CTE sql query to find the collection's parents
@@ -4655,19 +4694,21 @@ class UCI:
 
 class StoredWorkflow(HasTags, Dictifiable, RepresentById):
 
-    dict_collection_visible_keys = ['id', 'name', 'create_time', 'update_time', 'published', 'deleted']
-    dict_element_visible_keys = ['id', 'name', 'create_time', 'update_time', 'published', 'deleted']
+    dict_collection_visible_keys = ['id', 'name', 'create_time', 'update_time', 'published', 'deleted', 'hidden']
+    dict_element_visible_keys = ['id', 'name', 'create_time', 'update_time', 'published', 'deleted', 'hidden']
 
-    def __init__(self):
+    def __init__(self, user=None, name=None, slug=None, create_time=None, update_time=None, published=False, latest_workflow_id=None, workflow=None, hidden=False):
         self.id = None
-        self.user = None
-        self.name = None
-        self.slug = None
-        self.create_time = None
-        self.update_time = None
-        self.published = False
+        self.user = user
+        self.name = name
+        self.slug = slug
+        self.create_time = create_time
+        self.update_time = update_time
+        self.published = published
         self.latest_workflow_id = None
-        self.workflows = []
+        self.latest_workflow = workflow
+        self.workflows = listify(workflow)
+        self.hidden = hidden
 
     def get_internal_version(self, version):
         if version is None:
@@ -5922,7 +5963,7 @@ class CustosAuthnzToken(RepresentById):
         self.refresh_expiration_time = refresh_expiration_time
 
 
-class CloudAuthz(RepresentById):
+class CloudAuthz(object):
     def __init__(self, user_id, provider, config, authn_id, description=""):
         self.id = None
         self.user_id = user_id
@@ -5934,17 +5975,10 @@ class CloudAuthz(RepresentById):
         self.last_activity = datetime.now()
         self.description = description
 
-    def __eq__(self, other):
-        if not isinstance(other, CloudAuthz):
-            return False
-        return self.equals(other.user_id, other.provider, other.authn_id, other.config)
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
-
     def equals(self, user_id, provider, authn_id, config):
         return (self.user_id == user_id
                 and self.provider == provider
+                and self.authn_id
                 and self.authn_id == authn_id
                 and len({k: self.config[k] for k in self.config if k in config
                          and self.config[k] == config[k]}) == len(self.config))

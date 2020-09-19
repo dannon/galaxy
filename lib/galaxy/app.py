@@ -51,6 +51,7 @@ from galaxy.web import url_for
 from galaxy.web.proxy import ProxyManager
 from galaxy.web_stack import application_stack_instance
 from galaxy.webhooks import WebhooksRegistry
+from galaxy.workflow.trs_proxy import TrsProxy
 
 log = logging.getLogger(__name__)
 app = None
@@ -158,6 +159,7 @@ class UniverseApplication(config.ConfiguresGalaxyMixin):
         self.datatypes_registry.load_external_metadata_tool(self.toolbox)
         # Load history import/export tools.
         load_lib_tools(self.toolbox)
+        self.toolbox.persist_cache()
         # visualizations registry: associates resources with visualizations, controls how to render
         self.visualizations_registry = VisualizationsRegistry(
             self,
@@ -198,8 +200,8 @@ class UniverseApplication(config.ConfiguresGalaxyMixin):
         if self.config.enable_oidc:
             from galaxy.authnz import managers
             self.authnz_manager = managers.AuthnzManager(self,
-                                                         self.config.oidc_config,
-                                                         self.config.oidc_backends_config)
+                                                         self.config.oidc_config_file,
+                                                         self.config.oidc_backends_config_file)
 
         self.sentry_client = None
         if self.config.sentry_dsn:
@@ -224,6 +226,7 @@ class UniverseApplication(config.ConfiguresGalaxyMixin):
         # Must be initialized after job_config.
         self.workflow_scheduling_manager = scheduling_manager.WorkflowSchedulingManager(self)
 
+        self.trs_proxy = TrsProxy(self.config)
         # Must be initialized after any component that might make use of stack messaging is configured. Alternatively if
         # it becomes more commonly needed we could create a prefork function registration method like we do with
         # postfork functions.

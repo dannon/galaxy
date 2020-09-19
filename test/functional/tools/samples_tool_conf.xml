@@ -25,6 +25,7 @@
   <tool file="multi_output.xml" />
   <tool file="multi_output_configured.xml" />
   <tool file="multi_output_assign_primary.xml" />
+  <tool file="multi_output_assign_primary_ext_dbkey.xml" />
   <tool file="multi_output_recurse.xml" />
   <tool file="tool_provided_metadata_1.xml" />
   <tool file="tool_provided_metadata_2.xml" />
@@ -61,6 +62,7 @@
   <tool file="detect_errors.xml" />
   <tool file="detect_errors_aggressive.xml" />
   <tool file="qc_stdout.xml" />
+  <tool file="directory_uri.xml" />
   <tool file="md5sum.xml" />
   <tool file="checksum.xml" />
   <tool file="sim_size_delta.xml" />
@@ -163,6 +165,7 @@
   <tool file="collection_creates_dynamic_nested_fail.xml" />
   <tool file="collection_cat_group_tag.xml" />
   <tool file="collection_cat_group_tag_multiple.xml" />
+  <tool file="discover_sort_by.xml" />
   <tool file="expression_forty_two.xml" />
   <tool file="expression_parse_int.xml" />
   <tool file="expression_log_line_count.xml" />

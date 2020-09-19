@@ -26,11 +26,12 @@ import Tours from "mvc/tours";
 import GridView from "mvc/grid/grid-view";
 import GridShared from "mvc/grid/grid-shared";
 import WorkflowImport from "components/Workflow/WorkflowImport.vue";
+import TrsImport from "components/Workflow/TrsImport.vue";
+import TrsSearch from "components/Workflow/TrsSearch.vue";
 import InteractiveTools from "components/InteractiveTools/InteractiveTools.vue";
 import WorkflowList from "components/Workflow/WorkflowList.vue";
 import HistoryImport from "components/HistoryImport.vue";
 import HistoryView from "components/HistoryView.vue";
-import WorkflowInvocationReport from "components/WorkflowInvocationReport.vue";
 import WorkflowRun from "components/Workflow/Run/WorkflowRun.vue";
 import RecentInvocations from "components/User/RecentInvocations.vue";
 import ToolsView from "components/ToolsView/ToolsView.vue";
@@ -69,10 +70,12 @@ export const getAnalysisRouter = (Galaxy) =>
             "(/)visualizations(/)sharing(/)": "show_visualizations_sharing",
             "(/)visualizations/(:action_id)": "show_visualizations",
             "(/)workflows/import": "show_workflows_import",
+            "(/)workflows/trs_import": "show_workflows_trs_import",
+            "(/)workflows/trs_search": "show_workflows_trs_search",
             "(/)workflows/run(/)": "show_workflows_run",
             "(/)workflows(/)list": "show_workflows",
             "(/)workflows/invocations": "show_workflow_invocations",
-            "(/)workflows/invocations/report": "show_workflow_invocation_report",
+            // "(/)workflows/invocations/view_bco": "show_invocation_bco",
             "(/)workflows/list_published(/)": "show_workflows_published",
             "(/)workflows/create(/)": "show_workflows_create",
             "(/)histories(/)citations(/)": "show_history_citations",
@@ -97,13 +100,13 @@ export const getAnalysisRouter = (Galaxy) =>
             return (Galaxy.user && Galaxy.user.id) || this.require_login.indexOf(name) == -1;
         },
 
-        _display_vue_helper: function (component, propsData = {}, active_tab = null) {
+        _display_vue_helper: function (component, propsData = {}, active_tab = null, noPadding = false) {
             const instance = Vue.extend(component);
             const container = document.createElement("div");
             if (active_tab) {
                 container.active_tab = active_tab;
             }
-            this.page.display(container);
+            this.page.display(container, noPadding);
             new instance({ store, propsData }).$mount(container);
         },
 
@@ -189,11 +192,6 @@ export const getAnalysisRouter = (Galaxy) =>
             this._display_vue_helper(HistoryView, { id: QueryStringParsing.get("id") });
         },
 
-        show_workflow_invocation_report: function () {
-            const invocationId = QueryStringParsing.get("id");
-            this._display_vue_helper(WorkflowInvocationReport, { invocationId: invocationId });
-        },
-
         show_workflow_invocations: function () {
             this._display_vue_helper(RecentInvocations, {});
         },
@@ -233,7 +231,7 @@ export const getAnalysisRouter = (Galaxy) =>
         },
 
         show_tools_view: function () {
-            this.page.toolPanel.getVueComponent().hide();
+            this.page.toolPanel?.component.hide();
             this.page.panels.right.hide();
             this._display_vue_helper(ToolsView);
         },
@@ -241,6 +239,7 @@ export const getAnalysisRouter = (Galaxy) =>
         show_tools_json: function () {
             this._display_vue_helper(ToolsJson);
         },
+
         show_histories_permissions: function () {
             this.page.display(
                 new FormWrapper.View({
@@ -318,6 +317,20 @@ export const getAnalysisRouter = (Galaxy) =>
 
         show_workflows_import: function () {
             this._display_vue_helper(WorkflowImport);
+        },
+
+        show_workflows_trs_import: function () {
+            const queryTrsServer = QueryStringParsing.get("trs_server");
+            const queryTrsId = QueryStringParsing.get("trs_id");
+            const propsData = {
+                queryTrsServer,
+                queryTrsId,
+            };
+            this._display_vue_helper(TrsImport, propsData);
+        },
+
+        show_workflows_trs_search: function () {
+            this._display_vue_helper(TrsSearch);
         },
 
         show_custom_builds: function () {

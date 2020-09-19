@@ -368,7 +368,7 @@ class DiskObjectStore(ConcreteObjectStore):
         :param extra_dirs: Keys are string, values are directory paths.
         """
         super().__init__(config, config_dict)
-        self.file_path = config_dict.get("files_dir") or config.file_path
+        self.file_path = os.path.abspath(config_dict.get("files_dir") or config.file_path)
 
     @classmethod
     def parse_xml(clazz, config_xml):
@@ -1070,9 +1070,10 @@ class ObjectStorePopulator:
     datasets from a job end up with the same object_store_id.
     """
 
-    def __init__(self, app):
+    def __init__(self, app, user):
         self.object_store = app.object_store
         self.object_store_id = None
+        self.user = user
 
     def set_object_store_id(self, data):
         # Create an empty file immediately.  The first dataset will be

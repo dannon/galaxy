@@ -113,7 +113,12 @@ class PageAllPublishedGrid(grids.Grid):
 
     def build_initial_query(self, trans, **kwargs):
         # See optimization description comments and TODO for tags in matching public histories query.
-        return trans.sa_session.query(self.model_class).join("user").options(eagerload("user").load_only("username"), eagerload("annotations"), undefer("average_rating"))
+        return trans.sa_session.query(self.model_class).join("user").filter(
+            model.User.deleted == false()).options(
+                eagerload("user").load_only("username"),
+                eagerload("annotations"),
+                undefer("average_rating")
+        )
 
     def apply_query_filter(self, trans, query, **kwargs):
         return query.filter(self.model_class.deleted == false()).filter(self.model_class.published == true())
@@ -408,10 +413,15 @@ class PageController(BaseUIController, SharableMixin,
         """
         Render the main page editor interface.
         """
-        id = self.decode_id(id)
-        page = trans.sa_session.query(model.Page).get(id)
-        assert page.user == trans.user
-        return trans.fill_template("page/editor.mako", page=page)
+        return trans.fill_template("page/editor.mako", id=id)
+
+    @web.expose
+    @web.require_login("edit workflow invocation report")
+    def edit_report(self, trans, id):
+        """
+        Render the report page interface.
+        """
+        return trans.fill_template("page/report.mako", id=id)
 
     @web.expose
     @web.require_login("use Galaxy pages")
