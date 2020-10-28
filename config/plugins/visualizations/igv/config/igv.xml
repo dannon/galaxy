@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE visualization SYSTEM "../../visualization.dtd">
+<visualization name="IGV.js">
+    <description>Visualize datasets using IGV.js</description>
+    <data_sources>
+        <data_source>
+            <model_class>HistoryDatasetAssociation</model_class>
+            <test type="isinstance" test_attr="datatype" result_type="datatype">tabular.Tabular</test>
+            <test type="isinstance" test_attr="datatype" result_type="datatype">tabular.CSV</test>
+            <test type="isinstance" test_attr="datatype" result_type="datatype">binary.Bam</test>
+            <to_param param_attr="id">dataset_id</to_param>
+        </data_source>
+    </data_sources>
+    <params>
+        <param type="dataset" var_name_in_template="hda" required="true">dataset_id</param>
+    </params>
+    <entry_point entry_point_type="chart" src="dist/script.js"/>
+    <specs>
+        <tag>div</tag>
+        <use_panels>both</use_panels>
+    </specs>
+    <settings>
+        <!--
+            TODO:
+            conditional:
+                genome - str
+                -or-
+                reference - datadialog
+
+            Annoying bugs w/ charts:
+                framework reloads every single character you type ()
+                These definitions could be a lot more concise.
+
+        -->
+        <input>
+            <name>genome</name>
+            <label>Genome</label>
+            <type>select</type>
+            <data>
+                <data>
+                    <value>hg38</value>
+                    <label>hg38</label>
+                </data>
+                <data>
+                    <value>hg19</value>
+                    <label>hg19</label>
+                </data>
+                <data>
+                    <value>hg18</value>
+                    <label>hg18</label>
+                </data>
+                <data>
+                    <value>mm10</value>
+                    <label>mm10</label>
+                </data>
+                <data>
+                    <value>mm9</value>
+                    <label>mm9</label>
+                </data>
+                <data>
+                    <value>rn6</value>
+                    <label>rn6</label>
+                </data>
+                <data>
+                    <value>gorGor4</value>
+                    <label>gorGor4</label>
+                </data>
+                <data>
+                    <value>panTro4</value>
+                    <label>panTro4</label>
+                </data>
+                <data>
+                    <value>panPan2</value>
+                    <label>panPan2</label>
+                </data>
+                <data>
+                    <value>canFam3</value>
+                    <label>canFam3</label>
+                </data>
+                <data>
+                    <value>bosTau8</value>
+                    <label>bosTau8</label>
+                </data>
+                <data>
+                    <value>bosTau9</value>
+                    <label>bosTau9</label>
+                </data>
+                <data>
+                    <value>susScr11</value>
+                    <label>susScr11</label>
+                </data>
+                <data>
+                    <value>danRer11</value>
+                    <label>danRer11</label>
+                </data>
+                <data>
+                    <value>danRer10</value>
+                    <label>danRer10</label>
+                </data>
+                <data>
+                    <value>ce11</value>
+                    <label>ce11</label>
+                </data>
+                <data>
+                    <value>dm6</value>
+                    <label>dm6</label>
+                </data>
+                <data>
+                    <value>sacCer3</value>
+                    <label>sacCer3</label>
+                </data>
+                <data>
+                    <value>ASM294v2</value>
+                    <label>ASM294v2</label>
+                </data>
+                <data>
+                    <value>ASM985889v3</value>
+                    <label>ASM985889v3</label>
+                </data>
+            </data>
+        </input>
+        <input>
+            <name>locus</name>
+            <label>Locus</label>
+            <value></value>
+            <type>text</type>
+        </input>
+        <input>
+            <name>reference</name>
+            <label>Custom Reference</label>
+            <type>data_dialog</type>
+        </input>
+    </settings>
+    <groups>
+        <input>
+            <name>data_dialog</name>
+            <label>Add a track</label>
+            <type>data_dialog</type>
+        </input>
+    </groups>
+</visualization>
