@@ -1,0 +1,17 @@
+{
+    "name": "visualization",
+    "version": "0.1.0",
+    "keywords": [
+        "galaxy",
+        "visualization"
+    ],
+    "license": "AFL-3.0",
+    "dependencies": {
+        "igv": "^2.7.9",
+        "parcel-bundler": "^1.12.5",
+        "underscore": "^1.12.1"
+    },
+    "scripts": {
+        "build": "parcel build src/script.js -d static/dist"
+    }
+}
