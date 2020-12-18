@@ -1,7 +1,7 @@
 <template>
     <div class="d-flex">
         <div class="ui-portlet-section" style="width: 100%;">
-            <div class="portlet-header portlet-title portlet-operations" v-on:click="toggleStep">
+            <div class="portlet-header portlet-title portlet-operations" @click="toggleStep">
                 <i :class="'portlet-title-icon fa mr-1 ' + stepIcon"></i>
                 <span class="portlet-title-text">
                     <u>{{ stepLabel }}</u>
@@ -59,7 +59,7 @@
                                     </div>
                                     <workflow-invocation-state
                                         v-else
-                                        :invocationId="stepDetails.subworkflow_invocation_id"
+                                        :invocation-id="stepDetails.subworkflow_invocation_id"
                                     />
                                 </div>
                             </div>
