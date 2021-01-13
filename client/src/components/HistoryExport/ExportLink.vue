@@ -7,7 +7,7 @@
             v-b-tooltip.hover
             title="Copy export URL to your clipboard"
             icon="link"
-            style="cursor: pointer;"
+            style="cursor: pointer"
             @click="copyUrl"
         />
         <i

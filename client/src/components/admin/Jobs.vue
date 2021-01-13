@@ -26,9 +26,7 @@
             "This job was stopped by an administrator: <strong>&lt;YOUR MESSAGE&gt;</strong> For more information or
             help, report this error".
         </b-alert>
-        <b-alert v-if="loading" variant="info" show>
-            Waiting for data
-        </b-alert>
+        <b-alert v-if="loading" variant="info" show> Waiting for data </b-alert>
         <div v-else>
             <b-container class="mb-3">
                 <b-row>

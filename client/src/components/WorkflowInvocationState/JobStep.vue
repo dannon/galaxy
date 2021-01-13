@@ -9,13 +9,7 @@
             @row-clicked="(item) => $set(item, '_showDetails', !item._showDetails)"
         >
             <template v-slot:row-details="row">
-                <job-provider
-                    :id="row.item.id"
-                    v-slot="{
-                        item,
-                        loading,
-                    }"
-                >
+                <job-provider :id="row.item.id" v-slot="{ item, loading }">
                     <div v-if="loading"><b-spinner label="Loading Job..."></b-spinner></div>
                     <div v-else>
                         <job-information :job_id="item.id" v-if="item" />

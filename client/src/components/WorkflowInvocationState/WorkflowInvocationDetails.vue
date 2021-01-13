@@ -1,14 +1,14 @@
 <template>
     <div v-if="invocation">
         <div v-if="Object.keys(invocation.input_step_parameters).length">
-            <details
-                ><summary><b>Parameters</b></summary>
+            <details>
+                <summary><b>Parameters</b></summary>
                 <parameter-step :parameters="Object.values(invocation.input_step_parameters)" />
             </details>
         </div>
         <div v-if="Object.keys(invocation.inputs).length">
-            <details
-                ><summary><b>Inputs</b></summary>
+            <details>
+                <summary><b>Inputs</b></summary>
                 <div v-for="(input, key) in invocation.inputs" :key="input.id">
                     <b>{{ dataInputStepLabel(key, input) }}</b>
                     <workflow-invocation-data-contents :data_item="input" />
@@ -16,8 +16,8 @@
             </details>
         </div>
         <div v-if="Object.keys(invocation.outputs).length">
-            <details
-                ><summary><b>Outputs</b></summary>
+            <details>
+                <summary><b>Outputs</b></summary>
                 <div v-for="(output, key) in invocation.outputs" :key="output.id">
                     <b>{{ key }}:</b>
                     <workflow-invocation-data-contents :data_item="output" />
@@ -25,8 +25,8 @@
             </details>
         </div>
         <div v-if="Object.keys(invocation.output_collections).length">
-            <details
-                ><summary><b>Output Collections</b></summary>
+            <details>
+                <summary><b>Output Collections</b></summary>
                 <div v-for="(output, key) in invocation.output_collections" :key="output.id">
                     <b>{{ key }}:</b>
                     <workflow-invocation-data-contents :data_item="output" />
@@ -34,8 +34,8 @@
             </details>
         </div>
         <div v-if="workflow">
-            <details v-if="workflow"
-                ><summary><b>Steps</b></summary>
+            <details v-if="workflow">
+                <summary><b>Steps</b></summary>
                 <workflow-invocation-step
                     v-for="step in Object.values(workflow.steps)"
                     :invocation="invocation"
@@ -113,7 +113,7 @@ export default {
                     complete: () => console.log("Invocation finished, stopping history dataset monitor"),
                 });
             }
-        }
+        },
     },
 };
 </script>
