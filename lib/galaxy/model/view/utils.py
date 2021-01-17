@@ -20,10 +20,7 @@ class DropView(view.DropView):
 def compile_drop_materialized_view(element, compiler, **kw):
     # modified because sqlalchemy_utils adds a cascade for
     # sqlite even though sqlite does not support cascade keyword
-    return 'DROP {}VIEW IF EXISTS {}'.format(
-        'MATERIALIZED ' if element.materialized else '',
-        element.name
-    )
+    return "DROP {}VIEW IF EXISTS {}".format("MATERIALIZED " if element.materialized else "", element.name)
 
 
 class CreateView(view.CreateView):
@@ -32,11 +29,12 @@ class CreateView(view.CreateView):
 
 
 def is_view_model(o):
-    return hasattr(o, '__view__') and issubclass(o, View)
+    return hasattr(o, "__view__") and issubclass(o, View)
 
 
 def install_views(engine):
     import galaxy.model.view
+
     views = getmembers(galaxy.model.view, is_view_model)
     for _name, ViewModel in views:
         # adding DropView here because our unit-testing calls this function when

@@ -4,18 +4,17 @@
 
 import logging
 import sys
-from abc import (
-    ABCMeta,
-    abstractmethod
-)
+from abc import ABCMeta, abstractmethod
 from typing import Dict
 
 import requests
+
 if sys.version_info[0] < 3:
     import urllib as urllib
     import urlparse as urlparse
 else:
     import urllib.parse as urllib
+
     urlparse = urllib
 
 from galaxy.tools.errors import EmailErrorReporter
@@ -26,8 +25,8 @@ log = logging.getLogger(__name__)
 
 
 class BaseGitPlugin(ErrorPlugin, metaclass=ABCMeta):
-    """Base definition to send error reports to a Git repository provider
-    """
+    """Base definition to send error reports to a Git repository provider"""
+
     issue_cache: Dict[str, Dict] = {}
     ts_urls: Dict[str, str] = {}
     ts_repo_cache: Dict[str, Dict] = {}
@@ -60,7 +59,9 @@ class BaseGitPlugin(ErrorPlugin, metaclass=ABCMeta):
 
                 for repoinfo in ts_repo_request_data.values():
                     if isinstance(repoinfo, dict):
-                        self.ts_repo_cache[job.tool_id] = repoinfo.get('repository', {}).get('remote_repository_url', None)
+                        self.ts_repo_cache[job.tool_id] = repoinfo.get("repository", {}).get(
+                            "remote_repository_url", None
+                        )
             return self.ts_repo_cache[job.tool_id]
         except Exception:
             return None
@@ -71,14 +72,17 @@ class BaseGitPlugin(ErrorPlugin, metaclass=ABCMeta):
     def _generate_error_message(self, dataset, job, kwargs):
         # We'll re-use the email error reporter's template since most Git providers supports HTML
         error_reporter = EmailErrorReporter(dataset.id, self.app)
-        error_reporter.create_report(job.get_user(), email=kwargs.get('email', None),
-                                     message=kwargs.get('message', None),
-                                     redact_user_details_in_bugreport=self.redact_user_details_in_bugreport)
+        error_reporter.create_report(
+            job.get_user(),
+            email=kwargs.get("email", None),
+            message=kwargs.get("message", None),
+            redact_user_details_in_bugreport=self.redact_user_details_in_bugreport,
+        )
         # Return the HTML report
         return error_reporter.html_report
 
     def _generate_error_title(self, job):
-        tool_kw = {'tool_id': unicodify(job.tool_id), 'tool_version': unicodify(job.tool_version)}
+        tool_kw = {"tool_id": unicodify(job.tool_id), "tool_version": unicodify(job.tool_version)}
         return """Galaxy Job Error: {tool_id} v{tool_version}""".format(**tool_kw)
 
     @abstractmethod

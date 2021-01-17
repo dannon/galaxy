@@ -12,10 +12,7 @@ from sqlalchemy import (
     String,
 )
 
-from galaxy.model.migrate.versions.util import (
-    add_column,
-    drop_column
-)
+from galaxy.model.migrate.versions.util import add_column, drop_column
 
 log = logging.getLogger(__name__)
 metadata = MetaData()
@@ -27,11 +24,11 @@ def upgrade(migrate_engine):
     metadata.reflect()
 
     col = Column("filename_override_metadata", String(255))
-    add_column(col, 'job_external_output_metadata', metadata)
+    add_column(col, "job_external_output_metadata", metadata)
 
 
 def downgrade(migrate_engine):
     metadata.bind = migrate_engine
     metadata.reflect()
 
-    drop_column('filename_override_metadata', 'job_external_output_metadata', metadata)
+    drop_column("filename_override_metadata", "job_external_output_metadata", metadata)

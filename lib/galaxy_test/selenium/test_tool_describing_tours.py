@@ -4,7 +4,6 @@ from .framework import selenium_test, SeleniumTestCase
 
 
 class ToolDescribingToursTestCase(SeleniumTestCase):
-
     def setUp(self):
         super().setUp()
         self.home()
@@ -14,7 +13,7 @@ class ToolDescribingToursTestCase(SeleniumTestCase):
         """Ensure a tour without data is generated and pops up."""
         self._ensure_tdt_available()
 
-        self.tool_open('environment_variables')
+        self.tool_open("environment_variables")
 
         self.tool_form_generate_tour()
 
@@ -33,7 +32,7 @@ class ToolDescribingToursTestCase(SeleniumTestCase):
         """Ensure a tour with data populates history."""
         self._ensure_tdt_available()
 
-        self.tool_open('md5sum')
+        self.tool_open("md5sum")
 
         self.tool_form_generate_tour()
 
@@ -72,9 +71,9 @@ class ToolDescribingToursTestCase(SeleniumTestCase):
 
     def _ensure_tdt_available(self):
         """ Skip a test if the webhook TDT doesn't appear. """
-        response = self.api_get('webhooks', raw=True)
+        response = self.api_get("webhooks", raw=True)
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        webhooks = [x['id'] for x in data]
-        if 'tour_generator' not in webhooks:
+        webhooks = [x["id"] for x in data]
+        if "tour_generator" not in webhooks:
             raise unittest.SkipTest('Skipping test, webhook "Tool-Describing-Tours" doesn\'t appear to be configured.')

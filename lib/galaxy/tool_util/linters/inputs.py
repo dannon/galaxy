@@ -37,8 +37,8 @@ def lint_inputs(tool_xml, lint_ctx):
             if dynamic_options is None:
                 dynamic_options = param.find("options")
 
-            select_options = param.findall('./option')
-            if any(['value' not in option.attrib for option in select_options]):
+            select_options = param.findall("./option")
+            if any(["value" not in option.attrib for option in select_options]):
                 lint_ctx.error("Select [%s] has option without value", param_name)
 
             if dynamic_options is None and len(select_options) == 0:
@@ -48,7 +48,7 @@ def lint_inputs(tool_xml, lint_ctx):
 
     conditional_selects = tool_xml.findall("./inputs//conditional")
     for conditional in conditional_selects:
-        conditional_name = conditional.get('name')
+        conditional_name = conditional.get("name")
         if not conditional_name:
             lint_ctx.error("Conditional without a name")
         if conditional.get("value_from"):
@@ -58,42 +58,47 @@ def lint_inputs(tool_xml, lint_ctx):
         if first_param is None:
             lint_ctx.error("Conditional '%s' has no child <param>" % conditional_name)
             continue
-        first_param_type = first_param.get('type')
-        if first_param_type not in ['select', 'boolean']:
-            lint_ctx.warn("Conditional '%s' first param should have type=\"select\" /> or type=\"boolean\"" % conditional_name)
+        first_param_type = first_param.get("type")
+        if first_param_type not in ["select", "boolean"]:
+            lint_ctx.warn(
+                'Conditional \'%s\' first param should have type="select" /> or type="boolean"' % conditional_name
+            )
             continue
 
-        if first_param_type == 'select':
-            select_options = _find_with_attribute(first_param, 'option', 'value')
-            option_ids = [option.get('value') for option in select_options]
+        if first_param_type == "select":
+            select_options = _find_with_attribute(first_param, "option", "value")
+            option_ids = [option.get("value") for option in select_options]
         else:  # boolean
-            option_ids = [
-                first_param.get('truevalue', 'true'),
-                first_param.get('falsevalue', 'false')
-            ]
+            option_ids = [first_param.get("truevalue", "true"), first_param.get("falsevalue", "false")]
 
-        if string_as_bool(first_param.get('optional', False)):
+        if string_as_bool(first_param.get("optional", False)):
             lint_ctx.warn("Conditional test parameter cannot be optional")
 
-        whens = conditional.findall('./when')
-        if any('value' not in when.attrib for when in whens):
+        whens = conditional.findall("./when")
+        if any("value" not in when.attrib for when in whens):
             lint_ctx.error("When without value")
 
-        when_ids = [w.get('value') for w in whens]
+        when_ids = [w.get("value") for w in whens]
 
         for option_id in option_ids:
             if option_id not in when_ids:
-                lint_ctx.warn(f"No <when /> block found for {first_param_type} option '{option_id}' inside conditional '{conditional_name}'")
+                lint_ctx.warn(
+                    f"No <when /> block found for {first_param_type} option '{option_id}' inside conditional '{conditional_name}'"
+                )
 
         for when_id in when_ids:
             if when_id not in option_ids:
-                if first_param_type == 'select':
-                    lint_ctx.warn(f"No <option /> found for when block '{when_id}' inside conditional '{conditional_name}'")
+                if first_param_type == "select":
+                    lint_ctx.warn(
+                        f"No <option /> found for when block '{when_id}' inside conditional '{conditional_name}'"
+                    )
                 else:
-                    lint_ctx.warn(f"No truevalue/falsevalue found for when block '{when_id}' inside conditional '{conditional_name}'")
+                    lint_ctx.warn(
+                        f"No truevalue/falsevalue found for when block '{when_id}' inside conditional '{conditional_name}'"
+                    )
 
     if datasource:
-        for datasource_tag in ('display', 'uihints'):
+        for datasource_tag in ("display", "uihints"):
             if not any([param.tag == datasource_tag for param in inputs]):
                 lint_ctx.info("%s tag usually present in data sources" % datasource_tag)
 
@@ -118,7 +123,7 @@ def lint_repeats(tool_xml, lint_ctx):
 
 def _find_with_attribute(element, tag, attribute, test_value=None):
     rval = []
-    for el in (element.findall('./%s' % tag) or []):
+    for el in element.findall("./%s" % tag) or []:
         if attribute not in el.attrib:
             continue
         value = el.attrib[attribute]

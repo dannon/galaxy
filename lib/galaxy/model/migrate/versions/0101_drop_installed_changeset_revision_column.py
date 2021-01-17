@@ -4,16 +4,10 @@ Migration script to drop the installed_changeset_revision column from the tool_d
 
 import logging
 
-from sqlalchemy import (
-    Column,
-    MetaData
-)
+from sqlalchemy import Column, MetaData
 
 from galaxy.model.custom_types import TrimmedString
-from galaxy.model.migrate.versions.util import (
-    add_column,
-    drop_column
-)
+from galaxy.model.migrate.versions.util import add_column, drop_column
 
 log = logging.getLogger(__name__)
 metadata = MetaData()
@@ -24,7 +18,7 @@ def upgrade(migrate_engine):
     metadata.bind = migrate_engine
     metadata.reflect()
 
-    drop_column('installed_changeset_revision', 'tool_dependency', metadata)
+    drop_column("installed_changeset_revision", "tool_dependency", metadata)
 
 
 def downgrade(migrate_engine):

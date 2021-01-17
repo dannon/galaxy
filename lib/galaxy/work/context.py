@@ -4,7 +4,7 @@ from galaxy.managers.context import (
 
 
 class WorkRequestContext(ProvidesHistoryContext):
-    """ Stripped down implementation of Galaxy web transaction god object for
+    """Stripped down implementation of Galaxy web transaction god object for
     work request handling outside of web threads - uses mix-ins shared with
     GalaxyWebTransaction to provide app, user, and history context convenience
     methods - but nothing related to HTTP handling, mako views, etc....
@@ -53,8 +53,9 @@ class WorkRequestContext(ProvidesHistoryContext):
 
 class SessionRequestContext(WorkRequestContext):
     """Like WorkRequestContext, but provides access to galaxy session and session."""
+
     def __init__(self, **kwargs):
-        self.galaxy_session = kwargs.pop('galaxy_session', None)
+        self.galaxy_session = kwargs.pop("galaxy_session", None)
         super().__init__(**kwargs)
 
     def get_galaxy_session(self):

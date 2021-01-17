@@ -13,8 +13,8 @@ log = logging.getLogger(__name__)
 
 class JobImportHistoryArchiveWrapper:
     """
-        Class provides support for performing jobs that import a history from
-        an archive.
+    Class provides support for performing jobs that import a history from
+    an archive.
     """
 
     def __init__(self, app, job_id):
@@ -24,14 +24,22 @@ class JobImportHistoryArchiveWrapper:
 
     def setup_job(self, jiha, archive_source, archive_type):
         if archive_type != "url":
-            external_chown(archive_source, jiha.job.user.system_user_pwent(self.app.config.real_system_username),
-                           self.app.config.external_chown_script, "history import archive")
-        external_chown(jiha.archive_dir, jiha.job.user.system_user_pwent(self.app.config.real_system_username),
-                       self.app.config.external_chown_script, "history import archive directory")
+            external_chown(
+                archive_source,
+                jiha.job.user.system_user_pwent(self.app.config.real_system_username),
+                self.app.config.external_chown_script,
+                "history import archive",
+            )
+        external_chown(
+            jiha.archive_dir,
+            jiha.job.user.system_user_pwent(self.app.config.real_system_username),
+            self.app.config.external_chown_script,
+            "history import archive directory",
+        )
 
     def cleanup_after_job(self):
-        """ Set history, datasets, collections and jobs' attributes
-            and clean up archive directory.
+        """Set history, datasets, collections and jobs' attributes
+        and clean up archive directory.
         """
 
         #
@@ -46,8 +54,12 @@ class JobImportHistoryArchiveWrapper:
         new_history = None
         try:
             archive_dir = jiha.archive_dir
-            external_chown(archive_dir, jiha.job.user.system_user_pwent(getpass.getuser()),
-                           self.app.config.external_chown_script, "history import archive directory")
+            external_chown(
+                archive_dir,
+                jiha.job.user.system_user_pwent(getpass.getuser()),
+                self.app.config.external_chown_script,
+                "history import archive directory",
+            )
             model_store = store.get_import_model_store_for_directory(archive_dir, app=self.app, user=user)
             job = jiha.job
             with model_store.target_history(default_history=job.history) as new_history:

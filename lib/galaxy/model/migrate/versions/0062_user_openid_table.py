@@ -14,13 +14,16 @@ metadata = MetaData()
 
 # Table to add
 
-UserOpenID_table = Table("galaxy_user_openid", metadata,
-                         Column("id", Integer, primary_key=True),
-                         Column("create_time", DateTime, default=now),
-                         Column("update_time", DateTime, index=True, default=now, onupdate=now),
-                         Column("session_id", Integer, ForeignKey("galaxy_session.id"), index=True),
-                         Column("user_id", Integer, ForeignKey("galaxy_user.id"), index=True),
-                         Column("openid", TEXT))
+UserOpenID_table = Table(
+    "galaxy_user_openid",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("create_time", DateTime, default=now),
+    Column("update_time", DateTime, index=True, default=now, onupdate=now),
+    Column("session_id", Integer, ForeignKey("galaxy_session.id"), index=True),
+    Column("user_id", Integer, ForeignKey("galaxy_user.id"), index=True),
+    Column("openid", TEXT),
+)
 
 
 def upgrade(migrate_engine):
@@ -34,8 +37,8 @@ def upgrade(migrate_engine):
     except Exception:
         log.exception("Creating galaxy_user_openid table failed.")
 
-    ix_name = 'ix_galaxy_user_openid_openid'
-    if migrate_engine.name == 'mysql':
+    ix_name = "ix_galaxy_user_openid_openid"
+    if migrate_engine.name == "mysql":
         i = "ALTER TABLE galaxy_user_openid ADD UNIQUE INDEX ( openid( 255 ) )"
         migrate_engine.execute(i)
     else:

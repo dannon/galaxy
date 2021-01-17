@@ -6,7 +6,6 @@ from ._framework import ApiTestCase
 
 
 class BasePageApiTestCase(ApiTestCase):
-
     def _create_valid_page_with_slug(self, slug):
         page_request = self._test_page_payload(slug=slug)
         page_response = self._post("pages", page_request)
@@ -38,7 +37,6 @@ class BasePageApiTestCase(ApiTestCase):
 
 
 class PageApiTestCase(BasePageApiTestCase):
-
     def test_create(self):
         response_json = self._create_valid_page_with_slug("mypage")
         self._assert_has_keys(response_json, "slug", "title", "id")
@@ -53,7 +51,8 @@ input_1:
   type: File
 """
         with dataset_populator.test_history() as history_id:
-            summary = workflow_populator.run_workflow("""
+            summary = workflow_populator.run_workflow(
+                """
 class: GalaxyWorkflow
 inputs:
   input_1: data
@@ -65,7 +64,10 @@ steps:
     tool_id: cat
     in:
       input1: input_1
-""", test_data=test_data, history_id=history_id)
+""",
+                test_data=test_data,
+                history_id=history_id,
+            )
 
             workflow_id = summary.workflow_id
             invocation_id = summary.invocation_id
@@ -82,7 +84,7 @@ steps:
             page_response = self._post("pages", page_request)
             self._assert_status_code_is(page_response, 200)
             page_response = page_response.json()
-            show_response = self._get("pages/%s" % page_response['id'])
+            show_response = self._get("pages/%s" % page_response["id"])
             self._assert_status_code_is(show_response, 200)
             show_json = show_response.json()
             self._assert_has_keys(show_json, "slug", "title", "id")
@@ -119,20 +121,20 @@ steps:
 
     def test_page_requires_name(self):
         page_request = self._test_page_payload(slug="requires-name")
-        del page_request['title']
+        del page_request["title"]
         page_response = self._post("pages", page_request)
         self._assert_status_code_is(page_response, 400)
         self._assert_error_code_is(page_response, error_codes.USER_OBJECT_ATTRIBUTE_MISSING)
 
     def test_page_requires_slug(self):
         page_request = self._test_page_payload()
-        del page_request['slug']
+        del page_request["slug"]
         page_response = self._post("pages", page_request)
         self._assert_status_code_is(page_response, 400)
 
     def test_delete(self):
         response_json = self._create_valid_page_with_slug("testdelete")
-        delete_response = delete(self._api_url("pages/%s" % response_json['id'], use_key=True))
+        delete_response = delete(self._api_url("pages/%s" % response_json["id"], use_key=True))
         self._assert_status_code_is(delete_response, 200)
 
     def test_400_on_delete_invalid_page_id(self):
@@ -148,14 +150,14 @@ steps:
 
     def test_400_on_invalid_id_encoding(self):
         page_request = self._test_page_payload(slug="invalid-id-encding")
-        page_request["content"] = '''<p>Page!<div class="embedded-item" id="History-invaidencodedid"></div></p>'''
+        page_request["content"] = """<p>Page!<div class="embedded-item" id="History-invaidencodedid"></div></p>"""
         page_response = self._post("pages", page_request)
         self._assert_status_code_is(page_response, 400)
         self._assert_error_code_is(page_response, error_codes.MALFORMED_ID)
 
     def test_400_on_invalid_id_encoding_markdown(self):
         page_request = self._test_page_payload(slug="invalid-id-encding-markdown", content_format="markdown")
-        page_request["content"] = '''```galaxy\nhistory_dataset_display(history_dataset_id=badencoding)\n```\n'''
+        page_request["content"] = """```galaxy\nhistory_dataset_display(history_dataset_id=badencoding)\n```\n"""
         page_response = self._post("pages", page_request)
         self._assert_status_code_is(page_response, 400)
         self._assert_error_code_is(page_response, error_codes.MALFORMED_ID)
@@ -164,7 +166,7 @@ steps:
         dataset_populator = DatasetPopulator(self.galaxy_interactor)
         valid_id = dataset_populator.new_history()
         page_request = self._test_page_payload(slug="invalid-embed-content")
-        page_request["content"] = '''<p>Page!<div class="embedded-item" id="CoolObject-%s"></div></p>''' % valid_id
+        page_request["content"] = """<p>Page!<div class="embedded-item" id="CoolObject-%s"></div></p>""" % valid_id
         page_response = self._post("pages", page_request)
         self._assert_status_code_is(page_response, 400)
         self._assert_error_code_is(page_response, error_codes.USER_REQUEST_INVALID_PARAMETER)
@@ -172,14 +174,14 @@ steps:
 
     def test_400_on_invalid_markdown_call(self):
         page_request = self._test_page_payload(slug="invalid-markdown-call", content_format="markdown")
-        page_request["content"] = '''```galaxy\njob_metrics(job_id)\n```\n'''
+        page_request["content"] = """```galaxy\njob_metrics(job_id)\n```\n"""
         page_response = self._post("pages", page_request)
         self._assert_status_code_is(page_response, 400)
         self._assert_error_code_is(page_response, error_codes.MALFORMED_CONTENTS)
 
     def test_show(self):
         response_json = self._create_valid_page_with_slug("pagetoshow")
-        show_response = self._get("pages/%s" % response_json['id'])
+        show_response = self._get("pages/%s" % response_json["id"])
         self._assert_status_code_is(show_response, 200)
         show_json = show_response.json()
         self._assert_has_keys(show_json, "slug", "title", "id")
@@ -190,7 +192,7 @@ steps:
 
     def test_403_on_unowner_show(self):
         response_json = self._create_valid_page_as("others_page_show@bx.psu.edu", "otherspageshow")
-        show_response = self._get("pages/%s" % response_json['id'])
+        show_response = self._get("pages/%s" % response_json["id"])
         self._assert_status_code_is(show_response, 403)
         self._assert_error_code_is(show_response, error_codes.USER_CANNOT_ACCESS_ITEM)
 

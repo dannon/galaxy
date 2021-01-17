@@ -7,44 +7,28 @@ import glob
 import logging
 import os
 
-from sqlalchemy import (
-    false,
-    true
-)
+from sqlalchemy import false, true
 
-from galaxy import (
-    exceptions,
-    model,
-    util
-)
+from galaxy import exceptions, model, util
 from galaxy.managers import (
     citations,
     histories,
     users,
     workflows,
 )
-from galaxy.util import (
-    restore_text,
-    string_as_bool
-)
+from galaxy.util import restore_text, string_as_bool
 from galaxy.web import (
     expose_api,
     expose_api_anonymous,
     expose_api_anonymous_and_sessionless,
     expose_api_raw,
 )
-from galaxy.webapps.base.controller import (
-    BaseAPIController,
-    ExportsHistoryMixin,
-    ImportsHistoryMixin,
-    SharableMixin
-)
+from galaxy.webapps.base.controller import BaseAPIController, ExportsHistoryMixin, ImportsHistoryMixin, SharableMixin
 
 log = logging.getLogger(__name__)
 
 
 class HistoriesController(BaseAPIController, ExportsHistoryMixin, ImportsHistoryMixin, SharableMixin):
-
     def __init__(self, app):
         super().__init__(app)
         self.citations_manager = citations.CitationsManager(app)
@@ -57,7 +41,7 @@ class HistoriesController(BaseAPIController, ExportsHistoryMixin, ImportsHistory
         self.filters = histories.HistoryFilters(app)
 
     @expose_api_anonymous
-    def index(self, trans, deleted='False', **kwd):
+    def index(self, trans, deleted="False", **kwd):
         """
         GET /api/histories
 
@@ -148,7 +132,7 @@ class HistoriesController(BaseAPIController, ExportsHistoryMixin, ImportsHistory
 
         'order' defaults to 'create_time-dsc'
         """
-        serialization_params = self._parse_serialization_params(kwd, 'summary')
+        serialization_params = self._parse_serialization_params(kwd, "summary")
         limit, offset = self.parse_limit_offset(kwd)
         filter_params = self.parse_filter_params(kwd)
 
@@ -159,14 +143,17 @@ class HistoriesController(BaseAPIController, ExportsHistoryMixin, ImportsHistory
             if not current_history:
                 return []
             # note: ignores filters, limit, offset
-            return [self.serializer.serialize_to_view(current_history,
-                     user=current_user, trans=trans, **serialization_params)]
+            return [
+                self.serializer.serialize_to_view(
+                    current_history, user=current_user, trans=trans, **serialization_params
+                )
+            ]
 
         filters = []
         # support the old default of not-returning/filtering-out deleted histories
         filters += self._get_deleted_filter(deleted, filter_params)
         # get optional parameter 'all'
-        all_histories = util.string_as_bool(kwd.get('all', False))
+        all_histories = util.string_as_bool(kwd.get("all", False))
         # if parameter 'all' is true, throw exception if not admin
         # else add current user filter to query (default behaviour)
         if all_histories:
@@ -178,12 +165,14 @@ class HistoriesController(BaseAPIController, ExportsHistoryMixin, ImportsHistory
         # and any sent in from the query string
         filters += self.filters.parse_filters(filter_params)
 
-        order_by = self._parse_order_by(manager=self.manager, order_by_string=kwd.get('order', 'create_time-dsc'))
+        order_by = self._parse_order_by(manager=self.manager, order_by_string=kwd.get("order", "create_time-dsc"))
         histories = self.manager.list(filters=filters, order_by=order_by, limit=limit, offset=offset)
 
         rval = []
         for history in histories:
-            history_dict = self.serializer.serialize_to_view(history, user=trans.user, trans=trans, **serialization_params)
+            history_dict = self.serializer.serialize_to_view(
+                history, user=trans.user, trans=trans, **serialization_params
+            )
             rval.append(history_dict)
         return rval
 
@@ -193,26 +182,26 @@ class HistoriesController(BaseAPIController, ExportsHistoryMixin, ImportsHistory
         try:
             # the consumer must explicitly ask for both deleted and non-deleted
             #   but pull it from the parsed params (as the filter system will error on None)
-            deleted_filter_index = filter_params.index(('deleted', 'eq', 'None'))
+            deleted_filter_index = filter_params.index(("deleted", "eq", "None"))
             filter_params.pop(deleted_filter_index)
             return []
         except ValueError:
             pass
 
         # the deleted string bool was also used as an 'include deleted' flag
-        if deleted in ('True', 'true'):
+        if deleted in ("True", "true"):
             return [self.app.model.History.deleted == true()]
 
         # the third option not handled here is 'return only deleted'
         #   if this is passed in (in the form below), simply return and let the filter system handle it
-        if ('deleted', 'eq', 'True') in filter_params:
+        if ("deleted", "eq", "True") in filter_params:
             return []
 
         # otherwise, do the default filter of removing the deleted histories
         return [self.app.model.History.deleted == false()]
 
     @expose_api_anonymous
-    def show(self, trans, id, deleted='False', **kwd):
+    def show(self, trans, id, deleted="False", **kwd):
         """
         show( trans, id, deleted='False' )
         * GET /api/histories/{id}:
@@ -237,13 +226,15 @@ class HistoriesController(BaseAPIController, ExportsHistoryMixin, ImportsHistory
         deleted = string_as_bool(deleted)
 
         if history_id == "most_recently_used":
-            history = self.manager.most_recent(trans.user,
-                filters=(self.app.model.History.deleted == false()), current_history=trans.history)
+            history = self.manager.most_recent(
+                trans.user, filters=(self.app.model.History.deleted == false()), current_history=trans.history
+            )
         else:
             history = self.manager.get_accessible(self.decode_id(history_id), trans.user, current_history=trans.history)
 
-        return self.serializer.serialize_to_view(history,
-            user=trans.user, trans=trans, **self._parse_serialization_params(kwd, 'detailed'))
+        return self.serializer.serialize_to_view(
+            history, user=trans.user, trans=trans, **self._parse_serialization_params(kwd, "detailed")
+        )
 
     @expose_api_anonymous
     def citations(self, trans, history_id, **kwd):
@@ -279,12 +270,13 @@ class HistoriesController(BaseAPIController, ExportsHistoryMixin, ImportsHistory
         limit, offset = self.parse_limit_offset(kwd)
         filter_params = self.parse_filter_params(kwd)
         filters = self.filters.parse_filters(filter_params)
-        order_by = self._parse_order_by(manager=self.manager, order_by_string=kwd.get('order', 'create_time-dsc'))
+        order_by = self._parse_order_by(manager=self.manager, order_by_string=kwd.get("order", "create_time-dsc"))
         histories = self.manager.list_published(filters=filters, order_by=order_by, limit=limit, offset=offset)
         rval = []
         for history in histories:
-            history_dict = self.serializer.serialize_to_view(history, user=trans.user, trans=trans,
-                **self._parse_serialization_params(kwd, 'summary'))
+            history_dict = self.serializer.serialize_to_view(
+                history, user=trans.user, trans=trans, **self._parse_serialization_params(kwd, "summary")
+            )
             rval.append(history_dict)
         return rval
 
@@ -304,13 +296,15 @@ class HistoriesController(BaseAPIController, ExportsHistoryMixin, ImportsHistory
         limit, offset = self.parse_limit_offset(kwd)
         filter_params = self.parse_filter_params(kwd)
         filters = self.filters.parse_filters(filter_params)
-        order_by = self._parse_order_by(manager=self.manager, order_by_string=kwd.get('order', 'create_time-dsc'))
-        histories = self.manager.list_shared_with(current_user,
-            filters=filters, order_by=order_by, limit=limit, offset=offset)
+        order_by = self._parse_order_by(manager=self.manager, order_by_string=kwd.get("order", "create_time-dsc"))
+        histories = self.manager.list_shared_with(
+            current_user, filters=filters, order_by=order_by, limit=limit, offset=offset
+        )
         rval = []
         for history in histories:
-            history_dict = self.serializer.serialize_to_view(history, user=current_user, trans=trans,
-                **self._parse_serialization_params(kwd, 'summary'))
+            history_dict = self.serializer.serialize_to_view(
+                history, user=current_user, trans=trans, **self._parse_serialization_params(kwd, "summary")
+            )
             rval.append(history_dict)
         return rval
 
@@ -336,11 +330,11 @@ class HistoriesController(BaseAPIController, ExportsHistoryMixin, ImportsHistory
         :returns:   element view of new history
         """
         hist_name = None
-        if payload.get('name', None):
-            hist_name = restore_text(payload['name'])
-        copy_this_history_id = payload.get('history_id', None)
+        if payload.get("name", None):
+            hist_name = restore_text(payload["name"])
+        copy_this_history_id = payload.get("history_id", None)
 
-        all_datasets = util.string_as_bool(payload.get('all_datasets', True))
+        all_datasets = util.string_as_bool(payload.get("all_datasets", True))
 
         if "archive_source" in payload:
             archive_source = payload["archive_source"]
@@ -354,7 +348,10 @@ class HistoriesController(BaseAPIController, ExportsHistoryMixin, ImportsHistory
                 raise exceptions.MessageException("Please provide a url or file.")
             job = self.queue_history_import(trans, archive_type=archive_type, archive_source=archive_source)
             job_dict = job.to_dict()
-            job_dict["message"] = "Importing history from source '%s'. This history will be visible when the import is complete." % archive_source
+            job_dict["message"] = (
+                "Importing history from source '%s'. This history will be visible when the import is complete."
+                % archive_source
+            )
             return trans.security.encode_all_ids(job_dict)
 
         new_history = None
@@ -377,8 +374,9 @@ class HistoriesController(BaseAPIController, ExportsHistoryMixin, ImportsHistory
         if self.user_manager.is_anonymous(trans.user):
             self.manager.set_current(trans, new_history)
 
-        return self.serializer.serialize_to_view(new_history,
-            user=trans.user, trans=trans, **self._parse_serialization_params(kwd, 'detailed'))
+        return self.serializer.serialize_to_view(
+            new_history, user=trans.user, trans=trans, **self._parse_serialization_params(kwd, "detailed")
+        )
 
     @expose_api
     def delete(self, trans, id, **kwd):
@@ -405,10 +403,10 @@ class HistoriesController(BaseAPIController, ExportsHistoryMixin, ImportsHistory
         """
         history_id = id
         # a request body is optional here
-        purge = string_as_bool(kwd.get('purge', False))
+        purge = string_as_bool(kwd.get("purge", False))
         # for backwards compat, keep the payload sub-dictionary
-        if kwd.get('payload', None):
-            purge = string_as_bool(kwd['payload'].get('purge', purge))
+        if kwd.get("payload", None):
+            purge = string_as_bool(kwd["payload"].get("purge", purge))
 
         history = self.manager.get_owned(self.decode_id(history_id), trans.user, current_history=trans.history)
         if purge:
@@ -416,8 +414,9 @@ class HistoriesController(BaseAPIController, ExportsHistoryMixin, ImportsHistory
         else:
             self.manager.delete(history)
 
-        return self.serializer.serialize_to_view(history,
-            user=trans.user, trans=trans, **self._parse_serialization_params(kwd, 'detailed'))
+        return self.serializer.serialize_to_view(
+            history, user=trans.user, trans=trans, **self._parse_serialization_params(kwd, "detailed")
+        )
 
     @expose_api
     def undelete(self, trans, id, **kwd):
@@ -440,8 +439,9 @@ class HistoriesController(BaseAPIController, ExportsHistoryMixin, ImportsHistory
         history = self.manager.get_owned(self.decode_id(history_id), trans.user, current_history=trans.history)
         self.manager.undelete(history)
 
-        return self.serializer.serialize_to_view(history,
-            user=trans.user, trans=trans, **self._parse_serialization_params(kwd, 'detailed'))
+        return self.serializer.serialize_to_view(
+            history, user=trans.user, trans=trans, **self._parse_serialization_params(kwd, "detailed")
+        )
 
     @expose_api
     def update(self, trans, id, payload, **kwd):
@@ -469,8 +469,9 @@ class HistoriesController(BaseAPIController, ExportsHistoryMixin, ImportsHistory
         history = self.manager.get_owned(self.decode_id(id), trans.user, current_history=trans.history)
 
         self.deserializer.deserialize(history, payload, user=trans.user, trans=trans)
-        return self.serializer.serialize_to_view(history,
-            user=trans.user, trans=trans, **self._parse_serialization_params(kwd, 'detailed'))
+        return self.serializer.serialize_to_view(
+            history, user=trans.user, trans=trans, **self._parse_serialization_params(kwd, "detailed")
+        )
 
     @expose_api
     def index_exports(self, trans, id):
@@ -501,8 +502,8 @@ class HistoriesController(BaseAPIController, ExportsHistoryMixin, ImportsHistory
         # in one object being created.
         history = self.manager.get_accessible(self.decode_id(id), trans.user, current_history=trans.history)
         jeha = history.latest_export
-        force = 'force' in kwds  # Hack to force rebuild everytime during dev
-        exporting_to_uri = 'directory_uri' in kwds
+        force = "force" in kwds  # Hack to force rebuild everytime during dev
+        exporting_to_uri = "directory_uri" in kwds
         # always just issue a new export when exporting to a URI.
         up_to_date = not force and not exporting_to_uri and (jeha and jeha.up_to_date)
         job = None
@@ -573,10 +574,14 @@ class HistoriesController(BaseAPIController, ExportsHistoryMixin, ImportsHistory
         installed_builds = []
         for build in glob.glob(os.path.join(trans.app.config.len_file_path, "*.len")):
             installed_builds.append(os.path.basename(build).split(".len")[0])
-        fasta_hdas = trans.sa_session.query(model.HistoryDatasetAssociation) \
-            .filter_by(history=history, extension="fasta", deleted=False) \
+        fasta_hdas = (
+            trans.sa_session.query(model.HistoryDatasetAssociation)
+            .filter_by(history=history, extension="fasta", deleted=False)
             .order_by(model.HistoryDatasetAssociation.hid.desc())
+        )
         return {
-            'installed_builds': [{'label': ins, 'value': ins} for ins in installed_builds],
-            'fasta_hdas': [{'label': f'{hda.hid}: {hda.name}', 'value': trans.security.encode_id(hda.id)} for hda in fasta_hdas],
+            "installed_builds": [{"label": ins, "value": ins} for ins in installed_builds],
+            "fasta_hdas": [
+                {"label": f"{hda.hid}: {hda.name}", "value": trans.security.encode_id(hda.id)} for hda in fasta_hdas
+            ],
         }

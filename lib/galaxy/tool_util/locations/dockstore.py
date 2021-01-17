@@ -14,7 +14,7 @@ class DockStoreResolver(ToolLocationResolver):
 
     def get_tool_source_path(self, uri_like):
         assert uri_like.startswith("dockstore://")
-        tool_id = uri_like[len("dockstore://"):]
+        tool_id = uri_like[len("dockstore://") :]
         if ":" in tool_id:
             tool_id, version = tool_id.split(":", 1)
         else:
@@ -27,7 +27,6 @@ class DockStoreResolver(ToolLocationResolver):
 
 
 class _Ga4ghToolClient:
-
     def __init__(self, base_url="https://www.dockstore.org:8443/api"):
         self.base_url = base_url
 
@@ -35,20 +34,24 @@ class _Ga4ghToolClient:
         return self._requests.get("%s/ga4gh/v1/tools" % self.base_url)
 
     def get_tool(self, tool_id):
-        url = "{}/ga4gh/v1/tools/{}".format(self.base_url, quote(tool_id, safe=''))
+        url = "{}/ga4gh/v1/tools/{}".format(self.base_url, quote(tool_id, safe=""))
         return self._requests.get(url)
 
     def get_tool_version(self, tool_id, version="latest"):
-        url = "{}/ga4gh/v1/tools/{}/versions/{}".format(self.base_url, quote(tool_id, safe=''), version)
+        url = "{}/ga4gh/v1/tools/{}/versions/{}".format(self.base_url, quote(tool_id, safe=""), version)
         return self._requests.get(url)
 
     def get_tool_descriptor(self, tool_id, version="latest", tool_type="CWL"):
-        url = "{}/ga4gh/v1/tools/{}/versions/{}/{}/descriptor".format(self.base_url, quote(tool_id, safe=''), version, tool_type)
+        url = "{}/ga4gh/v1/tools/{}/versions/{}/{}/descriptor".format(
+            self.base_url, quote(tool_id, safe=""), version, tool_type
+        )
         return self._requests.get(url)
 
     def get_tool_cwl(self, tool_id, version="latest", as_string=False):
         tool_type = "CWL"
-        url = "{}/ga4gh/v1/tools/{}/versions/{}/{}/descriptor".format(self.base_url, quote(tool_id, safe=''), version, tool_type)
+        url = "{}/ga4gh/v1/tools/{}/versions/{}/{}/descriptor".format(
+            self.base_url, quote(tool_id, safe=""), version, tool_type
+        )
         descriptor_response = self._requests.get(url)
         descriptor_str = descriptor_response.json()["descriptor"]
         if as_string:

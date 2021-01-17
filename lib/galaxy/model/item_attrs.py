@@ -10,12 +10,12 @@ log = logging.getLogger(__name__)
 
 class UsesItemRatings:
     """
-        Mixin for getting and setting item ratings.
+    Mixin for getting and setting item ratings.
 
-        Class makes two assumptions:
-        (1) item-rating association table is named <item_class>RatingAssocation
-        (2) item-rating association table has a column with a foreign key referencing
-        item table that contains the item's id.
+    Class makes two assumptions:
+    (1) item-rating association table is named <item_class>RatingAssocation
+    (2) item-rating association table has a column with a foreign key referencing
+    item table that contains the item's id.
     """
 
     def get_ave_item_rating_data(self, db_session, item, webapp_model=None):
@@ -71,7 +71,7 @@ class UsesItemRatings:
         """ Returns an item's item-rating association class. """
         if webapp_model is None:
             webapp_model = galaxy.model
-        item_rating_assoc_class = '%sRatingAssociation' % item.__class__.__name__
+        item_rating_assoc_class = "%sRatingAssociation" % item.__class__.__name__
         return getattr(webapp_model, item_rating_assoc_class, None)
 
     def _get_item_id_filter_str(self, item, item_rating_assoc_class):
@@ -138,7 +138,7 @@ def get_item_annotation_obj(db_session, user, item):
 
 def get_item_annotation_str(db_session, user, item):
     """ Returns a user's annotation string for an item. """
-    if hasattr(item, 'annotations'):
+    if hasattr(item, "annotations"):
         # If we already have an annotations object we use it.
         annotation_obj = None
         for annotation in item.annotations:
@@ -170,7 +170,7 @@ def add_item_annotation(db_session, user, item, annotation):
 
 def _get_annotation_assoc_class(item):
     """ Returns an item's item-annotation association class. """
-    class_name = '%sAnnotationAssociation' % item.__class__.__name__
+    class_name = "%sAnnotationAssociation" % item.__class__.__name__
     return getattr(galaxy.model, class_name, None)
 
 
@@ -187,7 +187,7 @@ def get_foreign_key(source_class, target_class):
 
 
 __all__ = (
-    'get_foreign_key',
-    'UsesAnnotations',
-    'UsesItemRatings',
+    "get_foreign_key",
+    "UsesAnnotations",
+    "UsesItemRatings",
 )

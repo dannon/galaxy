@@ -1,11 +1,7 @@
 #!/usr/bin/env python
 
 from os import pardir
-from os.path import (
-    abspath,
-    dirname,
-    join
-)
+from os.path import abspath, dirname, join
 from sys import exit
 
 msg = """
@@ -30,7 +26,6 @@ cd {dir} && ./scripts/common_startup.sh --skip-venv
 """
 
 galaxy = abspath(join(dirname(__file__), pardir))
-venv = join(galaxy, '.venv')
-print(msg.format(dir=abspath(join(dirname(__file__), pardir)),
-                 venv=venv))
+venv = join(galaxy, ".venv")
+print(msg.format(dir=abspath(join(dirname(__file__), pardir)), venv=venv))
 exit(1)

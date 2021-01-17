@@ -37,7 +37,7 @@ def parse_search_kwds(search_query):
         "descriptorType": "GALAXY",
     }
     if description_term and description_term.strip():
-        query_kwd["description"] = description_term,
+        query_kwd["description"] = (description_term,)
 
     if keyed_terms is not None:
         for (key, value) in keyed_terms:
@@ -46,7 +46,6 @@ def parse_search_kwds(search_query):
 
 
 class TrsProxy:
-
     def __init__(self, config=None):
         config_file = getattr(config, "trs_servers_config_file", None)
         if config_file and os.path.exists(config_file):
@@ -83,12 +82,18 @@ class TrsProxy:
         return self._get(trs_api_url)
 
     def get_version_descriptor(self, trs_server, tool_id, version_id, **kwd):
-        trs_api_url = self._get_tool_api_endpoint(trs_server, tool_id, **kwd) + "/versions/" + version_id + "/%s/descriptor" % GA4GH_GALAXY_DESCRIPTOR
+        trs_api_url = (
+            self._get_tool_api_endpoint(trs_server, tool_id, **kwd)
+            + "/versions/"
+            + version_id
+            + "/%s/descriptor" % GA4GH_GALAXY_DESCRIPTOR
+        )
         return self._get(trs_api_url)["content"]
 
     def _quote(self, tool_id, **kwd):
         if asbool(kwd.get("tool_id_b64_encoded", False)):
             import base64
+
             tool_id = base64.b64decode(tool_id)
         tool_id = urllib.parse.quote_plus(tool_id)
         return tool_id

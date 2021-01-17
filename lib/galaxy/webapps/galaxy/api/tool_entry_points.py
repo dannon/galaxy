@@ -12,7 +12,6 @@ log = logging.getLogger(__name__)
 
 
 class ToolEntryPointsAPIController(BaseAPIController):
-
     def __init__(self, app):
         self.app = app
         self.interactivetool_manager = InteractiveToolManager(app)
@@ -39,7 +38,9 @@ class ToolEntryPointsAPIController(BaseAPIController):
             raise exceptions.RequestParameterInvalidException("Currently this API must passed a job id or running=true")
 
         if job_id is not None and running:
-            raise exceptions.RequestParameterInvalidException("Currently this API must passed only a job id or running=true")
+            raise exceptions.RequestParameterInvalidException(
+                "Currently this API must passed only a job id or running=true"
+            )
 
         if job_id is not None:
             job = trans.sa_session.query(trans.app.model.Job).get(self.decode_id(job_id))

@@ -1,8 +1,4 @@
-from .framework import (
-    managed_history,
-    selenium_test,
-    SeleniumTestCase
-)
+from .framework import managed_history, selenium_test, SeleniumTestCase
 
 
 class HistoryStructureTestCase(SeleniumTestCase):

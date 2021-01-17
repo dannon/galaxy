@@ -21,10 +21,7 @@ class WebhooksController(BaseAPIController):
 
         Return all webhooks.
         """
-        return [
-            webhook.to_dict()
-            for webhook in self.app.webhooks_registry.webhooks
-        ]
+        return [webhook.to_dict() for webhook in self.app.webhooks_registry.webhooks]
 
     @expose_api_anonymous_and_sessionless
     def webhook_data(self, trans, webhook_id, **kwd):
@@ -38,12 +35,14 @@ class WebhooksController(BaseAPIController):
         for key, value in kwd.items():
             params[key] = value
 
-        webhook = next(
-            webhook
-            for webhook in self.app.webhooks_registry.webhooks
-            if webhook.id == webhook_id
-        )
+        webhook = next(webhook for webhook in self.app.webhooks_registry.webhooks if webhook.id == webhook_id)
 
-        return imp.load_source(webhook.path, webhook.helper).main(
-            trans, webhook, params,
-        ) if webhook and webhook.helper != '' else {}
+        return (
+            imp.load_source(webhook.path, webhook.helper).main(
+                trans,
+                webhook,
+                params,
+            )
+            if webhook and webhook.helper != ""
+            else {}
+        )

@@ -23,11 +23,11 @@ def upgrade(migrate_engine):
     # person_metadata_column = Column('person_metadata', JSONType, default=None)
     # add_column(person_metadata_column, 'galaxy_user', metadata)
 
-    creator_metadata_column = Column('creator_metadata', JSONType, default=None)
-    add_column(creator_metadata_column, 'workflow', metadata)
+    creator_metadata_column = Column("creator_metadata", JSONType, default=None)
+    add_column(creator_metadata_column, "workflow", metadata)
 
-    license_column = Column('license', TEXT, default=None)
-    add_column(license_column, 'workflow', metadata)
+    license_column = Column("license", TEXT, default=None)
+    add_column(license_column, "workflow", metadata)
 
 
 def downgrade(migrate_engine):
@@ -35,5 +35,5 @@ def downgrade(migrate_engine):
     metadata.reflect()
 
     # drop_column('person_metadata', 'galaxy_user', metadata)
-    drop_column('creator_metadata', 'workflow', metadata)
-    drop_column('license', 'workflow', metadata)
+    drop_column("creator_metadata", "workflow", metadata)
+    drop_column("license", "workflow", metadata)

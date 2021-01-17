@@ -17,13 +17,15 @@ from .metadata import MetadataElement
 @build_sniff_from_prefix
 class Phylip(Text):
     """Phylip format stores a multiple sequence alignment"""
+
     edam_data = "data_0863"
     edam_format = "format_1997"
     file_ext = "phylip"
 
     """Add metadata elements"""
-    MetadataElement(name="sequences", default=0, desc="Number of sequences", readonly=True,
-                    visible=False, optional=True, no_value=0)
+    MetadataElement(
+        name="sequences", default=0, desc="Number of sequences", readonly=True, visible=False, optional=True, no_value=0
+    )
 
     def set_meta(self, dataset, **kwd):
         """
@@ -43,8 +45,8 @@ class Phylip(Text):
             else:
                 dataset.blurb = nice_size(dataset.get_size())
         else:
-            dataset.peek = 'file does not exist'
-            dataset.blurb = 'file purged from disk'
+            dataset.peek = "file does not exist"
+            dataset.blurb = "file purged from disk"
 
     def sniff_prefix(self, file_prefix):
         """

@@ -45,12 +45,12 @@ class RoleListModel(BaseModel):
 
 
 def role_to_model(trans, role):
-    item = role.to_dict(view='element', value_mapper={'id': trans.security.encode_id})
+    item = role.to_dict(view="element", value_mapper={"id": trans.security.encode_id})
     role_id = trans.security.encode_id(role.id)
     try:
-        item['url'] = url_for('role', id=role_id)
+        item["url"] = url_for("role", id=role_id)
     except AttributeError:
-        item['url'] = "*deprecated attribute not filled in by FastAPI server*"
+        item["url"] = "*deprecated attribute not filled in by FastAPI server*"
     return RoleModel(**item)
 
 
@@ -62,25 +62,29 @@ def get_role_manager(app: UniverseApplication = Depends(get_app)) -> RoleManager
 class FastAPIRoles:
     role_manager: RoleManager = Depends(get_role_manager)
 
-    @router.get('/api/roles')
+    @router.get("/api/roles")
     def index(self, trans: ProvidesUserContext = Depends(get_trans)) -> RoleListModel:
         roles = self.role_manager.list_displayable_roles(trans)
         return RoleListModel(__root__=[role_to_model(trans, r) for r in roles])
 
-    @router.get('/api/roles/{id}')
+    @router.get("/api/roles/{id}")
     def show(self, id: EncodedDatabaseIdField, trans: ProvidesUserContext = Depends(get_trans)) -> RoleModel:
         role_id = trans.app.security.decode_id(id)
         role = self.role_manager.get(trans, role_id)
         return role_to_model(trans, role)
 
     @router.post("/api/roles")
-    def create(self, trans: ProvidesUserContext = Depends(get_trans), admin_user=Depends(get_admin_user), role_definition_model: RoleDefinitionModel = Body(...)) -> RoleModel:
+    def create(
+        self,
+        trans: ProvidesUserContext = Depends(get_trans),
+        admin_user=Depends(get_admin_user),
+        role_definition_model: RoleDefinitionModel = Body(...),
+    ) -> RoleModel:
         role = self.role_manager.create_role(trans, role_definition_model)
         return role_to_model(trans, role)
 
 
 class RoleAPIController(BaseAPIController):
-
     @web.expose_api
     def index(self, trans: ProvidesUserContext, **kwd):
         """

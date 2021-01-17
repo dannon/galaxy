@@ -18,7 +18,6 @@ log = logging.getLogger(__name__)
 
 
 class RemoteFilesAPIController(BaseAPIController):
-
     @expose_api
     def index(self, trans, **kwd):
         """
@@ -37,7 +36,7 @@ class RemoteFilesAPIController(BaseAPIController):
         :rtype:     list
         """
         # If set, target must be one of 'ftpdir' (default), 'userdir', 'importdir'
-        target = kwd.get('target', 'ftpdir')
+        target = kwd.get("target", "ftpdir")
 
         user_context = ProvidesUserFileSourcesUserContext(trans)
         default_recursive = False
@@ -45,23 +44,23 @@ class RemoteFilesAPIController(BaseAPIController):
 
         if "://" in target:
             uri = target
-        elif target == 'userdir':
+        elif target == "userdir":
             uri = "gxuserimport://"
             default_format = "flat"
             default_recursive = True
-        elif target == 'importdir':
-            uri = 'gximport://'
+        elif target == "importdir":
+            uri = "gximport://"
             default_format = "flat"
             default_recursive = True
-        elif target in ['ftpdir', 'ftp']:  # legacy, allow both
-            uri = 'gxftp://'
+        elif target in ["ftpdir", "ftp"]:  # legacy, allow both
+            uri = "gxftp://"
             default_format = "flat"
             default_recursive = True
         else:
             raise exceptions.RequestParameterInvalidException("Invalid target parameter supplied [%s]" % target)
 
-        format = kwd.get('format', default_format)
-        recursive = kwd.get('recursive', default_recursive)
+        format = kwd.get("format", default_format)
+        recursive = kwd.get("recursive", default_recursive)
 
         file_sources = self.app.file_sources
         file_sources.validate_uri_root(uri, user_context=user_context)
@@ -74,20 +73,26 @@ class RemoteFilesAPIController(BaseAPIController):
             index = [i for i in index if i["class"] == "File"]
             index = sorted(index, key=itemgetter("path"))
         if format == "jstree":
-            disable = kwd.get('disable', 'folders')
+            disable = kwd.get("disable", "folders")
 
             jstree_paths = []
             for ent in index:
                 path = ent["path"]
                 path_hash = hashlib.sha1(smart_str(path)).hexdigest()
                 if ent["class"] == "Directory":
-                    path_type = 'folder'
-                    disabled = True if disable == 'folders' else False
+                    path_type = "folder"
+                    disabled = True if disable == "folders" else False
                 else:
-                    path_type = 'file'
-                    disabled = True if disable == 'files' else False
+                    path_type = "file"
+                    disabled = True if disable == "files" else False
 
-                jstree_paths.append(jstree.Path(path, path_hash, {'type': path_type, 'state': {'disabled': disabled}, 'li_attr': {'full_path': path}}))
+                jstree_paths.append(
+                    jstree.Path(
+                        path,
+                        path_hash,
+                        {"type": path_type, "state": {"disabled": disabled}, "li_attr": {"full_path": path}},
+                    )
+                )
             userdir_jstree = jstree.JSTree(jstree_paths)
             index = userdir_jstree.jsonData()
 

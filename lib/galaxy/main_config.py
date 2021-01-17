@@ -16,7 +16,7 @@ def absolute_config_path(path, galaxy_root):
 
 
 def config_is_ini(config_file):
-    return config_file and (config_file.endswith('.ini') or config_file.endswith('.ini.sample'))
+    return config_file and (config_file.endswith(".ini") or config_file.endswith(".ini.sample"))
 
 
 def find_config(supplied_config, galaxy_root):
@@ -24,7 +24,7 @@ def find_config(supplied_config, galaxy_root):
         return supplied_config
 
     if galaxy_root is None:
-        return os.path.abspath('galaxy.yml')
+        return os.path.abspath("galaxy.yml")
 
     # If not explicitly supplied an config, check galaxy.ini and then
     # just resort to sample if that has not been configured.

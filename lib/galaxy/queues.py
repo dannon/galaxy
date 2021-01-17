@@ -5,14 +5,10 @@ All message queues used by Galaxy
 """
 import socket
 
-from kombu import (
-    Connection,
-    Exchange,
-    Queue
-)
+from kombu import Connection, Exchange, Queue
 
 ALL_CONTROL = "control.*"
-galaxy_exchange = Exchange('galaxy_core_exchange', type='topic')
+galaxy_exchange = Exchange("galaxy_core_exchange", type="topic")
 
 
 def all_control_queues_for_declare(application_stack):
@@ -21,8 +17,13 @@ def all_control_queues_for_declare(application_stack):
     build the entire routing table in producers.
     """
     # Get all active processes and construct queues for each process
-    process_names = ("{p.server_name}@{p.hostname}".format(p=p) for p in application_stack.app.database_heartbeat.get_active_processes())
-    return [Queue("control.%s" % server_name, galaxy_exchange, routing_key='control.*') for server_name in process_names]
+    process_names = (
+        "{p.server_name}@{p.hostname}".format(p=p)
+        for p in application_stack.app.database_heartbeat.get_active_processes()
+    )
+    return [
+        Queue("control.%s" % server_name, galaxy_exchange, routing_key="control.*") for server_name in process_names
+    ]
 
 
 def control_queues_from_config(config):
@@ -32,8 +33,8 @@ def control_queues_from_config(config):
     """
     hostname = socket.gethostname()
     process_name = f"{config.server_name}@{hostname}"
-    exchange_queue = Queue("control.%s" % process_name, galaxy_exchange, routing_key='control.*')
-    non_exchange_queue = Queue("control.%s" % process_name, routing_key='control.%s' % process_name)
+    exchange_queue = Queue("control.%s" % process_name, galaxy_exchange, routing_key="control.*")
+    non_exchange_queue = Queue("control.%s" % process_name, routing_key="control.%s" % process_name)
     return exchange_queue, non_exchange_queue
 
 

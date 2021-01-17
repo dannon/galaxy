@@ -6,7 +6,7 @@ from galaxy.util.getargspec import getfullargspec
 
 log = logging.getLogger(__name__)
 
-assertion_module_names = ['text', 'tabular', 'xml', 'hdf5', 'archive', 'size']
+assertion_module_names = ["text", "tabular", "xml", "hdf5", "archive", "size"]
 
 # Code for loading modules containing assertion checking functions, to
 # create a new module of assertion functions, create the needed python
@@ -14,19 +14,19 @@ assertion_module_names = ['text', 'tabular', 'xml', 'hdf5', 'archive', 'size']
 # <MODULE_NAME> to the list of assertion module names defined above.
 assertion_modules = []
 for assertion_module_name in assertion_module_names:
-    full_assertion_module_name = 'galaxy.tool_util.verify.asserts.' + assertion_module_name
+    full_assertion_module_name = "galaxy.tool_util.verify.asserts." + assertion_module_name
     try:
         # Dynamically import module
         __import__(full_assertion_module_name)
         assertion_module = sys.modules[full_assertion_module_name]
         assertion_modules.append(assertion_module)
     except Exception:
-        log.exception('Failed to load assertion module: %s', assertion_module_name)
+        log.exception("Failed to load assertion module: %s", assertion_module_name)
 
 
 def verify_assertions(data, assertion_description_list):
-    """ This function takes a list of assertions and a string to check
-    these assertions against. """
+    """This function takes a list of assertions and a string to check
+    these assertions against."""
     for assertion_description in assertion_description_list:
         verify_assertion(data, assertion_description)
 

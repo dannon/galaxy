@@ -30,9 +30,9 @@ def upgrade(migrate_engine):
         c.create(RepositoryMetadata_table)
         assert c is RepositoryMetadata_table.c.downloadable
         # Initialize.
-        if migrate_engine.name == 'mysql' or migrate_engine.name == 'sqlite':
+        if migrate_engine.name == "mysql" or migrate_engine.name == "sqlite":
             default_true = "1"
-        elif migrate_engine.name in ['postgresql', 'postgres']:
+        elif migrate_engine.name in ["postgresql", "postgres"]:
             default_true = "true"
         migrate_engine.execute("UPDATE repository_metadata SET downloadable=%s" % default_true)
     except Exception:

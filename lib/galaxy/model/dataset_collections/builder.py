@@ -50,12 +50,13 @@ class CollectionBuilder:
                     collection_type_description=self._collection_type_description.child_collection_type_description()
                 )
                 collection_builder.replace_elements_in_collection(
-                    template_collection=element.child_collection,
-                    replacement_dict=replacement_dict
+                    template_collection=element.child_collection, replacement_dict=replacement_dict
                 )
                 elements[element.element_identifier] = collection_builder
             else:
-                elements[element.element_identifier] = replacement_dict.get(element.element_object, element.element_object)
+                elements[element.element_identifier] = replacement_dict.get(
+                    element.element_object, element.element_object
+                )
         return elements
 
     def get_level(self, identifier):
@@ -64,9 +65,7 @@ class CollectionBuilder:
             message = message_template % (self._collection_type_description)
             raise AssertionError(message)
         if identifier not in self._current_elements:
-            subcollection_builder = CollectionBuilder(
-                self._subcollection_type_description
-            )
+            subcollection_builder = CollectionBuilder(self._subcollection_type_description)
             self._current_elements[identifier] = subcollection_builder
 
         return self._current_elements[identifier]

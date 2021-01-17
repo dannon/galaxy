@@ -31,5 +31,5 @@ def downgrade(migrate_engine):
     metadata.reflect()
 
     Sample_table = Table("sample", metadata, autoload=True)
-    drop_column('workflow', Sample_table)
-    drop_column('history_id', Sample_table)
+    drop_column("workflow", Sample_table)
+    drop_column("history_id", Sample_table)

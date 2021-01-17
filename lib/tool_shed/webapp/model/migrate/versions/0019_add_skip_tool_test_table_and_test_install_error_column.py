@@ -24,13 +24,16 @@ now = datetime.datetime.utcnow
 
 metadata = MetaData()
 
-SkipToolTest_table = Table("skip_tool_test", metadata,
-                           Column("id", Integer, primary_key=True),
-                           Column("create_time", DateTime, default=now),
-                           Column("update_time", DateTime, default=now, onupdate=now),
-                           Column("repository_metadata_id", Integer, ForeignKey("repository_metadata.id"), index=True),
-                           Column("initial_changeset_revision", TrimmedString(255), index=True),
-                           Column("comment", TEXT))
+SkipToolTest_table = Table(
+    "skip_tool_test",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("create_time", DateTime, default=now),
+    Column("update_time", DateTime, default=now, onupdate=now),
+    Column("repository_metadata_id", Integer, ForeignKey("repository_metadata.id"), index=True),
+    Column("initial_changeset_revision", TrimmedString(255), index=True),
+    Column("comment", TEXT),
+)
 
 
 def upgrade(migrate_engine):
@@ -38,9 +41,9 @@ def upgrade(migrate_engine):
     metadata.bind = migrate_engine
     metadata.reflect()
     # Initialize.
-    if migrate_engine.name == 'mysql' or migrate_engine.name == 'sqlite':
+    if migrate_engine.name == "mysql" or migrate_engine.name == "sqlite":
         default_false = "0"
-    elif migrate_engine.name in ['postgresql', 'postgres']:
+    elif migrate_engine.name in ["postgresql", "postgres"]:
         default_false = "false"
 
     try:

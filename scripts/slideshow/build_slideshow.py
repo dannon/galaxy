@@ -13,13 +13,15 @@ def main(argv=None):
         argv = sys.argv
     title = argv[1]
     markdown_source = argv[2]
-    output = os.path.splitext(markdown_source)[0] + '.html'
+    output = os.path.splitext(markdown_source)[0] + ".html"
     with open(markdown_source) as s:
         content = s.read()
-    html = TEMPLATE.safe_substitute(**{
-        'title': title,
-        'content': content,
-    })
+    html = TEMPLATE.safe_substitute(
+        **{
+            "title": title,
+            "content": content,
+        }
+    )
     print(html)
     open(output, "w").write(html)
 

@@ -11,7 +11,6 @@ from galaxy.util.bunch import Bunch
 
 
 class Target(metaclass=ABCMeta):
-
     @abstractproperty
     def description(self):
         """Return a plain-text description of the browser target for logging/messages."""
@@ -22,7 +21,6 @@ class Target(metaclass=ABCMeta):
 
 
 class SelectorTemplate(Target):
-
     def __init__(self, selector, selector_type, children=None, kwds=None, with_classes=None):
         self._selector = selector
         self.selector_type = selector_type
@@ -40,7 +38,13 @@ class SelectorTemplate(Target):
 
     def with_class(self, class_):
         assert self.selector_type == "css"
-        return SelectorTemplate(self._selector, self.selector_type, kwds=self.__kwds, with_classes=self.with_classes + [class_], children=self._children)
+        return SelectorTemplate(
+            self._selector,
+            self.selector_type,
+            kwds=self.__kwds,
+            with_classes=self.with_classes + [class_],
+            children=self._children,
+        )
 
     def descendant(self, has_selector):
         assert self.selector_type == "css"
@@ -49,12 +53,16 @@ class SelectorTemplate(Target):
         else:
             selector = has_selector
 
-        return SelectorTemplate(self.selector + " " + selector, self.selector_type, kwds=self.__kwds, children=self._children)
+        return SelectorTemplate(
+            self.selector + " " + selector, self.selector_type, kwds=self.__kwds, children=self._children
+        )
 
     def __call__(self, **kwds):
         new_kwds = self.__kwds.copy()
         new_kwds.update(**kwds)
-        return SelectorTemplate(self._selector, self.selector_type, kwds=new_kwds, with_classes=self.with_classes, children=self._children)
+        return SelectorTemplate(
+            self._selector, self.selector_type, kwds=new_kwds, with_classes=self.with_classes, children=self._children
+        )
 
     @property
     def description(self):
@@ -102,7 +110,6 @@ class SelectorTemplate(Target):
 
 
 class Label(Target):
-
     def __init__(self, text):
         self.text = text
 
@@ -116,7 +123,6 @@ class Label(Target):
 
 
 class Text(Target):
-
     def __init__(self, text):
         self.text = text
 
@@ -130,7 +136,6 @@ class Text(Target):
 
 
 class Component:
-
     def __init__(self, name, sub_components, selectors, labels, text):
         self._name = name
         self._sub_components = sub_components

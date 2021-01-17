@@ -9,10 +9,7 @@ from abc import (
 )
 
 
-from galaxy.util.filelock import (
-    FileLock,
-    FileLockException
-)
+from galaxy.util.filelock import FileLock, FileLockException
 
 log = logging.getLogger(__name__)
 

@@ -33,16 +33,15 @@ class ToolConfSource(metaclass=ABCMeta):
 
 
 class XmlToolConfSource(ToolConfSource):
-
     def __init__(self, config_filename):
         tree = parse_xml(config_filename)
         self.root = tree.getroot()
 
     def parse_tool_path(self):
-        return self.root.get('tool_path')
+        return self.root.get("tool_path")
 
     def parse_tool_cache_data_dir(self):
-        return self.root.get('tool_cache_data_dir')
+        return self.root.get("tool_cache_data_dir")
 
     def parse_items(self):
         return [ensure_tool_conf_item(_) for _ in self.root]
@@ -53,27 +52,26 @@ class XmlToolConfSource(ToolConfSource):
         return has_tool_path and is_shed_conf
 
     def parse_monitor(self):
-        return string_as_bool(self.root.get('monitor', DEFAULT_MONITOR))
+        return string_as_bool(self.root.get("monitor", DEFAULT_MONITOR))
 
 
 class YamlToolConfSource(ToolConfSource):
-
     def __init__(self, config_filename):
         with open(config_filename) as f:
             as_dict = yaml.safe_load(f)
         self.as_dict = as_dict
 
     def parse_tool_path(self):
-        return self.as_dict.get('tool_path')
+        return self.as_dict.get("tool_path")
 
     def parse_tool_cache_data_dir(self):
-        return self.as_dict.get('tool_cache_data_dir')
+        return self.as_dict.get("tool_cache_data_dir")
 
     def parse_items(self):
-        return [ToolConfItem.from_dict(_) for _ in self.as_dict.get('items')]
+        return [ToolConfItem.from_dict(_) for _ in self.as_dict.get("items")]
 
     def parse_monitor(self):
-        return self.as_dict.get('monitor', DEFAULT_MONITOR)
+        return self.as_dict.get("monitor", DEFAULT_MONITOR)
 
     def is_shed_tool_conf(self):
         return False
@@ -93,12 +91,12 @@ class ToolConfItem:
     @classmethod
     def from_dict(cls, _as_dict):
         as_dict = _as_dict.copy()
-        type = as_dict.get('type')
-        del as_dict['type']
+        type = as_dict.get("type")
+        del as_dict["type"]
         attributes = as_dict
-        if type == 'section':
-            items = [cls.from_dict(_) for _ in as_dict['items']]
-            del as_dict['items']
+        if type == "section":
+            items = [cls.from_dict(_) for _ in as_dict["items"]]
+            del as_dict["items"]
             item = ToolConfSection(attributes, items)
         else:
             item = ToolConfItem(type, attributes)
@@ -126,9 +124,8 @@ class ToolConfItem:
 
 
 class ToolConfSection(ToolConfItem):
-
     def __init__(self, attributes, items, elem=None):
-        super().__init__('section', attributes, elem)
+        super().__init__("section", attributes, elem)
         self.items = items
 
 

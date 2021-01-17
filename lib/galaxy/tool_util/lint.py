@@ -12,7 +12,9 @@ LEVEL_WARN = "warn"
 LEVEL_ERROR = "error"
 
 
-def lint_tool_source(tool_source, level=LEVEL_ALL, fail_level=LEVEL_WARN, extra_modules=None, skip_types=None, name=None):
+def lint_tool_source(
+    tool_source, level=LEVEL_ALL, fail_level=LEVEL_WARN, extra_modules=None, skip_types=None, name=None
+):
     extra_modules = extra_modules or []
     skip_types = skip_types or []
     lint_context = LintContext(level=level, skip_types=skip_types, object_name=name)
@@ -33,6 +35,7 @@ def lint_xml(tool_xml, level=LEVEL_ALL, fail_level=LEVEL_WARN, extra_modules=Non
 def lint_tool_source_with(lint_context, tool_source, extra_modules=None):
     extra_modules = extra_modules or []
     import galaxy.tool_util.linters
+
     tool_xml = getattr(tool_source, "xml_tree", None)
     linter_modules = submodules.import_submodules(galaxy.tool_util.linters, ordered=True)
     linter_modules.extend(extra_modules)
@@ -68,7 +71,6 @@ def lint_xml_with(lint_context, tool_xml, extra_modules=None):
 # it is reused for repositories in planemo. Therefore, it should probably
 # be moved to galaxy.util.lint.
 class LintContext:
-
     def __init__(self, level, skip_types=None, object_name=None):
         self.skip_types = skip_types or []
         self.level = level
@@ -77,7 +79,7 @@ class LintContext:
         self.found_warns = False
 
     def lint(self, name, lint_func, lint_target):
-        name = name.replace("tsts", "tests")[len("lint_"):]
+        name = name.replace("tsts", "tests")[len("lint_") :]
         if name in self.skip_types:
             return
         self.printed_linter_info = False
@@ -140,7 +142,7 @@ class LintContext:
         found_warns = self.found_warns
         found_errors = self.found_errors
         if fail_level == LEVEL_WARN:
-            lint_fail = (found_warns or found_errors)
+            lint_fail = found_warns or found_errors
         else:
             lint_fail = found_errors
         return lint_fail

@@ -5,15 +5,15 @@ from .framework import (
 )
 
 BUTTON_TOOLTIPS = {
-    "display": 'View data',
-    "edit": 'Edit attributes',
-    "delete": 'Delete',
-    "download": 'Download',
-    "info": 'View details',
-    "rerun": 'Run this job again',
+    "display": "View data",
+    "edit": "Edit attributes",
+    "delete": "Delete",
+    "download": "Download",
+    "info": "View details",
+    "rerun": "Run this job again",
 }
-EXPECTED_TOOLHELP_TITLE_TEXT = 'Tool help for Upload File'
-TEST_DBKEY_TEXT = 'Honeybee (Apis mellifera): apiMel3 (apiMel3)'
+EXPECTED_TOOLHELP_TITLE_TEXT = "Tool help for Upload File"
+TEST_DBKEY_TEXT = "Honeybee (Apis mellifera): apiMel3 (apiMel3)"
 
 
 class HistoryDatasetStateTestCase(SeleniumTestCase, UsesHistoryItemAssertions):
@@ -26,14 +26,15 @@ class HistoryDatasetStateTestCase(SeleniumTestCase, UsesHistoryItemAssertions):
 
         self.assert_item_summary_includes(hid, "1 sequence")
         self.assert_item_dbkey_displayed_as(hid, "?")
-        self.assert_item_info_includes(hid, 'uploaded fasta file')
+        self.assert_item_info_includes(hid, "uploaded fasta file")
         self.assert_item_peek_includes(hid, ">hg17")
 
         item.dbkey_button.wait_for_and_click()
         toolhelp_title_text = item.toolhelp_title.wait_for_visible().text
         # assert tool helptext
-        assert EXPECTED_TOOLHELP_TITLE_TEXT == toolhelp_title_text, "Toolhelp title [{}] was not expected text [{}].".format(
-            EXPECTED_TOOLHELP_TITLE_TEXT, toolhelp_title_text)
+        assert (
+            EXPECTED_TOOLHELP_TITLE_TEXT == toolhelp_title_text
+        ), "Toolhelp title [{}] was not expected text [{}].".format(EXPECTED_TOOLHELP_TITLE_TEXT, toolhelp_title_text)
 
         self.screenshot("history_panel_dataset_expanded")
 
@@ -47,7 +48,8 @@ class HistoryDatasetStateTestCase(SeleniumTestCase, UsesHistoryItemAssertions):
         self.components.edit_dataset_attributes.database_build_dropdown.wait_for_and_click()
         # choose database option from 'Database/Build' dropdown, that equals to dbkey_text
         self.components.edit_dataset_attributes.dbkey_dropdown_results.dbkey_dropdown_option(
-            dbkey_text=TEST_DBKEY_TEXT).wait_for_and_click()
+            dbkey_text=TEST_DBKEY_TEXT
+        ).wait_for_and_click()
         self.components.edit_dataset_attributes.save_btn.wait_for_and_click()
         self.history_panel_wait_for_hid_ok(hid)
         self.assert_item_dbkey_displayed_as(hid, "apiMel3")
@@ -65,7 +67,7 @@ class HistoryDatasetStateTestCase(SeleniumTestCase, UsesHistoryItemAssertions):
 
     def _assert_title_buttons(self, hid, expected_buttons=None):
         if expected_buttons is None:
-            expected_buttons = ['display', 'edit', 'delete']
+            expected_buttons = ["display", "edit", "delete"]
         self._assert_buttons(hid, expected_buttons)
 
     def _assert_action_buttons(self, hid, expected_buttons=None):

@@ -7,12 +7,12 @@ from sqlalchemy import Column, DateTime, MetaData, Table
 
 def upgrade(migrate_engine):
     meta = MetaData(bind=migrate_engine)
-    account = Table('galaxy_user', meta, autoload=True)
-    lpc = Column('last_password_change', DateTime())
+    account = Table("galaxy_user", meta, autoload=True)
+    lpc = Column("last_password_change", DateTime())
     lpc.create(account)
 
 
 def downgrade(migrate_engine):
     meta = MetaData(bind=migrate_engine)
-    account = Table('galaxy_user', meta, autoload=True)
+    account = Table("galaxy_user", meta, autoload=True)
     account.c.last_password_change.drop()

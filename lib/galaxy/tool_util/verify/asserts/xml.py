@@ -23,7 +23,7 @@ def xml_find(output, path):
 
 
 def assert_is_valid_xml(output):
-    """ Simple assertion that just verifies the specified output
+    """Simple assertion that just verifies the specified output
     is valid XML."""
     try:
         to_xml(output)
@@ -33,7 +33,7 @@ def assert_is_valid_xml(output):
 
 
 def assert_has_element_with_path(output, path):
-    """ Asserts the specified output has at least one XML element with a
+    """Asserts the specified output has at least one XML element with a
     path matching the specified path argument. Valid paths are the
     simplified subsets of XPath implemented by lxml.etree;
     http://effbot.org/zone/element-xpath.htm for more information."""
@@ -43,7 +43,7 @@ def assert_has_element_with_path(output, path):
 
 
 def assert_has_n_elements_with_path(output, path, n):
-    """ Asserts the specified output has exactly n elements matching the
+    """Asserts the specified output has exactly n elements matching the
     path specified."""
     xml = to_xml(output)
     n = int(n)
@@ -54,7 +54,7 @@ def assert_has_n_elements_with_path(output, path, n):
 
 
 def assert_element_text_matches(output, path, expression):
-    """ Asserts the text of the first element matching the specified
+    """Asserts the text of the first element matching the specified
     path matches the specified regular expression."""
     text = xml_find_text(output, path)
     if re.match(expression, text) is None:
@@ -63,13 +63,13 @@ def assert_element_text_matches(output, path, expression):
 
 
 def assert_element_text_is(output, path, text):
-    """ Asserts the text of the first element matching the specified
-    path matches exactly the specified text. """
+    """Asserts the text of the first element matching the specified
+    path matches exactly the specified text."""
     assert_element_text_matches(output, path, re.escape(text))
 
 
 def assert_attribute_matches(output, path, attribute, expression):
-    """ Asserts the specified attribute of the first element matching
+    """Asserts the specified attribute of the first element matching
     the specified path matches the specified regular expression."""
     xml = xml_find(output, path)
     attribute_value = xml.attrib[attribute]
@@ -79,13 +79,13 @@ def assert_attribute_matches(output, path, attribute, expression):
 
 
 def assert_attribute_is(output, path, attribute, text):
-    """ Asserts the specified attribute of the first element matching
+    """Asserts the specified attribute of the first element matching
     the specified path matches exactly the specified text."""
     assert_attribute_matches(output, path, attribute, re.escape(text))
 
 
 def assert_element_text(output, path, verify_assertions_function, children):
-    """ Recursively checks the specified assertions against the text of
+    """Recursively checks the specified assertions against the text of
     the first element matching the specified path."""
     text = xml_find_text(output, path)
     verify_assertions_function(text, children)

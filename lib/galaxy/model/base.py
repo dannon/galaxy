@@ -2,23 +2,16 @@
 Shared model and mapping code between Galaxy and Tool Shed, trying to
 generalize to generic database connections.
 """
-from inspect import (
-    getmembers,
-    isclass
-)
+from inspect import getmembers, isclass
 
 from sqlalchemy import event
-from sqlalchemy.orm import (
-    scoped_session,
-    sessionmaker
-)
+from sqlalchemy.orm import scoped_session, sessionmaker
 
 from galaxy.util.bunch import Bunch
 
 
 # TODO: Refactor this to be a proper class, not a bunch.
 class ModelMapping(Bunch):
-
     def __init__(self, model_modules, engine):
         self.engine = engine
         Session = sessionmaker(autoflush=False, autocommit=True)
@@ -51,12 +44,12 @@ class ModelMapping(Bunch):
 
 def versioned_objects(iter):
     for obj in iter:
-        if hasattr(obj, '__create_version__'):
+        if hasattr(obj, "__create_version__"):
             yield obj
 
 
 def versioned_session(session):
-    @event.listens_for(session, 'before_flush')
+    @event.listens_for(session, "before_flush")
     def before_flush(session, flush_context, instances):
         for obj in versioned_objects(session.dirty):
             obj.__create_version__(session)

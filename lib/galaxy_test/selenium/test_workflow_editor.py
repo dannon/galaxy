@@ -10,12 +10,7 @@ from galaxy_test.base.workflow_fixtures import (
     WORKFLOW_WITH_RULES_1,
     WORKFLOW_WITH_RULES_2,
 )
-from .framework import (
-    retry_assertion_during_transitions,
-    retry_during_transitions,
-    selenium_test,
-    SeleniumTestCase
-)
+from .framework import retry_assertion_during_transitions, retry_during_transitions, selenium_test, SeleniumTestCase
 
 
 class WorkflowEditorTestCase(SeleniumTestCase):
@@ -64,7 +59,7 @@ class WorkflowEditorTestCase(SeleniumTestCase):
 
         editor.canvas_body.wait_for_visible()
 
-        new_annotation = 'look new annotation'
+        new_annotation = "look new annotation"
         edit_annotation.wait_for_and_send_keys(new_annotation)
         self.assert_has_changes_and_save()
         self.sleep_for(self.wait_types.UX_RENDER)
@@ -161,7 +156,8 @@ class WorkflowEditorTestCase(SeleniumTestCase):
 
     @selenium_test
     def test_non_data_connections(self):
-        self.open_in_workflow_editor("""
+        self.open_in_workflow_editor(
+            """
 class: GalaxyWorkflow
 inputs:
   input_int: integer
@@ -171,7 +167,8 @@ steps:
     label: tool_exec
     in:
       inttest: input_int
-""")
+"""
+        )
         self.screenshot("workflow_editor_parameter_connection_simple")
         self.assert_connected("input_int#output", "tool_exec#inttest")
 
@@ -204,7 +201,9 @@ steps:
         tool_input.wait_for_visible()
         collapse_input.wait_for_absent_or_hidden()
 
-        self.workflow_editor_connect("input_int#output", "tool_exec#inttest", screenshot_partial="workflow_editor_parameter_connection_dragging")
+        self.workflow_editor_connect(
+            "input_int#output", "tool_exec#inttest", screenshot_partial="workflow_editor_parameter_connection_dragging"
+        )
         self.assert_connected("input_int#output", "tool_exec#inttest")
 
     @selenium_test
@@ -224,7 +223,9 @@ steps:
         self.assert_not_connected("input1#output", "first_cat#input1")
         self.screenshot("workflow_editor_connection_destroyed")
 
-        self.workflow_editor_connect("input1#output", "first_cat#input1", screenshot_partial="workflow_editor_connection_dragging")
+        self.workflow_editor_connect(
+            "input1#output", "first_cat#input1", screenshot_partial="workflow_editor_connection_dragging"
+        )
         self.assert_connected("input1#output", "first_cat#input1")
 
     @selenium_test
@@ -347,7 +348,8 @@ steps:
     @selenium_test
     def test_missing_tools(self):
         workflow_populator = self.workflow_populator
-        workflow_populator.upload_yaml_workflow("""
+        workflow_populator.upload_yaml_workflow(
+            """
 class: GalaxyWorkflow
 inputs:
   - id: input1
@@ -356,7 +358,8 @@ steps:
     label: first_cat
     state:
       foo: bar
-""")
+"""
+        )
         self.workflow_index_open()
         self.workflow_index_click_option("Edit")
         self.assert_modal_has_text("Tool is not installed")
@@ -382,7 +385,7 @@ steps:
         # parse workflow table
         table_elements = self.workflow_index_table_elements()
         self.sleep_for(self.wait_types.UX_RENDER)
-        bookmark_td = table_elements[0].find_elements_by_tag_name('td')[4]
+        bookmark_td = table_elements[0].find_elements_by_tag_name("td")[4]
 
         # get bookmark pseudo element
         # https://stackoverflow.com/questions/45427223/click-on-pseudo-element-using-selenium
@@ -531,7 +534,9 @@ steps:
         edit_annotation = self.components.workflow_editor.edit_annotation
         edit_annotation_element = edit_annotation.wait_for_visible()
         actual_annotation = edit_annotation_element.get_attribute("value")
-        assert expected_annotation in actual_annotation, f"'{expected_annotation}' unequal annotation '{actual_annotation}'"
+        assert (
+            expected_annotation in actual_annotation
+        ), f"'{expected_annotation}' unequal annotation '{actual_annotation}'"
 
     @retry_assertion_during_transitions
     def assert_modal_has_text(self, expected_text):

@@ -76,27 +76,19 @@ def report_diff(added, changed, removed, new_files):
         print()
 
     if added:
-        _report_dict(
-            "Added",
-            "The following configuration options are new",
-            added,
-            lambda x: f"-  {x}"
-        )
+        _report_dict("Added", "The following configuration options are new", added, lambda x: f"-  {x}")
 
     if changed:
         _report_dict(
             "Changed",
             "The following configuration options have been changed",
             changed,
-            lambda x: f"-  {x[0]} has changed from ``{x[1]}`` to ``{x[2]}``"
+            lambda x: f"-  {x[0]} has changed from ``{x[1]}`` to ``{x[2]}``",
         )
 
     if removed:
         _report_dict(
-            "Removed",
-            "The following configuration options have been completely removed",
-            removed,
-            lambda x: f"-  {x}"
+            "Removed", "The following configuration options have been completely removed", removed, lambda x: f"-  {x}"
         )
 
     if new_files:
@@ -111,9 +103,7 @@ def report_diff(added, changed, removed, new_files):
 
 def load_at_time(path, revision=None):
     if revision is not None:
-        return subprocess.check_output(
-            ["git", "show", f"{revision}:{path}"], stderr=subprocess.STDOUT
-        )
+        return subprocess.check_output(["git", "show", f"{revision}:{path}"], stderr=subprocess.STDOUT)
     else:
         with open(path) as handle:
             return handle.read()
@@ -129,12 +119,8 @@ def main(old_revision, new_revision=None):
     for file in files_to_diff:
         real_path = Path(file).resolve().relative_to(Path.cwd())
         try:
-            old_contents = yaml.load(
-                load_at_time(real_path, old_revision), Loader=MockOrderedLoader
-            )
-            new_contents = yaml.load(
-                load_at_time(real_path, new_revision), Loader=MockOrderedLoader
-            )
+            old_contents = yaml.load(load_at_time(real_path, old_revision), Loader=MockOrderedLoader)
+            new_contents = yaml.load(load_at_time(real_path, new_revision), Loader=MockOrderedLoader)
 
             (a, r, c) = diff_files(old_contents, new_contents)
             if a:
@@ -153,9 +139,7 @@ def main(old_revision, new_revision=None):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Diff yaml configuration files between two points in time."
-    )
+    parser = argparse.ArgumentParser(description="Diff yaml configuration files between two points in time.")
     parser.add_argument("old_revision", help="Old revision")
     parser.add_argument(
         "--new_revision",

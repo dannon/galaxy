@@ -5,10 +5,7 @@ import logging
 import re
 
 
-from galaxy import (
-    model,
-    util
-)
+from galaxy import model, util
 
 log = logging.getLogger(__name__)
 
@@ -17,6 +14,7 @@ class Validator:
     """
     A validator checks that a value meets some conditions OR raises ValueError
     """
+
     requires_dataset_metadata = False
 
     @classmethod
@@ -35,7 +33,7 @@ class Validator:
         param elem the validator element
         return an object of a Validator subclass that corresponds to the type attribute of the validator element
         """
-        type = elem.get('type', None)
+        type = elem.get("type", None)
         assert type is not None, "Required 'type' attribute missing from validator"
         return validator_types[type].from_element(param, elem)
 
@@ -74,7 +72,7 @@ class RegexValidator(Validator):
 
     @classmethod
     def from_element(cls, param, elem):
-        return cls(elem.get('message'), elem.text)
+        return cls(elem.get("message"), elem.text)
 
     def __init__(self, message, expression):
         self.message = message
@@ -86,7 +84,7 @@ class RegexValidator(Validator):
         if not isinstance(value, list):
             value = [value]
         for val in value:
-            if re.match(self.expression, val or '') is None:
+            if re.match(self.expression, val or "") is None:
                 raise ValueError(self.message)
 
 
@@ -111,13 +109,13 @@ class ExpressionValidator(Validator):
 
     @classmethod
     def from_element(cls, param, elem):
-        return cls(elem.get('message'), elem.text, elem.get('substitute_value_in_message'))
+        return cls(elem.get("message"), elem.text, elem.get("substitute_value_in_message"))
 
     def __init__(self, message, expression, substitute_value_in_message):
         self.message = message
         self.substitute_value_in_message = substitute_value_in_message
         # Save compiled expression, code objects are thread safe (right?)
-        self.expression = compile(expression, '<string>', 'eval')
+        self.expression = compile(expression, "<string>", "eval")
 
     def validate(self, value, trans=None):
         message = self.message
@@ -128,7 +126,7 @@ class ExpressionValidator(Validator):
         except Exception:
             log.debug("Validator {} could not be evaluated on {}".format(self.expression, str(value)), exc_info=True)
             raise ValueError(message)
-        if not(evalresult):
+        if not (evalresult):
             raise ValueError(message)
 
 
@@ -157,9 +155,13 @@ class InRangeValidator(Validator):
 
     @classmethod
     def from_element(cls, param, elem):
-        return cls(elem.get('message', None), elem.get('min'),
-                   elem.get('max'), elem.get('exclude_min', 'false'),
-                   elem.get('exclude_max', 'false'))
+        return cls(
+            elem.get("message", None),
+            elem.get("min"),
+            elem.get("max"),
+            elem.get("exclude_min", "false"),
+            elem.get("exclude_max", "false"),
+        )
 
     def __init__(self, message, range_min, range_max, exclude_min=False, exclude_max=False):
         """
@@ -169,20 +171,20 @@ class InRangeValidator(Validator):
         (1.e., min <= value <= max).  Combinations of exclude_min and exclude_max
         values are allowed.
         """
-        self.min = float(range_min if range_min is not None else '-inf')
+        self.min = float(range_min if range_min is not None else "-inf")
         self.exclude_min = util.asbool(exclude_min)
-        self.max = float(range_max if range_max is not None else 'inf')
+        self.max = float(range_max if range_max is not None else "inf")
         self.exclude_max = util.asbool(exclude_max)
-        assert self.min <= self.max, 'min must be less than or equal to max'
+        assert self.min <= self.max, "min must be less than or equal to max"
         # Remove unneeded 0s and decimal from floats to make message pretty.
-        self_min_str = str(self.min).rstrip('0').rstrip('.')
-        self_max_str = str(self.max).rstrip('0').rstrip('.')
-        op1 = '>='
-        op2 = '<='
+        self_min_str = str(self.min).rstrip("0").rstrip(".")
+        self_max_str = str(self.max).rstrip("0").rstrip(".")
+        op1 = ">="
+        op2 = "<="
         if self.exclude_min:
-            op1 = '>'
+            op1 = ">"
         if self.exclude_max:
-            op2 = '<'
+            op2 = "<"
         self.message = message or f"Value must be {op1} {self_min_str} and {op2} {self_max_str}"
 
     def validate(self, value, trans=None):
@@ -225,7 +227,7 @@ class LengthValidator(Validator):
 
     @classmethod
     def from_element(cls, param, elem):
-        return cls(elem.get('message', None), elem.get('min', None), elem.get('max', None))
+        return cls(elem.get("message", None), elem.get("min", None), elem.get("max", None))
 
     def __init__(self, message, length_min, length_max):
         self.message = message
@@ -253,7 +255,7 @@ class DatasetOkValidator(Validator):
 
     @classmethod
     def from_element(cls, param, elem):
-        return cls(elem.get('message', None))
+        return cls(elem.get("message", None))
 
     def validate(self, value, trans=None):
         if value and value.state != model.Dataset.states.OK:
@@ -270,7 +272,7 @@ class DatasetEmptyValidator(Validator):
 
     @classmethod
     def from_element(cls, param, elem):
-        return cls(elem.get('message', None))
+        return cls(elem.get("message", None))
 
     def validate(self, value, trans=None):
         if value:
@@ -288,7 +290,7 @@ class DatasetExtraFilesPathEmptyValidator(Validator):
 
     @classmethod
     def from_element(cls, param, elem):
-        return cls(elem.get('message', None))
+        return cls(elem.get("message", None))
 
     def validate(self, value, trans=None):
         if value:
@@ -302,6 +304,7 @@ class MetadataValidator(Validator):
     """
     Validator that checks for missing metadata
     """
+
     requires_dataset_metadata = True
 
     def __init__(self, message=None, check="", skip=""):
@@ -311,12 +314,12 @@ class MetadataValidator(Validator):
 
     @classmethod
     def from_element(cls, param, elem):
-        return cls(message=elem.get('message', None), check=elem.get('check', ""), skip=elem.get('skip', ""))
+        return cls(message=elem.get("message", None), check=elem.get("check", ""), skip=elem.get("skip", ""))
 
     def validate(self, value, trans=None):
         if value:
             if not isinstance(value, model.DatasetInstance):
-                raise ValueError('A non-dataset value was provided.')
+                raise ValueError("A non-dataset value was provided.")
             if value.missing_meta(check=self.check, skip=self.skip):
                 if self.message is None:
                     self.message = "Metadata missing, click the pencil icon in the history item to edit / save the metadata attributes"
@@ -327,6 +330,7 @@ class UnspecifiedBuildValidator(Validator):
     """
     Validator that checks for dbkey not equal to '?'
     """
+
     requires_dataset_metadata = True
 
     def __init__(self, message=None):
@@ -337,7 +341,7 @@ class UnspecifiedBuildValidator(Validator):
 
     @classmethod
     def from_element(cls, param, elem):
-        return cls(elem.get('message', None))
+        return cls(elem.get("message", None))
 
     def validate(self, value, trans=None):
         # if value is None, we cannot validate
@@ -345,7 +349,7 @@ class UnspecifiedBuildValidator(Validator):
             dbkey = value.metadata.dbkey
             if isinstance(dbkey, list):
                 dbkey = dbkey[0]
-            if dbkey == '?':
+            if dbkey == "?":
                 raise ValueError(self.message)
 
 
@@ -357,7 +361,7 @@ class NoOptionsValidator(Validator):
 
     @classmethod
     def from_element(cls, param, elem):
-        return cls(elem.get('message', None))
+        return cls(elem.get("message", None))
 
     def validate(self, value, trans=None):
         if value is None:
@@ -374,10 +378,10 @@ class EmptyTextfieldValidator(Validator):
 
     @classmethod
     def from_element(cls, param, elem):
-        return cls(elem.get('message', None))
+        return cls(elem.get("message", None))
 
     def validate(self, value, trans=None):
-        if value == '':
+        if value == "":
             if self.message is None:
                 self.message = "Field requires a value"
             raise ValueError(self.message)
@@ -387,6 +391,7 @@ class MetadataInFileColumnValidator(Validator):
     """
     Validator that checks if the value for a dataset's metadata item exists in a file.
     """
+
     requires_dataset_metadata = True
 
     @classmethod
@@ -405,7 +410,15 @@ class MetadataInFileColumnValidator(Validator):
             line_startswith = line_startswith.strip()
         return cls(filename, metadata_name, metadata_column, message, line_startswith, split)
 
-    def __init__(self, filename, metadata_name, metadata_column, message="Value for metadata not found.", line_startswith=None, split="\t"):
+    def __init__(
+        self,
+        filename,
+        metadata_name,
+        metadata_column,
+        message="Value for metadata not found.",
+        line_startswith=None,
+        split="\t",
+    ):
         self.metadata_name = metadata_name
         self.message = message
         self.valid_values = []
@@ -419,7 +432,10 @@ class MetadataInFileColumnValidator(Validator):
         if not value:
             return
         if hasattr(value, "metadata"):
-            if value.metadata.spec[self.metadata_name].param.to_string(value.metadata.get(self.metadata_name)) in self.valid_values:
+            if (
+                value.metadata.spec[self.metadata_name].param.to_string(value.metadata.get(self.metadata_name))
+                in self.valid_values
+            ):
                 return
         raise ValueError(self.message)
 
@@ -432,7 +448,7 @@ class ValueInDataTableColumnValidator(Validator):
     @classmethod
     def from_element(cls, param, elem):
         table_name = elem.get("table_name", None)
-        assert table_name, 'You must specify a table_name.'
+        assert table_name, "You must specify a table_name."
         tool_data_table = param.tool.app.tool_data_tables[table_name]
         column = elem.get("metadata_column", 0)
         try:
@@ -466,7 +482,10 @@ class ValueInDataTableColumnValidator(Validator):
         if not value:
             return
         if not self._tool_data_table.is_current_version(self._data_table_content_version):
-            log.debug('MetadataInDataTableColumnValidator values are out of sync with data table (%s), updating validator.', self._tool_data_table.name)
+            log.debug(
+                "MetadataInDataTableColumnValidator values are out of sync with data table (%s), updating validator.",
+                self._tool_data_table.name,
+            )
             self._load_values()
         if value in self.valid_values:
             return
@@ -494,12 +513,13 @@ class MetadataInDataTableColumnValidator(Validator):
     """
     Validator that checks if the value for a dataset's metadata item exists in a file.
     """
+
     requires_dataset_metadata = True
 
     @classmethod
     def from_element(cls, param, elem):
         table_name = elem.get("table_name", None)
-        assert table_name, 'You must specify a table_name.'
+        assert table_name, "You must specify a table_name."
         tool_data_table = param.tool.app.tool_data_tables[table_name]
         metadata_name = elem.get("metadata_name", None)
         if metadata_name:
@@ -515,7 +535,14 @@ class MetadataInDataTableColumnValidator(Validator):
             line_startswith = line_startswith.strip()
         return cls(tool_data_table, metadata_name, metadata_column, message, line_startswith)
 
-    def __init__(self, tool_data_table, metadata_name, metadata_column, message="Value for metadata not found.", line_startswith=None):
+    def __init__(
+        self,
+        tool_data_table,
+        metadata_name,
+        metadata_column,
+        message="Value for metadata not found.",
+        line_startswith=None,
+    ):
         self.metadata_name = metadata_name
         self.message = message
         self.valid_values = []
@@ -538,9 +565,15 @@ class MetadataInDataTableColumnValidator(Validator):
             return
         if hasattr(value, "metadata"):
             if not self._tool_data_table.is_current_version(self._data_table_content_version):
-                log.debug('MetadataInDataTableColumnValidator values are out of sync with data table (%s), updating validator.', self._tool_data_table.name)
+                log.debug(
+                    "MetadataInDataTableColumnValidator values are out of sync with data table (%s), updating validator.",
+                    self._tool_data_table.name,
+                )
                 self._load_values()
-            if value.metadata.spec[self.metadata_name].param.to_string(value.metadata.get(self.metadata_name)) in self.valid_values:
+            if (
+                value.metadata.spec[self.metadata_name].param.to_string(value.metadata.get(self.metadata_name))
+                in self.valid_values
+            ):
                 return
         raise ValueError(self.message)
 
@@ -549,10 +582,20 @@ class MetadataNotInDataTableColumnValidator(MetadataInDataTableColumnValidator):
     """
     Validator that checks if the value for a dataset's metadata item doesn't exists in a file.
     """
+
     requires_dataset_metadata = True
 
-    def __init__(self, tool_data_table, metadata_name, metadata_column, message="Value for metadata not found.", line_startswith=None):
-        super(MetadataInDataTableColumnValidator, self).__init__(tool_data_table, metadata_name, metadata_column, message, line_startswith)
+    def __init__(
+        self,
+        tool_data_table,
+        metadata_name,
+        metadata_column,
+        message="Value for metadata not found.",
+        line_startswith=None,
+    ):
+        super(MetadataInDataTableColumnValidator, self).__init__(
+            tool_data_table, metadata_name, metadata_column, message, line_startswith
+        )
 
     def validate(self, value, trans=None):
         try:
@@ -567,17 +610,22 @@ class MetadataInRangeValidator(InRangeValidator):
     """
     Validator that ensures metadata is in a specified range
     """
+
     requires_dataset_metadata = True
 
     @classmethod
     def from_element(cls, param, elem):
-        metadata_name = elem.get('metadata_name', None)
+        metadata_name = elem.get("metadata_name", None)
         assert metadata_name, "dataset_metadata_in_range validator requires metadata_name attribute."
         metadata_name = metadata_name.strip()
-        return cls(metadata_name,
-                   elem.get('message', None), elem.get('min'),
-                   elem.get('max'), elem.get('exclude_min', 'false'),
-                   elem.get('exclude_max', 'false'))
+        return cls(
+            metadata_name,
+            elem.get("message", None),
+            elem.get("min"),
+            elem.get("max"),
+            elem.get("exclude_min", "false"),
+            elem.get("exclude_max", "false"),
+        )
 
     def __init__(self, metadata_name, message, range_min, range_max, exclude_min=False, exclude_max=False):
         self.metadata_name = metadata_name
@@ -586,13 +634,15 @@ class MetadataInRangeValidator(InRangeValidator):
     def validate(self, value, trans=None):
         if value:
             if not isinstance(value, model.DatasetInstance):
-                raise ValueError('A non-dataset value was provided.')
+                raise ValueError("A non-dataset value was provided.")
             try:
-                value_to_check = float(value.metadata.spec[self.metadata_name].param.to_string(value.metadata.get(self.metadata_name)))
+                value_to_check = float(
+                    value.metadata.spec[self.metadata_name].param.to_string(value.metadata.get(self.metadata_name))
+                )
             except KeyError:
-                raise ValueError(f'{self.metadata_name} Metadata missing')
+                raise ValueError(f"{self.metadata_name} Metadata missing")
             except ValueError:
-                raise ValueError(f'{self.metadata_name} must be a float or an integer')
+                raise ValueError(f"{self.metadata_name} must be a float or an integer")
             super().validate(value_to_check, trans)
 
 
@@ -621,4 +671,5 @@ def get_suite():
     """Get unittest suite for this module"""
     import doctest
     import sys
+
     return doctest.DocTestSuite(sys.modules[__name__])

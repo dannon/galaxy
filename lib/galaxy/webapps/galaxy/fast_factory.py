@@ -71,10 +71,10 @@ def factory():
     else:
         config_section = DEFAULT_CONFIG_SECTION
 
-    if 'config_file' not in kwds:
-        kwds['config_file'] = config_file
-    if 'config_section' not in kwds:
-        kwds['config_section'] = config_section
+    if "config_file" not in kwds:
+        kwds["config_file"] = config_file
+    if "config_section" not in kwds:
+        kwds["config_section"] = config_section
     global_conf = {}
     if config_is_ini(config_file):
         global_conf["__file__"] = config_file

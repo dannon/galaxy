@@ -17,7 +17,7 @@ from galaxy.datatypes.sniff import build_sniff_from_prefix
 
 MAX_HEADER_LINES = 500
 MAX_LINE_LEN = 2000
-COLOR_OPTS = ['COLOR_SCALARS', 'red', 'green', 'blue']
+COLOR_OPTS = ["COLOR_SCALARS", "red", "green", "blue"]
 
 
 @build_sniff_from_prefix
@@ -28,16 +28,25 @@ class Ply:
     normal direction that can be attached to these elements.  A PLY
     file contains the description of exactly one object.
     """
-    subtype = ''
+
+    subtype = ""
     # Add metadata elements.
-    MetadataElement(name="file_format", default=None, desc="File format",
-                    readonly=True, optional=True, visible=True, no_value=None)
-    MetadataElement(name="vertex", default=None, desc="Vertex",
-                    readonly=True, optional=True, visible=True, no_value=None)
-    MetadataElement(name="face", default=None, desc="Face",
-                    readonly=True, optional=True, visible=True, no_value=None)
-    MetadataElement(name="other_elements", default=[], desc="Other elements",
-                    readonly=True, optional=True, visible=True, no_value=[])
+    MetadataElement(
+        name="file_format", default=None, desc="File format", readonly=True, optional=True, visible=True, no_value=None
+    )
+    MetadataElement(
+        name="vertex", default=None, desc="Vertex", readonly=True, optional=True, visible=True, no_value=None
+    )
+    MetadataElement(name="face", default=None, desc="Face", readonly=True, optional=True, visible=True, no_value=None)
+    MetadataElement(
+        name="other_elements",
+        default=[],
+        desc="Other elements",
+        readonly=True,
+        optional=True,
+        visible=True,
+        no_value=[],
+    )
 
     @abc.abstractmethod
     def __init__(self, **kwd):
@@ -57,10 +66,10 @@ class Ply:
         The header is a series of carriage-return terminated lines of
         text that describe the remainder of the file.
         """
-        valid_header_items = ['comment', 'obj_info', 'element', 'property']
+        valid_header_items = ["comment", "obj_info", "element", "property"]
         # Line 1: ply
         line = get_next_line(fh)
-        if line != 'ply':
+        if line != "ply":
             return False
         # Line 2: format ascii 1.0
         line = get_next_line(fh)
@@ -70,7 +79,7 @@ class Ply:
         while True:
             line = get_next_line(fh)
             stop_index += 1
-            if line == 'end_header':
+            if line == "end_header":
                 return True
             items = line.split()
             if items[0] not in valid_header_items:
@@ -88,17 +97,17 @@ class Ply:
                     line = line.strip()
                     if not line:
                         continue
-                    if line.startswith('format'):
+                    if line.startswith("format"):
                         items = line.split()
                         dataset.metadata.file_format = items[1]
-                    elif line == 'end_header':
+                    elif line == "end_header":
                         # Metadata is complete.
                         break
-                    elif line.startswith('element'):
+                    elif line.startswith("element"):
                         items = line.split()
-                        if items[1] == 'face':
+                        if items[1] == "face":
                             dataset.metadata.face = int(items[2])
-                        elif items[1] == 'vertex':
+                        elif items[1] == "vertex":
                             dataset.metadata.vertex = int(items[2])
                         else:
                             element_tuple = (items[1], int(items[2]))
@@ -109,8 +118,8 @@ class Ply:
             dataset.peek = get_file_peek(dataset.file_name)
             dataset.blurb = "Faces: {}, Vertices: {}".format(str(dataset.metadata.face), str(dataset.metadata.vertex))
         else:
-            dataset.peek = 'File does not exist'
-            dataset.blurb = 'File purged from disc'
+            dataset.peek = "File does not exist"
+            dataset.blurb = "File purged from disc"
 
     def display_peek(self, dataset):
         try:
@@ -121,7 +130,7 @@ class Ply:
 
 class PlyAscii(Ply, data.Text):
     file_ext = "plyascii"
-    subtype = 'ascii'
+    subtype = "ascii"
 
     def __init__(self, **kwd):
         data.Text.__init__(self, **kwd)
@@ -129,7 +138,7 @@ class PlyAscii(Ply, data.Text):
 
 class PlyBinary(Ply, Binary):
     file_ext = "plybinary"
-    subtype = 'binary'
+    subtype = "binary"
 
     def __init__(self, **kwd):
         Binary.__init__(self, **kwd)
@@ -160,46 +169,70 @@ class Vtk:
     TODO: only legacy formats are currently supported and support for XML formats
     should be added.
     """
-    subtype = ''
+    subtype = ""
     # Add metadata elements.
-    MetadataElement(name="vtk_version", default=None, desc="Vtk version",
-                    readonly=True, optional=True, visible=True, no_value=None)
-    MetadataElement(name="file_format", default=None, desc="File format",
-                    readonly=True, optional=True, visible=True, no_value=None)
-    MetadataElement(name="dataset_type", default=None, desc="Dataset type",
-                    readonly=True, optional=True, visible=True, no_value=None)
+    MetadataElement(
+        name="vtk_version", default=None, desc="Vtk version", readonly=True, optional=True, visible=True, no_value=None
+    )
+    MetadataElement(
+        name="file_format", default=None, desc="File format", readonly=True, optional=True, visible=True, no_value=None
+    )
+    MetadataElement(
+        name="dataset_type",
+        default=None,
+        desc="Dataset type",
+        readonly=True,
+        optional=True,
+        visible=True,
+        no_value=None,
+    )
 
     # STRUCTURED_GRID data_type.
-    MetadataElement(name="dimensions", default=[], desc="Dimensions",
-                    readonly=True, optional=True, visible=True, no_value=[])
-    MetadataElement(name="origin", default=[], desc="Origin",
-                    readonly=True, optional=True, visible=True, no_value=[])
-    MetadataElement(name="spacing", default=[], desc="Spacing",
-                    readonly=True, optional=True, visible=True, no_value=[])
+    MetadataElement(
+        name="dimensions", default=[], desc="Dimensions", readonly=True, optional=True, visible=True, no_value=[]
+    )
+    MetadataElement(name="origin", default=[], desc="Origin", readonly=True, optional=True, visible=True, no_value=[])
+    MetadataElement(name="spacing", default=[], desc="Spacing", readonly=True, optional=True, visible=True, no_value=[])
 
     # POLYDATA data_type (Points element is also a component of UNSTRUCTURED_GRID..
-    MetadataElement(name="points", default=None, desc="Points",
-                    readonly=True, optional=True, visible=True, no_value=None)
-    MetadataElement(name="vertices", default=None, desc="Vertices",
-                    readonly=True, optional=True, visible=True, no_value=None)
-    MetadataElement(name="lines", default=None, desc="Lines",
-                    readonly=True, optional=True, visible=True, no_value=None)
-    MetadataElement(name="polygons", default=None, desc="Polygons",
-                    readonly=True, optional=True, visible=True, no_value=None)
-    MetadataElement(name="triangle_strips", default=None, desc="Triangle strips",
-                    readonly=True, optional=True, visible=True, no_value=None)
+    MetadataElement(
+        name="points", default=None, desc="Points", readonly=True, optional=True, visible=True, no_value=None
+    )
+    MetadataElement(
+        name="vertices", default=None, desc="Vertices", readonly=True, optional=True, visible=True, no_value=None
+    )
+    MetadataElement(name="lines", default=None, desc="Lines", readonly=True, optional=True, visible=True, no_value=None)
+    MetadataElement(
+        name="polygons", default=None, desc="Polygons", readonly=True, optional=True, visible=True, no_value=None
+    )
+    MetadataElement(
+        name="triangle_strips",
+        default=None,
+        desc="Triangle strips",
+        readonly=True,
+        optional=True,
+        visible=True,
+        no_value=None,
+    )
 
     # UNSTRUCTURED_GRID data_type.
-    MetadataElement(name="cells", default=None, desc="Cells",
-                    readonly=True, optional=True, visible=True, no_value=None)
+    MetadataElement(name="cells", default=None, desc="Cells", readonly=True, optional=True, visible=True, no_value=None)
 
     # Additional elements not categorized by data_type.
-    MetadataElement(name="field_names", default=[], desc="Field names",
-                    readonly=True, optional=True, visible=True, no_value=[])
+    MetadataElement(
+        name="field_names", default=[], desc="Field names", readonly=True, optional=True, visible=True, no_value=[]
+    )
     # The keys in the field_components map to the list of field_names in the above element
     # which ensures order for select list options that are built from it.
-    MetadataElement(name="field_components", default={}, desc="Field names and components",
-                    readonly=True, optional=True, visible=True, no_value={})
+    MetadataElement(
+        name="field_components",
+        default={},
+        desc="Field names and components",
+        readonly=True,
+        optional=True,
+        visible=True,
+        no_value={},
+    )
 
     @abc.abstractmethod
     def __init__(self, **kwd):
@@ -224,7 +257,7 @@ class Vtk:
         which case the 5th line is blank).
         """
 
-        data_kinds = ['STRUCTURED_GRID', 'POLYDATA', 'UNSTRUCTURED_GRID']
+        data_kinds = ["STRUCTURED_GRID", "POLYDATA", "UNSTRUCTURED_GRID"]
 
         def check_data_kind(line):
             for data_kind in data_kinds:
@@ -234,7 +267,7 @@ class Vtk:
 
         # Line 1: vtk DataFile Version 3.0
         line = get_next_line(fh)
-        if line.find('vtk') < 0:
+        if line.find("vtk") < 0:
             return False
         # Line 2: can be anything - skip it
         line = get_next_line(fh)
@@ -267,7 +300,7 @@ class Vtk:
                         continue
                     if i < 3:
                         dataset = self.set_initial_metadata(i, line, dataset)
-                    elif dataset.metadata.file_format == 'ASCII' or not util.is_binary(line):
+                    elif dataset.metadata.file_format == "ASCII" or not util.is_binary(line):
                         if dataset_structure_complete:
                             """
                             The final part of legacy VTK files describes the dataset attributes.
@@ -288,7 +321,7 @@ class Vtk:
                             reader, then the first data of that type is extracted from the file.
                             """
                             items = line.split()
-                            if items[0] == 'SCALARS':
+                            if items[0] == "SCALARS":
                                 # Example: SCALARS surface_field double 3
                                 # Scalar definition includes specification of a lookup table. The
                                 # definition of a lookup table is optional. If not specified, the
@@ -305,7 +338,7 @@ class Vtk:
                                     num_components = 1
                                 field_component_indexes = [str(i) for i in range(num_components)]
                                 field_components[field_name] = field_component_indexes
-                            elif items[0] == 'FIELD':
+                            elif items[0] == "FIELD":
                                 # The dataset consists of CELL_DATA.
                                 # FIELD FieldData 2
                                 processing_field_section = True
@@ -328,11 +361,11 @@ class Vtk:
                                         field_component_indexes = [str(i) for i in range(num_components)]
                                         field_components[field_name] = field_component_indexes
                                         fields_processed.append(field_name)
-                        elif line.startswith('CELL_DATA'):
+                        elif line.startswith("CELL_DATA"):
                             # CELL_DATA 3188
                             dataset_structure_complete = True
                             dataset.metadata.cells = int(line.split()[1])
-                        elif line.startswith('POINT_DATA'):
+                        elif line.startswith("POINT_DATA"):
                             # POINT_DATA 1876
                             dataset_structure_complete = True
                             dataset.metadata.points = int(line.split()[1])
@@ -346,7 +379,7 @@ class Vtk:
             # The first part of legacy VTK files is the file version and
             # identifier. This part contains the single line:
             # # vtk DataFile Version X.Y
-            dataset.metadata.vtk_version = line.lower().split('version')[1]
+            dataset.metadata.vtk_version = line.lower().split("version")[1]
             # The second part of legacy VTK files is the header. The header
             # consists of a character string terminated by end-of-line
             # character \n. The header is 256 characters maximum. The header
@@ -368,51 +401,51 @@ class Vtk:
         the type of dataset, other keyword/ data combinations define the
         actual data.
         """
-        if dataset_type is None and line.startswith('DATASET'):
+        if dataset_type is None and line.startswith("DATASET"):
             dataset_type = line.split()[1]
             dataset.metadata.dataset_type = dataset_type
-        if dataset_type == 'STRUCTURED_GRID':
+        if dataset_type == "STRUCTURED_GRID":
             # The STRUCTURED_GRID format supports 1D, 2D, and 3D structured
             # grid datasets.  The dimensions nx, ny, nz must be greater
             # than or equal to 1.  The point coordinates are defined by the
             # data in the POINTS section. This consists of x-y-z data values
             # for each point.
-            if line.startswith('DIMENSIONS'):
+            if line.startswith("DIMENSIONS"):
                 # DIMENSIONS 10 5 1
                 dataset.metadata.dimensions = [line.split()[1:]]
-            elif line.startswith('ORIGIN'):
+            elif line.startswith("ORIGIN"):
                 # ORIGIN 0 0 0
                 dataset.metadata.origin = [line.split()[1:]]
-            elif line.startswith('SPACING'):
+            elif line.startswith("SPACING"):
                 # SPACING 1 1 1
                 dataset.metadata.spacing = [line.split()[1:]]
-        elif dataset_type == 'POLYDATA':
+        elif dataset_type == "POLYDATA":
             # The polygonal dataset consists of arbitrary combinations
             # of surface graphics primitives vertices, lines, polygons
             # and triangle strips.  Polygonal data is defined by the POINTS,
             # VERTICES, LINES, POLYGONS, or TRIANGLE_STRIPS sections.
-            if line.startswith('POINTS'):
+            if line.startswith("POINTS"):
                 # POINTS 18 float
                 dataset.metadata.points = int(line.split()[1])
-            elif line.startswith('VERTICES'):
+            elif line.startswith("VERTICES"):
                 dataset.metadata.vertices = int(line.split()[1])
-            elif line.startswith('LINES'):
+            elif line.startswith("LINES"):
                 # LINES 5 17
                 dataset.metadata.lines = int(line.split()[1])
-            elif line.startswith('POLYGONS'):
+            elif line.startswith("POLYGONS"):
                 # POLYGONS 6 30
                 dataset.metadata.polygons = int(line.split()[1])
-            elif line.startswith('TRIANGLE_STRIPS'):
+            elif line.startswith("TRIANGLE_STRIPS"):
                 # TRIANGLE_STRIPS 2212 16158
                 dataset.metadata.triangle_strips = int(line.split()[1])
-        elif dataset_type == 'UNSTRUCTURED_GRID':
+        elif dataset_type == "UNSTRUCTURED_GRID":
             # The unstructured grid dataset consists of arbitrary combinations
             # of any possible cell type. Unstructured grids are defined by points,
             # cells, and cell types.
-            if line.startswith('POINTS'):
+            if line.startswith("POINTS"):
                 # POINTS 18 float
                 dataset.metadata.points = int(line.split()[1])
-            if line.startswith('CELLS'):
+            if line.startswith("CELLS"):
                 # CELLS 756 3024
                 dataset.metadata.cells = int(line.split()[1])
         return dataset, dataset_type
@@ -420,20 +453,20 @@ class Vtk:
     def get_blurb(self, dataset):
         blurb = ""
         if dataset.metadata.vtk_version is not None:
-            blurb += 'VTK Version %s' % str(dataset.metadata.vtk_version)
+            blurb += "VTK Version %s" % str(dataset.metadata.vtk_version)
         if dataset.metadata.dataset_type is not None:
             if blurb:
-                blurb += ' '
+                blurb += " "
             blurb += str(dataset.metadata.dataset_type)
-        return blurb or 'VTK data'
+        return blurb or "VTK data"
 
     def set_peek(self, dataset, is_multi_byte=False):
         if not dataset.dataset.purged:
             dataset.peek = get_file_peek(dataset.file_name)
             dataset.blurb = self.get_blurb(dataset)
         else:
-            dataset.peek = 'File does not exist'
-            dataset.blurb = 'File purged from disc'
+            dataset.peek = "File does not exist"
+            dataset.blurb = "File purged from disc"
 
     def display_peek(self, dataset):
         try:
@@ -444,7 +477,7 @@ class Vtk:
 
 class VtkAscii(Vtk, data.Text):
     file_ext = "vtkascii"
-    subtype = 'ASCII'
+    subtype = "ASCII"
 
     def __init__(self, **kwd):
         data.Text.__init__(self, **kwd)
@@ -452,7 +485,7 @@ class VtkAscii(Vtk, data.Text):
 
 class VtkBinary(Vtk, Binary):
     file_ext = "vtkbinary"
-    subtype = 'BINARY'
+    subtype = "BINARY"
 
     def __init__(self, **kwd):
         Binary.__init__(self, **kwd)

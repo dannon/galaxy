@@ -6,18 +6,14 @@ import imp
 import logging
 import shlex
 from functools import partial
+
 try:
     from grp import getgrgid
 except ImportError:
     getgrgid = None  # type: ignore
 from itertools import starmap
 from operator import getitem
-from os import (
-    extsep,
-    makedirs,
-    stat,
-    walk
-)
+from os import extsep, makedirs, stat, walk
 from os.path import (
     abspath,
     basename,
@@ -32,6 +28,7 @@ from os.path import (
     relpath,
     sep as separator,
 )
+
 try:
     from pwd import getpwuid
 except ImportError:
@@ -85,7 +82,6 @@ def safe_contains(prefix, path, allowlist=None, real=None):
 
 
 class _SafeContainsDirectoryChecker:
-
     def __init__(self, dirpath, prefix, allowlist=None):
         self.allowlist = allowlist
         self.dirpath = dirpath
@@ -150,8 +146,9 @@ def safe_walk(path, allowlist=None):
 
         if allowlist and i % WALK_MAX_DIRS == 0:
             raise RuntimeError(
-                'Breaking out of walk of %s after %s iterations (most likely infinite symlink recursion) at: %s' %
-                (path, WALK_MAX_DIRS, dirpath))
+                "Breaking out of walk of %s after %s iterations (most likely infinite symlink recursion) at: %s"
+                % (path, WALK_MAX_DIRS, dirpath)
+            )
         _prefix = partial(join, dirpath)
 
         prune = False
@@ -215,9 +212,11 @@ def __path_permission_for_user(path, username):
     owner_permissions = int(oct_mode[-3])
     group_permissions = int(oct_mode[-2])
     other_permissions = int(oct_mode[-1])
-    if other_permissions >= 4 or \
-            (file_owner == username and owner_permissions >= 4) or \
-            (username in group_members and group_permissions >= 4):
+    if (
+        other_permissions >= 4
+        or (file_owner == username and owner_permissions >= 4)
+        or (username in group_members and group_permissions >= 4)
+    ):
         return True
     return False
 
@@ -322,6 +321,7 @@ class Extensions(dict):
 
     The first item in the sequence should match the key and is the "canonicalization".
     """
+
     def __missing__(self, key):
         for v in self.values():
             if key in v:
@@ -334,11 +334,13 @@ class Extensions(dict):
         return self[ext][0]
 
 
-extensions = Extensions({
-    'ini': ['ini'],
-    'json': ['json'],
-    'yaml': ['yaml', 'yml'],
-})
+extensions = Extensions(
+    {
+        "ini": ["ini"],
+        "json": ["json"],
+        "yaml": ["yaml", "yml"],
+    }
+)
 
 
 def external_chown(path, pwent, external_chown_script, description="file"):
@@ -358,17 +360,16 @@ def external_chown(path, pwent, external_chown_script, description="file"):
     try:
         cmd = shlex.split(external_chown_script)
         cmd.extend([path, pwent[0], str(pwent[3])])
-        log.debug('Changing ownership of {} with: {}'.format(path, ' '.join(cmd)))
+        log.debug("Changing ownership of {} with: {}".format(path, " ".join(cmd)))
         galaxy.util.commands.execute(cmd)
         return True
     except galaxy.util.commands.CommandLineException as e:
-        log.warning('Changing ownership of {} {} failed: {}'.format(description, path, galaxy.util.unicodify(e)))
+        log.warning("Changing ownership of {} {} failed: {}".format(description, path, galaxy.util.unicodify(e)))
         return False
 
 
 def __listify(item):
-    """A non-splitting version of :func:`galaxy.util.listify`.
-    """
+    """A non-splitting version of :func:`galaxy.util.listify`."""
     if not item:
         return []
     elif isinstance(item, list) or isinstance(item, tuple):
@@ -402,7 +403,7 @@ def __ext_strip_sep(ext):
 
 def __splitext_no_sep(path):
     path = galaxy.util.unicodify(path)
-    return (path.rsplit(extsep, 1) + [''])[0:2]
+    return (path.rsplit(extsep, 1) + [""])[0:2]
 
 
 def __splitext_ignore(path, ignore=None):
@@ -410,7 +411,7 @@ def __splitext_ignore(path, ignore=None):
     ignore = map(__ext_strip_sep, __listify(ignore))
     root, ext = __splitext_no_sep(path)
     if ext in ignore:
-        new_path = path[0:(-len(ext) - 1)]
+        new_path = path[0 : (-len(ext) - 1)]
         root, ext = __splitext_no_sep(new_path)
 
     return (root, ext)
@@ -431,10 +432,9 @@ def _build_self(target, path_module):
 
 
 def __copy_self(names=__name__, parent=None):
-    """Returns a copy of this module that can be modified without modifying `galaxy.util.path`` in ``sys.modules``.
-    """
+    """Returns a copy of this module that can be modified without modifying `galaxy.util.path`` in ``sys.modules``."""
     if isinstance(names, str):
-        names = iter(names.split('.'))
+        names = iter(names.split("."))
     try:
         name = next(names)
     except StopIteration:
@@ -459,25 +459,25 @@ def __set_fxns_on(target, path_module):
 
 
 __pathfxns__ = (
-    'abspath',
-    'basename',
-    'exists',
-    'isabs',
-    'join',
-    'normpath',
-    'pardir',
-    'realpath',
-    'relpath',
+    "abspath",
+    "basename",
+    "exists",
+    "isabs",
+    "join",
+    "normpath",
+    "pardir",
+    "realpath",
+    "relpath",
 )
 
 __all__ = (
-    'extensions',
-    'get_ext',
-    'has_ext',
-    'joinext',
-    'safe_contains',
-    'safe_makedirs',
-    'safe_relpath',
-    'safe_walk',
-    'unsafe_walk',
+    "extensions",
+    "get_ext",
+    "has_ext",
+    "joinext",
+    "safe_contains",
+    "safe_makedirs",
+    "safe_relpath",
+    "safe_walk",
+    "unsafe_walk",
 )

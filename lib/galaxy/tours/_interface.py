@@ -7,7 +7,6 @@ from ._schema import (
 
 
 class ToursRegistry(ABC):
-
     @abstractmethod
     def get_tours(self) -> TourList:
         """Return list of tours."""

@@ -54,6 +54,7 @@ except ImportError:
 
 try:
     from cwltool import command_line_tool
+
     command_line_tool.ACCEPTLIST_RE = command_line_tool.ACCEPTLIST_EN_RELAXED_RE
 except ImportError:
     command_line_tool = None  # type: ignore
@@ -65,6 +66,7 @@ except ImportError:
 
 try:
     from cwltool import command_line_tool
+
     command_line_tool.ACCEPTLIST_RE = command_line_tool.ACCEPTLIST_EN_RELAXED_RE
 except ImportError:
     command_line_tool = None  # type: ignore
@@ -112,22 +114,22 @@ def ensure_cwltool_available():
 
 
 __all__ = (
-    'default_loader',
-    'ensure_cwltool_available',
-    'getdefault',
-    'load_tool',
-    'LoadingContext',
-    'main',
-    'needs_shell_quoting',
-    'pathmapper',
-    'process',
-    'ref_resolver',
-    'relink_initialworkdir',
-    'resolve_and_validate_document',
-    'RuntimeContext',
-    'schema_salad',
-    'shellescape',
-    'sourceline',
-    'StdFsAccess',
-    'workflow',
+    "default_loader",
+    "ensure_cwltool_available",
+    "getdefault",
+    "load_tool",
+    "LoadingContext",
+    "main",
+    "needs_shell_quoting",
+    "pathmapper",
+    "process",
+    "ref_resolver",
+    "relink_initialworkdir",
+    "resolve_and_validate_document",
+    "RuntimeContext",
+    "schema_salad",
+    "shellescape",
+    "sourceline",
+    "StdFsAccess",
+    "workflow",
 )

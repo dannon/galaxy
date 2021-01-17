@@ -20,11 +20,11 @@ def upgrade(migrate_engine):
     metadata.bind = migrate_engine
     metadata.reflect()
 
-    add_column(hidden_col, 'stored_workflow', metadata)
+    add_column(hidden_col, "stored_workflow", metadata)
 
 
 def downgrade(migrate_engine):
     metadata.bind = migrate_engine
     metadata.reflect()
 
-    drop_column('hidden', 'stored_workflow', metadata)
+    drop_column("hidden", "stored_workflow", metadata)

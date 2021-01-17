@@ -3,23 +3,16 @@ API operations on annotations.
 """
 import logging
 
-from galaxy import (
-    exceptions,
-    managers
-)
+from galaxy import exceptions, managers
 from galaxy.model.item_attrs import UsesAnnotations
 from galaxy.util.sanitize_html import sanitize_html
 from galaxy.web import expose_api
-from galaxy.webapps.base.controller import (
-    BaseAPIController,
-    UsesStoredWorkflowMixin
-)
+from galaxy.webapps.base.controller import BaseAPIController, UsesStoredWorkflowMixin
 
 log = logging.getLogger(__name__)
 
 
 class BaseAnnotationsController(BaseAPIController, UsesStoredWorkflowMixin, UsesAnnotations):
-
     @expose_api
     def index(self, trans, **kwd):
         idnum = kwd[self.tagged_item_id]

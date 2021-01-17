@@ -21,7 +21,7 @@ from urllib.request import (
 from user import home
 
 with warnings.catch_warnings():
-    warnings.simplefilter('ignore')
+    warnings.simplefilter("ignore")
     import twill.commands as tc
 
 # options
@@ -37,7 +37,7 @@ def usage():
 
 
 try:
-    opts, args = getopt.getopt(sys.argv[1:], 'n')
+    opts, args = getopt.getopt(sys.argv[1:], "n")
 except getopt.GetoptError as e:
     print(str(e))
     usage()
@@ -59,7 +59,7 @@ for o, _ in opts:
         usage()
 
 # state information
-var_dir = os.path.join(home, ".check_galaxy", server.replace('http://', '').replace('https://', ''), handler)
+var_dir = os.path.join(home, ".check_galaxy", server.replace("http://", "").replace("https://", ""), handler)
 if not os.access(var_dir, os.F_OK):
     os.makedirs(var_dir, 0o700)
 
@@ -68,7 +68,7 @@ socket.setdefaulttimeout(60)
 
 # user-agent
 tc.agent("Mozilla/5.0 (compatible; check_galaxy/0.2)")
-tc.config('use_tidy', 0)
+tc.config("use_tidy", 0)
 
 
 class Browser:
@@ -76,12 +76,12 @@ class Browser:
         self.server = server
         self.handler = handler
         self.waited = -1
-        self.tool = 'echo_' + handler
+        self.tool = "echo_" + handler
         self._hda_id = None
         self._hda_state = None
         self._history_id = None
-        if not self.server.startswith('http'):
-            self.server = 'http://' + self.server
+        if not self.server.startswith("http"):
+            self.server = "http://" + self.server
         self.cookie_jar = os.path.join(var_dir, "cookie_jar")
         dprint("cookie jar path: %s" % self.cookie_jar)
         if not os.access(self.cookie_jar, os.R_OK):
@@ -97,13 +97,13 @@ class Browser:
     def req(self, path, data=None, method=None):
         url = self.server + path
         if data:
-            req = Request(url, headers={'Content-Type': 'application/json'}, data=json.dumps(data))
+            req = Request(url, headers={"Content-Type": "application/json"}, data=json.dumps(data))
         else:
-            req = Request(url, headers={'Content-Type': 'application/json'})
+            req = Request(url, headers={"Content-Type": "application/json"})
         if method:
             req.get_method = lambda: method
         res = self.opener.open(req)
-        print('==> at {} ({})'.format(url, method or 'GET'))
+        print("==> at {} ({})".format(url, method or "GET"))
         assert res.getcode() == 200, url
         return res
 
@@ -118,7 +118,7 @@ class Browser:
 
     def delete_history(self):
         # note, this could cause a history to be created and then deleted.  i don't care.
-        self.req('/api/histories/%s' % self.history_id, method='DELETE')
+        self.req("/api/histories/%s" % self.history_id, method="DELETE")
 
     def login(self, user, pw):
         self.get("/user/login")
@@ -137,33 +137,31 @@ class Browser:
         tc.save_cookies(self.cookie_jar)
 
     def runtool(self):
-        path = '/api/tools'
-        data = {'tool_id': self.tool,
-                'history_id': self.history_id,
-                'inputs': {'echo': self.handler}}
+        path = "/api/tools"
+        data = {"tool_id": self.tool, "history_id": self.history_id, "inputs": {"echo": self.handler}}
         res = self.req(path, data=data)
         dprint(json.loads(res.read()))
 
     @property
     def history_id(self):
         if self._history_id is None:
-            self.get('/api/histories')
+            self.get("/api/histories")
             for history in json.loads(tc.browser.get_html()):
                 # find an undeleted history named the same as the handler
-                if history['name'] == self.handler:
-                    self._history_id = history['id']
+                if history["name"] == self.handler:
+                    self._history_id = history["id"]
                     break
             else:
                 self.create_history()
         return self._history_id
 
     def create_history(self):
-        res = self.req('/api/histories', data={'name': handler})
-        self._history_id = json.loads(res.read())['id']
+        res = self.req("/api/histories", data={"name": handler})
+        self._history_id = json.loads(res.read())["id"]
 
     @property
     def history_contents(self):
-        self.get('/api/histories/%s/contents' % self.history_id)
+        self.get("/api/histories/%s/contents" % self.history_id)
         return json.loads(tc.browser.get_html())
 
     @property
@@ -179,29 +177,29 @@ class Browser:
         return self._hda_state
 
     def set_top_hda(self):
-        self.get(self.history_contents[-1]['url'])
+        self.get(self.history_contents[-1]["url"])
         hda = json.loads(tc.browser.get_html())
-        self._hda_id = hda['id']
-        self._hda_state = hda['state']
+        self._hda_id = hda["id"]
+        self._hda_state = hda["state"]
 
     @property
     def undeleted_hdas(self):
         rval = []
         for item in self.history_contents:
-            self.get(item['url'])
+            self.get(item["url"])
             hda = json.loads(tc.browser.get_html())
-            if hda['deleted'] is False:
+            if hda["deleted"] is False:
                 rval.append(hda)
         return rval
 
     @property
     def history_state(self):
-        self.get('/api/histories/%s' % self.history_id)
-        return json.loads(tc.browser.get_html())['state']
+        self.get("/api/histories/%s" % self.history_id)
+        return json.loads(tc.browser.get_html())["state"]
 
     @property
     def history_state_terminal(self):
-        if self.history_state not in ['queued', 'running', 'paused']:
+        if self.history_state not in ["queued", "running", "paused"]:
             return True
         return False
 
@@ -238,18 +236,18 @@ class Browser:
 
     def delete_datasets(self):
         for hda in self.undeleted_hdas:
-            path = '/api/histories/{}/contents/{}'.format(self.history_id, hda['id'])
-            self.req(path, method='DELETE')
-        hdas = [hda['id'] for hda in self.undeleted_hdas]
+            path = "/api/histories/{}/contents/{}".format(self.history_id, hda["id"])
+            self.req(path, method="DELETE")
+        hdas = [hda["id"] for hda in self.undeleted_hdas]
         if hdas:
             print("Remaining datasets ids:", " ".join(hdas))
             raise Exception("History still contains datasets after attempting to delete them")
 
     def check_if_logged_in(self, user):
         try:
-            return json.loads(self.req('/api/users').read())[0]['email'] == user
+            return json.loads(self.req("/api/users").read())[0]["email"] == user
         except Exception as e:
-            print('Exception checking if logged in: %s' % str(e))
+            print("Exception checking if logged in: %s" % str(e))
             return False
 
 

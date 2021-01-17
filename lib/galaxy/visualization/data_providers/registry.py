@@ -1,12 +1,5 @@
 from galaxy.datatypes.data import Newick, Nexus
-from galaxy.datatypes.interval import (
-    Bed,
-    ChromatinInteractions,
-    ENCODEPeak,
-    Gff,
-    Gtf,
-    Interval
-)
+from galaxy.datatypes.interval import Bed, ChromatinInteractions, ENCODEPeak, Gff, Gtf, Interval
 from galaxy.datatypes.tabular import Tabular, Vcf
 from galaxy.datatypes.xml import Phyloxml
 from galaxy.model import NoConverterException
@@ -32,18 +25,17 @@ class DataProviderRegistry:
                 ENCODEPeak: genome.ENCODEPeakTabixDataProvider,
                 Interval: genome.IntervalTabixDataProvider,
                 ChromatinInteractions: genome.ChromatinInteractionsTabixDataProvider,
-                "default": genome.TabixDataProvider
+                "default": genome.TabixDataProvider,
             },
             "interval_index": genome.IntervalIndexDataProvider,
             "bai": genome.BamDataProvider,
             "bam": genome.SamDataProvider,
             "bigwig": genome.BigWigDataProvider,
             "bigbed": genome.BigBedDataProvider,
-
-            "column_with_stats": ColumnDataProvider
+            "column_with_stats": ColumnDataProvider,
         }
 
-    def get_data_provider(self, trans, name=None, source='data', raw=False, original_dataset=None):
+    def get_data_provider(self, trans, name=None, source="data", raw=False, original_dataset=None):
         """
         Returns data provider matching parameter values. For standalone data
         sources, source parameter is ignored.
@@ -85,9 +77,9 @@ class DataProviderRegistry:
                 else:
                     converted_dataset = original_dataset.get_converted_dataset(trans, name)
                     deps = original_dataset.get_converted_dataset_deps(trans, name)
-                    data_provider = data_provider_class(original_dataset=original_dataset,
-                                                        converted_dataset=converted_dataset,
-                                                        dependencies=deps)
+                    data_provider = data_provider_class(
+                        original_dataset=original_dataset, converted_dataset=converted_dataset, dependencies=deps
+                    )
 
             elif original_dataset:
                 # No name, so look up a provider name from datatype's information.
@@ -98,10 +90,10 @@ class DataProviderRegistry:
 
                 # Get data provider mapping and data provider.
                 data_provider_mapping = original_dataset.datatype.data_sources
-                if 'data_standalone' in data_provider_mapping:
-                    data_provider = self.get_data_provider(trans,
-                                                           name=data_provider_mapping['data_standalone'],
-                                                           original_dataset=original_dataset)
+                if "data_standalone" in data_provider_mapping:
+                    data_provider = self.get_data_provider(
+                        trans, name=data_provider_mapping["data_standalone"], original_dataset=original_dataset
+                    )
                 else:
                     source_list = data_provider_mapping[source]
                     if isinstance(source_list, str):
@@ -110,7 +102,9 @@ class DataProviderRegistry:
                     # Find a valid data provider in the source list.
                     for source in source_list:
                         try:
-                            data_provider = self.get_data_provider(trans, name=source, original_dataset=original_dataset)
+                            data_provider = self.get_data_provider(
+                                trans, name=source, original_dataset=original_dataset
+                            )
                             break
                         except NoConverterException:
                             pass

@@ -2,15 +2,11 @@ import hashlib
 from base64 import b64encode
 from os import urandom
 
-from galaxy.util import (
-    safe_str_cmp,
-    smart_str,
-    unicodify
-)
+from galaxy.util import safe_str_cmp, smart_str, unicodify
 
 SALT_LENGTH = 12
 KEY_LENGTH = 24
-HASH_FUNCTION = 'sha256'
+HASH_FUNCTION = "sha256"
 COST_FACTOR = 100000
 
 
@@ -46,12 +42,12 @@ def hash_password_PBKDF2(password):
     hashed_password = pbkdf2_bin(password, salt, COST_FACTOR, KEY_LENGTH, HASH_FUNCTION)
     encoded_password = unicodify(b64encode(hashed_password))
     # Format
-    return 'PBKDF2${}${}${}${}'.format(HASH_FUNCTION, COST_FACTOR, unicodify(salt), encoded_password)
+    return "PBKDF2${}${}${}${}".format(HASH_FUNCTION, COST_FACTOR, unicodify(salt), encoded_password)
 
 
 def check_password_PBKDF2(guess, hashed):
     # Split the database representation to extract cost_factor and salt
-    name, hash_function, cost_factor, salt, encoded_original = hashed.split('$', 5)
+    name, hash_function, cost_factor, salt, encoded_original = hashed.split("$", 5)
     # Hash the guess using the same parameters
     hashed_guess = pbkdf2_bin(guess, salt, int(cost_factor), KEY_LENGTH, hash_function)
     encoded_guess = unicodify(b64encode(hashed_guess))

@@ -31,4 +31,4 @@ def downgrade(migrate_engine):
     metadata.bind = migrate_engine
     metadata.reflect()
 
-    drop_column('imported', 'job', metadata)
+    drop_column("imported", "job", metadata)

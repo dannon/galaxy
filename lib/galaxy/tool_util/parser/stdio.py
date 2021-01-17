@@ -4,6 +4,7 @@ class StdioErrorLevel:
     and exit codes. They are meant to be used comparatively, such as showing
     that warning < fatal. This is really meant to just be an enum.
     """
+
     NO_ERROR = 0
     LOG = 1
     QC = 1.1
@@ -12,12 +13,12 @@ class StdioErrorLevel:
     FATAL_OOM = 4
     MAX = 4
     descs = {
-        NO_ERROR: 'No error',
-        LOG: 'Log',
-        QC: 'QC',
-        WARNING: 'Warning',
-        FATAL: 'Fatal error',
-        FATAL_OOM: 'Out of memory error',
+        NO_ERROR: "No error",
+        LOG: "Log",
+        QC: "QC",
+        WARNING: "Warning",
+        FATAL: "Fatal error",
+        FATAL_OOM: "Out of memory error",
     }
 
     @staticmethod
@@ -110,7 +111,7 @@ def aggressive_error_checks():
         _oom_regex("java.lang.OutOfMemoryError"),
         _oom_regex("Out of memory"),
         _error_regex("exception:"),
-        _error_regex("error:")
+        _error_regex("error:"),
     ]
     return exit_codes, regexes
 

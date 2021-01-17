@@ -11,13 +11,11 @@ from ._framework import ApiTestCase
 
 
 class RolesApiTestCase(ApiTestCase):
-
     def setUp(self):
         super().setUp()
         self.dataset_populator = DatasetPopulator(self.galaxy_interactor)
 
     def test_list_and_show(self):
-
         def check_roles_response(response):
             assert_status_code_is(response, 200)
             as_list = response.json()

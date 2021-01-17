@@ -32,14 +32,14 @@ class GenomesController(BaseAPIController):
         """
 
         # Process kwds.
-        id = get_id(id, kwd.get('format', None))
-        reference = is_true(kwd.get('reference', False))
+        id = get_id(id, kwd.get("format", None))
+        reference = is_true(kwd.get("reference", False))
 
         # Return info.
         rval = None
         if reference:
             region = self.app.genomes.reference(trans, dbkey=id, chrom=chrom, low=low, high=high)
-            rval = {'dataset_type': 'refseq', 'data': region.sequence}
+            rval = {"dataset_type": "refseq", "data": region.sequence}
         else:
             rval = self.app.genomes.chroms(trans, dbkey=id, num=num, chrom=chrom, low=low)
         return rval
@@ -52,14 +52,14 @@ class GenomesController(BaseAPIController):
         Returns all available indexes for a genome id for type={table name}
         For instance, /api/genomes/hg19/indexes?type=fasta_indexes
         """
-        index_extensions = {'fasta_indexes': '.fai'}
-        id = get_id(id, kwd.get('format', None))
-        index_type = kwd.get('type', None)
+        index_extensions = {"fasta_indexes": ".fai"}
+        id = get_id(id, kwd.get("format", None))
+        index_type = kwd.get("type", None)
 
         tbl_entries = self.app.tool_data_tables.data_tables[index_type].data
         index_file_name = [x[-1] for x in tbl_entries if id in x].pop()
 
-        if_open = open(index_file_name + index_extensions[index_type], mode='r')
+        if_open = open(index_file_name + index_extensions[index_type], mode="r")
         return if_open.read()
 
     @web.legacy_expose_api_raw_anonymous
@@ -70,8 +70,8 @@ class GenomesController(BaseAPIController):
         This is a wrapper for accepting sequence requests that
         want a raw return, not json
         """
-        id = get_id(id, kwd.get('format', None))
-        reference = is_true(kwd.get('reference', False))
+        id = get_id(id, kwd.get("format", None))
+        reference = is_true(kwd.get("reference", False))
         assert reference
         region = self.app.genomes.reference(trans, dbkey=id, chrom=chrom, low=low, high=high)
         return region.sequence

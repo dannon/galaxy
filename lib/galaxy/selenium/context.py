@@ -5,7 +5,6 @@ from .navigates_galaxy import NavigatesGalaxy
 
 
 class GalaxySeleniumContext(NavigatesGalaxy):
-
     def build_url(self, url, for_selenium=True):
         if for_selenium:
             base = self.target_url_from_selenium

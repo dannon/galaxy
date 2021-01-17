@@ -3,23 +3,16 @@ API operations provenance
 """
 import logging
 
-from paste.httpexceptions import (
-    HTTPBadRequest,
-    HTTPNotImplemented
-)
+from paste.httpexceptions import HTTPBadRequest, HTTPNotImplemented
 
-from galaxy import (
-    managers,
-    web
-)
+from galaxy import managers, web
 from galaxy.webapps.base.controller import BaseAPIController
 
 log = logging.getLogger(__name__)
 
 
 class BaseProvenanceController(BaseAPIController):
-    """
-    """
+    """"""
 
     def __init__(self, app):
         super().__init__(app)
@@ -27,13 +20,13 @@ class BaseProvenanceController(BaseAPIController):
 
     @web.legacy_expose_api
     def index(self, trans, **kwd):
-        follow = kwd.get('follow', False)
+        follow = kwd.get("follow", False)
         value = self._get_provenance(trans, self.provenance_item_class, kwd[self.provenance_item_id], follow)
         return value
 
     @web.legacy_expose_api
     def show(self, trans, elem_name, **kwd):
-        follow = kwd.get('follow', False)
+        follow = kwd.get("follow", False)
         value = self._get_provenance(trans, self.provenance_item_class, kwd[self.provenance_item_id], follow)
         return value
 
@@ -47,7 +40,9 @@ class BaseProvenanceController(BaseAPIController):
         raise HTTPBadRequest("Cannot Delete Provenance")
 
     def _get_provenance(self, trans, item_class_name, item_id, follow=True):
-        provenance_item = self.get_object(trans, item_id, item_class_name, check_ownership=False, check_accessible=False)
+        provenance_item = self.get_object(
+            trans, item_id, item_class_name, check_ownership=False, check_accessible=False
+        )
         if item_class_name == "HistoryDatasetAssociation":
             self.hda_manager.error_unless_accessible(provenance_item, trans.user)
         else:
@@ -73,7 +68,7 @@ class BaseProvenanceController(BaseAPIController):
             else:
                 return {
                     "id": trans.security.encode_id(item.id),
-                    "uuid": (lambda uuid: str(uuid) if uuid else None)(item.dataset.uuid)
+                    "uuid": (lambda uuid: str(uuid) if uuid else None)(item.dataset.uuid),
                 }
         return None
 

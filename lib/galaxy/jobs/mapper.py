@@ -14,7 +14,9 @@ DYNAMIC_RUNNER_NAME = "dynamic"
 DYNAMIC_DESTINATION_ID = "dynamic_legacy_from_url"
 
 ERROR_MESSAGE_NO_RULE_FUNCTION = "Galaxy misconfigured - cannot find dynamic rule function name for destination %s."
-ERROR_MESSAGE_RULE_FUNCTION_NOT_FOUND = "Galaxy misconfigured - no rule function named %s found in dynamic rule modules."
+ERROR_MESSAGE_RULE_FUNCTION_NOT_FOUND = (
+    "Galaxy misconfigured - no rule function named %s found in dynamic rule modules."
+)
 ERROR_MESSAGE_RULE_EXCEPTION = "Encountered an unhandled exception while caching job destination dynamic rule."
 
 
@@ -23,13 +25,11 @@ class JobMappingConfigurationException(Exception):
 
 
 class JobMappingException(Exception):
-
     def __init__(self, failure_message):
         self.failure_message = failure_message
 
 
 class JobNotReadyException(Exception):
-
     def __init__(self, job_state=None, message=None):
         self.job_state = job_state
         self.message = message
@@ -57,7 +57,7 @@ class JobRunnerMapper:
         self.rules_module = galaxy.jobs.rules
 
         if job_config.dynamic_params is not None:
-            module_name = job_config.dynamic_params['rules_module']
+            module_name = job_config.dynamic_params["rules_module"]
             self.rules_module = importlib.import_module(module_name)
 
     def __invoke_expand_function(self, expand_function, destination):
@@ -70,7 +70,7 @@ class JobRunnerMapper:
             "job_wrapper": self.job_wrapper,
             "rule_helper": RuleHelper(app),
             "app": app,
-            "referrer": destination
+            "referrer": destination,
         }
 
         actual_args = {}
@@ -136,7 +136,7 @@ class JobRunnerMapper:
         calls the url_to_destination method for the appropriate runner.
         """
         dest = self.url_to_destination(url)
-        dest['id'] = DYNAMIC_DESTINATION_ID
+        dest["id"] = DYNAMIC_DESTINATION_ID
         return dest
 
     def __find_function_by_tool_id(self, rule_modules):
@@ -153,13 +153,12 @@ class JobRunnerMapper:
         is specified, search within that rules_module, or default to the plugin's
         top level rules_module.
         """
-        rules_module_name = destination.params.get('rules_module')
+        rules_module_name = destination.params.get("rules_module")
         rule_modules = self.__get_rule_modules_or_defaults(rules_module_name)
         expand_function = None
-        expand_function_name = destination.params.get('function')
+        expand_function_name = destination.params.get("function")
         if expand_function_name:
-            expand_function = self.__last_matching_function_in_modules(
-                rule_modules, expand_function_name)
+            expand_function = self.__last_matching_function_in_modules(rule_modules, expand_function_name)
             if not expand_function:
                 message = ERROR_MESSAGE_RULE_FUNCTION_NOT_FOUND % expand_function_name
                 raise JobMappingConfigurationException(message)
@@ -190,7 +189,7 @@ class JobRunnerMapper:
         return None
 
     def __handle_dynamic_job_destination(self, destination):
-        expand_type = destination.params.get('type', "python")
+        expand_type = destination.params.get("type", "python")
         expand_function = None
         if expand_type == "python":
             expand_function = self.__get_expand_function(destination)
@@ -205,7 +204,7 @@ class JobRunnerMapper:
         job_destination = self.__invoke_expand_function(rule_function, destination)
         if not isinstance(job_destination, galaxy.jobs.JobDestination):
             job_destination_rep = str(job_destination)  # Should be either id or url
-            if '://' in job_destination_rep:
+            if "://" in job_destination_rep:
                 job_destination = self.__convert_url_to_destination(job_destination_rep)
             else:
                 job_destination = self.job_config.get_destination(job_destination_rep)
@@ -231,7 +230,9 @@ class JobRunnerMapper:
 
     def __cache_job_destination(self, params, raw_job_destination=None):
         try:
-            self.cached_job_destination = self.__determine_job_destination(params, raw_job_destination=raw_job_destination)
+            self.cached_job_destination = self.__determine_job_destination(
+                params, raw_job_destination=raw_job_destination
+            )
         except (JobMappingConfigurationException, JobMappingException, JobNotReadyException):
             raise
         except Exception:
@@ -247,7 +248,7 @@ class JobRunnerMapper:
         externally set to short-circuit the mapper, such as during resubmits.
         get_job_destination will respect that and not run the mapper if so.
         """
-        if not hasattr(self, 'cached_job_destination'):
+        if not hasattr(self, "cached_job_destination"):
             return self.__cache_job_destination(params)
         return self.cached_job_destination
 
@@ -256,5 +257,4 @@ class JobRunnerMapper:
         Force update of cached_job_destination to mapper determined job
         destination, overwriting any externally set cached_job_destination
         """
-        return self.__cache_job_destination(
-            None, raw_job_destination=raw_job_destination)
+        return self.__cache_job_destination(None, raw_job_destination=raw_job_destination)

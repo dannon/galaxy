@@ -52,17 +52,13 @@ class HasDriver:
 
     def wait_for_xpath(self, xpath, **kwds):
         element = self._wait_on(
-            ec.presence_of_element_located((By.XPATH, xpath)),
-            "XPATH selector [%s] to become present" % xpath,
-            **kwds
+            ec.presence_of_element_located((By.XPATH, xpath)), "XPATH selector [%s] to become present" % xpath, **kwds
         )
         return element
 
     def wait_for_xpath_visible(self, xpath, **kwds):
         element = self._wait_on(
-            ec.visibility_of_element_located((By.XPATH, xpath)),
-            "XPATH selector [%s] to become visible" % xpath,
-            **kwds
+            ec.visibility_of_element_located((By.XPATH, xpath)), "XPATH selector [%s] to become visible" % xpath, **kwds
         )
         return element
 
@@ -147,11 +143,7 @@ class HasDriver:
         return element
 
     def wait_for_id(self, id, **kwds):
-        return self._wait_on(
-            ec.presence_of_element_located((By.ID, id)),
-            "presence of DOM ID [%s]" % id,
-            **kwds
-        )
+        return self._wait_on(ec.presence_of_element_located((By.ID, id)), "presence of DOM ID [%s]" % id, **kwds)
 
     def click(self, selector_template):
         element = self.driver.find_element(*selector_template.element_locator)
@@ -206,7 +198,7 @@ class HasDriver:
 
     def prepend_timeout_message(self, timeout_exception, message):
         return TimeoutException(
-            msg=message + (timeout_exception.msg or ''),
+            msg=message + (timeout_exception.msg or ""),
             screen=timeout_exception.screen,
             stacktrace=timeout_exception.stacktrace,
         )

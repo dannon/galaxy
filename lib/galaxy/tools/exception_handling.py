@@ -3,4 +3,4 @@
 # it seems.
 from galaxy.util.ucsc import UCSCLimitException, UCSCOutWrapper
 
-__all__ = ('UCSCOutWrapper', 'UCSCLimitException')
+__all__ = ("UCSCOutWrapper", "UCSCLimitException")

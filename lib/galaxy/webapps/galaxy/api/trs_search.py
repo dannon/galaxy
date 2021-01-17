@@ -5,9 +5,7 @@ Information on TRS can be found at https://github.com/ga4gh/tool-registry-servic
 import logging
 
 from galaxy.web import expose_api
-from galaxy.webapps.base.controller import (
-    BaseAPIController
-)
+from galaxy.webapps.base.controller import BaseAPIController
 from galaxy.workflow.trs_proxy import parse_search_kwds
 
 log = logging.getLogger(__name__)

@@ -21,7 +21,7 @@ class ToolShedController(BaseAPIController):
         """
         tool_sheds = []
         for name, url in trans.app.tool_shed_registry.tool_sheds.items():
-            tool_sheds.append(dict(name=name, url=quote(url, '')))
+            tool_sheds.append(dict(name=name, url=quote(url, "")))
         return tool_sheds
 
     @require_admin

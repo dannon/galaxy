@@ -3,23 +3,21 @@ API operations on annotations.
 """
 import logging
 
-from galaxy import (
-    managers,
-    web
-)
+from galaxy import managers, web
 from galaxy.webapps.base.controller import (
     BaseAPIController,
     HTTPNotImplemented,
     UsesExtendedMetadataMixin,
     UsesLibraryMixinItems,
-    UsesStoredWorkflowMixin
+    UsesStoredWorkflowMixin,
 )
 
 log = logging.getLogger(__name__)
 
 
-class BaseExtendedMetadataController(BaseAPIController, UsesExtendedMetadataMixin, UsesLibraryMixinItems, UsesStoredWorkflowMixin):
-
+class BaseExtendedMetadataController(
+    BaseAPIController, UsesExtendedMetadataMixin, UsesLibraryMixinItems, UsesStoredWorkflowMixin
+):
     @web.legacy_expose_api
     def index(self, trans, **kwd):
         idnum = kwd[self.exmeta_item_id]

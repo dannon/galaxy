@@ -20,7 +20,7 @@ from bx.align.tools.thread import get_components_for_species, remove_all_gap_col
 def main():
     input_file = sys.argv.pop(1)
     output_file = sys.argv.pop(1)
-    species = sys.argv.pop(1).split(',')
+    species = sys.argv.pop(1).split(",")
 
     try:
         maf_reader = bx.align.maf.Reader(open(input_file))
@@ -28,14 +28,14 @@ def main():
         print("Unable to open source MAF file", file=sys.stderr)
         sys.exit()
     try:
-        maf_writer = FusingAlignmentWriter(bx.align.maf.Writer(open(output_file, 'w')))
+        maf_writer = FusingAlignmentWriter(bx.align.maf.Writer(open(output_file, "w")))
     except Exception:
         print("Unable to open output file", file=sys.stderr)
         sys.exit()
     try:
         for m in maf_reader:
             new_components = m.components
-            if species != ['None']:
+            if species != ["None"]:
                 new_components = get_components_for_species(m, species)
             if new_components:
                 remove_all_gap_columns(new_components)

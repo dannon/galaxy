@@ -3,6 +3,7 @@ Mixins for Annotatable model managers and serializers.
 """
 
 import logging
+
 log = logging.getLogger(__name__)
 
 
@@ -58,9 +59,8 @@ class AnnotatableManagerMixin:
 
 
 class AnnotatableSerializerMixin:
-
     def add_serializers(self):
-        self.serializers['annotation'] = self.serialize_annotation
+        self.serializers["annotation"] = self.serialize_annotation
 
     def serialize_annotation(self, item, key, user=None, **context):
         """
@@ -71,9 +71,8 @@ class AnnotatableSerializerMixin:
 
 
 class AnnotatableDeserializerMixin:
-
     def add_deserializers(self):
-        self.deserializers['annotation'] = self.deserialize_annotation
+        self.deserializers["annotation"] = self.deserialize_annotation
 
     def deserialize_annotation(self, item, key, val, user=None, **context):
         """
@@ -86,7 +85,6 @@ class AnnotatableDeserializerMixin:
 
 # TODO: I'm not entirely convinced this (or tags) are a good idea for filters since they involve a/the user
 class AnnotatableFilterMixin:
-
     def _owner_annotation(self, item):
         """
         Get the annotation by the item's owner.
@@ -105,10 +103,10 @@ class AnnotatableFilterMixin:
     def _add_parsers(self):
         self.fn_filter_parsers.update(
             {
-                'annotation': {
-                    'op': {
-                        'has': self.filter_annotation_contains,
-                        'contains': self.filter_annotation_contains,
+                "annotation": {
+                    "op": {
+                        "has": self.filter_annotation_contains,
+                        "contains": self.filter_annotation_contains,
                     },
                 },
             }

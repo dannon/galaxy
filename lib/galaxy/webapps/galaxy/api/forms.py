@@ -12,7 +12,6 @@ log = logging.getLogger(__name__)
 
 
 class FormDefinitionAPIController(BaseAPIController):
-
     @web.legacy_expose_api
     def index(self, trans, **kwd):
         """
@@ -25,8 +24,10 @@ class FormDefinitionAPIController(BaseAPIController):
         query = trans.sa_session.query(trans.app.model.FormDefinition)
         rval = []
         for form_definition in query:
-            item = form_definition.to_dict(value_mapper={'id': trans.security.encode_id, 'form_definition_current_id': trans.security.encode_id})
-            item['url'] = url_for('form', id=trans.security.encode_id(form_definition.id))
+            item = form_definition.to_dict(
+                value_mapper={"id": trans.security.encode_id, "form_definition_current_id": trans.security.encode_id}
+            )
+            item["url"] = url_for("form", id=trans.security.encode_id(form_definition.id))
             rval.append(item)
         return rval
 
@@ -49,8 +50,11 @@ class FormDefinitionAPIController(BaseAPIController):
         if not form_definition or not trans.user_is_admin:
             trans.response.status = 400
             return "Invalid form definition id ( %s ) specified." % str(form_definition_id)
-        item = form_definition.to_dict(view='element', value_mapper={'id': trans.security.encode_id, 'form_definition_current_id': trans.security.encode_id})
-        item['url'] = url_for('form', id=form_definition_id)
+        item = form_definition.to_dict(
+            view="element",
+            value_mapper={"id": trans.security.encode_id, "form_definition_current_id": trans.security.encode_id},
+        )
+        item["url"] = url_for("form", id=form_definition_id)
         return item
 
     @web.legacy_expose_api
@@ -62,7 +66,7 @@ class FormDefinitionAPIController(BaseAPIController):
         if not trans.user_is_admin:
             trans.response.status = 403
             return "You are not authorized to create a new form."
-        xml_text = payload.get('xml_text', None)
+        xml_text = payload.get("xml_text", None)
         if xml_text is None:
             trans.response.status = 400
             return "Missing required parameter 'xml_text'."
@@ -71,6 +75,9 @@ class FormDefinitionAPIController(BaseAPIController):
         trans.sa_session.add(form_definition)
         trans.sa_session.flush()
         encoded_id = trans.security.encode_id(form_definition.id)
-        item = form_definition.to_dict(view='element', value_mapper={'id': trans.security.encode_id, 'form_definition_current_id': trans.security.encode_id})
-        item['url'] = url_for('form', id=encoded_id)
+        item = form_definition.to_dict(
+            view="element",
+            value_mapper={"id": trans.security.encode_id, "form_definition_current_id": trans.security.encode_id},
+        )
+        item["url"] = url_for("form", id=encoded_id)
         return [item]

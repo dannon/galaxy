@@ -1,7 +1,4 @@
-from .framework import (
-    selenium_test,
-    SeleniumTestCase
-)
+from .framework import selenium_test, SeleniumTestCase
 
 
 class CollectionBuildersTestCase(SeleniumTestCase):
@@ -14,7 +11,9 @@ class CollectionBuildersTestCase(SeleniumTestCase):
         self.history_panel_wait_for_hid_ok(1)
         self.history_panel_multi_operations_show()
         self.history_panel_muli_operation_select_hid(1)
-        self.history_panel_multi_operation_action_click(self.navigation.history_panel.multi_operations.labels.build_list)
+        self.history_panel_multi_operation_action_click(
+            self.navigation.history_panel.multi_operations.labels.build_list
+        )
 
         self.collection_builder_set_name("my cool list")
         self.screenshot("collection_builder_list")
@@ -27,7 +26,9 @@ class CollectionBuildersTestCase(SeleniumTestCase):
         self.history_panel_wait_for_hid_ok(1)
         self.history_panel_multi_operations_show()
         self.history_panel_muli_operation_select_hid(1)
-        self.history_panel_multi_operation_action_click(self.navigation.history_panel.multi_operations.labels.build_list)
+        self.history_panel_multi_operation_action_click(
+            self.navigation.history_panel.multi_operations.labels.build_list
+        )
 
         # this toggles the checkbox to not hide originals
         self.collection_builder_hide_originals()
@@ -45,7 +46,9 @@ class CollectionBuildersTestCase(SeleniumTestCase):
         self.history_panel_multi_operations_show()
         self.history_panel_muli_operation_select_hid(1)
         self.history_panel_muli_operation_select_hid(2)
-        self.history_panel_multi_operation_action_click(self.navigation.history_panel.multi_operations.labels.build_pair)
+        self.history_panel_multi_operation_action_click(
+            self.navigation.history_panel.multi_operations.labels.build_pair
+        )
         self.collection_builder_set_name("my awesome pair")
         self.screenshot("collection_builder_pair")
         self.collection_builder_create()
@@ -60,7 +63,9 @@ class CollectionBuildersTestCase(SeleniumTestCase):
         self.history_panel_multi_operations_show()
         self.history_panel_muli_operation_select_hid(1)
         self.history_panel_muli_operation_select_hid(2)
-        self.history_panel_multi_operation_action_click(self.navigation.history_panel.multi_operations.labels.build_list_pairs)
+        self.history_panel_multi_operation_action_click(
+            self.navigation.history_panel.multi_operations.labels.build_list_pairs
+        )
 
         self.collection_builder_clear_filters()
         self.collection_builder_click_paired_item("forward", 0)
@@ -81,7 +86,9 @@ class CollectionBuildersTestCase(SeleniumTestCase):
         self.history_panel_multi_operations_show()
         self.history_panel_muli_operation_select_hid(1)
         self.history_panel_muli_operation_select_hid(2)
-        self.history_panel_multi_operation_action_click(self.navigation.history_panel.multi_operations.labels.build_list_pairs)
+        self.history_panel_multi_operation_action_click(
+            self.navigation.history_panel.multi_operations.labels.build_list_pairs
+        )
 
         self.wait_for_and_click(self.navigation.collection_builders.selectors.clear_filters)
 
@@ -111,7 +118,9 @@ class CollectionBuildersTestCase(SeleniumTestCase):
         self.history_panel_wait_for_hid_ok(1, allowed_force_refreshes=1)
         self.history_panel_multi_operations_show()
         self.history_panel_muli_operation_select_hid(1)
-        self.history_panel_multi_operation_action_click(self.navigation.history_panel.multi_operations.labels.build_from_rules)
+        self.history_panel_multi_operation_action_click(
+            self.navigation.history_panel.multi_operations.labels.build_from_rules
+        )
 
         self.collection_builder_set_name("my cool list")
         self.screenshot("collection_builder_rules_list")

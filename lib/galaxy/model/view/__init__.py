@@ -40,23 +40,23 @@ GROUP BY hdca.id
 class HistoryDatasetCollectionJobStateSummary(View):
 
     __view__ = text(AGGREGATE_STATE_QUERY).columns(
-        column('hdca_id', Integer),
-        column('new', Integer),
-        column('resubmitted', Integer),
-        column('waiting', Integer),
-        column('queued', Integer),
-        column('running', Integer),
-        column('ok', Integer),
-        column('error', Integer),
-        column('failed', Integer),
-        column('paused', Integer),
-        column('deleted', Integer),
-        column('deleted_new', Integer),
-        column('upload', Integer),
-        column('all_jobs', Integer)
+        column("hdca_id", Integer),
+        column("new", Integer),
+        column("resubmitted", Integer),
+        column("waiting", Integer),
+        column("queued", Integer),
+        column("running", Integer),
+        column("ok", Integer),
+        column("error", Integer),
+        column("failed", Integer),
+        column("paused", Integer),
+        column("deleted", Integer),
+        column("deleted_new", Integer),
+        column("upload", Integer),
+        column("all_jobs", Integer),
     )
 
-    __table__ = create_view('collection_job_state_summary_view', __view__, metadata)
+    __table__ = create_view("collection_job_state_summary_view", __view__, metadata)
 
 
 mapper(HistoryDatasetCollectionJobStateSummary, HistoryDatasetCollectionJobStateSummary.__table__)

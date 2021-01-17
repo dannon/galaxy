@@ -3,27 +3,27 @@ import os
 import sys
 
 import galaxy.config
-from galaxy.tool_shed.galaxy_install import (
-    installed_repository_manager,
-    tool_migration_manager
-)
+from galaxy.tool_shed.galaxy_install import installed_repository_manager, tool_migration_manager
 
 
 class MigrateToolsApplication(galaxy.config.ConfiguresGalaxyMixin):
     """Encapsulates the state of a basic Galaxy Universe application in order to initiate the Install Manager"""
 
     def __init__(self, tools_migration_config):
-        install_dependencies = 'install_dependencies' in sys.argv
-        galaxy_config_file = 'galaxy.ini'
-        self.name = 'galaxy'
-        if '-c' in sys.argv:
-            pos = sys.argv.index('-c')
+        install_dependencies = "install_dependencies" in sys.argv
+        galaxy_config_file = "galaxy.ini"
+        self.name = "galaxy"
+        if "-c" in sys.argv:
+            pos = sys.argv.index("-c")
             sys.argv.pop(pos)
             galaxy_config_file = sys.argv.pop(pos)
         if not os.path.exists(galaxy_config_file):
-            print("Galaxy config file does not exist (hint: use '-c config.ini' for non-standard locations): %s" % galaxy_config_file)
+            print(
+                "Galaxy config file does not exist (hint: use '-c config.ini' for non-standard locations): %s"
+                % galaxy_config_file
+            )
             sys.exit(1)
-        config_parser = configparser.ConfigParser({'here': os.getcwd()})
+        config_parser = configparser.ConfigParser({"here": os.getcwd()})
         config_parser.read(galaxy_config_file)
         galaxy_config_dict = {}
         for key, value in config_parser.items("app:main"):
@@ -49,20 +49,18 @@ class MigrateToolsApplication(galaxy.config.ConfiguresGalaxyMixin):
         self.installed_repository_manager = installed_repository_manager.InstalledRepositoryManager(self)
 
         # Get the latest tool migration script number to send to the Install manager.
-        latest_migration_script_number = int(tools_migration_config.split('_')[0])
+        latest_migration_script_number = int(tools_migration_config.split("_")[0])
         # The value of migrated_tools_config is migrated_tools_conf.xml, and is reserved for
         # containing only those tools that have been eliminated from the distribution and moved
         # to the tool shed.  A side-effect of instantiating the ToolMigrationManager is the automatic
         # installation of all appropriate tool shed repositories.
-        self.tool_migration_manager = \
-            tool_migration_manager.ToolMigrationManager(app=self,
-                                                        latest_migration_script_number=latest_migration_script_number,
-                                                        tool_shed_install_config=os.path.join(self.config.root,
-                                                                                              'scripts',
-                                                                                              'migrate_tools',
-                                                                                              tools_migration_config),
-                                                        migrated_tools_config=self.config.migrated_tools_config,
-                                                        install_dependencies=install_dependencies)
+        self.tool_migration_manager = tool_migration_manager.ToolMigrationManager(
+            app=self,
+            latest_migration_script_number=latest_migration_script_number,
+            tool_shed_install_config=os.path.join(self.config.root, "scripts", "migrate_tools", tools_migration_config),
+            migrated_tools_config=self.config.migrated_tools_config,
+            install_dependencies=install_dependencies,
+        )
 
     @property
     def sa_session(self):

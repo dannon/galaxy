@@ -8,12 +8,14 @@ DEFAULT_SUDO_COMMAND = "sudo"
 DEFAULT_RUN_EXTRA_ARGUMENTS = None
 
 
-def pull_mulled_singularity_command(docker_image_identifier,
-                                    cache_directory,
-                                    namespace=None,
-                                    singularity_cmd=DEFAULT_SINGULARITY_COMMAND,
-                                    sudo=DEFAULT_SUDO,
-                                    sudo_cmd=DEFAULT_SUDO_COMMAND):
+def pull_mulled_singularity_command(
+    docker_image_identifier,
+    cache_directory,
+    namespace=None,
+    singularity_cmd=DEFAULT_SINGULARITY_COMMAND,
+    sudo=DEFAULT_SUDO,
+    sudo_cmd=DEFAULT_SUDO_COMMAND,
+):
     command_parts = []
     command_parts += _singularity_prefix(
         singularity_cmd=singularity_cmd,
@@ -24,7 +26,7 @@ def pull_mulled_singularity_command(docker_image_identifier,
     if namespace:
         prefix = "docker://quay.io/%s/" % namespace
         if docker_image_identifier.startswith(prefix):
-            save_path = docker_image_identifier[len(prefix):]
+            save_path = docker_image_identifier[len(prefix) :]
     command_parts.extend(["build", os.path.join(cache_directory, save_path), docker_image_identifier])
     return command_parts
 
@@ -40,7 +42,7 @@ def build_singularity_run_command(
     sudo=DEFAULT_SUDO,
     sudo_cmd=DEFAULT_SUDO_COMMAND,
     guest_ports=False,
-    container_name=None
+    container_name=None,
 ):
     volumes = volumes or []
     env = env or []
@@ -48,7 +50,7 @@ def build_singularity_run_command(
     # http://singularity.lbl.gov/docs-environment-metadata
     home = None
     for (key, value) in env:
-        if key == 'HOME':
+        if key == "HOME":
             home = value
         command_parts.extend([f"SINGULARITYENV_{key}={value}"])
     command_parts += _singularity_prefix(
@@ -71,10 +73,7 @@ def build_singularity_run_command(
 
 
 def _singularity_prefix(
-    singularity_cmd=DEFAULT_SINGULARITY_COMMAND,
-    sudo=DEFAULT_SUDO,
-    sudo_cmd=DEFAULT_SUDO_COMMAND,
-    **kwds
+    singularity_cmd=DEFAULT_SINGULARITY_COMMAND, sudo=DEFAULT_SUDO, sudo_cmd=DEFAULT_SUDO_COMMAND, **kwds
 ):
     """Prefix to issue a singularity command."""
     command_parts = []

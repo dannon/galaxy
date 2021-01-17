@@ -33,9 +33,9 @@ class TagHandler:
         # Maximum tag length.
         self.max_tag_len = 255
         # Tag separator.
-        self.tag_separators = ',;'
+        self.tag_separators = ",;"
         # Hierarchy separator.
-        self.hierarchy_separator = '.'
+        self.hierarchy_separator = "."
         # Key-value separator.
         self.key_value_separators = "=:"
         # Initialize with known classes - add to this in subclasses.
@@ -48,12 +48,12 @@ class TagHandler:
     def add_tags_from_list(self, user, item, new_tags_list, flush=True):
         new_tags_set = set(new_tags_list)
         if item.tags:
-            new_tags_set.update(self.get_tags_str(item.tags).split(','))
+            new_tags_set.update(self.get_tags_str(item.tags).split(","))
         return self.set_tags_from_list(user, item, new_tags_set, flush=flush)
 
     def remove_tags_from_list(self, user, item, tag_to_remove_list, flush=True):
         tag_to_remove_set = set(tag_to_remove_list)
-        tags_set = {_.strip() for _ in self.get_tags_str(item.tags).split(',')}
+        tags_set = {_.strip() for _ in self.get_tags_str(item.tags).split(",")}
         if item.tags:
             tags_set -= tag_to_remove_set
         return self.set_tags_from_list(user, item, tags_set, flush=flush)
@@ -62,8 +62,8 @@ class TagHandler:
         # precondition: item is already security checked against user
         # precondition: incoming tags is a list of sanitized/formatted strings
         self.delete_item_tags(user, item)
-        new_tags_str = ','.join(new_tags_list)
-        self.apply_item_tags(user, item, unicodify(new_tags_str, 'utf-8'), flush=flush)
+        new_tags_str = ",".join(new_tags_list)
+        self.apply_item_tags(user, item, unicodify(new_tags_str, "utf-8"), flush=flush)
         if flush:
             self.sa_session.flush()
         return item.tags
@@ -84,18 +84,20 @@ class TagHandler:
         if not item_tag_assoc_class:
             return []
         # Build select statement.
-        cols_to_select = [item_tag_assoc_class.table.c.tag_id, func.count('*')]
+        cols_to_select = [item_tag_assoc_class.table.c.tag_id, func.count("*")]
         from_obj = item_tag_assoc_class.table.join(item_class.table).join(galaxy.model.Tag.table)
-        where_clause = (self.get_id_col_in_item_tag_assoc_table(item_class) == item.id)
+        where_clause = self.get_id_col_in_item_tag_assoc_table(item_class) == item.id
         order_by = [func.count("*").desc()]
         group_by = item_tag_assoc_class.table.c.tag_id
         # Do query and get result set.
-        query = select(columns=cols_to_select,
-                       from_obj=from_obj,
-                       whereclause=where_clause,
-                       group_by=group_by,
-                       order_by=order_by,
-                       limit=limit)
+        query = select(
+            columns=cols_to_select,
+            from_obj=from_obj,
+            whereclause=where_clause,
+            group_by=group_by,
+            order_by=order_by,
+            limit=limit,
+        )
         result_set = self.sa_session.execute(query)
         # Return community tags.
         community_tags = []
@@ -105,8 +107,9 @@ class TagHandler:
         return community_tags
 
     def get_tool_tags(self):
-        query = select(columns=[galaxy.model.ToolTagAssociation.table.c.tag_id],
-                       from_obj=galaxy.model.ToolTagAssociation.table).distinct()
+        query = select(
+            columns=[galaxy.model.ToolTagAssociation.table.c.tag_id], from_obj=galaxy.model.ToolTagAssociation.table
+        ).distinct()
         result_set = self.sa_session.execute(query)
 
         tags = []
@@ -279,7 +282,7 @@ class TagHandler:
         # Strip unicode control characters
         tag_str = strip_control_characters(tag_str)
         # Split tags based on separators.
-        reg_exp = re.compile('[' + self.tag_separators + ']')
+        reg_exp = re.compile("[" + self.tag_separators + "]")
         raw_tags = reg_exp.split(tag_str)
         return self.parse_tags_list(raw_tags)
 
@@ -307,7 +310,7 @@ class TagHandler:
         if not value:
             return None
         # Remove whitespace from value.
-        reg_exp = re.compile(r'\s')
+        reg_exp = re.compile(r"\s")
         scrubbed_value = re.sub(reg_exp, "", value)
         return scrubbed_value
 
@@ -317,7 +320,7 @@ class TagHandler:
         if not name:
             return None
         # Remove whitespace from name.
-        reg_exp = re.compile(r'\s')
+        reg_exp = re.compile(r"\s")
         scrubbed_name = re.sub(reg_exp, "", name)
         # Ignore starting ':' char.
         if scrubbed_name.startswith(self.hierarchy_separator):
@@ -337,7 +340,7 @@ class TagHandler:
     def _get_name_value_pair(self, tag_str):
         """Get name, value pair from a tag string."""
         # Use regular expression to parse name, value.
-        if tag_str.startswith('#'):
+        if tag_str.startswith("#"):
             tag_str = "name:%s" % tag_str[1:]
         reg_exp = re.compile("[" + self.key_value_separators + "]")
         name_value_pair = reg_exp.split(tag_str, 1)
@@ -350,35 +353,44 @@ class TagHandler:
 class GalaxyTagHandler(TagHandler):
     def __init__(self, sa_session):
         from galaxy import model
+
         TagHandler.__init__(self, sa_session)
-        self.item_tag_assoc_info["History"] = ItemTagAssocInfo(model.History,
-                                                               model.HistoryTagAssociation,
-                                                               model.HistoryTagAssociation.table.c.history_id)
-        self.item_tag_assoc_info["HistoryDatasetAssociation"] = \
-            ItemTagAssocInfo(model.HistoryDatasetAssociation,
-                             model.HistoryDatasetAssociationTagAssociation,
-                             model.HistoryDatasetAssociationTagAssociation.table.c.history_dataset_association_id)
-        self.item_tag_assoc_info["HistoryDatasetCollectionAssociation"] = \
-            ItemTagAssocInfo(model.HistoryDatasetCollectionAssociation,
-                             model.HistoryDatasetCollectionTagAssociation,
-                             model.HistoryDatasetCollectionTagAssociation.table.c.history_dataset_collection_id)
-        self.item_tag_assoc_info["LibraryDatasetDatasetAssociation"] = \
-            ItemTagAssocInfo(model.LibraryDatasetDatasetAssociation,
-                             model.LibraryDatasetDatasetAssociationTagAssociation,
-                             model.LibraryDatasetDatasetAssociationTagAssociation.table.c.library_dataset_dataset_association_id)
-        self.item_tag_assoc_info["Page"] = ItemTagAssocInfo(model.Page,
-                                                            model.PageTagAssociation,
-                                                            model.PageTagAssociation.table.c.page_id)
-        self.item_tag_assoc_info["StoredWorkflow"] = ItemTagAssocInfo(model.StoredWorkflow,
-                                                                      model.StoredWorkflowTagAssociation,
-                                                                      model.StoredWorkflowTagAssociation.table.c.stored_workflow_id)
-        self.item_tag_assoc_info["Visualization"] = ItemTagAssocInfo(model.Visualization,
-                                                                     model.VisualizationTagAssociation,
-                                                                     model.VisualizationTagAssociation.table.c.visualization_id)
+        self.item_tag_assoc_info["History"] = ItemTagAssocInfo(
+            model.History, model.HistoryTagAssociation, model.HistoryTagAssociation.table.c.history_id
+        )
+        self.item_tag_assoc_info["HistoryDatasetAssociation"] = ItemTagAssocInfo(
+            model.HistoryDatasetAssociation,
+            model.HistoryDatasetAssociationTagAssociation,
+            model.HistoryDatasetAssociationTagAssociation.table.c.history_dataset_association_id,
+        )
+        self.item_tag_assoc_info["HistoryDatasetCollectionAssociation"] = ItemTagAssocInfo(
+            model.HistoryDatasetCollectionAssociation,
+            model.HistoryDatasetCollectionTagAssociation,
+            model.HistoryDatasetCollectionTagAssociation.table.c.history_dataset_collection_id,
+        )
+        self.item_tag_assoc_info["LibraryDatasetDatasetAssociation"] = ItemTagAssocInfo(
+            model.LibraryDatasetDatasetAssociation,
+            model.LibraryDatasetDatasetAssociationTagAssociation,
+            model.LibraryDatasetDatasetAssociationTagAssociation.table.c.library_dataset_dataset_association_id,
+        )
+        self.item_tag_assoc_info["Page"] = ItemTagAssocInfo(
+            model.Page, model.PageTagAssociation, model.PageTagAssociation.table.c.page_id
+        )
+        self.item_tag_assoc_info["StoredWorkflow"] = ItemTagAssocInfo(
+            model.StoredWorkflow,
+            model.StoredWorkflowTagAssociation,
+            model.StoredWorkflowTagAssociation.table.c.stored_workflow_id,
+        )
+        self.item_tag_assoc_info["Visualization"] = ItemTagAssocInfo(
+            model.Visualization,
+            model.VisualizationTagAssociation,
+            model.VisualizationTagAssociation.table.c.visualization_id,
+        )
 
 
 class GalaxyTagHandlerSession(GalaxyTagHandler):
     """Like GalaxyTagHandler, but avoids one flush per created tag."""
+
     def __init__(self, sa_session):
         super().__init__(sa_session)
         self.created_tags = {}

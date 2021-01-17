@@ -4,17 +4,13 @@ API operations allowing clients to manage tool dependencies.
 import logging
 
 from galaxy.tool_util.deps import views
-from galaxy.web import (
-    expose_api,
-    require_admin
-)
+from galaxy.web import expose_api, require_admin
 from galaxy.webapps.base.controller import BaseAPIController
 
 log = logging.getLogger(__name__)
 
 
 class ToolDependenciesAPIController(BaseAPIController):
-
     def __init__(self, app):
         super().__init__(app)
         self._view = views.DependencyResolversView(app)
@@ -249,12 +245,12 @@ class ToolDependenciesAPIController(BaseAPIController):
         requirements = {tools_by_id[tid].tool_requirements for tid in tool_ids}
         install_kwds = {}
         for source in [payload, kwds]:
-            if 'include_containers' in source:
-                install_kwds['include_containers'] = source['container_type']
-            if 'container_type' in kwds:
-                install_kwds['container_type'] = source['container_type']
-            if 'resolver_type' in source:
-                install_kwds['resolver_type'] = source['resolver_type']
+            if "include_containers" in source:
+                install_kwds["include_containers"] = source["container_type"]
+            if "container_type" in kwds:
+                install_kwds["container_type"] = source["container_type"]
+            if "resolver_type" in source:
+                install_kwds["resolver_type"] = source["resolver_type"]
         [self._view.install_dependencies(requirements=r, index=index, **install_kwds) for r in requirements]
 
     @expose_api
@@ -283,12 +279,12 @@ class ToolDependenciesAPIController(BaseAPIController):
         requirements = {tools_by_id[tid].tool_requirements for tid in tool_ids}
         install_kwds = {}
         for source in [payload, kwds]:
-            if 'include_containers' in source:
-                install_kwds['include_containers'] = source['container_type']
-            if 'container_type' in kwds:
-                install_kwds['container_type'] = source['container_type']
-            if 'resolver_type' in source:
-                install_kwds['resolver_type'] = source['resolver_type']
+            if "include_containers" in source:
+                install_kwds["include_containers"] = source["container_type"]
+            if "container_type" in kwds:
+                install_kwds["container_type"] = source["container_type"]
+            if "resolver_type" in source:
+                install_kwds["resolver_type"] = source["resolver_type"]
 
         [self._view.uninstall_dependencies(index=index, requirements=r, **install_kwds) for r in requirements]
 

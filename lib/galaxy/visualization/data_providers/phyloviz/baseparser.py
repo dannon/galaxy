@@ -30,19 +30,14 @@ class Node:
 
     def toJson(self):
         """Converts the data in the node to a dict representation of json"""
-        thisJson = {
-            "name": self.name,
-            "id": self.id,
-            "depth": self.depth,
-            "dist": self.length
-        }
+        thisJson = {"name": self.name, "id": self.id, "depth": self.depth, "dist": self.length}
         thisJson = self.addChildrenToJson(thisJson)
         thisJson = self.addMiscToJson(thisJson)
         return thisJson
 
     def addChildrenToJson(self, jsonDict):
         """Needs a special method to addChildren, such that the key does not appear in the Jsondict when the children is empty
-        this requirement is due to the layout algorithm used by d3 layout for hiding subtree """
+        this requirement is due to the layout algorithm used by d3 layout for hiding subtree"""
         if len(self.children) > 0:
             children = [node.toJson() for node in self.children]
             jsonDict["children"] = children

@@ -3,8 +3,7 @@ from .interface import ToolLineage
 
 
 class LineageMap:
-    """ Map each unique tool id to a lineage object.
-    """
+    """Map each unique tool id to a lineage object."""
 
     def __init__(self, app):
         self.lineage_map = {}
@@ -51,4 +50,4 @@ class LineageMap:
         return self.lineage_map.get(versionless_tool_id, None)
 
 
-__all__ = ("LineageMap", )
+__all__ = ("LineageMap",)

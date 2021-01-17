@@ -18,12 +18,12 @@ TITLES = {
     "memory.failcnt": "Failed to allocate memory count",
     "memory.oom_control.oom_kill_disable": "OOM Control enabled",
     "memory.oom_control.under_oom": "Was OOM Killer active?",
-    "cpuacct.usage": "CPU Time"
+    "cpuacct.usage": "CPU Time",
 }
 CONVERSION = {
     "memory.oom_control.oom_kill_disable": lambda x: "No" if x == 1 else "Yes",
     "memory.oom_control.under_oom": lambda x: "Yes" if x == 1 else "No",
-    "cpuacct.usage": lambda x: formatting.seconds_to_str(x / 10**9)  # convert nanoseconds
+    "cpuacct.usage": lambda x: formatting.seconds_to_str(x / 10 ** 9),  # convert nanoseconds
 }
 
 
@@ -31,7 +31,6 @@ Metric = namedtuple("Metric", ("key", "subkey", "value"))
 
 
 class CgroupPluginFormatter(formatting.JobMetricFormatter):
-
     def format(self, key, value):
         title = TITLES.get(key, key)
         if key in CONVERSION:
@@ -47,8 +46,8 @@ class CgroupPluginFormatter(formatting.JobMetricFormatter):
 
 
 class CgroupPlugin(InstrumentPlugin):
-    """ Plugin that collects memory and cpu utilization from within a cgroup.
-    """
+    """Plugin that collects memory and cpu utilization from within a cgroup."""
+
     plugin_type = "cgroup"
     formatter = CgroupPluginFormatter()
 
@@ -72,10 +71,14 @@ class CgroupPlugin(InstrumentPlugin):
         return metrics
 
     def __record_cgroup_cpu_usage(self, job_directory):
-        return """if [ `command -v cgget` ] && [ -e /proc/$$/cgroup ]; then cat /proc/$$/cgroup | awk -F':' '$2=="cpuacct,cpu"{{print $2":"$3}}' | xargs -I{{}} cgget -g {{}} > {metrics} ; else echo "" > {metrics}; fi""".format(metrics=self.__cgroup_metrics_file(job_directory))
+        return """if [ `command -v cgget` ] && [ -e /proc/$$/cgroup ]; then cat /proc/$$/cgroup | awk -F':' '$2=="cpuacct,cpu"{{print $2":"$3}}' | xargs -I{{}} cgget -g {{}} > {metrics} ; else echo "" > {metrics}; fi""".format(
+            metrics=self.__cgroup_metrics_file(job_directory)
+        )
 
     def __record_cgroup_memory_usage(self, job_directory):
-        return """if [ `command -v cgget` ] && [ -e /proc/$$/cgroup ]; then cat /proc/$$/cgroup | awk -F':' '$2=="memory"{{print $2":"$3}}' | xargs -I{{}} cgget -g {{}} >> {metrics} ; else echo "" > {metrics}; fi""".format(metrics=self.__cgroup_metrics_file(job_directory))
+        return """if [ `command -v cgget` ] && [ -e /proc/$$/cgroup ]; then cat /proc/$$/cgroup | awk -F':' '$2=="memory"{{print $2":"$3}}' | xargs -I{{}} cgget -g {{}} >> {metrics} ; else echo "" > {metrics}; fi""".format(
+            metrics=self.__cgroup_metrics_file(job_directory)
+        )
 
     def __cgroup_metrics_file(self, job_directory):
         return self._instrument_file_path(job_directory, "_metrics")
@@ -102,7 +105,7 @@ class CgroupPlugin(InstrumentPlugin):
             metrics[metric.subkey] = metric.value
 
     def __read_key_value(self, line, prev_metric):
-        if not line.startswith('\t'):
+        if not line.startswith("\t"):
             # line is a single-line param or the first line of a multi-line param
             try:
                 subkey, value = line.strip().split(": ", 1)
@@ -141,4 +144,4 @@ class CgroupPlugin(InstrumentPlugin):
             return value
 
 
-__all__ = ('CgroupPlugin', )
+__all__ = ("CgroupPlugin",)

@@ -10,17 +10,9 @@ from sys import getsizeof
 import numpy
 import sqlalchemy
 from sqlalchemy.ext.mutable import Mutable
-from sqlalchemy.types import (
-    CHAR,
-    LargeBinary,
-    String,
-    TypeDecorator
-)
+from sqlalchemy.types import CHAR, LargeBinary, String, TypeDecorator
 
-from galaxy.util import (
-    smart_str,
-    unicodify
-)
+from galaxy.util import smart_str, unicodify
 from galaxy.util.aliaspickler import AliasPickleModule
 
 log = logging.getLogger(__name__)
@@ -50,9 +42,9 @@ def _sniffnfix_pg9_hex(value):
     Sniff for and fix postgres 9 hex decoding issue
     """
     try:
-        if value[0] == 'x':
+        if value[0] == "x":
             return binascii.unhexlify(value[1:])
-        elif smart_str(value).startswith(b'\\x'):
+        elif smart_str(value).startswith(b"\\x"):
             return binascii.unhexlify(value[2:])
         else:
             return value
@@ -70,10 +62,11 @@ class GalaxyLargeBinary(LargeBinary):
         def process(value):
             if value is not None:
                 if isinstance(value, str):
-                    value = bytes(value, encoding='utf-8')
+                    value = bytes(value, encoding="utf-8")
                 else:
                     value = bytes(value)
             return value
+
         return process
 
 
@@ -110,7 +103,7 @@ class JSONType(sqlalchemy.types.TypeDecorator):
         return copy.deepcopy(value)
 
     def compare_values(self, x, y):
-        return (x == y)
+        return x == y
 
 
 class MutationObj(Mutable):
@@ -123,6 +116,7 @@ class MutationObj(Mutable):
 
     And other minor changes to make it work for us.
     """
+
     @classmethod
     def coerce(cls, key, value):
         if isinstance(value, dict) and not isinstance(value, MutationDict):
@@ -160,20 +154,20 @@ class MutationObj(Mutable):
         def pickle(state, state_dict):
             val = state.dict.get(key, None)
             if isinstance(val, cls):
-                if 'ext.mutable.values' not in state_dict:
-                    state_dict['ext.mutable.values'] = []
-                state_dict['ext.mutable.values'].append(val)
+                if "ext.mutable.values" not in state_dict:
+                    state_dict["ext.mutable.values"] = []
+                state_dict["ext.mutable.values"].append(val)
 
         def unpickle(state, state_dict):
-            if 'ext.mutable.values' in state_dict:
-                for val in state_dict['ext.mutable.values']:
+            if "ext.mutable.values" in state_dict:
+                for val in state_dict["ext.mutable.values"]:
                     val._parents[state.obj()] = key
 
-        sqlalchemy.event.listen(parent_cls, 'load', load, raw=True, propagate=True)
-        sqlalchemy.event.listen(parent_cls, 'refresh', load, raw=True, propagate=True)
-        sqlalchemy.event.listen(attribute, 'set', set, raw=True, retval=True, propagate=True)
-        sqlalchemy.event.listen(parent_cls, 'pickle', pickle, raw=True, propagate=True)
-        sqlalchemy.event.listen(parent_cls, 'unpickle', unpickle, raw=True, propagate=True)
+        sqlalchemy.event.listen(parent_cls, "load", load, raw=True, propagate=True)
+        sqlalchemy.event.listen(parent_cls, "refresh", load, raw=True, propagate=True)
+        sqlalchemy.event.listen(attribute, "set", set, raw=True, retval=True, propagate=True)
+        sqlalchemy.event.listen(parent_cls, "pickle", pickle, raw=True, propagate=True)
+        sqlalchemy.event.listen(parent_cls, "unpickle", unpickle, raw=True, propagate=True)
 
 
 class MutationDict(MutationObj, dict):
@@ -185,7 +179,7 @@ class MutationDict(MutationObj, dict):
         return self
 
     def __setitem__(self, key, value):
-        if hasattr(self, '_key'):
+        if hasattr(self, "_key"):
             value = MutationObj.coerce(self._key, value)
         dict.__setitem__(self, key, value)
         self.changed()
@@ -240,7 +234,7 @@ class MutationList(MutationObj, list):
         self.changed()
 
     def extend(self, values):
-        if hasattr(self, '_key'):
+        if hasattr(self, "_key"):
             values = (MutationObj.coerce(self._key, value) for value in values)
         list.extend(self, values)
         self.changed()
@@ -257,13 +251,11 @@ class MutationList(MutationObj, list):
 
 MutationObj.associate_with(JSONType)
 
-metadata_pickler = AliasPickleModule({
-    ("cookbook.patterns", "Bunch"): ("galaxy.util.bunch", "Bunch")
-})
+metadata_pickler = AliasPickleModule({("cookbook.patterns", "Bunch"): ("galaxy.util.bunch", "Bunch")})
 
 
 def total_size(o, handlers=None, verbose=False):
-    """ Returns the approximate memory footprint an object and all of its contents.
+    """Returns the approximate memory footprint an object and all of its contents.
 
     Automatically finds the contents of the following builtin containers and
     their subclasses:  tuple, list, deque, dict, set and frozenset.
@@ -279,18 +271,13 @@ def total_size(o, handlers=None, verbose=False):
     def dict_handler(d):
         return chain.from_iterable(d.items())
 
-    all_handlers = {tuple: iter,
-                    list: iter,
-                    deque: iter,
-                    dict: dict_handler,
-                    set: iter,
-                    frozenset: iter}
-    all_handlers.update(handlers)     # user handlers take precedence
-    seen = set()                      # track which object id's have already been seen
-    default_size = getsizeof(0)       # estimate sizeof object without __sizeof__
+    all_handlers = {tuple: iter, list: iter, deque: iter, dict: dict_handler, set: iter, frozenset: iter}
+    all_handlers.update(handlers)  # user handlers take precedence
+    seen = set()  # track which object id's have already been seen
+    default_size = getsizeof(0)  # estimate sizeof object without __sizeof__
 
     def sizeof(o):
-        if id(o) in seen:       # do not double count the same object
+        if id(o) in seen:  # do not double count the same object
             return 0
         seen.add(id(o))
         s = getsizeof(o, default_size)
@@ -317,7 +304,7 @@ class MetadataType(JSONType):
                     sz = total_size(v)
                     if sz > MAX_METADATA_VALUE_SIZE:
                         del value[k]
-                        log.warning(f'Refusing to bind metadata key {k} due to size ({sz})')
+                        log.warning(f"Refusing to bind metadata key {k} due to size ({sz})")
             value = json_encoder.encode(value).encode()
         return value
 
@@ -346,6 +333,7 @@ class UUIDType(TypeDecorator):
 
     CHAR(32), storing as stringified hex values.
     """
+
     impl = CHAR
 
     def load_dialect_impl(self, dialect):
@@ -372,5 +360,5 @@ class TrimmedString(TypeDecorator):
     def process_bind_param(self, value, dialect):
         """Automatically truncate string values"""
         if self.impl.length and value is not None:
-            value = unicodify(value)[0:self.impl.length]
+            value = unicodify(value)[0 : self.impl.length]
         return value

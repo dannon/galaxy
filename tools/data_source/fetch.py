@@ -15,7 +15,7 @@ BUFFER = 1048576
 url = sys.argv[1]
 out_name = sys.argv[2]
 
-out = open(out_name, 'wt')
+out = open(out_name, "wt")
 try:
     page = urlopen(url)
     while 1:
@@ -24,5 +24,5 @@ try:
             break
         out.write(data)
 except Exception as e:
-    print('Error getting the data -> %s' % e)
+    print("Error getting the data -> %s" % e)
 out.close()

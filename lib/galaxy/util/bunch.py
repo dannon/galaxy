@@ -28,10 +28,11 @@ class Bunch:
         return self.__dict__.values()
 
     def __str__(self):
-        return '%s' % self.__dict__
+        return "%s" % self.__dict__
 
     def __bool__(self):
         return bool(self.__dict__)
+
     __nonzero__ = __bool__
 
     def __setitem__(self, k, v):

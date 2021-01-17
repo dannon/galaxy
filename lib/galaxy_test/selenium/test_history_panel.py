@@ -1,7 +1,4 @@
-from .framework import (
-    selenium_test,
-    SeleniumTestCase
-)
+from .framework import selenium_test, SeleniumTestCase
 
 
 class HistoryPanelTestCase(SeleniumTestCase):
@@ -79,17 +76,13 @@ class HistoryPanelTestCase(SeleniumTestCase):
 
     @selenium_test
     def test_history_panel_annotations_change(self):
-
-        def assert_current_annotation(expected, error_message="History annotation",
-                                      is_equal=True):
+        def assert_current_annotation(expected, error_message="History annotation", is_equal=True):
             current_annotation = self.components.history_panel.annotation_editable_text.wait_for_visible()
             error_message += " given: [%s] expected [%s] "
             if is_equal:
-                assert current_annotation.text == expected, error_message % (
-                    current_annotation.text, expected)
+                assert current_annotation.text == expected, error_message % (current_annotation.text, expected)
             else:
-                assert current_annotation.text != expected, error_message % (
-                    current_annotation.text, expected)
+                assert current_annotation.text != expected, error_message % (current_annotation.text, expected)
 
         def set_random_annotation(clear_text=True):
             random_annotation = self._get_random_name(prefix="arbitrary_annotation_")
@@ -106,15 +99,17 @@ class HistoryPanelTestCase(SeleniumTestCase):
         # change annotation text
         changed_annotation = set_random_annotation()
 
-        assert_current_annotation(initial_annotation, error_message="History annotation was not changed!",
-                                  is_equal=False)
-        assert_current_annotation(changed_annotation,
-                                  error_message="History annotation was changed, but annotation text is wrong!",
-                                  is_equal=True)
+        assert_current_annotation(
+            initial_annotation, error_message="History annotation was not changed!", is_equal=False
+        )
+        assert_current_annotation(
+            changed_annotation,
+            error_message="History annotation was changed, but annotation text is wrong!",
+            is_equal=True,
+        )
 
     @selenium_test
     def test_history_panel_tags_change(self):
-
         def add_tags(size):
             history_panel_tags = list()
 
@@ -127,16 +122,20 @@ class HistoryPanelTestCase(SeleniumTestCase):
         def assert_current_tags(expected_tags):
             current_tags = self.components.history_panel.tags
             current_tags.wait_for_visible()
-            assert [tag.text for tag in
-                    current_tags.all()] == expected_tags, f"tags [{current_tags}] are not the same as expected [{expected_tags}]"
+            assert [
+                tag.text for tag in current_tags.all()
+            ] == expected_tags, f"tags [{current_tags}] are not the same as expected [{expected_tags}]"
 
         def clear_tags(expected_tags_size):
 
             close_tag_buttons = self.components.history_panel.tag_close_btn.all()
             current_tags_size = len(close_tag_buttons)
 
-            assert expected_tags_size == current_tags_size, "there are more tags than expected! current {}, expected {}".format(
-                current_tags_size, expected_tags_size)
+            assert (
+                expected_tags_size == current_tags_size
+            ), "there are more tags than expected! current {}, expected {}".format(
+                current_tags_size, expected_tags_size
+            )
             for close_btn in reversed(close_tag_buttons):
                 close_btn.click()
                 self.sleep_for(self.wait_types.UX_RENDER)

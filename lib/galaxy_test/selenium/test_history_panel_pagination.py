@@ -1,8 +1,5 @@
 from galaxy_test.base.populators import flakey
-from .framework import (
-    selenium_test,
-    SeleniumTestCase
-)
+from .framework import selenium_test, SeleniumTestCase
 
 
 class HistoryPanelPaginationTestCase(SeleniumTestCase):
@@ -14,11 +11,11 @@ class HistoryPanelPaginationTestCase(SeleniumTestCase):
     def test_pagination(self):
         history_id = self.current_history_id()
 
-        self.dataset_populator.new_dataset(history_id, content='1\t2\t3', name="data1")
-        self.dataset_populator.new_dataset(history_id, content='2\t3\t4', name="data2")
-        self.dataset_populator.new_dataset(history_id, content='3\t4\t5', name="data3")
-        self.dataset_populator.new_dataset(history_id, content='4\t5\t6', name="data4")
-        self.dataset_populator.new_dataset(history_id, content='5\t6\t7', name="data5")
+        self.dataset_populator.new_dataset(history_id, content="1\t2\t3", name="data1")
+        self.dataset_populator.new_dataset(history_id, content="2\t3\t4", name="data2")
+        self.dataset_populator.new_dataset(history_id, content="3\t4\t5", name="data3")
+        self.dataset_populator.new_dataset(history_id, content="4\t5\t6", name="data4")
+        self.dataset_populator.new_dataset(history_id, content="5\t6\t7", name="data5")
 
         self.home()
         for hid in [1, 2, 3, 4, 5]:

@@ -139,9 +139,11 @@ def _fetch_target(upload_config, target):
             # and such but we're not implementing that here yet. yagni?
             # also need name...
             dataset_bunch = Bunch()
-            name = item.get("name") or 'Composite Dataset'
+            name = item.get("name") or "Composite Dataset"
             dataset_bunch.name = name
-            primary_file = sniff.stream_to_file(StringIO(datatype.generate_primary_file(dataset_bunch)), prefix='upload_auto_primary_file', dir=".")
+            primary_file = sniff.stream_to_file(
+                StringIO(datatype.generate_primary_file(dataset_bunch)), prefix="upload_auto_primary_file", dir="."
+            )
             extra_files_path = primary_file + "_extra"
             os.mkdir(extra_files_path)
             rval = {
@@ -235,7 +237,7 @@ def _fetch_target(upload_config, target):
                 path=path,
                 requested_ext=requested_ext,
                 name=name,
-                tmp_prefix='data_fetch_upload_',
+                tmp_prefix="data_fetch_upload_",
                 tmp_dir=".",
                 check_content=check_content,
                 link_data_only=link_data_only,
@@ -248,8 +250,10 @@ def _fetch_target(upload_config, target):
             if link_data_only:
                 # Never alter a file that will not be copied to Galaxy's local file store.
                 if datatype.dataset_content_needs_grooming(path):
-                    err_msg = 'The uploaded files need grooming, so change your <b>Copy data into Galaxy?</b> selection to be ' + \
-                        '<b>Copy files into Galaxy</b> instead of <b>Link to files without copying into Galaxy</b> so grooming can be performed.'
+                    err_msg = (
+                        "The uploaded files need grooming, so change your <b>Copy data into Galaxy?</b> selection to be "
+                        + "<b>Copy files into Galaxy</b> instead of <b>Link to files without copying into Galaxy</b> so grooming can be performed."
+                    )
                     raise UploadProblemException(err_msg)
 
             # If this file is not in the workdir make sure it gets there.
@@ -287,6 +291,7 @@ def _fetch_target(upload_config, target):
                             if not os.path.exists(parent_dir):
                                 safe_makedirs(parent_dir)
                             shutil.move(src_path, file_output_path)
+
                 walk_extra_files(extra_files.get("elements", []))
 
             # TODO:
@@ -295,7 +300,15 @@ def _fetch_target(upload_config, target):
                 # Groom the dataset content if necessary
                 datatype.groom_dataset_content(path)
 
-        rval = {"name": name, "filename": path, "dbkey": dbkey, "ext": ext, "link_data_only": link_data_only, "sources": sources, "hashes": hashes}
+        rval = {
+            "name": name,
+            "filename": path,
+            "dbkey": dbkey,
+            "ext": ext,
+            "link_data_only": link_data_only,
+            "sources": sources,
+            "hashes": hashes,
+        }
         if staged_extra_files:
             rval["extra_files"] = os.path.abspath(staged_extra_files)
         return _copy_and_validate_simple_attributes(item, rval)
@@ -411,7 +424,9 @@ def _handle_hash_validation(upload_config, hash_function, hash_value, path):
     if upload_config.validate_hashes:
         calculated_hash_value = memory_bound_hexdigest(hash_func_name=hash_function, path=path)
         if calculated_hash_value != hash_value:
-            raise Exception(f"Failed to validate upload with [{hash_function}] - expected [{hash_value}] got [{calculated_hash_value}]")
+            raise Exception(
+                f"Failed to validate upload with [{hash_function}] - expected [{hash_value}] got [{calculated_hash_value}]"
+            )
 
 
 def _arg_parser():
@@ -431,6 +446,7 @@ def get_file_sources(working_directory):
     global _file_sources
     if _file_sources is None:
         from galaxy.files import ConfiguredFileSources
+
         file_sources = None
         file_sources_path = os.path.join(working_directory, "file_sources.json")
         if os.path.exists(file_sources_path):
@@ -446,7 +462,6 @@ def get_file_sources(working_directory):
 
 
 class UploadConfig:
-
     def __init__(self, request, registry, working_directory, allow_failed_collections):
         self.registry = registry
         self.working_directory = working_directory

@@ -36,13 +36,7 @@ def main(argv=None):
             print(line.strip())
 
     template = "Summary (ms) - Mean: %f, Median: %f, Max: %f, Min: %f, StdDev: %f"
-    message = template % (
-        numpy.mean(times),
-        numpy.median(times),
-        numpy.max(times),
-        numpy.min(times),
-        numpy.std(times)
-    )
+    message = template % (numpy.mean(times), numpy.median(times), numpy.max(times), numpy.min(times), numpy.std(times))
     print(message)
 
 

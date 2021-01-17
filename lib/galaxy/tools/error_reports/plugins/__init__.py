@@ -2,10 +2,7 @@
 
 These are responsible for collecting and formatting a coherent set of metrics.
 """
-from abc import (
-    ABCMeta,
-    abstractmethod
-)
+from abc import ABCMeta, abstractmethod
 
 
 class ErrorPlugin(metaclass=ABCMeta):
@@ -17,6 +14,5 @@ class ErrorPlugin(metaclass=ABCMeta):
         """Short string providing labelling this plugin """
 
     def submit_report(self, dataset, job, tool, user_submission=False, **kwargs):
-        """Submit the bug report and render a string to be displayed to the user.
-        """
+        """Submit the bug report and render a string to be displayed to the user."""
         return None

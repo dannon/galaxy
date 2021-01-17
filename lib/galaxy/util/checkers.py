@@ -3,10 +3,7 @@ import gzip
 import re
 import tarfile
 import zipfile
-from io import (
-    BytesIO,
-    StringIO
-)
+from io import BytesIO, StringIO
 
 from galaxy import util
 from galaxy.util.image_util import image_type
@@ -28,7 +25,7 @@ def check_html(name, file_path=True):
     """
     # Handles files if file_path is True or text if file_path is False
     if file_path:
-        temp = open(name, encoding='utf-8')
+        temp = open(name, encoding="utf-8")
     else:
         temp = StringIO(util.unicodify(name))
     try:
@@ -71,17 +68,17 @@ def check_gzip(file_path, check_content=True):
     # If the file is Bam, it should already have been detected as such, so we'll just check
     # for sff format.
     try:
-        with gzip.open(file_path, 'rb') as fh:
+        with gzip.open(file_path, "rb") as fh:
             header = fh.read(4)
-        if header == b'.sff':
+        if header == b".sff":
             return (True, True)
     except Exception:
-        return(False, False)
+        return (False, False)
 
     if not check_content:
         return (True, True)
 
-    with gzip.open(file_path, mode='rb') as gzipped_file:
+    with gzip.open(file_path, mode="rb") as gzipped_file:
         chunk = gzipped_file.read(CHUNK_SIZE)
     # See if we have a compressed HTML file
     if check_html(chunk, file_path=False):
@@ -96,12 +93,12 @@ def check_bz2(file_path, check_content=True):
         if magic_check != util.bz2_magic:
             return (False, False)
     except Exception:
-        return(False, False)
+        return (False, False)
 
     if not check_content:
         return (True, True)
 
-    with bz2.BZ2File(file_path, mode='rb') as bzipped_file:
+    with bz2.BZ2File(file_path, mode="rb") as bzipped_file:
         chunk = bzipped_file.read(CHUNK_SIZE)
     # See if we have a compressed HTML file
     if check_html(chunk, file_path=False):
@@ -155,7 +152,7 @@ def is_tar(file_path):
 
 def iter_zip(file_path):
     with zipfile.ZipFile(file_path) as z:
-        for f in filter(lambda x: not x.endswith('/'), z.namelist()):
+        for f in filter(lambda x: not x.endswith("/"), z.namelist()):
             yield (z.open(f), f)
 
 
@@ -167,13 +164,13 @@ def check_image(file_path):
 
 
 __all__ = (
-    'check_binary',
-    'check_bz2',
-    'check_gzip',
-    'check_html',
-    'check_image',
-    'check_zip',
-    'is_gzip',
-    'is_bz2',
-    'is_zip',
+    "check_binary",
+    "check_bz2",
+    "check_gzip",
+    "check_html",
+    "check_image",
+    "check_zip",
+    "is_gzip",
+    "is_bz2",
+    "is_zip",
 )

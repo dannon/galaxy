@@ -41,8 +41,7 @@ from collections import OrderedDict
 
 class CycleError(Exception):
     def __init__(self, sofar, numpreds, succs):
-        Exception.__init__(self, "cycle in constraints",
-                           sofar, numpreds, succs)
+        Exception.__init__(self, "cycle in constraints", sofar, numpreds, succs)
         self.preds = None
 
     # return as much of the total ordering as topsort was able to
@@ -115,6 +114,7 @@ class CycleError(Exception):
         # reverse the path.
         preds = self.get_preds()
         from random import choice
+
         x = choice(remaining_elts)
         answer = []
         index = OrderedDict()
@@ -124,13 +124,13 @@ class CycleError(Exception):
             answer.append(x)
             x = choice(preds[x])
         answer.append(x)
-        answer = answer[index[x]:]
+        answer = answer[index[x] :]
         answer.reverse()
         return answer
 
 
 def _numpreds_and_successors_from_pairlist(pairlist):
-    numpreds = OrderedDict()   # elt -> # of predecessors
+    numpreds = OrderedDict()  # elt -> # of predecessors
     successors = OrderedDict()  # elt -> list of successors
     for first, second in pairlist:
         # make sure every elt is a key in numpreds

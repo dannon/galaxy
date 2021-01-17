@@ -4,18 +4,9 @@ Migration script to add the uninstalled and dist_to_shed columns to the tool_she
 
 import logging
 
-from sqlalchemy import (
-    Boolean,
-    Column,
-    MetaData,
-    Table
-)
+from sqlalchemy import Boolean, Column, MetaData, Table
 
-from galaxy.model.migrate.versions.util import (
-    add_column,
-    drop_column,
-    engine_false
-)
+from galaxy.model.migrate.versions.util import add_column, drop_column, engine_false
 
 log = logging.getLogger(__name__)
 metadata = MetaData()
@@ -47,6 +38,6 @@ def downgrade(migrate_engine):
 
     ToolShedRepository_table = Table("tool_shed_repository", metadata, autoload=True)
     # SQLAlchemy Migrate has a bug when dropping a boolean column in SQLite
-    if migrate_engine.name != 'sqlite':
-        drop_column('uninstalled', ToolShedRepository_table)
-        drop_column('dist_to_shed', ToolShedRepository_table)
+    if migrate_engine.name != "sqlite":
+        drop_column("uninstalled", ToolShedRepository_table)
+        drop_column("dist_to_shed", ToolShedRepository_table)

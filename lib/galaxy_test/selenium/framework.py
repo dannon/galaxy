@@ -12,6 +12,7 @@ from gxformat2 import (
     convert_and_import_workflow,
     ImporterGalaxyInterface,
 )
+
 try:
     from pyvirtualdisplay import Display
 except ImportError:
@@ -23,14 +24,13 @@ from galaxy.selenium import (
 from galaxy.selenium.context import (
     GalaxySeleniumContext,
 )
-from galaxy.selenium.navigates_galaxy import (
-    retry_during_transitions
-)
+from galaxy.selenium.navigates_galaxy import retry_during_transitions
 from galaxy.util import asbool, classproperty
 from galaxy_test.base import populators
 from galaxy_test.base.api import UsesApiTestCaseMixin
 from galaxy_test.base.env import DEFAULT_WEB_HOST, get_ip_address
 from galaxy_test.base.testcase import FunctionalTestCase
+
 try:
     from galaxy_test.driver.driver_util import GalaxyTestDriver
 except ImportError:
@@ -50,8 +50,12 @@ GALAXY_TEST_SCREENSHOTS_DIRECTORY = os.environ.get("GALAXY_TEST_SCREENSHOTS_DIRE
 # Test browser can be ["CHROME", "FIREFOX", "OPERA", "PHANTOMJS"]
 GALAXY_TEST_SELENIUM_BROWSER = os.environ.get("GALAXY_TEST_SELENIUM_BROWSER", driver_factory.DEFAULT_SELENIUM_BROWSER)
 GALAXY_TEST_SELENIUM_REMOTE = os.environ.get("GALAXY_TEST_SELENIUM_REMOTE", driver_factory.DEFAULT_SELENIUM_REMOTE)
-GALAXY_TEST_SELENIUM_REMOTE_PORT = os.environ.get("GALAXY_TEST_SELENIUM_REMOTE_PORT", driver_factory.DEFAULT_SELENIUM_REMOTE_PORT)
-GALAXY_TEST_SELENIUM_REMOTE_HOST = os.environ.get("GALAXY_TEST_SELENIUM_REMOTE_HOST", driver_factory.DEFAULT_SELENIUM_REMOTE_HOST)
+GALAXY_TEST_SELENIUM_REMOTE_PORT = os.environ.get(
+    "GALAXY_TEST_SELENIUM_REMOTE_PORT", driver_factory.DEFAULT_SELENIUM_REMOTE_PORT
+)
+GALAXY_TEST_SELENIUM_REMOTE_HOST = os.environ.get(
+    "GALAXY_TEST_SELENIUM_REMOTE_HOST", driver_factory.DEFAULT_SELENIUM_REMOTE_HOST
+)
 GALAXY_TEST_SELENIUM_HEADLESS = os.environ.get("GALAXY_TEST_SELENIUM_HEADLESS", DEFAULT_SELENIUM_HEADLESS)
 GALAXY_TEST_EXTERNAL_FROM_SELENIUM = os.environ.get("GALAXY_TEST_EXTERNAL_FROM_SELENIUM", None)
 # Auto-retry selenium tests this many times.
@@ -60,19 +64,22 @@ GALAXY_TEST_SELENIUM_RETRIES = int(os.environ.get("GALAXY_TEST_SELENIUM_RETRIES"
 GALAXY_TEST_SELENIUM_USER_EMAIL = os.environ.get("GALAXY_TEST_SELENIUM_USER_EMAIL", None)
 GALAXY_TEST_SELENIUM_USER_PASSWORD = os.environ.get("GALAXY_TEST_SELENIUM_USER_PASSWORD", None)
 GALAXY_TEST_SELENIUM_ADMIN_USER_EMAIL = os.environ.get("GALAXY_TEST_SELENIUM_ADMIN_USER_EMAIL", DEFAULT_ADMIN_USER)
-GALAXY_TEST_SELENIUM_ADMIN_USER_PASSWORD = os.environ.get("GALAXY_TEST_SELENIUM_ADMIN_USER_PASSWORD", DEFAULT_ADMIN_PASSWORD)
+GALAXY_TEST_SELENIUM_ADMIN_USER_PASSWORD = os.environ.get(
+    "GALAXY_TEST_SELENIUM_ADMIN_USER_PASSWORD", DEFAULT_ADMIN_PASSWORD
+)
 
 # JS code to execute in Galaxy JS console to setup localStorage of session for logging and
 # logging "flatten" messages because it seems Selenium (with Chrome at least) only grabs
 # the first argument to console.XXX when recovering the browser log.
-SETUP_LOGGING_JS = '''
+SETUP_LOGGING_JS = """
 window.localStorage && window.localStorage.setItem("galaxy:debug", true);
 window.localStorage && window.localStorage.setItem("galaxy:debug:flatten", true);
-'''
+"""
 
 try:
     from nose.tools import nottest
 except ImportError:
+
     def nottest(x):
         return x
 
@@ -99,6 +106,7 @@ def managed_history(f):
                     self.api_delete("histories/%s" % current_history_id)
                 except Exception:
                     print("Faild to cleanup managed history, selenium connection corrupted somehow?")
+
     return func_wrapper
 
 
@@ -158,18 +166,21 @@ def selenium_test(f):
                 dump_test_information(self, test_name)
                 if retry_attempts < GALAXY_TEST_SELENIUM_RETRIES:
                     retry_attempts += 1
-                    print(f"Test function [{test_name}] threw an exception, retrying. Failed attempts - {retry_attempts}.")
+                    print(
+                        f"Test function [{test_name}] threw an exception, retrying. Failed attempts - {retry_attempts}."
+                    )
                 else:
                     raise
 
     return func_wrapper
 
 
-retry_assertion_during_transitions = partial(retry_during_transitions, exception_check=lambda e: isinstance(e, AssertionError))
+retry_assertion_during_transitions = partial(
+    retry_during_transitions, exception_check=lambda e: isinstance(e, AssertionError)
+)
 
 
 class TestSnapshot:
-
     def __init__(self, driver, index, description):
         self.screenshot_binary = driver.get_screenshot_as_png()
         self.description = description
@@ -247,8 +258,7 @@ class TestWithSeleniumMixin(GalaxySeleniumContext, UsesApiTestCaseMixin):
         self.snapshots.append(TestSnapshot(self.driver, len(self.snapshots), description))
 
     def get_download_path(self):
-        """Returns default download path
-        """
+        """Returns default download path"""
         return DEFAULT_DOWNLOAD_PATH
 
     def api_interactor_for_logged_in_user(self):
@@ -294,7 +304,9 @@ class TestWithSeleniumMixin(GalaxySeleniumContext, UsesApiTestCaseMixin):
 
     def login(self):
         if GALAXY_TEST_SELENIUM_USER_EMAIL:
-            assert GALAXY_TEST_SELENIUM_USER_PASSWORD, "If GALAXY_TEST_SELENIUM_USER_EMAIL is set, a password must be set also with GALAXY_TEST_SELENIUM_USER_PASSWORD"
+            assert (
+                GALAXY_TEST_SELENIUM_USER_PASSWORD
+            ), "If GALAXY_TEST_SELENIUM_USER_EMAIL is set, a password must be set also with GALAXY_TEST_SELENIUM_USER_PASSWORD"
             self.home()
             self.submit_login(
                 email=GALAXY_TEST_SELENIUM_USER_EMAIL,
@@ -347,10 +359,7 @@ class TestWithSeleniumMixin(GalaxySeleniumContext, UsesApiTestCaseMixin):
 
     def admin_login(self):
         self.home()
-        self.submit_login(
-            GALAXY_TEST_SELENIUM_ADMIN_USER_EMAIL,
-            GALAXY_TEST_SELENIUM_ADMIN_USER_PASSWORD
-        )
+        self.submit_login(GALAXY_TEST_SELENIUM_ADMIN_USER_EMAIL, GALAXY_TEST_SELENIUM_ADMIN_USER_PASSWORD)
         with self.main_panel():
             self.assert_no_error_message()
 
@@ -379,7 +388,9 @@ class TestWithSeleniumMixin(GalaxySeleniumContext, UsesApiTestCaseMixin):
         """
         visualization_names = self.history_panel_item_available_visualizations(hid)
         if visualization_name not in visualization_names:
-            raise unittest.SkipTest("Skipping test, visualization [%s] doesn't appear to be configured." % visualization_name)
+            raise unittest.SkipTest(
+                "Skipping test, visualization [%s] doesn't appear to be configured." % visualization_name
+            )
 
 
 class SeleniumTestCase(FunctionalTestCase, TestWithSeleniumMixin):
@@ -437,7 +448,6 @@ class SharedStateSeleniumTestCase(SeleniumTestCase):
 
 
 class UsesHistoryItemAssertions:
-
     def assert_item_peek_includes(self, hid, expected):
         item_body = self.history_panel_item_component(hid=hid)
         peek_text = item_body.peek.wait_for_text()
@@ -473,7 +483,7 @@ class UsesHistoryItemAssertions:
 def default_web_host_for_selenium_tests():
     if asbool(GALAXY_TEST_SELENIUM_REMOTE):
         try:
-            dev_ip = get_ip_address('docker0')
+            dev_ip = get_ip_address("docker0")
             return dev_ip
         except OSError:
             return DEFAULT_WEB_HOST
@@ -496,7 +506,10 @@ def headless_selenium():
         return False
 
     if GALAXY_TEST_SELENIUM_HEADLESS == "auto":
-        if driver_factory.is_virtual_display_available() or driver_factory.get_local_browser(GALAXY_TEST_SELENIUM_BROWSER) == "CHROME":
+        if (
+            driver_factory.is_virtual_display_available()
+            or driver_factory.get_local_browser(GALAXY_TEST_SELENIUM_BROWSER) == "CHROME"
+        ):
             return True
         else:
             return False
@@ -509,7 +522,10 @@ def use_virtual_display():
         return False
 
     if GALAXY_TEST_SELENIUM_HEADLESS == "auto":
-        if driver_factory.is_virtual_display_available() and not driver_factory.get_local_browser(GALAXY_TEST_SELENIUM_BROWSER) == "CHROME":
+        if (
+            driver_factory.is_virtual_display_available()
+            and not driver_factory.get_local_browser(GALAXY_TEST_SELENIUM_BROWSER) == "CHROME"
+        ):
             return True
         else:
             return False
@@ -536,7 +552,9 @@ class SeleniumSessionGetPostMixin:
             if files is not None:
                 del data["__files"]
 
-        response = requests.post(full_url, data=data, cookies=self.selenium_test_case.selenium_to_requests_cookies(), files=files)
+        response = requests.post(
+            full_url, data=data, cookies=self.selenium_test_case.selenium_to_requests_cookies(), files=files
+        )
         return response
 
     def _delete(self, route, data=None):
@@ -572,7 +590,9 @@ class SeleniumSessionDatasetCollectionPopulator(populators.BaseDatasetCollection
         return create_response
 
 
-class SeleniumSessionWorkflowPopulator(populators.BaseWorkflowPopulator, SeleniumSessionGetPostMixin, ImporterGalaxyInterface):
+class SeleniumSessionWorkflowPopulator(
+    populators.BaseWorkflowPopulator, SeleniumSessionGetPostMixin, ImporterGalaxyInterface
+):
 
     """Implementation of BaseWorkflowPopulator backed by bioblend."""
 
@@ -584,7 +604,7 @@ class SeleniumSessionWorkflowPopulator(populators.BaseWorkflowPopulator, Seleniu
     def import_workflow(self, workflow, **kwds):
         workflow_str = json.dumps(workflow, indent=4)
         data = {
-            'workflow': workflow_str,
+            "workflow": workflow_str,
         }
         data.update(**kwds)
         upload_response = self._post("workflows", data=data)

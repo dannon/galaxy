@@ -1,14 +1,10 @@
-from .framework import (
-    selenium_test,
-    SeleniumTestCase
-)
+from .framework import selenium_test, SeleniumTestCase
 
 # Remove hack when submit_login works more consistently.
 VALID_LOGIN_RETRIES = 3
 
 
 class HistorySharingTestCase(SeleniumTestCase):
-
     @selenium_test
     def test_sharing_valid(self):
         user1_email, user2_email, history_id = self.setup_two_users_with_one_shared_history()
@@ -59,14 +55,14 @@ class HistorySharingTestCase(SeleniumTestCase):
         user1_email = self._get_random_email()
         self.register(user1_email)
         self.share_history_with_user(user_email="invalid_user@test.com")
-        self.assert_error_message(contains='is not a valid Galaxy user')
+        self.assert_error_message(contains="is not a valid Galaxy user")
 
     @selenium_test
     def test_sharing_with_self(self):
         user1_email = self._get_random_email()
         self.register(user1_email)
         self.share_history_with_user(user_email=user1_email)
-        self.assert_error_message(contains='You cannot send histories to yourself')
+        self.assert_error_message(contains="You cannot send histories to yourself")
 
     def setup_two_users_with_one_shared_history(self, share_by_id=False):
         user1_email = self._get_random_email()

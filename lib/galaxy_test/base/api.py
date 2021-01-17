@@ -20,12 +20,11 @@ from .interactor import TestCaseGalaxyInteractor as BaseInteractor
 
 
 class UsesApiTestCaseMixin:
-
     def tearDown(self):
-        if os.environ.get('GALAXY_TEST_EXTERNAL') is None:
+        if os.environ.get("GALAXY_TEST_EXTERNAL") is None:
             # Only kill running jobs after test for managed test instances
-            for job in self.galaxy_interactor.get('jobs?state=running&?user_details=true').json():
-                self._delete("jobs/%s" % job['id'])
+            for job in self.galaxy_interactor.get("jobs?state=running&?user_details=true").json():
+                self._delete("jobs/%s" % job["id"])
 
     def _api_url(self, path, params=None, use_key=None, use_admin_key=None):
         if not params:
@@ -60,10 +59,10 @@ class UsesApiTestCaseMixin:
 
     @contextmanager
     def _different_user(self, email=OTHER_USER):
-        """ Use in test cases to switch get/post operations to act as new user,
+        """Use in test cases to switch get/post operations to act as new user,
 
-            with self._different_user("other_user@bx.psu.edu"):
-                self._get("histories")  # Gets other_user@bx.psu.edu histories.
+        with self._different_user("other_user@bx.psu.edu"):
+            self._get("histories")  # Gets other_user@bx.psu.edu histories.
         """
         original_api_key = self.user_api_key
         original_interactor_key = self.galaxy_interactor.api_key
@@ -113,7 +112,7 @@ class UsesApiTestCaseMixin:
 
 
 class ApiTestInteractor(BaseInteractor):
-    """ Specialized variant of the API interactor (originally developed for
+    """Specialized variant of the API interactor (originally developed for
     tool functional tests) for testing the API generally.
     """
 

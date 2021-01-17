@@ -25,8 +25,8 @@ class Smat(Text):
             dataset.peek = get_file_peek(dataset.file_name)
             dataset.blurb = "ESTScan scores matrices"
         else:
-            dataset.peek = 'file does not exist'
-            dataset.blurb = 'file purged from disc'
+            dataset.peek = "file does not exist"
+            dataset.blurb = "file purged from disc"
 
     def sniff_prefix(self, file_prefix):
         """
@@ -57,11 +57,11 @@ class Smat(Text):
             line_no += 1
             if line_no > 10000:
                 return True
-            if line_no == 1 and not line.startswith('FORMAT'):
+            if line_no == 1 and not line.startswith("FORMAT"):
                 # The first line is always the start of a format section.
                 return False
-            if not line.startswith('FORMAT'):
-                if line.find('\t') >= 0:
+            if not line.startswith("FORMAT"):
+                if line.find("\t") >= 0:
                     # Smat files are not tabular.
                     return False
                 items = line.split()
@@ -97,7 +97,14 @@ class Smat(Text):
 
 class PlantTribesKsComponents(Tabular):
     file_ext = "ptkscmp"
-    MetadataElement(name="number_comp", default=0, desc="Number of significant components in the Ks distribution", readonly=True, visible=True, no_value=0)
+    MetadataElement(
+        name="number_comp",
+        default=0,
+        desc="Number of significant components in the Ks distribution",
+        readonly=True,
+        visible=True,
+        no_value=0,
+    )
 
     def display_peek(self, dataset):
         try:
@@ -130,13 +137,13 @@ class PlantTribesKsComponents(Tabular):
     def set_peek(self, dataset, is_multi_byte=False):
         if not dataset.dataset.purged:
             dataset.peek = get_file_peek(dataset.file_name)
-            if (dataset.metadata.number_comp == 1):
+            if dataset.metadata.number_comp == 1:
                 dataset.blurb = "1 significant component"
             else:
                 dataset.blurb = "%s significant components" % dataset.metadata.number_comp
         else:
-            dataset.peek = 'file does not exist'
-            dataset.blurb = 'file purged from disk'
+            dataset.peek = "file does not exist"
+            dataset.blurb = "file purged from disk"
 
     def sniff(self, filename):
         """
@@ -149,10 +156,11 @@ class PlantTribesKsComponents(Tabular):
         True
         """
         try:
-            line_item_str = get_headers(filename, '\\t', 1)[0][0]
-            return line_item_str == 'species\tn\tnumber_comp\tlnL\tAIC\tBIC\tmean\tvariance\tporportion'
+            line_item_str = get_headers(filename, "\\t", 1)[0][0]
+            return line_item_str == "species\tn\tnumber_comp\tlnL\tAIC\tBIC\tmean\tvariance\tporportion"
         except Exception:
             return False
+
 
 # class PlantTribesOrtho(PlantTribes):
 #    """

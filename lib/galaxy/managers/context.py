@@ -44,7 +44,7 @@ from galaxy.util import bunch
 
 
 class ProvidesAppContext:
-    """ For transaction-like objects to provide Galaxy convenience layer for
+    """For transaction-like objects to provide Galaxy convenience layer for
     database and event handling.
 
     Mixed in class must provide `app` property.
@@ -123,7 +123,7 @@ class ProvidesAppContext:
         context = app.model.context
         context.expunge_all()
         # This is a bit hacky, should refctor this. Maybe refactor to app -> expunge_all()
-        if hasattr(app, 'install_model'):
+        if hasattr(app, "install_model"):
             install_model = app.install_model
             if install_model != app.model:
                 install_model.context.expunge_all()
@@ -142,7 +142,7 @@ class ProvidesAppContext:
 
 
 class ProvidesUserContext(ProvidesAppContext):
-    """ For transaction-like objects to provide Galaxy convenience layer for
+    """For transaction-like objects to provide Galaxy convenience layer for
     reasoning about users.
 
     Mixed in class must provide `user` and `app`
@@ -198,15 +198,17 @@ class ProvidesUserContext(ProvidesAppContext):
             identifier_attr = self.app.config.ftp_upload_dir_identifier
             identifier_value = getattr(self.user, identifier_attr)
             template = self.app.config.ftp_upload_dir_template
-            path = string.Template(template).safe_substitute(dict(
-                ftp_upload_dir=base_dir,
-                ftp_upload_dir_identifier=identifier_value,
-            ))
+            path = string.Template(template).safe_substitute(
+                dict(
+                    ftp_upload_dir=base_dir,
+                    ftp_upload_dir_identifier=identifier_value,
+                )
+            )
             return path
 
 
 class ProvidesHistoryContext(ProvidesUserContext):
-    """ For transaction-like objects to provide Galaxy convenience layer for
+    """For transaction-like objects to provide Galaxy convenience layer for
     reasoning about histories.
 
     Mixed in class must provide `user`, `history`, and `app`
@@ -231,14 +233,12 @@ class ProvidesHistoryContext(ProvidesUserContext):
             return None
         non_ready_or_ok = set(self.app.model.Dataset.non_ready_states)
         non_ready_or_ok.add(self.app.model.HistoryDatasetAssociation.states.OK)
-        datasets = self.sa_session.query(
-            self.app.model.HistoryDatasetAssociation
-        ).filter_by(
-            deleted=False,
-            history_id=self.history.id,
-            extension="len"
-        ).filter(
-            self.app.model.HistoryDatasetAssociation._state.in_(non_ready_or_ok),
+        datasets = (
+            self.sa_session.query(self.app.model.HistoryDatasetAssociation)
+            .filter_by(deleted=False, history_id=self.history.id, extension="len")
+            .filter(
+                self.app.model.HistoryDatasetAssociation._state.in_(non_ready_or_ok),
+            )
         )
         valid_ds = None
         for ds in datasets:

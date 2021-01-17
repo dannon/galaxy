@@ -13,7 +13,7 @@ OTHER_USER = os.environ.get("GALAXY_TEST_OTHER_USER_EMAIL", DEFAULT_OTHER_USER)
 
 
 def get_master_api_key():
-    """ Test master API key to use for functional test. This key should be
+    """Test master API key to use for functional test. This key should be
     configured as a master API key and should be able to create additional
     users and keys.
     """
@@ -25,7 +25,7 @@ def get_master_api_key():
 
 
 def get_user_api_key():
-    """ Test user API key to use for functional tests. If set, this should drive
+    """Test user API key to use for functional tests. If set, this should drive
     API based testing - if not set master API key should be used to create a new
     user and API key for tests.
     """

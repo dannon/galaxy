@@ -1,27 +1,24 @@
 """
 Abstract base class for cli job plugins.
 """
-from abc import (
-    ABCMeta,
-    abstractmethod
-)
+from abc import ABCMeta, abstractmethod
 from enum import Enum
 
 try:
     from galaxy.model import Job
+
     job_states = Job.states
 except ImportError:
 
     # Not in Galaxy, map Galaxy job states to Pulsar ones.
     class job_states(str, Enum):  # type: ignore
-        RUNNING = 'running'
-        OK = 'complete'
-        QUEUED = 'queued'
+        RUNNING = "running"
+        OK = "complete"
+        QUEUED = "queued"
         ERROR = "failed"
 
 
 class BaseJobExec(metaclass=ABCMeta):
-
     @abstractmethod
     def __init__(self, **params):
         """
@@ -29,7 +26,7 @@ class BaseJobExec(metaclass=ABCMeta):
         """
 
     def job_script_kwargs(self, ofile, efile, job_name):
-        """ Return extra keyword argument for consumption by job script
+        """Return extra keyword argument for consumption by job script
         module.
         """
         return {}
@@ -86,6 +83,6 @@ class BaseJobExec(metaclass=ABCMeta):
 
 
 __all__ = (
-    'BaseJobExec',
-    'job_states',
+    "BaseJobExec",
+    "job_states",
 )

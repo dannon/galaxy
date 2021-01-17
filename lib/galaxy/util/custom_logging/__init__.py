@@ -3,7 +3,6 @@ import types
 
 
 class TraceLogger:
-
     def __init__(self, name):
         self.name = name
 

@@ -16,11 +16,10 @@ DEFAULT_TOOL_SHEDS_CONF_XML = """<?xml version="1.0"?>
 </tool_sheds>
 """
 
-AUTH_TUPLE = namedtuple('AuthSetting', 'username password')
+AUTH_TUPLE = namedtuple("AuthSetting", "username password")
 
 
 class Registry:
-
     def __init__(self, config=None):
         self.tool_sheds = OrderedDict()
         self.tool_sheds_auth = OrderedDict()
@@ -34,17 +33,17 @@ class Registry:
         else:
             root = parse_xml_string(DEFAULT_TOOL_SHEDS_CONF_XML)
             config = "internal default config"
-        log.debug('Loading references to tool sheds from %s' % config)
-        for elem in root.findall('tool_shed'):
+        log.debug("Loading references to tool sheds from %s" % config)
+        for elem in root.findall("tool_shed"):
             try:
-                name = elem.get('name', None)
-                url = elem.get('url', None)
-                username = elem.get('user', None)
-                password = elem.get('pass', None)
+                name = elem.get("name", None)
+                url = elem.get("url", None)
+                username = elem.get("user", None)
+                password = elem.get("pass", None)
                 if name and url:
                     self.tool_sheds[name] = url
                     self.tool_sheds_auth[name] = None
-                    log.debug('Loaded reference to tool shed: %s' % name)
+                    log.debug("Loaded reference to tool shed: %s" % name)
                 if name and url and username and password:
                     self.tool_sheds_auth[name] = AUTH_TUPLE(username, password)
             except Exception as e:

@@ -6,21 +6,10 @@ import logging
 from galaxy.exceptions import RequestParameterInvalidException
 from galaxy.managers.base import get_object
 from galaxy.managers.markdown_util import internal_galaxy_markdown_to_pdf
-from galaxy.managers.pages import (
-    PageManager,
-    PageSerializer
-)
+from galaxy.managers.pages import PageManager, PageSerializer
 from galaxy.model.item_attrs import UsesAnnotations
-from galaxy.web import (
-    expose_api,
-    expose_api_anonymous_and_sessionless,
-    expose_api_raw_anonymous_and_sessionless
-)
-from galaxy.webapps.base.controller import (
-    BaseAPIController,
-    SharableItemSecurityMixin,
-    SharableMixin
-)
+from galaxy.web import expose_api, expose_api_anonymous_and_sessionless, expose_api_raw_anonymous_and_sessionless
+from galaxy.webapps.base.controller import BaseAPIController, SharableItemSecurityMixin, SharableMixin
 
 log = logging.getLogger(__name__)
 
@@ -64,7 +53,11 @@ class PagesController(BaseAPIController, SharableItemSecurityMixin, UsesAnnotati
             for row in r:
                 out.append(self.encode_all_ids(trans, row.to_dict(), True))
             # Published pages from other users
-            r = trans.sa_session.query(trans.app.model.Page).filter(trans.app.model.Page.user != user).filter_by(published=True)
+            r = (
+                trans.sa_session.query(trans.app.model.Page)
+                .filter(trans.app.model.Page.user != user)
+                .filter_by(published=True)
+            )
             if not deleted:
                 r = r.filter_by(deleted=False)
             for row in r:
@@ -91,7 +84,7 @@ class PagesController(BaseAPIController, SharableItemSecurityMixin, UsesAnnotati
         """
         page = self.manager.create(trans, payload)
         rval = self.encode_all_ids(trans, page.to_dict(), True)
-        rval['content'] = page.latest_revision.content
+        rval["content"] = page.latest_revision.content
         self.manager.rewrite_content_for_export(trans, rval)
         return rval
 
@@ -107,12 +100,12 @@ class PagesController(BaseAPIController, SharableItemSecurityMixin, UsesAnnotati
         :rtype:     dict
         :returns:   Dictionary with 'success' or 'error' element to indicate the result of the request
         """
-        page = get_object(trans, id, 'Page', check_ownership=True)
+        page = get_object(trans, id, "Page", check_ownership=True)
 
         # Mark a page as deleted
         page.deleted = True
         trans.sa_session.flush()
-        return ''  # TODO: Figure out what to return on DELETE, document in guidelines!
+        return ""  # TODO: Figure out what to return on DELETE, document in guidelines!
 
     @expose_api_anonymous_and_sessionless
     def show(self, trans, id, **kwd):
@@ -126,10 +119,10 @@ class PagesController(BaseAPIController, SharableItemSecurityMixin, UsesAnnotati
         :rtype:     dict
         :returns:   Dictionary return of the Page.to_dict call with the 'content' field populated by the most recent revision
         """
-        page = get_object(trans, id, 'Page', check_ownership=False, check_accessible=True)
+        page = get_object(trans, id, "Page", check_ownership=False, check_accessible=True)
         rval = self.encode_all_ids(trans, page.to_dict(), True)
-        rval['content'] = page.latest_revision.content
-        rval['content_format'] = page.latest_revision.content_format
+        rval["content"] = page.latest_revision.content
+        rval["content_format"] = page.latest_revision.content_format
         self.manager.rewrite_content_for_export(trans, rval)
         return rval
 
@@ -145,9 +138,9 @@ class PagesController(BaseAPIController, SharableItemSecurityMixin, UsesAnnotati
         :rtype: dict
         :returns: Dictionary return of the Page.to_dict call with the 'content' field populated by the most recent revision
         """
-        page = get_object(trans, id, 'Page', check_ownership=False, check_accessible=True)
+        page = get_object(trans, id, "Page", check_ownership=False, check_accessible=True)
         if page.latest_revision.content_format != "markdown":
             raise RequestParameterInvalidException("PDF export only allowed for Markdown based pages")
         internal_galaxy_markdown = page.latest_revision.content
         trans.response.set_content_type("application/pdf")
-        return internal_galaxy_markdown_to_pdf(trans, internal_galaxy_markdown, 'page')
+        return internal_galaxy_markdown_to_pdf(trans, internal_galaxy_markdown, "page")

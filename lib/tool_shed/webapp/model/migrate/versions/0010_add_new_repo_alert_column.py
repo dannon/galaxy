@@ -30,9 +30,9 @@ def upgrade(migrate_engine):
         c.create(User_table, index_name="ix_galaxy_user_new_repo_alert")
         assert c is User_table.c.new_repo_alert
         # Initialize.
-        if migrate_engine.name == 'mysql' or migrate_engine.name == 'sqlite':
+        if migrate_engine.name == "mysql" or migrate_engine.name == "sqlite":
             default_false = "0"
-        elif migrate_engine.name in ['postgresql', 'postgres']:
+        elif migrate_engine.name in ["postgresql", "postgres"]:
             default_false = "false"
         else:
             log.debug("unknown migrate_engine dialect")

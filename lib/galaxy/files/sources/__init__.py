@@ -9,8 +9,7 @@ DEFAULT_WRITABLE = False
 
 
 class FilesSource(metaclass=abc.ABCMeta):
-    """
-    """
+    """"""
 
     @abc.abstractmethod
     def get_uri_root(self):
@@ -34,8 +33,7 @@ class FilesSource(metaclass=abc.ABCMeta):
         """Realize source path (relative to uri root) to local file system path."""
 
     def write_from(self, target_path, native_path, user_context=None):
-        """Write file at native path to target_path (relative to uri root).
-        """
+        """Write file at native path to target_path (relative to uri root)."""
 
     @abc.abstractmethod
     def to_dict(self, for_serialization=False, user_context=None):
@@ -47,7 +45,6 @@ class FilesSource(metaclass=abc.ABCMeta):
 
 
 class BaseFilesSource(FilesSource):
-
     def get_prefix(self):
         return self.id
 

@@ -4,13 +4,16 @@ from ..types import BaseDatasetCollectionType
 FORWARD_IDENTIFIER = "forward"
 REVERSE_IDENTIFIER = "reverse"
 
-INVALID_IDENTIFIERS_MESSAGE = f"Paired instance must define '{FORWARD_IDENTIFIER}' and '{REVERSE_IDENTIFIER}' datasets ."
+INVALID_IDENTIFIERS_MESSAGE = (
+    f"Paired instance must define '{FORWARD_IDENTIFIER}' and '{REVERSE_IDENTIFIER}' datasets ."
+)
 
 
 class PairedDatasetCollectionType(BaseDatasetCollectionType):
     """
     Paired (left/right) datasets.
     """
+
     collection_type = "paired"
 
     def __init__(self):

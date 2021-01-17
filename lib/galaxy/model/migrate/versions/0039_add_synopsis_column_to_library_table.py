@@ -4,12 +4,7 @@ Migration script to add a synopsis column to the library table.
 
 import logging
 
-from sqlalchemy import (
-    Column,
-    MetaData,
-    Table,
-    TEXT
-)
+from sqlalchemy import Column, MetaData, Table, TEXT
 
 log = logging.getLogger(__name__)
 metadata = MetaData()

@@ -4,19 +4,10 @@ Migration script to add the metadata, update_available and includes_datatypes co
 
 import logging
 
-from sqlalchemy import (
-    Boolean,
-    Column,
-    MetaData,
-    Table
-)
+from sqlalchemy import Boolean, Column, MetaData, Table
 
 from galaxy.model.custom_types import JSONType
-from galaxy.model.migrate.versions.util import (
-    add_column,
-    drop_column,
-    engine_false
-)
+from galaxy.model.migrate.versions.util import add_column, drop_column, engine_false
 
 log = logging.getLogger(__name__)
 metadata = MetaData()
@@ -49,8 +40,8 @@ def downgrade(migrate_engine):
     metadata.reflect()
 
     ToolShedRepository_table = Table("tool_shed_repository", metadata, autoload=True)
-    drop_column('metadata', ToolShedRepository_table)
+    drop_column("metadata", ToolShedRepository_table)
     # SQLAlchemy Migrate has a bug when dropping a boolean column in SQLite
-    if migrate_engine.name != 'sqlite':
-        drop_column('includes_datatypes', ToolShedRepository_table)
-        drop_column('update_available', ToolShedRepository_table)
+    if migrate_engine.name != "sqlite":
+        drop_column("includes_datatypes", ToolShedRepository_table)
+        drop_column("update_available", ToolShedRepository_table)

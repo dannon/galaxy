@@ -47,7 +47,11 @@ def lint_output(tool_xml, lint_ctx):
                 format_set = True
 
         if not format_set:
-            lint_ctx.warn("Tool {} output {} doesn't define an output format.".format(output.tag, output.attrib.get("name", "with missing name")))
+            lint_ctx.warn(
+                "Tool {} output {} doesn't define an output format.".format(
+                    output.tag, output.attrib.get("name", "with missing name")
+                )
+            )
 
     lint_ctx.info("%d outputs found.", num_outputs)
 
@@ -60,7 +64,10 @@ def __check_format(node, lint_ctx):
     """
     fmt = node.attrib.get("format", node.attrib.get("ext", None))
     if fmt == "input":
-        lint_ctx.warn("Using format='input' on %s, format_source attribute is less ambiguous and should be used instead." % node.tag)
+        lint_ctx.warn(
+            "Using format='input' on %s, format_source attribute is less ambiguous and should be used instead."
+            % node.tag
+        )
     return fmt is not None
 
 
@@ -74,5 +81,9 @@ def __check_pattern(node):
         return False
     if node.attrib["pattern"] == "__default__":
         return True
-    if "ext" in node.attrib["pattern"] and node.attrib["pattern"].startswith("__") and node.attrib["pattern"].endswith("__"):
+    if (
+        "ext" in node.attrib["pattern"]
+        and node.attrib["pattern"].startswith("__")
+        and node.attrib["pattern"].endswith("__")
+    ):
         return True

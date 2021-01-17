@@ -8,9 +8,9 @@ from galaxy.util.tool_version import remove_version_from_guid
 
 
 class ToolLineageVersion:
-    """ Represents a single tool in a lineage. If lineage is based
+    """Represents a single tool in a lineage. If lineage is based
     around GUIDs that somehow encode the version (either using GUID
-    or a simple tool id and a version). """
+    or a simple tool id and a version)."""
 
     def __init__(self, id, version):
         self.id = id
@@ -18,7 +18,7 @@ class ToolLineageVersion:
 
     @property
     def id_based(self):
-        """ Return True if the lineage is defined by GUIDs (in this
+        """Return True if the lineage is defined by GUIDs (in this
         case the indexer of the tools (i.e. the ToolBox) should ignore
         the tool_version (because it is encoded in the GUID and managed
         externally).
@@ -33,10 +33,11 @@ class ToolLineageVersion:
 
 
 class ToolLineage:
-    """ Simple tool's loaded directly from file system with lineage
+    """Simple tool's loaded directly from file system with lineage
     determined solely by PEP 440 versioning scheme.
     """
-    lineages_by_id: Dict[str, 'ToolLineage'] = {}
+
+    lineages_by_id: Dict[str, "ToolLineage"] = {}
     lock = threading.Lock()
 
     def __init__(self, tool_id, **kwds):
@@ -69,7 +70,10 @@ class ToolLineage:
         Return an ordered list of lineages (ToolLineageVersion) in this
         chain, from oldest to newest.
         """
-        return [ToolLineageVersion(tool_id, tool_version) for tool_id, tool_version in zip(self.tool_ids, self.tool_versions)]
+        return [
+            ToolLineageVersion(tool_id, tool_version)
+            for tool_id, tool_version in zip(self.tool_ids, self.tool_versions)
+        ]
 
     def get_version_ids(self, reverse=False):
         if reverse:
@@ -80,5 +84,5 @@ class ToolLineage:
         return dict(
             tool_id=self.tool_id,
             tool_versions=list(self.tool_versions),
-            lineage_type='stock',
+            lineage_type="stock",
         )

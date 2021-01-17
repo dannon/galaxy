@@ -26,14 +26,9 @@ class CoreWorkflowSchedulingPlugin(ActiveWorkflowSchedulingPlugin):
         workflow = workflow_invocation.workflow
         history = workflow_invocation.history
         request_context = context.WorkRequestContext(
-            app=self.app,
-            history=history,
-            user=history.user
+            app=self.app, history=history, user=history.user
         )  # trans-like object not tied to a web-thread.
-        workflow_run_config = run_request.workflow_request_to_run_config(
-            request_context,
-            workflow_invocation
-        )
+        workflow_run_config = run_request.workflow_request_to_run_config(request_context, workflow_invocation)
         run.schedule(
             trans=request_context,
             workflow=workflow,
@@ -42,4 +37,4 @@ class CoreWorkflowSchedulingPlugin(ActiveWorkflowSchedulingPlugin):
         )
 
 
-__all__ = ('CoreWorkflowSchedulingPlugin', )
+__all__ = ("CoreWorkflowSchedulingPlugin",)

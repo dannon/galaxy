@@ -9,30 +9,20 @@ from urllib.parse import unquote
 from markupsafe import escape
 from sqlalchemy.orm.exc import NoResultFound
 
-from galaxy import (
-    util,
-    web
-)
+from galaxy import util, web
 from galaxy.exceptions import Conflict
 from galaxy.managers import users
 from galaxy.queue_worker import send_local_control_task
-from galaxy.security.validate_user_input import (
-    validate_email,
-    validate_publicname
-)
+from galaxy.security.validate_user_input import validate_email, validate_publicname
 from galaxy.web import expose_api_anonymous_and_sessionless
 from galaxy.web import url_for
-from galaxy.webapps.base.controller import (
-    BaseUIController,
-    CreatesApiKeysMixin,
-    UsesFormDefinitionsMixin
-)
+from galaxy.webapps.base.controller import BaseUIController, CreatesApiKeysMixin, UsesFormDefinitionsMixin
 
 log = logging.getLogger(__name__)
 
 
 def _filtered_registration_params_dict(payload):
-    return {k: v for (k, v) in payload.items() if k in ['email', 'username', 'password', 'confirm', 'subscribe']}
+    return {k: v for (k, v) in payload.items() if k in ["email", "username", "password", "confirm", "subscribe"]}
 
 
 class User(BaseUIController, UsesFormDefinitionsMixin, CreatesApiKeysMixin):
@@ -42,8 +32,15 @@ class User(BaseUIController, UsesFormDefinitionsMixin, CreatesApiKeysMixin):
         super().__init__(app)
         self.user_manager = users.UserManager(app)
 
-    def __handle_role_and_group_auto_creation(self, trans, user, roles, auto_create_roles=False,
-                                              auto_create_groups=False, auto_assign_roles_to_groups_only=False):
+    def __handle_role_and_group_auto_creation(
+        self,
+        trans,
+        user,
+        roles,
+        auto_create_roles=False,
+        auto_create_groups=False,
+        auto_assign_roles_to_groups_only=False,
+    ):
         for role_name in roles:
             role = None
             group = None
@@ -54,8 +51,12 @@ class User(BaseUIController, UsesFormDefinitionsMixin, CreatesApiKeysMixin):
                 except NoResultFound:
                     # or create it
                     role, num_in_groups = trans.app.security_agent.create_role(
-                        role_name, "Auto created upon user registration", [], [],
-                        create_group_for_role=auto_create_groups)
+                        role_name,
+                        "Auto created upon user registration",
+                        [],
+                        [],
+                        create_group_for_role=auto_create_groups,
+                    )
                     if auto_create_groups:
                         trans.log_event("Created role and group for auto-registered user.")
                     else:
@@ -63,8 +64,11 @@ class User(BaseUIController, UsesFormDefinitionsMixin, CreatesApiKeysMixin):
             if auto_create_groups:
                 # only create a group if not existing yet
                 try:
-                    group = self.sa_session.query(trans.app.model.Group).filter(
-                        trans.app.model.Group.table.c.name == role_name).first()
+                    group = (
+                        self.sa_session.query(trans.app.model.Group)
+                        .filter(trans.app.model.Group.table.c.name == role_name)
+                        .first()
+                    )
                 except NoResultFound:
                     group = self.model.Group(name=role_name)
                     self.sa_session.add(group)
@@ -89,8 +93,9 @@ class User(BaseUIController, UsesFormDefinitionsMixin, CreatesApiKeysMixin):
         if autoreg["auto_reg"]:
             email = autoreg["email"]
             username = autoreg["username"]
-            message = " ".join((validate_email(trans, email, allow_empty=True),
-                                validate_publicname(trans, username))).rstrip()
+            message = " ".join(
+                (validate_email(trans, email, allow_empty=True), validate_publicname(trans, username))
+            ).rstrip()
             if not message:
                 user = self.user_manager.create(email=email, username=username, password="")
                 if trans.app.config.user_activation_on:
@@ -103,10 +108,13 @@ class User(BaseUIController, UsesFormDefinitionsMixin, CreatesApiKeysMixin):
                     trans.log_event("User logged in")
                 if "attributes" in autoreg and "roles" in autoreg["attributes"]:
                     self.__handle_role_and_group_auto_creation(
-                        trans, user, autoreg["attributes"]["roles"],
+                        trans,
+                        user,
+                        autoreg["attributes"]["roles"],
                         auto_create_groups=autoreg["auto_create_groups"],
                         auto_create_roles=autoreg["auto_create_roles"],
-                        auto_assign_roles_to_groups_only=autoreg["auto_assign_roles_to_groups_only"])
+                        auto_assign_roles_to_groups_only=autoreg["auto_assign_roles_to_groups_only"],
+                    )
             else:
                 message = "Auto-registration failed, contact your local Galaxy administrator. %s" % message
         else:
@@ -119,7 +127,7 @@ class User(BaseUIController, UsesFormDefinitionsMixin, CreatesApiKeysMixin):
         return self.__validate_login(trans, payload, **kwd)
 
     def __validate_login(self, trans, payload=None, **kwd):
-        '''Handle Galaxy Log in'''
+        """Handle Galaxy Log in"""
         if not payload:
             payload = kwd
         message = trans.check_csrf_token(payload)
@@ -138,7 +146,9 @@ class User(BaseUIController, UsesFormDefinitionsMixin, CreatesApiKeysMixin):
             if message:
                 return self.message_exception(trans, message)
         elif user.deleted:
-            message = "This account has been marked deleted, contact your local Galaxy administrator to restore the account."
+            message = (
+                "This account has been marked deleted, contact your local Galaxy administrator to restore the account."
+            )
             if trans.app.config.error_email_to is not None:
                 message += " Contact: %s." % trans.app.config.error_email_to
             return self.message_exception(trans, message, sanitize=False)
@@ -150,8 +160,10 @@ class User(BaseUIController, UsesFormDefinitionsMixin, CreatesApiKeysMixin):
         elif not trans.app.auth_manager.check_password(user, password):
             return self.message_exception(trans, "Invalid password.")
         elif trans.app.config.user_activation_on and not user.active:  # activation is ON and the user is INACTIVE
-            if (trans.app.config.activation_grace_period != 0):  # grace period is ON
-                if self.is_outside_grace_period(trans, user.create_time):  # User is outside the grace period. Login is disabled and he will have the activation email resent.
+            if trans.app.config.activation_grace_period != 0:  # grace period is ON
+                if self.is_outside_grace_period(
+                    trans, user.create_time
+                ):  # User is outside the grace period. Login is disabled and he will have the activation email resent.
                     message, status = self.resend_activation_email(trans, user.email, user.username)
                     return self.message_exception(trans, message, sanitize=False)
                 else:  # User is within the grace period, let him log in.
@@ -164,7 +176,11 @@ class User(BaseUIController, UsesFormDefinitionsMixin, CreatesApiKeysMixin):
             pw_expires = trans.app.config.password_expiration_period
             if pw_expires and user.last_password_change < datetime.today() - pw_expires:
                 # Password is expired, we don't log them in.
-                return {"message": "Your password has expired. Please reset or change it to access Galaxy.", "status": "warning", "expired_user": trans.security.encode_id(user.id)}
+                return {
+                    "message": "Your password has expired. Please reset or change it to access Galaxy.",
+                    "status": "warning",
+                    "expired_user": trans.security.encode_id(user.id),
+                }
             trans.handle_user_login(user)
             trans.log_event("User logged in")
             if pw_expires and user.last_password_change < datetime.today() - timedelta(days=pw_expires.days / 10):
@@ -196,11 +212,16 @@ class User(BaseUIController, UsesFormDefinitionsMixin, CreatesApiKeysMixin):
             username = trans.user.username
         is_activation_sent = self.user_manager.send_activation_email(trans, email, username)
         if is_activation_sent:
-            message = 'This account has not been activated yet. The activation link has been sent again. Please check your email address <b>{}</b> including the spam/trash folder. <a target="_top" href="{}">Return to the home page</a>.'.format(escape(email), url_for('/'))
+            message = 'This account has not been activated yet. The activation link has been sent again. Please check your email address <b>{}</b> including the spam/trash folder. <a target="_top" href="{}">Return to the home page</a>.'.format(
+                escape(email), url_for("/")
+            )
         else:
-            message = 'This account has not been activated yet but we are unable to send the activation link. Please contact your local Galaxy administrator. <a target="_top" href="%s">Return to the home page</a>.' % url_for('/')
+            message = (
+                'This account has not been activated yet but we are unable to send the activation link. Please contact your local Galaxy administrator. <a target="_top" href="%s">Return to the home page</a>.'
+                % url_for("/")
+            )
             if trans.app.config.error_email_to is not None:
-                message += ' Error contact: %s.' % trans.app.config.error_email_to
+                message += " Error contact: %s." % trans.app.config.error_email_to
         return message, is_activation_sent
 
     def is_outside_grace_period(self, trans, create_time):
@@ -211,7 +232,7 @@ class User(BaseUIController, UsesFormDefinitionsMixin, CreatesApiKeysMixin):
         activation_grace_period = trans.app.config.activation_grace_period
         delta = timedelta(hours=int(activation_grace_period))
         time_difference = datetime.utcnow() - create_time
-        return (time_difference > delta or activation_grace_period == 0)
+        return time_difference > delta or activation_grace_period == 0
 
     @web.expose
     def logout(self, trans, logout_all=False, **kwd):
@@ -221,9 +242,9 @@ class User(BaseUIController, UsesFormDefinitionsMixin, CreatesApiKeysMixin):
         if trans.user:
             # Queue a quota recalculation (async) task -- this takes a
             # while sometimes, so we don't want to block on logout.
-            send_local_control_task(trans.app,
-                                    "recalculate_user_disk_usage",
-                                    kwargs={"user_id": trans.security.encode_id(trans.user.id)})
+            send_local_control_task(
+                trans.app, "recalculate_user_disk_usage", kwargs={"user_id": trans.security.encode_id(trans.user.id)}
+            )
         # Since logging an event requires a session, we'll log prior to ending the session
         trans.log_event("User logged out")
         trans.handle_user_logout(logout_all=logout_all)
@@ -251,30 +272,42 @@ class User(BaseUIController, UsesFormDefinitionsMixin, CreatesApiKeysMixin):
         Check whether token fits the user and then activate the user's account.
         """
         params = util.Params(kwd, sanitize=False)
-        email = params.get('email', None)
+        email = params.get("email", None)
         if email is not None:
             email = unquote(email)
-        activation_token = params.get('activation_token', None)
+        activation_token = params.get("activation_token", None)
 
         if email is None or activation_token is None:
             #  We don't have the email or activation_token, show error.
-            return trans.show_error_message("You are using an invalid activation link. Try to log in and we will send you a new activation email. <br><a href='%s'>Go to login page.</a>") % web.url_for(controller="root", action="index")
+            return trans.show_error_message(
+                "You are using an invalid activation link. Try to log in and we will send you a new activation email. <br><a href='%s'>Go to login page.</a>"
+            ) % web.url_for(controller="root", action="index")
         else:
             # Find the user
-            user = trans.sa_session.query(trans.app.model.User).filter(trans.app.model.User.table.c.email == email).first()
+            user = (
+                trans.sa_session.query(trans.app.model.User).filter(trans.app.model.User.table.c.email == email).first()
+            )
             if not user:
                 # Probably wrong email address
-                return trans.show_error_message("You are using an invalid activation link. Try to log in and we will send you a new activation email. <br><a href='%s'>Go to login page.</a>") % web.url_for(controller="root", action="index")
+                return trans.show_error_message(
+                    "You are using an invalid activation link. Try to log in and we will send you a new activation email. <br><a href='%s'>Go to login page.</a>"
+                ) % web.url_for(controller="root", action="index")
             # If the user is active already don't try to activate
             if user.active is True:
-                return trans.show_ok_message("Your account is already active. Nothing has changed. <br><a href='%s'>Go to login page.</a>") % web.url_for(controller='root', action='index')
+                return trans.show_ok_message(
+                    "Your account is already active. Nothing has changed. <br><a href='%s'>Go to login page.</a>"
+                ) % web.url_for(controller="root", action="index")
             if user.activation_token == activation_token:
                 user.activation_token = None
                 self.user_manager.activate(user)
-                return trans.show_ok_message("Your account has been successfully activated! <br><a href='%s'>Go to login page.</a>") % web.url_for(controller='root', action='index')
+                return trans.show_ok_message(
+                    "Your account has been successfully activated! <br><a href='%s'>Go to login page.</a>"
+                ) % web.url_for(controller="root", action="index")
             else:
                 #  Tokens don't match. Activation is denied.
-                return trans.show_error_message("You are using an invalid activation link. Try to log in and we will send you a new activation email. <br><a href='%s'>Go to login page.</a>") % web.url_for(controller='root', action='index')
+                return trans.show_error_message(
+                    "You are using an invalid activation link. Try to log in and we will send you a new activation email. <br><a href='%s'>Go to login page.</a>"
+                ) % web.url_for(controller="root", action="index")
         return
 
     @expose_api_anonymous_and_sessionless
@@ -309,12 +342,14 @@ class User(BaseUIController, UsesFormDefinitionsMixin, CreatesApiKeysMixin):
     def __get_redirect_url(self, redirect):
         if not redirect or redirect == "None":
             return None
-        root_url = url_for('/', qualified=True)
+        root_url = url_for("/", qualified=True)
         # compare urls, to prevent a redirect from pointing (directly) outside of galaxy
         # or to enter a logout/login loop
-        if not util.compare_urls(root_url, redirect, compare_path=False) or util.compare_urls(url_for(controller='user', action='logout', qualified=True), redirect):
-            log.warning('Redirect URL is outside of Galaxy, will redirect to Galaxy root instead: %s', redirect)
+        if not util.compare_urls(root_url, redirect, compare_path=False) or util.compare_urls(
+            url_for(controller="user", action="logout", qualified=True), redirect
+        ):
+            log.warning("Redirect URL is outside of Galaxy, will redirect to Galaxy root instead: %s", redirect)
             redirect = root_url
-        elif util.compare_urls(url_for(controller='user', action='logout', qualified=True), redirect):
+        elif util.compare_urls(url_for(controller="user", action="logout", qualified=True), redirect):
             redirect = root_url
         return redirect

@@ -15,7 +15,8 @@ metadata = MetaData()
 
 
 DynamicTool_table = Table(
-    "dynamic_tool", metadata,
+    "dynamic_tool",
+    metadata,
     Column("id", Integer, primary_key=True),
     Column("uuid", UUIDType()),
     Column("create_time", DateTime, default=now),
@@ -40,7 +41,9 @@ def upgrade(migrate_engine):
 
     workflow_dynamic_tool_id_column = Column("dynamic_tool_id", Integer, ForeignKey("dynamic_tool.id"), nullable=True)
     add_column(workflow_dynamic_tool_id_column, "workflow_step", metadata)
-    job_workflow_dynamic_tool_id_column = Column("dynamic_tool_id", Integer, ForeignKey("dynamic_tool.id"), nullable=True)
+    job_workflow_dynamic_tool_id_column = Column(
+        "dynamic_tool_id", Integer, ForeignKey("dynamic_tool.id"), nullable=True
+    )
     add_column(job_workflow_dynamic_tool_id_column, "job", metadata)
 
 

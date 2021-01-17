@@ -19,12 +19,12 @@ def upgrade(migrate_engine):
     print(__doc__)
     metadata.reflect()
 
-    reports_config_column = Column('reports_config', JSONType, default=None)
-    add_column(reports_config_column, 'workflow', metadata)
+    reports_config_column = Column("reports_config", JSONType, default=None)
+    add_column(reports_config_column, "workflow", metadata)
 
 
 def downgrade(migrate_engine):
     metadata.bind = migrate_engine
     metadata.reflect()
 
-    drop_column('reports_config', 'workflow', metadata)
+    drop_column("reports_config", "workflow", metadata)

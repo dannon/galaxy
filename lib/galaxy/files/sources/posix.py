@@ -15,7 +15,7 @@ DEFAULT_DELETE_ON_REALIZE = False
 
 
 class PosixFilesSource(BaseFilesSource):
-    plugin_type = 'posix'
+    plugin_type = "posix"
 
     # If this were a PyFilesystem2FilesSource all that would be needed would be,
     # but we couldn't enforce security our way I suspect.
@@ -33,7 +33,7 @@ class PosixFilesSource(BaseFilesSource):
     def list(self, path="/", recursive=True, user_context=None):
         dir_path = self._to_native_path(path, user_context=user_context)
         if not self._safe_directory(dir_path):
-            raise exceptions.ObjectNotFound('The specified directory does not exist [%s].' % dir_path)
+            raise exceptions.ObjectNotFound("The specified directory does not exist [%s]." % dir_path)
         if recursive:
             res = []
             for (p, dirs, files) in safe_walk(dir_path, allowlist=self._allowlist):
@@ -107,7 +107,9 @@ class PosixFilesSource(BaseFilesSource):
     def _safe_directory(self, directory):
         if self.enforce_symlink_security:
             if not safe_path(directory, allowlist=self._allowlist):
-                raise exceptions.ConfigDoesNotAllowException('directory (%s) is a symlink to a location not on the allowlist' % directory)
+                raise exceptions.ConfigDoesNotAllowException(
+                    "directory (%s) is a symlink to a location not on the allowlist" % directory
+                )
 
         if not os.path.exists(directory):
             return False
@@ -127,4 +129,4 @@ class PosixFilesSource(BaseFilesSource):
         return self._file_sources_config.symlink_allowlist
 
 
-__all__ = ('PosixFilesSource',)
+__all__ = ("PosixFilesSource",)

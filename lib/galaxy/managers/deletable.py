@@ -23,26 +23,24 @@ class DeletableManagerMixin:
         """
         Mark as deleted and return.
         """
-        return self._session_setattr(item, 'deleted', True, flush=flush)
+        return self._session_setattr(item, "deleted", True, flush=flush)
 
     def undelete(self, item, flush=True, **kwargs):
         """
         Mark as not deleted and return.
         """
-        return self._session_setattr(item, 'deleted', False, flush=flush)
+        return self._session_setattr(item, "deleted", False, flush=flush)
 
 
 class DeletableSerializerMixin:
-
     def add_serializers(self):
-        self.serializable_keyset.add('deleted')
+        self.serializable_keyset.add("deleted")
 
 
 # TODO: these are of questionable value if we don't want to enable users to delete/purge via update
 class DeletableDeserializerMixin:
-
     def add_deserializers(self):
-        self.deserializers['deleted'] = self.deserialize_deleted
+        self.deserializers["deleted"] = self.deserialize_deleted
 
     def deserialize_deleted(self, item, key, val, **context):
         """
@@ -60,11 +58,8 @@ class DeletableDeserializerMixin:
 
 
 class DeletableFiltersMixin:
-
     def _add_parsers(self):
-        self.orm_filter_parsers.update({
-            'deleted': {'op': ('eq'), 'val': self.parse_bool}
-        })
+        self.orm_filter_parsers.update({"deleted": {"op": ("eq"), "val": self.parse_bool}})
 
 
 class PurgableManagerMixin(DeletableManagerMixin):
@@ -81,21 +76,19 @@ class PurgableManagerMixin(DeletableManagerMixin):
         Override this in subclasses to do the additional resource removal.
         """
         self.delete(item, flush=False)
-        return self._session_setattr(item, 'purged', True, flush=flush)
+        return self._session_setattr(item, "purged", True, flush=flush)
 
 
 class PurgableSerializerMixin(DeletableSerializerMixin):
-
     def add_serializers(self):
         DeletableSerializerMixin.add_serializers(self)
-        self.serializable_keyset.add('purged')
+        self.serializable_keyset.add("purged")
 
 
 class PurgableDeserializerMixin(DeletableDeserializerMixin):
-
     def add_deserializers(self):
         DeletableDeserializerMixin.add_deserializers(self)
-        self.deserializers['purged'] = self.deserialize_purged
+        self.deserializers["purged"] = self.deserialize_purged
 
     def deserialize_purged(self, item, key, val, **context):
         """
@@ -111,9 +104,6 @@ class PurgableDeserializerMixin(DeletableDeserializerMixin):
 
 
 class PurgableFiltersMixin(DeletableFiltersMixin):
-
     def _add_parsers(self):
         DeletableFiltersMixin._add_parsers(self)
-        self.orm_filter_parsers.update({
-            'purged': {'op': ('eq'), 'val': self.parse_bool}
-        })
+        self.orm_filter_parsers.update({"purged": {"op": ("eq"), "val": self.parse_bool}})

@@ -32,7 +32,7 @@ def _psutil_kill_pid(pid):
 
 
 def _stock_kill_pid(pid):
-    is_windows = system() == 'Windows'
+    is_windows = system() == "Windows"
 
     if is_windows:
         __kill_windows(pid)
@@ -42,7 +42,7 @@ def _stock_kill_pid(pid):
 
 def __kill_windows(pid):
     try:
-        subprocess.check_call(['taskkill', '/F', '/T', '/PID', pid])
+        subprocess.check_call(["taskkill", "/F", "/T", "/PID", pid])
     except subprocess.CalledProcessError:
         pass
 

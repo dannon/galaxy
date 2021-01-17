@@ -17,5 +17,5 @@ def wsgiloop(args, log):
     uvicorn.run(initialize_fast_app(gx))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main(wsgiloop)

@@ -20,17 +20,20 @@ def main():
     app = MigrateToolsApplication(sys.argv[1])
     non_shed_tool_confs = app.tool_migration_manager.proprietary_tool_confs
     if len(non_shed_tool_confs) == 1:
-        plural = ''
+        plural = ""
         file_names = non_shed_tool_confs[0]
     else:
-        plural = 's'
-        file_names = ', '.join(non_shed_tool_confs)
-    msg = "\nThe installation process is finished.  All tools associated with this migration that were defined in your file%s named\n" % plural
+        plural = "s"
+        file_names = ", ".join(non_shed_tool_confs)
+    msg = (
+        "\nThe installation process is finished.  All tools associated with this migration that were defined in your file%s named\n"
+        % plural
+    )
     msg += "%s, have been removed.  You may now start your Galaxy server.\n" % file_names
     print(msg)
     app.shutdown()
     sys.exit(0)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

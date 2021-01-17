@@ -3,9 +3,7 @@
 Information on TRS can be found at https://github.com/ga4gh/tool-registry-service-schemas.
 """
 from galaxy.web import expose_api
-from galaxy.webapps.base.controller import (
-    BaseAPIController
-)
+from galaxy.webapps.base.controller import BaseAPIController
 
 
 class TrsConsumeAPIController(BaseAPIController):

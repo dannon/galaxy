@@ -5,6 +5,4 @@ functionality shared between Galaxy and the Pulsar.
 """
 from .kill import kill_pid
 
-__all__ = (
-    'kill_pid',
-)
+__all__ = ("kill_pid",)

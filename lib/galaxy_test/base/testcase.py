@@ -16,10 +16,11 @@ class FunctionalTestCase(unittest.TestCase):
     needs to be launched to run the test, this base class assumes a
     server is already running.
     """
+
     galaxy_driver_class: Optional[type] = None
 
     def setUp(self):
-        self.history_id = os.environ.get('GALAXY_TEST_HISTORY_ID', None)
+        self.history_id = os.environ.get("GALAXY_TEST_HISTORY_ID", None)
         self.host, self.port, self.url = target_url_parts()
         self.test_data_resolver = TestDataResolver()
         self.keepOutdir = setup_keep_outdir()

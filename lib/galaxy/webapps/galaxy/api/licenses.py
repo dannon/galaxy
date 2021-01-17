@@ -1,26 +1,20 @@
 from typing import List
 
-from fastapi import (
-    Depends,
-    Path
-)
+from fastapi import Depends, Path
 from fastapi_utils.cbv import cbv
 from fastapi_utils.inferring_router import InferringRouter as APIRouter
 
-from galaxy.managers.licenses import (
-    LicenseMetadataModel,
-    LicensesManager
-)
+from galaxy.managers.licenses import LicenseMetadataModel, LicensesManager
 from galaxy.web import expose_api_anonymous_and_sessionless
 from galaxy.webapps.base.controller import BaseAPIController
 
-router = APIRouter(tags=['licenses'])
+router = APIRouter(tags=["licenses"])
 
 LicenseIdPath: str = Path(
     ...,  # Mark this Path parameter as required
     title="SPDX license short ID",
     description="The [SPDX license short identifier](https://spdx.github.io/spdx-spec/appendix-I-SPDX-license-list/)",
-    example="Apache-2.0"
+    example="Apache-2.0",
 )
 
 
@@ -32,16 +26,18 @@ def get_licenses_manager() -> LicensesManager:
 class FastAPILicenses:
     licenses_manager: LicensesManager = Depends(get_licenses_manager)
 
-    @router.get('/api/licenses',
-        summary="Lists all available SPDX licenses",
-        response_description="List of SPDX licenses")
+    @router.get(
+        "/api/licenses", summary="Lists all available SPDX licenses", response_description="List of SPDX licenses"
+    )
     async def index(self) -> List[LicenseMetadataModel]:
         """Returns an index with all the available [SPDX licenses](https://spdx.org/licenses/)."""
         return self.licenses_manager.get_licenses()
 
-    @router.get('/api/licenses/{id}',
+    @router.get(
+        "/api/licenses/{id}",
         summary="Gets the SPDX license metadata associated with the short identifier",
-        response_description="SPDX license metadata")
+        response_description="SPDX license metadata",
+    )
     async def get(self, id=LicenseIdPath) -> LicenseMetadataModel:
         """Returns the license metadata associated with the given
         [SPDX license short ID](https://spdx.github.io/spdx-spec/appendix-I-SPDX-license-list/)."""
@@ -49,7 +45,6 @@ class FastAPILicenses:
 
 
 class LicensesController(BaseAPIController):
-
     def __init__(self, app):
         self.licenses_manager = LicensesManager()
 

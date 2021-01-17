@@ -33,9 +33,9 @@ def upgrade(migrate_engine):
         c.create(RepositoryMetadata_table, index_name="ix_repository_metadata_tfc")
         assert c is RepositoryMetadata_table.c.tools_functionally_correct
         # Initialize.
-        if migrate_engine.name == 'mysql' or migrate_engine.name == 'sqlite':
+        if migrate_engine.name == "mysql" or migrate_engine.name == "sqlite":
             default_false = "0"
-        elif migrate_engine.name in ['postgresql', 'postgres']:
+        elif migrate_engine.name in ["postgresql", "postgres"]:
             default_false = "false"
         migrate_engine.execute("UPDATE repository_metadata SET tools_functionally_correct=%s" % default_false)
     except Exception:
@@ -46,9 +46,9 @@ def upgrade(migrate_engine):
         c.create(RepositoryMetadata_table, index_name="ix_repository_metadata_dnt")
         assert c is RepositoryMetadata_table.c.do_not_test
         # Initialize.
-        if migrate_engine.name == 'mysql' or migrate_engine.name == 'sqlite':
+        if migrate_engine.name == "mysql" or migrate_engine.name == "sqlite":
             default_false = "0"
-        elif migrate_engine.name in ['postgresql', 'postgres']:
+        elif migrate_engine.name in ["postgresql", "postgres"]:
             default_false = "false"
         migrate_engine.execute("UPDATE repository_metadata SET do_not_test=%s" % default_false)
     except Exception:

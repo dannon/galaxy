@@ -20,7 +20,7 @@ class VisualizationManager(sharable.SharableModelManager):
     # TODO: revisions
 
     model_class = model.Visualization
-    foreign_key_name = 'visualization'
+    foreign_key_name = "visualization"
     user_share_model = model.VisualizationUserShareAssociation
 
     tag_assoc = model.VisualizationTagAssociation
@@ -28,8 +28,7 @@ class VisualizationManager(sharable.SharableModelManager):
     rating_assoc = model.VisualizationRatingAssociation
 
     def __init__(self, app, *args, **kwargs):
-        """
-        """
+        """"""
         super().__init__(app, *args, **kwargs)
 
     # def copy( self, trans, visualization, user, **kwargs ):
@@ -42,21 +41,21 @@ class VisualizationSerializer(sharable.SharableModelSerializer):
     """
     Interface/service object for serializing visualizations into dictionaries.
     """
+
     model_manager_class = VisualizationManager
-    SINGLE_CHAR_ABBR = 'v'
+    SINGLE_CHAR_ABBR = "v"
 
     def __init__(self, app):
         super().__init__(app)
         self.visualization_manager = self.manager
 
-        self.default_view = 'summary'
-        self.add_view('summary', [])
-        self.add_view('detailed', [])
+        self.default_view = "summary"
+        self.add_view("summary", [])
+        self.add_view("detailed", [])
 
     def add_serializers(self):
         super().add_serializers()
-        self.serializers.update({
-        })
+        self.serializers.update({})
 
 
 class VisualizationDeserializer(sharable.SharableModelDeserializer):
@@ -64,6 +63,7 @@ class VisualizationDeserializer(sharable.SharableModelDeserializer):
     Interface/service object for validating and deserializing
     dictionaries into visualizations.
     """
+
     model_manager_class = VisualizationManager
 
     def __init__(self, app):
@@ -72,6 +72,5 @@ class VisualizationDeserializer(sharable.SharableModelDeserializer):
 
     def add_deserializers(self):
         super().add_deserializers()
-        self.deserializers.update({
-        })
+        self.deserializers.update({})
         self.deserializable_keyset.update(self.deserializers.keys())

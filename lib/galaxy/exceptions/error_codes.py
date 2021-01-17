@@ -45,7 +45,7 @@ def _from_dict(entry):
     return (name, ErrorCode(code, message))
 
 
-error_codes_json = unicodify(resource_string(__name__, 'error_codes.json'))
+error_codes_json = unicodify(resource_string(__name__, "error_codes.json"))
 error_codes_by_name: Dict[str, ErrorCode] = {}
 
 for entry in loads(error_codes_json):

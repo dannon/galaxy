@@ -1,13 +1,7 @@
 import os
 
-from galaxy import (
-    exceptions,
-    web
-)
-from galaxy.web import (
-    expose_api,
-    expose_api_raw
-)
+from galaxy import exceptions, web
+from galaxy.web import expose_api, expose_api_raw
 from galaxy.webapps.base.controller import BaseAPIController
 
 
@@ -29,7 +23,7 @@ class ToolData(BaseAPIController):
     @web.require_admin
     @expose_api
     def show(self, trans, id, **kwds):
-        return self._data_table(id).to_dict(view='element')
+        return self._data_table(id).to_dict(view="element")
 
     @web.require_admin
     @expose_api
@@ -43,11 +37,9 @@ class ToolData(BaseAPIController):
         data_table = trans.app.tool_data_tables.data_tables.get(decoded_tool_data_id)
         data_table.reload_from_files()
         trans.app.queue_worker.send_control_task(
-            'reload_tool_data_tables',
-            noop_self=True,
-            kwargs={'table_name': decoded_tool_data_id}
+            "reload_tool_data_tables", noop_self=True, kwargs={"table_name": decoded_tool_data_id}
         )
-        return self._data_table(decoded_tool_data_id).to_dict(view='element')
+        return self._data_table(decoded_tool_data_id).to_dict(view="element")
 
     @web.require_admin
     @expose_api
@@ -75,8 +67,8 @@ class ToolData(BaseAPIController):
             return "Invalid data table id ( %s ) specified." % str(decoded_tool_data_id)
 
         values = None
-        if kwd.get('payload', None):
-            values = kwd['payload'].get('values', '')
+        if kwd.get("payload", None):
+            values = kwd["payload"].get("values", "")
 
         if not values:
             trans.response.status = 400
@@ -86,15 +78,15 @@ class ToolData(BaseAPIController):
 
         if len(split_values) != len(data_table.get_column_name_list()):
             trans.response.status = 400
-            return "Invalid data table item ( {} ) specified. Wrong number of columns ({} given, {} required).".format(str(values), str(len(split_values)), str(len(data_table.get_column_name_list())))
+            return "Invalid data table item ( {} ) specified. Wrong number of columns ({} given, {} required).".format(
+                str(values), str(len(split_values)), str(len(data_table.get_column_name_list()))
+            )
 
         data_table.remove_entry(split_values)
         trans.app.queue_worker.send_control_task(
-            'reload_tool_data_tables',
-            noop_self=True,
-            kwargs={'table_name': decoded_tool_data_id}
+            "reload_tool_data_tables", noop_self=True, kwargs={"table_name": decoded_tool_data_id}
         )
-        return self._data_table(decoded_tool_data_id).to_dict(view='element')
+        return self._data_table(decoded_tool_data_id).to_dict(view="element")
 
     @web.require_admin
     @expose_api

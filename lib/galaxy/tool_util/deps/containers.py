@@ -2,10 +2,7 @@ import collections
 import logging
 import os
 
-from galaxy.util import (
-    asbool,
-    plugin_config
-)
+from galaxy.util import asbool, plugin_config
 from .container_classes import (
     CONTAINER_CLASSES,
     DOCKER_CONTAINER_TYPE,
@@ -35,11 +32,12 @@ log = logging.getLogger(__name__)
 DEFAULT_CONTAINER_TYPE = DOCKER_CONTAINER_TYPE
 ALL_CONTAINER_TYPES = [DOCKER_CONTAINER_TYPE, SINGULARITY_CONTAINER_TYPE]
 
-ResolvedContainerDescription = collections.namedtuple('ResolvedContainerDescription', ['container_resolver', 'container_description'])
+ResolvedContainerDescription = collections.namedtuple(
+    "ResolvedContainerDescription", ["container_resolver", "container_description"]
+)
 
 
 class ContainerFinder:
-
     def __init__(self, app_info, mulled_resolution_cache=None):
         self.app_info = app_info
         self.container_registry = ContainerRegistry(app_info, mulled_resolution_cache=mulled_resolution_cache)
@@ -162,7 +160,9 @@ class ContainerFinder:
             return self.__build_container_id_from_parts(container_type, destination_info, mode="default")
         return None
 
-    def __destination_container(self, container_id, container_type, tool_info, destination_info, job_info, container_description=None):
+    def __destination_container(
+        self, container_id, container_type, tool_info, destination_info, job_info, container_description=None
+    ):
         # TODO: ensure destination_info is dict-like
         if not self.__container_type_enabled(container_type, destination_info):
             return NULL_CONTAINER
@@ -171,14 +171,15 @@ class ContainerFinder:
         # container type is - there should be more thought put into this.
         # Checking which are available - settings policies for what can be
         # auto-fetched, etc....
-        return CONTAINER_CLASSES[container_type](container_id, self.app_info, tool_info, destination_info, job_info, container_description)
+        return CONTAINER_CLASSES[container_type](
+            container_id, self.app_info, tool_info, destination_info, job_info, container_description
+        )
 
     def __container_type_enabled(self, container_type, destination_info):
         return asbool(destination_info.get("%s_enabled" % container_type, False))
 
 
 class NullContainerFinder:
-
     def find_container(self, tool_info, destination_info, job_info):
         return []
 
@@ -194,7 +195,7 @@ class ContainerRegistry:
         self.mulled_resolution_cache = mulled_resolution_cache
 
     def __build_container_resolvers(self, app_info):
-        conf_file = getattr(app_info, 'containers_resolvers_config_file', None)
+        conf_file = getattr(app_info, "containers_resolvers_config_file", None)
         if not conf_file:
             return self.__default_containers_resolvers()
         if not os.path.exists(conf_file):
@@ -204,9 +205,7 @@ class ContainerRegistry:
         return self._parse_resolver_conf(plugin_source)
 
     def _parse_resolver_conf(self, plugin_source):
-        extra_kwds = {
-            'app_info': self.app_info
-        }
+        extra_kwds = {"app_info": self.app_info}
         return plugin_config.load_plugins(self.resolver_classes, plugin_source, extra_kwds)
 
     def __default_containers_resolvers(self):
@@ -215,27 +214,32 @@ class ContainerRegistry:
             ExplicitSingularityContainerResolver(self.app_info),
         ]
         if self.enable_mulled_containers:
-            default_resolvers.extend([
-                CachedMulledDockerContainerResolver(self.app_info, namespace="biocontainers"),
-                CachedMulledDockerContainerResolver(self.app_info, namespace="local"),
-                CachedMulledSingularityContainerResolver(self.app_info, namespace="biocontainers"),
-                CachedMulledSingularityContainerResolver(self.app_info, namespace="local"),
-                MulledDockerContainerResolver(self.app_info, namespace="biocontainers"),
-                MulledSingularityContainerResolver(self.app_info, namespace="biocontainers"),
-            ])
+            default_resolvers.extend(
+                [
+                    CachedMulledDockerContainerResolver(self.app_info, namespace="biocontainers"),
+                    CachedMulledDockerContainerResolver(self.app_info, namespace="local"),
+                    CachedMulledSingularityContainerResolver(self.app_info, namespace="biocontainers"),
+                    CachedMulledSingularityContainerResolver(self.app_info, namespace="local"),
+                    MulledDockerContainerResolver(self.app_info, namespace="biocontainers"),
+                    MulledSingularityContainerResolver(self.app_info, namespace="biocontainers"),
+                ]
+            )
             # BuildMulledDockerContainerResolver and BuildMulledSingularityContainerResolver both need the docker daemon to build images.
             # If docker is not available, we don't load them.
             build_mulled_docker_container_resolver = BuildMulledDockerContainerResolver(self.app_info)
             if build_mulled_docker_container_resolver.docker_cli_available:
-                default_resolvers.extend([
-                    build_mulled_docker_container_resolver,
-                    BuildMulledSingularityContainerResolver(self.app_info),
-                ])
+                default_resolvers.extend(
+                    [
+                        build_mulled_docker_container_resolver,
+                        BuildMulledSingularityContainerResolver(self.app_info),
+                    ]
+                )
         return default_resolvers
 
     def __resolvers_dict(self):
         import galaxy.tool_util.deps.container_resolvers
-        return plugin_config.plugins_dict(galaxy.tool_util.deps.container_resolvers, 'resolver_type')
+
+        return plugin_config.plugins_dict(galaxy.tool_util.deps.container_resolvers, "resolver_type")
 
     def get_resolution_cache(self):
         cache = ResolutionCache()
@@ -252,7 +256,16 @@ class ContainerRegistry:
             return None
         return None if resolved_container_description is None else resolved_container_description.container_description
 
-    def resolve(self, enabled_container_types, tool_info, index=None, resolver_type=None, install=True, resolution_cache=None, session=None):
+    def resolve(
+        self,
+        enabled_container_types,
+        tool_info,
+        index=None,
+        resolver_type=None,
+        install=True,
+        resolution_cache=None,
+        session=None,
+    ):
         resolution_cache = resolution_cache or self.get_resolution_cache()
         for i, container_resolver in enumerate(self.container_resolvers):
             if index is not None and i != index:
@@ -268,8 +281,12 @@ class ContainerRegistry:
             if not install and container_resolver.builds_on_resolution:
                 continue
 
-            container_description = container_resolver.resolve(enabled_container_types, tool_info, install=install, resolution_cache=resolution_cache, session=session)
-            log.info(f"Checking with container resolver [{container_resolver}] found description [{container_description}]")
+            container_description = container_resolver.resolve(
+                enabled_container_types, tool_info, install=install, resolution_cache=resolution_cache, session=session
+            )
+            log.info(
+                f"Checking with container resolver [{container_resolver}] found description [{container_description}]"
+            )
             if container_description:
                 assert container_description.type in enabled_container_types
                 return ResolvedContainerDescription(container_resolver, container_description)

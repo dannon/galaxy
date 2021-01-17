@@ -17,7 +17,7 @@ from .driver_util import GalaxyTestDriver
 NO_APP_MESSAGE = "test_case._app called though no Galaxy has been configured."
 # Following should be for Homebrew Rabbitmq and Docker on Mac "amqp://guest:guest@localhost:5672//"
 AMQP_URL = os.environ.get("GALAXY_TEST_AMQP_URL", None)
-POSTGRES_CONFIGURED = 'postgres' in os.environ.get("GALAXY_TEST_DBURI", '')
+POSTGRES_CONFIGURED = "postgres" in os.environ.get("GALAXY_TEST_DBURI", "")
 
 
 def _identity(func):
@@ -58,7 +58,7 @@ def skip_unless_kubernetes():
 
 
 def k8s_config_path():
-    return os.environ.get('GALAXY_TEST_KUBE_CONFIG_PATH', '~/.kube/config')
+    return os.environ.get("GALAXY_TEST_KUBE_CONFIG_PATH", "~/.kube/config")
 
 
 def skip_unless_fixed_port():
@@ -173,7 +173,6 @@ class IntegrationTestCase(IntegrationInstance, TestCase):
 
 
 def integration_module_instance(clazz):
-
     def _instance():
         instance = clazz()
         instance.setUpClass()
@@ -181,11 +180,10 @@ def integration_module_instance(clazz):
         yield instance
         instance.tearDownClass()
 
-    return pytest.fixture(scope='module')(_instance)
+    return pytest.fixture(scope="module")(_instance)
 
 
 def integration_tool_runner(tool_ids):
-
     def test_tools(instance, tool_id):
         instance._run_tool_test(tool_id)
 

@@ -49,13 +49,13 @@ def handle_upload(
                 check_content=check_content,
                 is_binary=is_binary,
                 auto_decompress=auto_decompress,
-                uploaded_file_ext=os.path.splitext(name)[1].lower().lstrip('.'),
+                uploaded_file_ext=os.path.splitext(name)[1].lower().lstrip("."),
                 convert_to_posix_lines=convert_to_posix_lines,
                 convert_spaces_to_tabs=convert_spaces_to_tabs,
             )
         except sniff.InappropriateDatasetContentError as exc:
             raise UploadProblemException(exc)
-    elif requested_ext == 'auto':
+    elif requested_ext == "auto":
         ext = sniff.guess_ext(path, registry.sniff_order, is_binary=is_binary)
     else:
         ext = requested_ext
@@ -64,27 +64,33 @@ def handle_upload(
     converted_path = None if converted_path == path else converted_path
 
     # Validate datasets where the filetype was explicitly set using the filetype's sniffer (if any)
-    if requested_ext != 'auto':
+    if requested_ext != "auto":
         datatype = registry.get_datatype_by_extension(requested_ext)
         # Enable sniffer "validate mode" (prevents certain sniffers from disabling themselves)
-        if check_content and hasattr(datatype, 'sniff') and not datatype.sniff(path):
-            stdout = ("Warning: The file 'Type' was set to '{ext}' but the file does not appear to be of that"
-                      " type".format(ext=requested_ext))
+        if check_content and hasattr(datatype, "sniff") and not datatype.sniff(path):
+            stdout = (
+                "Warning: The file 'Type' was set to '{ext}' but the file does not appear to be of that"
+                " type".format(ext=requested_ext)
+            )
 
     # Handle unsniffable binaries
-    if is_binary and ext == 'binary':
-        upload_ext = os.path.splitext(name)[1].lower().lstrip('.')
+    if is_binary and ext == "binary":
+        upload_ext = os.path.splitext(name)[1].lower().lstrip(".")
         if registry.is_extension_unsniffable_binary(upload_ext):
-            stdout = ("Warning: The file's datatype cannot be determined from its contents and was guessed based on"
-                     " its extension, to avoid this warning, manually set the file 'Type' to '{ext}' when uploading"
-                     " this type of file".format(ext=upload_ext))
+            stdout = (
+                "Warning: The file's datatype cannot be determined from its contents and was guessed based on"
+                " its extension, to avoid this warning, manually set the file 'Type' to '{ext}' when uploading"
+                " this type of file".format(ext=upload_ext)
+            )
             ext = upload_ext
         else:
-            stdout = ("The uploaded binary file format cannot be determined automatically, please set the file 'Type'"
-                      " manually")
+            stdout = (
+                "The uploaded binary file format cannot be determined automatically, please set the file 'Type'"
+                " manually"
+            )
 
     datatype = registry.get_datatype_by_extension(ext)
-    if multi_file_zip and not getattr(datatype, 'compressed', False):
-        stdout = 'ZIP file contained more than one file, only the first file was added to Galaxy.'
+    if multi_file_zip and not getattr(datatype, "compressed", False):
+        stdout = "ZIP file contained more than one file, only the first file was added to Galaxy."
 
     return stdout, ext, datatype, is_binary, converted_path

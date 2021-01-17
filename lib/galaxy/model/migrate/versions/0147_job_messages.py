@@ -4,19 +4,10 @@ Add structured failure reason column to jobs table
 
 import logging
 
-from sqlalchemy import (
-    Column,
-    MetaData,
-    Table,
-    TEXT
-)
+from sqlalchemy import Column, MetaData, Table, TEXT
 
 from galaxy.model.custom_types import JSONType
-from galaxy.model.migrate.versions.util import (
-    add_column,
-    alter_column,
-    drop_column
-)
+from galaxy.model.migrate.versions.util import add_column, alter_column, drop_column
 
 log = logging.getLogger(__name__)
 metadata = MetaData()
@@ -44,8 +35,8 @@ def upgrade(migrate_engine):
     add_column(task_job_stderr_column, tasks_table, metadata)
 
     for table in [jobs_table, tasks_table]:
-        alter_column('stdout', table, name='tool_stdout')
-        alter_column('stderr', table, name='tool_stderr')
+        alter_column("stdout", table, name="tool_stdout")
+        alter_column("stderr", table, name="tool_stderr")
 
 
 def downgrade(migrate_engine):
@@ -58,5 +49,5 @@ def downgrade(migrate_engine):
         drop_column(colname, jobs_table)
         drop_column(colname, tasks_table)
     for table in [jobs_table, tasks_table]:
-        alter_column('tool_stdout', table, name='stdout')
-        alter_column('tool_stderr', table, name='stderr')
+        alter_column("tool_stdout", table, name="stdout")
+        alter_column("tool_stderr", table, name="stderr")

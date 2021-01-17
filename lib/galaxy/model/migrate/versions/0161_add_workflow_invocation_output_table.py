@@ -12,7 +12,8 @@ log = logging.getLogger(__name__)
 metadata = MetaData()
 
 workflow_invocation_output_parameter_table = Table(
-    "workflow_invocation_output_value", metadata,
+    "workflow_invocation_output_value",
+    metadata,
     Column("id", Integer, primary_key=True),
     Column("workflow_invocation_id", Integer, ForeignKey("workflow_invocation.id"), index=True),
     Column("workflow_step_id", Integer, ForeignKey("workflow_step.id")),

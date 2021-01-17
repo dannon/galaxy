@@ -7,18 +7,13 @@ import logging
 import os
 
 from galaxy.managers import configuration, users
-from galaxy.web import (
-    expose_api,
-    expose_api_anonymous_and_sessionless,
-    require_admin
-)
+from galaxy.web import expose_api, expose_api_anonymous_and_sessionless, require_admin
 from galaxy.webapps.base.controller import BaseAPIController
 
 log = logging.getLogger(__name__)
 
 
 class ConfigurationController(BaseAPIController):
-
     def __init__(self, app):
         super().__init__(app)
         self.config_serializer = configuration.ConfigSerializer(app)
@@ -49,7 +44,7 @@ class ConfigurationController(BaseAPIController):
         Note: a more complete list is returned if the user is an admin.
         """
         is_admin = trans.user_is_admin
-        serialization_params = self._parse_serialization_params(kwd, 'all')
+        serialization_params = self._parse_serialization_params(kwd, "all")
         return self.get_config_dict(trans, is_admin, **serialization_params)
 
     @expose_api_anonymous_and_sessionless
@@ -63,14 +58,16 @@ class ConfigurationController(BaseAPIController):
         """
         extra = {}
         try:
-            version_file = os.environ.get("GALAXY_VERSION_JSON_FILE", self.app.container_finder.app_info.galaxy_root_dir + "/version.json")
+            version_file = os.environ.get(
+                "GALAXY_VERSION_JSON_FILE", self.app.container_finder.app_info.galaxy_root_dir + "/version.json"
+            )
             with open(version_file) as f:
                 extra = json.load(f)
         except Exception:
             pass
         return {"version_major": self.app.config.version_major, "extra": extra}
 
-    def get_config_dict(self, trans, return_admin=False, view=None, keys=None, default_view='all'):
+    def get_config_dict(self, trans, return_admin=False, view=None, keys=None, default_view="all"):
         """
         Return a dictionary with (a subset of) current Galaxy settings.
 
@@ -101,7 +98,7 @@ class ConfigurationController(BaseAPIController):
         """Decode a given id."""
         decoded_id = None
         # Handle the special case for library folders
-        if ((len(encoded_id) % 16 == 1) and encoded_id.startswith('F')):
+        if (len(encoded_id) % 16 == 1) and encoded_id.startswith("F"):
             decoded_id = trans.security.decode_id(encoded_id[1:])
         else:
             decoded_id = trans.security.decode_id(encoded_id)
@@ -112,15 +109,12 @@ class ConfigurationController(BaseAPIController):
     def tool_lineages(self, trans):
         rval = []
         for id, tool in self.app.toolbox.tools():
-            if hasattr(tool, 'lineage'):
+            if hasattr(tool, "lineage"):
                 lineage_dict = tool.lineage.to_dict()
             else:
                 lineage_dict = None
 
-            entry = dict(
-                id=id,
-                lineage=lineage_dict
-            )
+            entry = dict(id=id, lineage=lineage_dict)
             rval.append(entry)
         return rval
 
@@ -131,11 +125,11 @@ class ConfigurationController(BaseAPIController):
         PUT /api/configuration/toolbox
         Reload the Galaxy toolbox (but not individual tools).
         """
-        self.app.queue_worker.send_control_task('reload_toolbox')
+        self.app.queue_worker.send_control_task("reload_toolbox")
 
 
 def _tool_conf_to_dict(conf):
     return dict(
-        config_filename=conf['config_filename'],
-        tool_path=conf['tool_path'],
+        config_filename=conf["config_filename"],
+        tool_path=conf["tool_path"],
     )

@@ -32,10 +32,10 @@ def downgrade(migrate_engine):
 
 def create_timestamps(metadata, table_name):
     target_table = Table(table_name, metadata, autoload=True)
-    if 'create_time' not in target_table.c:
+    if "create_time" not in target_table.c:
         create_time_column = Column("create_time", DateTime, default=now)
         add_column(create_time_column, target_table, metadata)
-    if 'update_time' not in target_table.c:
+    if "update_time" not in target_table.c:
         update_time_column = Column("update_time", DateTime, default=now, onupdate=now)
         add_column(update_time_column, target_table, metadata)
 

@@ -10,7 +10,7 @@ log = logging.getLogger(__name__)
 
 def upgrade(migrate_engine):
     meta = MetaData(bind=migrate_engine)
-    user = Table('galaxy_user', meta, autoload=True)
+    user = Table("galaxy_user", meta, autoload=True)
     try:
         user.c.password.alter(type=String(255))
     except Exception:
