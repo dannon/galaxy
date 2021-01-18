@@ -36,7 +36,10 @@ from galaxy.tool_shed.galaxy_install.installed_repository_manager import Install
 from galaxy.tool_shed.galaxy_install.update_repository_manager import UpdateRepositoryManager
 from galaxy.tool_util.deps.views import DependencyResolversView
 from galaxy.tool_util.verify import test_data
-from galaxy.tools.cache import ToolCache, ToolShedRepositoryCache
+from galaxy.tools.cache import (
+    ToolCache,
+    ToolShedRepositoryCache,
+)
 from galaxy.tools.data_manager.manager import DataManagers
 from galaxy.tools.error_reports import ErrorReports
 from galaxy.tools.special_tools import load_lib_tools
