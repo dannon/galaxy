@@ -3,7 +3,11 @@ name = "galaxy"
 version = "21.01"
 description = "Galaxy is an open, web-based platform for accessible, reproducible, and transparent computational research."
 authors = ["Galaxy Contributors"]
-license = "Academic Free License 3.0"
+license = "AFL-3.0"
+readme = "README.rst"
+homepage = "https://galaxyproject.org/"
+repository = "https://github.com/galaxyproject/galaxy/"
+documentation = "https://docs.galaxyproject.org/"
 
 [[tool.poetry.source]]
 name = "galaxyproject"
