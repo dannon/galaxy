@@ -385,7 +385,12 @@ class Request(webob.Request):
         cookie_header = self.environ.get("HTTP_COOKIE")
         if cookie_header:
             all_cookies = webob.cookies.parse_cookie(cookie_header)
-            galaxy_cookies = {k.decode(): v.decode() for k, v in all_cookies if k.startswith(b'galaxy')}
+            galaxy_cookies = {}
+            for k, v in all_cookies:
+                if k.startswith(b'galaxy'):
+                    galaxy_cookies[k.decode()] = v.decode()
+                else:
+                    log.debug(f'Discarding cookie with key {k}')
             if galaxy_cookies:
                 try:
                     cookies.load(galaxy_cookies)
