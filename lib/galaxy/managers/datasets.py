@@ -219,6 +219,7 @@ class DatasetSerializer(base.ModelSerializer[DatasetManager], deletable.Purgable
                 # 'extra_files_path',
                 "file_size",
                 "total_size",
+                "tool_type",
                 "uuid",
             ],
         )
@@ -575,6 +576,7 @@ class _UnflattenedMetadataDatasetAssociationSerializer(base.ModelSerializer[T], 
             "metadata": self.serialize_metadata,
             "creating_job": self.serialize_creating_job,
             "rerunnable": self.serialize_rerunnable,
+            "tool_type": self.serialize_tool_type,
             "parent_id": self.serialize_id,
             "designation": lambda item, key, **context: item.designation,
             # 'extended_metadata': self.serialize_extended_metadata,
@@ -675,6 +677,13 @@ class _UnflattenedMetadataDatasetAssociationSerializer(base.ModelSerializer[T], 
             if tool and tool.is_workflow_compatible:
                 return True
         return False
+
+    def serialize_tool_type(self, dataset, key, user=None, **context):
+        if dataset.creating_job:
+            tool = self.app.toolbox.get_tool(dataset.creating_job.tool_id, dataset.creating_job.tool_version)
+            if tool:
+                return tool.tool_type
+        return None
 
     def serialize_converted_datasets(self, item, key, **context):
         """

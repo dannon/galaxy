@@ -344,6 +344,7 @@ class HDASerializer(  # datasets._UnflattenedMetadataDatasetAssociationSerialize
                 "visible",
                 "tags",
                 "type",
+                "tool_type",
                 "url",
                 "create_time",
                 "update_time",
@@ -458,6 +459,7 @@ class HDASerializer(  # datasets._UnflattenedMetadataDatasetAssociationSerialize
             "accessible": lambda item, key, user=None, **c: self.manager.is_accessible(item, user, **c),
             "api_type": lambda item, key, **context: "file",
             "type": lambda item, key, **context: "file",
+            ""
             "created_from_basename": lambda item, key, **context: item.created_from_basename,
             "hashes": lambda item, key, **context: [h.to_dict() for h in item.hashes],
             "sources": lambda item, key, **context: [s.to_dict() for s in item.sources],
@@ -543,6 +545,7 @@ class HDASerializer(  # datasets._UnflattenedMetadataDatasetAssociationSerialize
                 controller="dataset", action="get_metadata_file", hda_id=encoded_id, metadata_name=""
             ),
         }
+
         return urls
 
 

@@ -34,6 +34,9 @@ var STATES = {
     DEFERRED: "deferred",
     /** the tool producing this dataset failed */
     ERROR: "error",
+
+    // Interactive tool-specific. Currently running + accessible
+    ACTIVE: "active",
 };
 
 STATES.READY_STATES = [
@@ -47,7 +50,7 @@ STATES.READY_STATES = [
     STATES.ERROR,
 ];
 
-STATES.NOT_READY_STATES = [STATES.UPLOAD, STATES.QUEUED, STATES.RUNNING, STATES.SETTING_METADATA, STATES.NEW];
+STATES.NOT_READY_STATES = [STATES.UPLOAD, STATES.QUEUED, STATES.RUNNING, STATES.SETTING_METADATA, STATES.ACTIVE, STATES.NEW];
 
 //==============================================================================
 export default STATES;
