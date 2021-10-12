@@ -136,6 +136,7 @@
     "@vue/vue2-jest": "^28.0.1",
     "amdi18n-loader": "^0.9.3",
     "autoprefixer": "10.4.5",
+    "axe-playwright": "^1.1.9",
     "axios-mock-adapter": "^1.20.0",
     "babel-core": "^7.0.0-bridge.0",
     "babel-jest": "^28.1.3",
