@@ -123,6 +123,7 @@ htmlcov
 run_unit_tests.html
 test/unit/**.log
 .tox
+playwright-report
 
 # Project files
 *.kpf
