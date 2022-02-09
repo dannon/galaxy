@@ -6,6 +6,7 @@ import Vue from "vue";
 import Vuex from "vuex";
 import createCache from "vuex-cache";
 import VuexPersistence from "vuex-persist";
+import localForage from "localforage";
 
 import config from "config";
 
@@ -37,7 +38,8 @@ Vue.use(Vuex);
 
 // Create vuexpersistence
 const panelsPersistence = new VuexPersistence({
-    storage: window.localStorage,
+    storage: localForage,
+    asyncStorage: true,
     modules: ["panels"],
 });
 
