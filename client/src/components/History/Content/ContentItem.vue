@@ -80,7 +80,7 @@
         </div>
         <!-- collections are not expandable, so we only need the DatasetDetails component here -->
         <b-collapse :visible="expandDataset">
-            <DatasetDetails @edit="onEdit" :item="item" />
+            <DatasetDetails v-if="expandDataset" @edit="onEdit" :item="item" />
         </b-collapse>
     </div>
 </template>
