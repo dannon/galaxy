@@ -79,7 +79,7 @@
             </div>
         </div>
         <!-- collections are not expandable, so we only need the DatasetDetails component here -->
-        <b-collapse v-model="expandDataset" class="mt-2">
+        <b-collapse :visible="expandDataset">
             <DatasetDetails @edit="onEdit" :item="item" />
         </b-collapse>
     </div>
