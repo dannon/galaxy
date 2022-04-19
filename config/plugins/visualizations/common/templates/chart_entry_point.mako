@@ -17,6 +17,7 @@
         config.addInitialization(function() {
             let dump = ${h.dumps(config)};
             var load = "${script_attributes.get("load")}";
+            console.debug(bundleEntries);
             if (!bundleEntries[load]) {
                 load = "load";
             }
