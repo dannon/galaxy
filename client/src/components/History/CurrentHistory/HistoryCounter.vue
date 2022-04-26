@@ -16,7 +16,7 @@
                 size="sm"
                 class="rounded-0 text-decoration-none"
                 @click="setFilter('')">
-                <font-awesome-icon icon="map-marker" />
+                <font-awesome-icon icon="map-marker-alt" />
                 <span>{{ history.contents_active.active }}</span>
             </b-button>
             <b-button
@@ -49,8 +49,8 @@ import { backboneRoute } from "components/plugins/legacyNavigation";
 import prettyBytes from "pretty-bytes";
 
 import { library } from "@fortawesome/fontawesome-svg-core";
-import { faDatabase, faMapMarker, faTrash, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
-library.add(faDatabase, faMapMarker, faEyeSlash, faTrash);
+import { faDatabase, faMapMarkerAlt, faTrash, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
+library.add(faDatabase, faMapMarkerAlt, faEyeSlash, faTrash);
 
 export default {
     filters: {
