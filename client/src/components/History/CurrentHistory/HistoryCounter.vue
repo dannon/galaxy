@@ -6,7 +6,7 @@
             size="sm"
             class="rounded-0 text-decoration-none"
             @click="onDashboard">
-            <icon icon="database" />
+            <font-awesome-icon icon="database" />
             <span>{{ history.size | niceFileSize }}</span>
         </b-button>
         <b-button-group>
@@ -16,7 +16,7 @@
                 size="sm"
                 class="rounded-0 text-decoration-none"
                 @click="setFilter('')">
-                <span class="fa fa-map-marker" />
+                <font-awesome-icon icon="map-marker" />
                 <span>{{ history.contents_active.active }}</span>
             </b-button>
             <b-button
@@ -26,7 +26,7 @@
                 size="sm"
                 class="rounded-0 text-decoration-none"
                 @click="setFilter('deleted=true')">
-                <icon icon="trash" />
+                <font-awesome-icon icon="trash" />
                 <span>{{ history.contents_active.deleted }}</span>
             </b-button>
             <b-button
@@ -36,7 +36,7 @@
                 size="sm"
                 class="rounded-0 text-decoration-none"
                 @click="setFilter('visible=false')">
-                <icon icon="eye-slash" />
+                <font-awesome-icon icon="eye-slash" />
                 <span>{{ history.contents_active.hidden }}</span>
             </b-button>
         </b-button-group>
@@ -44,8 +44,13 @@
 </template>
 
 <script>
+import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import { backboneRoute } from "components/plugins/legacyNavigation";
 import prettyBytes from "pretty-bytes";
+
+import { library } from "@fortawesome/fontawesome-svg-core";
+import { faDatabase, faMapMarker, faTrash, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
+library.add(faDatabase, faMapMarker, faEyeSlash, faTrash);
 
 export default {
     filters: {
@@ -55,6 +60,9 @@ export default {
     },
     props: {
         history: { type: Object, required: true },
+    },
+    components: {
+        FontAwesomeIcon,
     },
     methods: {
         onDashboard() {
