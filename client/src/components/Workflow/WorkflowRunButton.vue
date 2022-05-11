@@ -11,6 +11,12 @@ import { BButton } from "bootstrap-vue";
 import { VBTooltip } from "bootstrap-vue";
 
 export default {
+    components: {
+        BButton,
+    },
+    directives: {
+        VBTooltip,
+    },
     props: {
         id: {
             type: String,
@@ -20,12 +26,6 @@ export default {
             type: String,
             required: true,
         },
-    },
-    components: {
-        BButton,
-    },
-    directives: {
-        VBTooltip,
     },
     computed: {
         title() {
