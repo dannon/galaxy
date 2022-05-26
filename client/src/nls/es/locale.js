@@ -523,8 +523,6 @@ define({
     // ---------------------------------------------------------------------------- galaxy.pages
     Subscript: false,
     Superscript: false,
-    // ---------------------------------------------------------------------------- data
-    Trackster: false,
     // ---------------------------------------------------------------------------- dataset-error
     "Any additional comments you can provide regarding what you were doing at the time of the bug.":
         "Cualquier comentario adicional que puedas proporcionar sobre lo que estabas haciendo en el momento que se produjo el error.",
@@ -739,22 +737,6 @@ define({
     "Data tables": "Tablas de datos",
     "Data types": "Tipos de datos",
     Server: false,
-    // ---------------------------------------------------------------------------- circster
-    "Could Not Save": "No se pudo guardar",
-    "Saving...": "Guardando",
-    Settings: false,
-    "Add tracks": "Agregar pistas",
-    // ---------------------------------------------------------------------------- trackster
-    "New Visualization": "Nueva visualización",
-    "Add Data to Saved Visualization": "Agregar datos a visualización guardada",
-    "Close visualization": "Cerrar visualización",
-    Circster: false,
-    Bookmarks: false,
-    "Add group": "Agregar grupo",
-    // ---------------------------------------------------------------------------- sweepster
-    "Remove parameter from tree": "Eliminar parámetro del árbol",
-    "Add parameter to tree": "Agregar parámetro al árbol",
-    Remove: false,
     // ---------------------------------------------------------------------------- visualization
     "Select datasets for new tracks": "Seleccionar conjuntos de datos para nuevas pistas",
     "Select a dataset to visualize:": "Seleccionar un conjunto de datos para visualizar",
@@ -771,7 +753,6 @@ define({
     "Filter Dataset": "Filtrar conjunto de datos",
     // ---------------------------------------------------------------------------- tracks
     "Show individual tracks": "Mostrar pistas individuales",
-    "Trackster Error": "Error de Trackster",
     "Tool parameter space visualization": "Visualización del espacio de parámetros de la herramienta",
     Tool: "Herramienta",
     "Set as overview": "Establecer como descripción general",

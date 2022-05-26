@@ -976,8 +976,7 @@
 ~~~~~~~~~~~~~~~~~
 
 :Description:
-    Directory where chrom len files are kept, currently mainly used by
-    trackster.
+    Directory where chrom len files are kept
     The value of this option will be resolved with respect to
     <tool_data_path>.
 :Default: ``shared/ucsc/chrom``

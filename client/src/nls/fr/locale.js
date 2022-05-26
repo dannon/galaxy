@@ -241,7 +241,6 @@ define({
     Subscript: false,
     Superscript: false,
     // ---------------------------------------------------------------------------- data
-    Trackster: false,
     Visualize: false,
     // ---------------------------------------------------------------------------- dataset-error
     "Any additional comments you can provide regarding what you were doing at the time of the bug.":
@@ -387,22 +386,6 @@ define({
     "Data tables": false,
     "Data types": false,
     Server: false,
-    // ---------------------------------------------------------------------------- circster
-    "Could Not Save": false,
-    "Saving...": false,
-    Settings: false,
-    "Add tracks": false,
-    // ---------------------------------------------------------------------------- trackster
-    "New Visualization": false,
-    "Add Data to Saved Visualization": false,
-    "Close visualization": false,
-    Circster: false,
-    Bookmarks: false,
-    "Add group": false,
-    // ---------------------------------------------------------------------------- sweepster
-    "Remove parameter from tree": false,
-    "Add parameter to tree": false,
-    Remove: false,
     // ---------------------------------------------------------------------------- visualization
     "Select datasets for new tracks": false,
     Libraries: false,
@@ -418,7 +401,6 @@ define({
     "Filter Dataset": false,
     // ---------------------------------------------------------------------------- tracks
     "Show individual tracks": false,
-    "Trackster Error": false,
     "Tool parameter space visualization": false,
     Tool: false,
     "Set as overview": false,

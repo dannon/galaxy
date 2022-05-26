@@ -150,28 +150,6 @@ class LibraryDatasetsSelectionGrid(grids.Grid):
         )
 
 
-class TracksterSelectionGrid(grids.Grid):
-    title = "Insert into visualization"
-    model_class = model.Visualization
-    default_sort_key = "-update_time"
-    use_paging = False
-    show_item_checkboxes = True
-    columns = [
-        grids.TextColumn("Title", key="title", model_class=model.Visualization, filterable="standard"),
-        grids.TextColumn("Build", key="dbkey", model_class=model.Visualization),
-        grids.GridColumn("Last Updated", key="update_time", format=time_ago),
-    ]
-
-    def build_initial_query(self, trans, **kwargs):
-        return trans.sa_session.query(self.model_class)
-
-    def apply_query_filter(self, trans, query, **kwargs):
-        return (
-            query.filter(self.model_class.user_id == trans.user.id)
-            .filter(self.model_class.deleted == false())
-            .filter(self.model_class.type == "trackster")
-        )
-
 
 class VisualizationListGrid(grids.Grid):
     def get_url_args(item):
@@ -306,7 +284,6 @@ class VisualizationController(
     _published_list_grid = VisualizationAllPublishedGrid()
     _history_datasets_grid = HistoryDatasetsSelectionGrid()
     _library_datasets_grid = LibraryDatasetsSelectionGrid()
-    _tracks_grid = TracksterSelectionGrid()
     hda_manager: HDAManager = depends(HDAManager)
     slug_builder: SlugBuilder = depends(SlugBuilder)
 
@@ -339,11 +316,6 @@ class VisualizationController(
         """List a library's datasets that can be added to a visualization."""
         kwargs["show_item_checkboxes"] = "True"
         return self._library_datasets_grid(trans, **kwargs)
-
-    @web.expose
-    @web.json
-    def list_tracks(self, trans, **kwargs):
-        return self._tracks_grid(trans, **kwargs)
 
     @web.expose
     @web.json
@@ -714,147 +686,6 @@ class VisualizationController(
     #
     # Visualizations.
     #
-    @web.expose
-    @web.require_login()
-    def trackster(self, trans, **kwargs):
-        """
-        Display browser for the visualization denoted by id and add the datasets listed in `dataset_ids`.
-        """
-
-        # define app configuration
-        app = {"jscript": "trackster"}
-
-        # get dataset to add
-        id = kwargs.get("id", None)
-
-        # get dataset to add
-        new_dataset_id = kwargs.get("dataset_id", None)
-
-        # set up new browser if no id provided
-        if not id:
-            # use dbkey from dataset to be added or from incoming parameter
-            dbkey = None
-            if new_dataset_id:
-                decoded_id = self.decode_id(new_dataset_id)
-                hda = self.hda_manager.get_owned(decoded_id, trans.user, current_history=trans.user)
-                dbkey = hda.dbkey
-                if dbkey == "?":
-                    dbkey = kwargs.get("dbkey", None)
-
-            # save database key
-            app["default_dbkey"] = dbkey
-        else:
-            # load saved visualization
-            vis = self.get_visualization(trans, id, check_ownership=False, check_accessible=True)
-            app["viz_config"] = self.get_visualization_config(trans, vis)
-
-        # backup id
-        app["id"] = id
-
-        # add dataset id
-        app["add_dataset"] = new_dataset_id
-
-        # check for gene region
-        gene_region = GenomeRegion.from_str(kwargs.get("gene_region", ""))
-
-        # update gene region of saved visualization if user parses a new gene region in the url
-        if gene_region.chrom is not None:
-            app["gene_region"] = {"chrom": gene_region.chrom, "start": gene_region.start, "end": gene_region.end}
-
-        # fill template
-        return trans.fill_template("visualization/trackster.mako", config={"app": app, "bundle": "extended"})
-
-    @web.expose
-    def circster(self, trans, id=None, hda_ldda=None, dataset_id=None, dbkey=None):
-        """
-        Display a circster visualization.
-        """
-
-        # Get dataset to add.
-        dataset = None
-        if dataset_id:
-            dataset = self.get_hda_or_ldda(trans, hda_ldda, dataset_id)
-
-        # Get/create vis.
-        if id:
-            # Display existing viz.
-            vis = self.get_visualization(trans, id, check_ownership=False, check_accessible=True)
-            dbkey = vis.dbkey
-        else:
-            # Create new viz.
-            if not dbkey:
-                # If dbkey not specified, use dataset's dbkey.
-                dbkey = dataset.dbkey
-                if not dbkey or dbkey == "?":
-                    # Circster requires a valid dbkey.
-                    return trans.show_error_message(
-                        "You must set the dataset's dbkey to view it. You can set "
-                        "a dataset's dbkey by clicking on the pencil icon and editing "
-                        "its attributes.",
-                        use_panels=True,
-                    )
-
-            vis = self.create_visualization(trans, type="genome", dbkey=dbkey, save=False)
-
-        # Get the vis config and work with it from here on out. Working with the
-        # config is only possible because the config structure of trackster/genome
-        # visualizations is well known.
-        viz_config = self.get_visualization_config(trans, vis)
-
-        # Add dataset if specified.
-        if dataset:
-            viz_config["tracks"].append(self.get_new_track_config(trans, dataset))
-
-        # Get genome info.
-        chroms_info = self.app.genomes.chroms(trans, dbkey=dbkey)
-        genome = {"dbkey": dbkey, "chroms_info": chroms_info}
-
-        # Add genome-wide data to each track in viz.
-        tracks = viz_config.get("tracks", [])
-        for track in tracks:
-            dataset_dict = track["dataset"]
-            dataset = self.get_hda_or_ldda(trans, dataset_dict["hda_ldda"], dataset_dict["id"])
-
-            genome_data = self._get_genome_data(trans, dataset, dbkey)
-            if not isinstance(genome_data, str):
-                track["preloaded_data"] = genome_data
-
-        # define app configuration for generic mako template
-        app = {"jscript": "circster", "viz_config": viz_config, "genome": genome}
-
-        # fill template
-        return trans.fill_template("visualization/trackster.mako", config={"app": app, "bundle": "extended"})
-
-    @web.expose
-    def sweepster(self, trans, id=None, hda_ldda=None, dataset_id=None, regions=None):
-        """
-        Displays a sweepster visualization using the incoming parameters. If id is available,
-        get the visualization with the given id; otherwise, create a new visualization using
-        a given dataset and regions.
-        """
-        regions = regions or "{}"
-        # Need to create history if necessary in order to create tool form.
-        trans.get_history(most_recent=True, create=True)
-
-        if id:
-            # Loading a shared visualization.
-            viz = self.get_visualization(trans, id)
-            viz_config = self.get_visualization_config(trans, viz)
-            decoded_id = self.decode_id(viz_config["dataset_id"])
-            dataset = self.hda_manager.get_owned(decoded_id, trans.user, current_history=trans.history)
-        else:
-            # Loading new visualization.
-            dataset = self.get_hda_or_ldda(trans, hda_ldda, dataset_id)
-            job = self.hda_manager.creating_job(dataset)
-            viz_config = {"dataset_id": dataset_id, "tool_id": job.tool_id, "regions": loads(regions)}
-
-        # Add tool, dataset attributes to config based on id.
-        tool = trans.app.toolbox.get_tool(viz_config["tool_id"])
-        viz_config["tool"] = tool.to_dict(trans, io_details=True)
-        viz_config["dataset"] = trans.security.encode_dict_ids(dataset.to_dict())
-
-        return trans.fill_template_mako("visualization/sweepster.mako", config=viz_config)
-
     def get_item(self, trans, id):
         return self.get_visualization(trans, id)
 

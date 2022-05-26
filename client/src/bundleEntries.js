@@ -12,24 +12,12 @@ import $ from "jquery"; // eslint-disable-line no-unused-vars
 import _ from "underscore"; // eslint-disable-line no-unused-vars
 
 export { getGalaxyInstance, setGalaxyInstance } from "app";
-import { TracksterUIView } from "viz/trackster";
-export { TracksterUI } from "viz/trackster";
-import Circster from "viz/circster";
 export { PhylovizView as phyloviz } from "viz/phyloviz";
-export { SweepsterVisualization, SweepsterVisualizationView } from "viz/sweepster";
 export { createTabularDatasetChunkedView } from "mvc/dataset/data";
 export { default as LegacyGridView } from "legacy/grid/grid-view";
 export { create_chart, create_histogram } from "reports/run_stats";
 export { runTour } from "components/Tour/runTour";
 export { Toast } from "ui/toast"; // TODO: remove when external consumers are updated/gone (IES right now)
-
-export function trackster(options) {
-    new TracksterUIView(options);
-}
-
-export function circster(options) {
-    new Circster.GalaxyApp(options);
-}
 
 // Previously wandering around as window.thing = thing in the onload script
 export { show_in_overlay, hide_modal, show_message, show_modal, Modal } from "layout/modal";
