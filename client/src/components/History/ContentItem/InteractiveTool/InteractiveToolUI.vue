@@ -13,8 +13,7 @@ either through the props, and make updates through the events -->
         :data-state="ITstate"
         @keydown.arrow-left.self.stop="$emit('update:expanded', false)"
         @keydown.arrow-right.self.stop="$emit('update:expanded', true)"
-        @keydown.space.self.stop.prevent="$emit('update:selected', !selected)"
-    >
+        @keydown.space.self.stop.prevent="$emit('update:selected', !selected)">
         <!-- name, state buttons, menus -->
         <nav class="p-1 d-flex align-items-center cursor-pointer" @click.stop="$emit('update:expanded', !expanded)">
             <div class="d-flex align-items-center flex-grow-1 overflow-hidden">
@@ -30,8 +29,7 @@ either through the props, and make updates through the events -->
                     state="hidden"
                     title="Unhide"
                     icon="eye-slash"
-                    @click.stop="$emit('unhide')"
-                />
+                    @click.stop="$emit('unhide')" />
 
                 <IconButton
                     v-if="!collapsed && dataset.isDeleted && !dataset.purged"
@@ -39,8 +37,7 @@ either through the props, and make updates through the events -->
                     state="deleted"
                     title="Undelete"
                     icon="trash-restore"
-                    @click.stop="$emit('undelete')"
-                />
+                    @click.stop="$emit('undelete')" />
 
                 <div class="content-title p-1 overflow-hidden">
                     <h5 class="text-truncate" v-if="collapsed">
@@ -80,16 +77,14 @@ either through the props, and make updates through the events -->
                             v-model="name"
                             placeholder="Dataset Name"
                             trim
-                            max-rows="4"
-                        ></b-textarea>
+                            max-rows="4"></b-textarea>
 
                         <b-textarea
                             class="mb-3"
                             v-model="annotation"
                             placeholder="Annotation (optional)"
                             trim
-                            max-rows="4"
-                        ></b-textarea>
+                            max-rows="4"></b-textarea>
 
                         <ContentTags class="mt-2" :content="dataset" />
                     </div>
@@ -104,8 +99,7 @@ either through the props, and make updates through the events -->
                     :valid="valid"
                     :dirty="dirty"
                     @save="save"
-                    @revert="revert"
-                />
+                    @revert="revert" />
             </div>
 
             <div class="details">

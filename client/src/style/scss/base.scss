@@ -456,6 +456,7 @@ $galaxy-state-bg: (
     @extend .badge-info;
 }
 
+// TOOD: left in rebase, but move this.
 .state-color-active,
 [data-state="active"] {
     animation: pulse 10s infinite;
