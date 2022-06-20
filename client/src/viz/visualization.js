@@ -4,7 +4,7 @@ import Backbone from "backbone";
 import { getAppRoot } from "onload/loadConfig";
 import _l from "utils/localization";
 import { Dataset } from "mvc/dataset/data";
-import util_mod from "viz/trackster/util";
+import util_mod from "viz/util";
 import config_mod from "utils/config";
 import GridView from "mvc/grid/grid-view";
 import Tabs from "mvc/ui/ui-tabs";

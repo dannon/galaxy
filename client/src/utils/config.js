@@ -1,7 +1,7 @@
 import $ from "jquery";
 import _ from "underscore";
 import Backbone from "backbone";
-import util_mod from "viz/trackster/util";
+import { get_random_color } from "viz/util";
 import { getGalaxyInstance } from "app";
 
 /**
@@ -114,7 +114,7 @@ var ConfigSetting = Backbone.Model.extend({
             // If no default value for color config, set random color.
             if (!this.get("value") && this.get("type") === "color") {
                 // For color setting, set random color.
-                this.set("value", util_mod.get_random_color());
+                this.set("value", get_random_color());
             }
         }
     },
@@ -326,7 +326,7 @@ var ConfigSettingCollectionView = Backbone.View.extend({
                 // Use function to fix farb_obj value.
                 ((fixed_farb_obj) => {
                     new_color_icon.click(() => {
-                        fixed_farb_obj.setColor(util_mod.get_random_color());
+                        fixed_farb_obj.setColor(get_random_color());
                     });
                 })(farb_obj);
             } else {
