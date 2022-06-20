@@ -4,7 +4,7 @@ import Backbone from "backbone";
 import { getAppRoot } from "onload/loadConfig";
 import _l from "utils/localization";
 import { Dataset } from "mvc/dataset/data";
-import util_mod from "viz/util";
+import { isDeferred,ServerStateDeferred } from "viz/util";
 import config_mod from "utils/config";
 import GridView from "mvc/grid/grid-view";
 import Tabs from "mvc/ui/ui-tabs";
@@ -322,7 +322,7 @@ var GenomeDataManager = Cache.extend({
                     ? "converted_datasets_state"
                     : "error";
 
-        var ss_deferred = new util_mod.ServerStateDeferred({
+        var ss_deferred = new ServerStateDeferred({
             ajax_settings: {
                 url: this.get("dataset").url(),
                 data: {
@@ -409,7 +409,7 @@ var GenomeDataManager = Cache.extend({
     get_data: function (region, mode, resolution, extra_params) {
         // Look for entry and return if it's a deferred or if data available is compatible with mode.
         var entry = this.get_elt(region);
-        if (entry && (util_mod.is_deferred(entry) || this.get("data_mode_compatible")(entry, mode))) {
+        if (entry && (isDeferred(entry) || this.get("data_mode_compatible")(entry, mode))) {
             return entry;
         }
 
@@ -433,13 +433,13 @@ var GenomeDataManager = Cache.extend({
                 // is compatible and can be subsetted.
                 entry = obj_cache[entry_region.toString()];
                 if (
-                    util_mod.is_deferred(entry) ||
+                    isDeferred(entry) ||
                     (this.get("data_mode_compatible")(entry, mode) && this.get("can_subset")(entry))
                 ) {
                     this.move_key_to_end(entry_region, i);
 
                     // If there's data, subset it.
-                    if (!util_mod.is_deferred(entry)) {
+                    if (!isDeferred(entry)) {
                         var subset_entry = this.subset_entry(entry, region);
                         this.set_data(region, subset_entry);
                         entry = subset_entry;

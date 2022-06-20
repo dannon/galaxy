@@ -4,7 +4,7 @@ import Backbone from "backbone";
 /**
  * Stringifies a number adding commas for digit grouping as per North America.
  */
-function commatize(number) {
+export function commatize(number) {
     number += ""; // Convert to string
     var rgx = /(\d+)(\d{3})/;
     while (rgx.test(number)) {
@@ -16,13 +16,13 @@ function commatize(number) {
 /**
  * Helper to determine if object is jQuery deferred.
  */
-var is_deferred = (d) => "promise" in d;
+export const isDeferred = (d) => "promise" in d;
 
 /**
  * Implementation of a server-state based deferred. Server is repeatedly polled, and when
  * condition is met, deferred is resolved.
  */
-var ServerStateDeferred = Backbone.Model.extend({
+export const ServerStateDeferred = Backbone.Model.extend({
     defaults: {
         ajax_settings: {},
         interval: 1000,
@@ -63,7 +63,7 @@ var ServerStateDeferred = Backbone.Model.extend({
  * or set of colors.
  * @param colors a color or list of colors in the format '#RRGGBB'
  */
-var get_random_color = (colors) => {
+export function getRandomColor(colors) {
     // Default for colors is white.
     if (!colors) {
         colors = "#ffffff";
@@ -135,11 +135,4 @@ var get_random_color = (colors) => {
 
     // Add 0x1000000 to left pad number with 0s.
     return `#${(0x1000000 + new_color).toString(16).substr(1, 6)}`;
-};
-
-export default {
-    commatize: commatize,
-    is_deferred: is_deferred,
-    ServerStateDeferred: ServerStateDeferred,
-    get_random_color: get_random_color,
-};
+}
