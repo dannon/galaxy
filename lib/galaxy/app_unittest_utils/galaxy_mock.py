@@ -323,7 +323,7 @@ class MockTrans:
 
 
 class MockVisualizationsRegistry:
-    BUILT_IN_VISUALIZATIONS = ["trackster"]
+    BUILT_IN_VISUALIZATIONS = []
 
     def get_visualizations(self, trans, target):
         return []

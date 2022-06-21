@@ -28,7 +28,6 @@ module.exports = {
         "^config$": "<rootDir>/tests/jest/__mocks__/config.js",
         handsontable: "node_modules/handsontable/dist/handsontable.js",
         "utils/localization$": "<rootDir>/tests/jest/__mocks__/localization.js",
-        "viz/trackster$": "<rootDir>/tests/jest/__mocks__/trackster.js",
         "rxjs/internal/scheduler/AsyncScheduler":
             "<rootDir>/node_modules/rxjs/dist/esm/internal/scheduler/AsyncScheduler.js",
         "^@/(.*)$": "<rootDir>/src/$1",

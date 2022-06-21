@@ -940,7 +940,7 @@ var BrowserBookmarkCollection = Backbone.Collection.extend({
 /**
  * A track of data in a genome visualization.
  */
-// TODO: rename to Track and merge with Trackster's Track object.
+// TODO: rename to Track
 var BackboneTrack = Backbone.Model.extend(CustomToJSON).extend(
     {
         defaults: {
