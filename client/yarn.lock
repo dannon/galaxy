@@ -1174,10 +1174,10 @@
   resolved "https://registry.yarnpkg.com/@bcoe/v8-coverage/-/v8-coverage-0.2.3.tgz#75a2e8b51cb758a7553d6804a5932d7aace75c39"
   integrity sha512-0hYQ8SB4Db5zvZB4axdMHGwEaQjkZzFjQiN9LVYvIFB2nSUHW9tYpxWriPrWDASIxiaXax83REcLxuSdnGPZtw==
 
-"@cerner/duplicate-package-checker-webpack-plugin@^2.1.0":
-  version "2.1.0"
-  resolved "https://registry.yarnpkg.com/@cerner/duplicate-package-checker-webpack-plugin/-/duplicate-package-checker-webpack-plugin-2.1.0.tgz#ae2f777319d98815df851490ca6dbeef7a42ae16"
-  integrity sha512-u4KM6/QPvvq8XWYan8khDbdysPcWqcuCxirgHfFtSmikVcxTlrz3n+8FYKhf83HZTtT47kACsIESp3xktP9hfg==
+"@cerner/duplicate-package-checker-webpack-plugin@^2.3.0":
+  version "2.3.0"
+  resolved "https://registry.yarnpkg.com/@cerner/duplicate-package-checker-webpack-plugin/-/duplicate-package-checker-webpack-plugin-2.3.0.tgz#67de41aae7f756307f9306c5a87c35011ed0f29b"
+  integrity sha512-2FdUL/10qOjXzPTt/2dcjQPHDcsI+svvdU3KERGZaUvH5IwDdzE+nGLAx1+ICxhr6cqU29zvWR6GHGOFp+fbWA==
   dependencies:
     chalk "^4.1.0"
     find-root "^1.0.0"
