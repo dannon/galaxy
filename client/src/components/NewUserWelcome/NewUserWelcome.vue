@@ -85,7 +85,7 @@ export default {
 </script>
 
 <style scoped type="scss">
-.new-user-welcome::v-deep {
+.new-user-welcome :deep() {
     .carousel-fig {
         padding-bottom: 10;
     }

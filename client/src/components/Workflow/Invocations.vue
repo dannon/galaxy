@@ -187,21 +187,23 @@ export default {
 .invocations-table {
     min-width: 40rem;
 }
-.table::v-deep .col-name {
-    width: 40%;
-}
-.table::v-deep .col-history {
-    width: 20%;
-}
-.table::v-deep .col-small {
-    width: 100px;
-}
-.table::v-deep .col-button {
-    width: 50px;
-}
-.table::v-deep .truncate {
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
+.table {
+    :deep(.col-name) {
+        width: 40%;
+    }
+    :deep(.col-history) {
+        width: 20%;
+    }
+    :deep(.col-small) {
+        width: 100px;
+    }
+    :deep(.col-button) {
+        width: 50px;
+    }
+    :deep(.truncate) {
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+    }
 }
 </style>
