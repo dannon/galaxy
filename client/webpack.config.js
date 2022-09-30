@@ -87,21 +87,19 @@ module.exports = (env = {}, argv = {}) => {
         module: {
             rules: [
                 {
-                    test: /\.ts$/,
-                    // exclude: /node_modules|vue\/src/,
-                    loader: "ts-loader",
-                    options: {
-                        appendTsSuffixTo: [/\.vue$/],
-                    },
-                },
-                {
                     test: /\.vue$/,
                     loader: "vue-loader",
                 },
+                // {
+                //     test: /\.mjs$/,
+                //     include: /node_modules/,
+                //     type: "javascript/auto",
+                // },
                 {
-                    test: /\.mjs$/,
-                    include: /node_modules/,
-                    type: "javascript/auto",
+                    test: /\.tsx?$/,
+                    exclude: /node_modules/,
+                    loader: "ts-loader",
+                    options: { appendTsSuffixTo: [/\.vue$/] },
                 },
                 {
                     test: `${libsBase}/jquery.custom.js`,
