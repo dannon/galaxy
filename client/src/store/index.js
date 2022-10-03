@@ -13,7 +13,6 @@ import config from "config";
 import { gridSearchStore } from "./gridSearchStore";
 import { tagStore } from "./tagStore";
 import { jobMetricsStore } from "./jobMetricsStore";
-import { jobDestinationParametersStore } from "./jobDestinationParametersStore";
 import { invocationStore } from "./invocationStore";
 import { collectionElementsStore, datasetStore, historyItemsStore, historyStore } from "./historyStore";
 import { userStore, userFlagsStore } from "./userStore";
@@ -58,7 +57,6 @@ export function createStore() {
             collectionAttributesStore: collectionAttributesStore,
             collectionElements: collectionElementsStore,
             config: configStore,
-            destinationParameters: jobDestinationParametersStore,
             dataset: datasetStore,
             datasetExtFiles: datasetExtFilesStore,
             datasetPathDestination: datasetPathDestinationStore,
