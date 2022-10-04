@@ -6,6 +6,7 @@ Lower level of visualization framework which does three main things:
 """
 import logging
 import os
+import fnmatch
 import weakref
 
 from galaxy.exceptions import ObjectNotFound
@@ -157,12 +158,37 @@ class VisualizationsRegistry:
         if not os.path.isdir(plugin_path):
             # super won't work here - different criteria
             return False
-        if "config" not in os.listdir(plugin_path):
+        # If there's a config file, assume this is a plugin dir.
+        # TODO: We currently look for this config file twice, once here and once in _load_plugin.
+        #       We should refactor this to just discover and pass all config files up
+        if self._get_config_file(plugin_path):
+            return True
+        return False
+
+    def _get_config_file(self, plugin_path):
+        """
+        Gets the config file for a plugin dir -- the plugin file is case insensitive
+            config/PluginName.xml
+            config/pluginname.xml
+            config.xml
+        """
+        plugin_dir_files = os.listdir(plugin_path)
+        # Allow a file just named 'config.xml' in the root to act as the config file.
+        if "config.xml" in plugin_dir_files:
+            return os.path.join(plugin_path, "config.xml")
+        if "config" not in plugin_dir_files:
             return False
-        expected_config_filename = f"{os.path.split(plugin_path)[1]}.xml"
-        if not os.path.isfile(os.path.join(plugin_path, "config", expected_config_filename)):
-            return False
-        return True
+        else:
+            # Optimistically try the expected config file name first
+            plugin_filename = f"{os.path.split(plugin_path)[1]}.xml"
+            standard_config_path = os.path.join(plugin_path, "config", plugin_filename)
+            if os.path.exists(standard_config_path):
+                return standard_config_path
+            # Not at a standard location, try to find it case insensitively
+            for possible_configfile in os.listdir(os.path.join(plugin_path, "config")):
+                if fnmatch.fnmatch(plugin_filename, possible_configfile):
+                    return possible_configfile
+        return None
 
     def _load_plugin(self, plugin_path):
         """
@@ -176,7 +202,7 @@ class VisualizationsRegistry:
         """
         plugin_name = os.path.split(plugin_path)[1]
         # TODO: this is the standard/older way to config
-        config_file = os.path.join(plugin_path, "config", (f"{plugin_name}.xml"))
+        config_file = self._get_config_file(plugin_path)
         if os.path.exists(config_file):
             config = self.config_parser.parse_file(config_file)
             if config is not None:
