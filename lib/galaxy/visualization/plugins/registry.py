@@ -6,7 +6,6 @@ Lower level of visualization framework which does three main things:
 """
 import logging
 import os
-import fnmatch
 import weakref
 
 from galaxy.exceptions import ObjectNotFound
@@ -186,8 +185,8 @@ class VisualizationsRegistry:
                 return standard_config_path
             # Not at a standard location, try to find it case insensitively
             for possible_configfile in os.listdir(os.path.join(plugin_path, "config")):
-                if fnmatch.fnmatch(plugin_filename, possible_configfile):
-                    return possible_configfile
+                if plugin_filename.lower() == possible_configfile.lower():
+                    return os.path.join(plugin_path, "config", possible_configfile)
         return None
 
     def _load_plugin(self, plugin_path):
@@ -200,7 +199,7 @@ class VisualizationsRegistry:
         :rtype:                 ``VisualizationPlugin``
         :returns:               the loaded plugin
         """
-        plugin_name = os.path.split(plugin_path)[1]
+        plugin_name = os.path.split(plugin_path)[1].lower()
         # TODO: this is the standard/older way to config
         config_file = self._get_config_file(plugin_path)
         if os.path.exists(config_file):
