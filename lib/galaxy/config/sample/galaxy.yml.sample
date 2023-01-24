@@ -85,6 +85,9 @@ gravity:
   # Configuration for Gunicorn. Can be a list to run multiple gunicorns for rolling restarts.
   gunicorn:
 
+    # Enable Galaxy gunicorn server.
+    # enable: true
+
     # The socket to bind. A string of the form: ``HOST``, ``HOST:PORT``, ``unix:PATH``, ``fd://FD``. An IP is a valid HOST.
     # bind: localhost:8080
 
@@ -129,6 +132,12 @@ gravity:
 
   # Configuration for Celery Processes.
   celery:
+
+    # Enable Celery distributed task queue.
+    # enable: true
+
+    # Enable Celery Beat periodic task runner.
+    # enable_beat: true
 
     # Number of Celery Workers to start.
     # concurrency: 2
@@ -222,6 +231,9 @@ gravity:
     # Enable tusd server.
     # If enabled, you also need to set up your proxy as outlined in https://docs.galaxyproject.org/en/latest/admin/nginx.html#receiving-files-via-the-tus-protocol.
     # enable: false
+
+    # Path to tusd binary
+    # tusd_path: tusd
 
     # Host to bind the tusd server to
     # host: localhost
