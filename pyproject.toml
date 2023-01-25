@@ -58,6 +58,7 @@ galaxy_sequence_utils = "*"
 gravity = {git = "https://github.com/galaxyproject/gravity.git", branch = "release_1.x"}  # https://github.com/galaxyproject/gravity/issues/92
 gunicorn = "*"
 gxformat2 = "*"
+h5grove = ">=1.2.1"
 h5py = "*"
 importlib_resources = "*"
 isa-rwval = "*"
