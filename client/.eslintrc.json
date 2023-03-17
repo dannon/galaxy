@@ -21,6 +21,7 @@
 
         "vue/valid-v-slot": "error",
         "vue/v-slot-style": ["error", { "atComponent": "v-slot", "default": "v-slot", "named": "longform" }],
+        "vue/custom-event-name-casing": ["error", "camelCase"],
 
         // Downgrade the severity of some rules to warnings as a transition measure.
         // For example, vue/multi-word-component names is considered an error,
