@@ -3708,12 +3708,14 @@ class MaterializeDatasetInstanceAPIRequest(MaterializeDatasetOptions):
 class MaterializeDatasetInstanceRequest(MaterializeDatasetInstanceAPIRequest):
     history_id: DecodedDatabaseIdField
 
+
 class ChatPayload(Model):
     query: str = Field(
         ...,
         title="Message",
         description="The message to be sent to the chat.",
     )
+
 
 class CreatePagePayload(PageSummaryBase):
     content_format: PageContentFormat = ContentFormatField
