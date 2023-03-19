@@ -10,7 +10,7 @@
             :show-welcome-with-login="showWelcomeWithLogin"
             :terms-url="termsUrl"
             :welcome-url="welcomeUrl"
-            @toggle-login="toggleLogin" />
+            @toggleLogin="toggleLogin" />
         <register-form
             v-else
             :enable-oidc="enableOidc"
@@ -21,7 +21,7 @@
             :server-mail-configured="serverMailConfigured"
             :session-csrf-token="sessionCsrfToken"
             :terms-url="termsUrl"
-            @toggle-login="toggleLogin" />
+            @toggleLogin="toggleLogin" />
     </div>
 </template>
 <script>

@@ -152,7 +152,7 @@ export default {
     },
     methods: {
         toggleLogin() {
-            this.$emit("toggle-login");
+            this.$emit("toggleLogin");
         },
         submitLogin() {
             let redirect = this.redirect;
