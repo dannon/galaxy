@@ -1,18 +1,21 @@
 from .framework import (
+    managed_history,
     selenium_test,
     SeleniumTestCase,
 )
 
 
 class TestCollectionEdit(SeleniumTestCase):
-
     ensure_registered = True
 
     @selenium_test
+    @managed_history
     def test_change_dbkey_simple_list(self):
         self.create_simple_list_collection()
         self.open_collection_edit_view()
         self.navigate_to_database_tab()
+        alert_element = self.components.edit_collection_attributes.alert_info.wait_for_visible()
+        assert "This will create a new collection in your History. Your quota will not increase." in alert_element.text
         dataValue = "unspecified"
         self.check_current_data_value(dataValue)
         dataNew = "hg17"
@@ -23,10 +26,16 @@ class TestCollectionEdit(SeleniumTestCase):
         self.check_current_data_value(dataNew)
 
     @selenium_test
+    @managed_history
     def test_change_datatype_simple_list(self):
         self.create_simple_list_collection_txt()
         self.open_collection_edit_view()
         self.navigate_to_datatype_tab()
+        alert_element = self.components.edit_collection_attributes.alert_info.wait_for_visible()
+
+        assert (
+            "This operation might take a short while, depending on the size of your collection." in alert_element.text
+        )
         dataValue = "txt"
         self.check_current_data_value(dataValue)
         dataNew = "tabular"

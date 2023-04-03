@@ -3,11 +3,14 @@ import { defineStore } from "pinia";
 import { useConnectionStore } from "@/stores/workflowConnectionStore";
 import { Connection } from "@/stores/workflowConnectionStore";
 import type { CollectionTypeDescriptor } from "@/components/Workflow/Editor/modules/collectionTypeDescription";
+import { assertDefined } from "@/utils/assertions";
 
 interface State {
     steps: { [index: string]: Step };
     stepIndex: number;
     stepMapOver: { [index: number]: CollectionTypeDescriptor };
+    stepInputMapOver: StepInputMapOver;
+    stepExtraInputs: { [index: number]: InputTerminalSource[] };
 }
 
 interface StepPosition {
@@ -62,6 +65,7 @@ interface BaseStepInput {
     extensions: string[];
     optional: boolean;
     input_type: string;
+    input_subworkflow_step_id?: number;
 }
 
 export interface DataStepInput extends BaseStepInput {
@@ -84,8 +88,8 @@ export type TerminalSource = InputTerminalSource | OutputTerminalSource;
 
 interface WorkflowOutput {
     output_name: string;
-    label?: string;
-    uuid?: string;
+    label?: string | null;
+    uuid?: string | null;
 }
 
 export interface NewStep {
@@ -96,7 +100,7 @@ export interface NewStep {
     errors?: string[] | null;
     input_connections: StepInputConnection;
     inputs: Array<InputTerminalSource>;
-    label?: string;
+    label?: string | null;
     name: string;
     outputs: Array<OutputTerminalSource>;
     position?: StepPosition;
@@ -105,7 +109,7 @@ export interface NewStep {
     tooltip?: string;
     type: "tool" | "data_input" | "data_collection_input" | "subworkflow" | "parameter_input" | "pause";
     uuid?: string;
-    when?: string;
+    when?: string | null;
     workflow_outputs?: WorkflowOutput[];
 }
 
@@ -124,52 +128,36 @@ export interface StepInputConnection {
 export interface ConnectionOutputLink {
     output_name: string;
     id: number;
+    input_subworkflow_step_id?: number;
 }
 
-interface WorkflowOutputs {
+export interface WorkflowOutputs {
     [index: string]: {
         stepId: number;
         outputName: string;
     };
 }
 
+interface StepInputMapOver {
+    [index: number]: { [index: string]: CollectionTypeDescriptor };
+}
+
 export const useWorkflowStepStore = defineStore("workflowStepStore", {
     state: (): State => ({
         steps: {} as Steps,
         stepMapOver: {} as { [index: number]: CollectionTypeDescriptor },
+        stepInputMapOver: {} as StepInputMapOver,
         stepIndex: -1,
+        stepExtraInputs: {} as { [index: number]: InputTerminalSource[] },
     }),
     getters: {
         getStep(state: State) {
-            return (stepId: number): Step => {
+            return (stepId: number): Step | undefined => {
                 return state.steps[stepId.toString()];
             };
         },
         getStepExtraInputs(state: State) {
-            const extraInputs: { [index: number]: InputTerminalSource[] } = {};
-            Object.values(state.steps).forEach((step) => {
-                if (step?.when !== undefined) {
-                    Object.keys(step.input_connections).forEach((inputName) => {
-                        if (!step.inputs.find((input) => input.name === inputName) && step.when?.includes(inputName)) {
-                            const terminalSource = {
-                                name: inputName,
-                                optional: false,
-                                input_type: "parameter" as const,
-                                type: "boolean" as const,
-                                multiple: false,
-                                label: inputName,
-                                extensions: [],
-                            };
-                            if (extraInputs[step.id]) {
-                                extraInputs[step.id].push(terminalSource);
-                            } else {
-                                extraInputs[step.id] = [terminalSource];
-                            }
-                        }
-                    });
-                }
-            });
-            return (stepId: number) => extraInputs[stepId] || [];
+            return (stepId: number) => this.stepExtraInputs[stepId] || [];
         },
         getStepIndex(state: State) {
             return Math.max(...Object.values(state.steps).map((step) => step.id), state.stepIndex);
@@ -197,44 +185,100 @@ export const useWorkflowStepStore = defineStore("workflowStepStore", {
     actions: {
         addStep(newStep: NewStep): Step {
             const stepId = newStep.id ? newStep.id : this.getStepIndex + 1;
-            newStep.id = stepId;
-            const step = newStep as Step;
+            const step = Object.freeze({ ...newStep, id: stepId } as Step);
             Vue.set(this.steps, stepId.toString(), step);
             const connectionStore = useConnectionStore();
             stepToConnections(step).map((connection) => connectionStore.addConnection(connection));
+            this.stepExtraInputs[step.id] = getStepExtraInputs(step);
             return step;
         },
         updateStep(this: State, step: Step) {
-            step.workflow_outputs = step.workflow_outputs?.filter((workflowOutput) =>
+            const workflow_outputs = step.workflow_outputs?.filter((workflowOutput) =>
                 step.outputs.find((output) => workflowOutput.output_name == output.name)
             );
-            this.steps[step.id.toString()] = step;
+            this.steps[step.id.toString()] = Object.freeze({ ...step, workflow_outputs });
+            this.stepExtraInputs[step.id] = getStepExtraInputs(step);
         },
         changeStepMapOver(stepId: number, mapOver: CollectionTypeDescriptor) {
-            this.stepMapOver[stepId] = mapOver;
+            Vue.set(this.stepMapOver, stepId, mapOver);
+        },
+        resetStepInputMapOver(stepId: number) {
+            Vue.set(this.stepInputMapOver, stepId, {});
+        },
+        changeStepInputMapOver(stepId: number, inputName: string, mapOver: CollectionTypeDescriptor) {
+            if (this.stepInputMapOver[stepId]) {
+                Vue.set(this.stepInputMapOver[stepId]!, inputName, mapOver);
+            } else {
+                Vue.set(this.stepInputMapOver, stepId, { [inputName]: mapOver });
+            }
         },
         addConnection(connection: Connection) {
             const inputStep = this.getStep(connection.input.stepId);
+            assertDefined(
+                inputStep,
+                `Failed to add connection, because step with id ${connection.input.stepId} is undefined`
+            );
+            const input = inputStep.inputs.find((input) => input.name === connection.input.name);
+            const connectionLink: ConnectionOutputLink = {
+                output_name: connection.output.name,
+                id: connection.output.stepId,
+            };
+            if (input && "input_subworkflow_step_id" in input && input.input_subworkflow_step_id !== undefined) {
+                connectionLink["input_subworkflow_step_id"] = input.input_subworkflow_step_id;
+            }
+            let connectionLinks: ConnectionOutputLink[] = [connectionLink];
+            let inputConnection = inputStep.input_connections[connection.input.name];
+            if (inputConnection) {
+                if (!Array.isArray(inputConnection)) {
+                    inputConnection = [inputConnection];
+                }
+                inputConnection = inputConnection.filter(
+                    (connection) =>
+                        !(connection.id === connectionLink.id && connection.output_name === connectionLink.output_name)
+                );
+                connectionLinks = [...connectionLinks, ...inputConnection];
+            }
             const updatedStep = {
                 ...inputStep,
                 input_connections: {
                     ...inputStep.input_connections,
-                    [connection.input.name]: { output_name: connection.output.name, id: connection.output.stepId },
+                    [connection.input.name]: connectionLinks.sort((a, b) =>
+                        a.id === b.id ? a.output_name.localeCompare(b.output_name) : a.id - b.id
+                    ),
                 },
             };
             this.updateStep(updatedStep);
         },
         removeConnection(connection: Connection) {
             const inputStep = this.getStep(connection.input.stepId);
-            Vue.delete(inputStep.input_connections, connection.input.name);
+            assertDefined(
+                inputStep,
+                `Failed to remove connection, because step with id ${connection.input.stepId} is undefined`
+            );
+
+            const inputConnections = inputStep.input_connections[connection.input.name];
+            if (this.getStepExtraInputs(inputStep.id).find((input) => connection.input.name === input.name)) {
+                inputStep.input_connections[connection.input.name] = undefined;
+            } else {
+                if (Array.isArray(inputConnections)) {
+                    inputStep.input_connections[connection.input.name] = inputConnections.filter(
+                        (outputLink) =>
+                            !(outputLink.id === connection.output.stepId,
+                            outputLink.output_name === connection.output.name)
+                    );
+                } else {
+                    Vue.delete(inputStep.input_connections, connection.input.name);
+                }
+            }
             this.updateStep(inputStep);
         },
         removeStep(this: State, stepId: number) {
             const connectionStore = useConnectionStore();
             connectionStore
                 .getConnectionsForStep(stepId)
-                .map((connection) => connectionStore.removeConnection(connection.input));
+                .forEach((connection) => connectionStore.removeConnection(connection.id));
             Vue.delete(this.steps, stepId.toString());
+            Vue.delete(this.stepExtraInputs, stepId);
         },
     },
 });
@@ -242,7 +286,7 @@ export const useWorkflowStepStore = defineStore("workflowStepStore", {
 export function stepToConnections(step: Step): Connection[] {
     const connections: Connection[] = [];
     if (step.input_connections) {
-        Object.entries(step?.input_connections).forEach(([input_name, outputArray]) => {
+        Object.entries(step?.input_connections).forEach(([inputName, outputArray]) => {
             if (outputArray === undefined) {
                 return;
             }
@@ -253,7 +297,7 @@ export function stepToConnections(step: Step): Connection[] {
                 const connection = new Connection(
                     {
                         stepId: step.id,
-                        name: input_name,
+                        name: inputName,
                         connectorType: "input",
                     },
                     {
@@ -262,9 +306,34 @@ export function stepToConnections(step: Step): Connection[] {
                         connectorType: "output",
                     }
                 );
+                const connectionInput = step.inputs.find((input) => input.name == inputName);
+                if (connectionInput && "input_subworkflow_step_id" in connectionInput) {
+                    connection.input.input_subworkflow_step_id = connectionInput.input_subworkflow_step_id;
+                }
                 connections.push(connection);
             });
         });
     }
     return connections;
+}
+
+function getStepExtraInputs(step: Step) {
+    const extraInputs: InputTerminalSource[] = [];
+    if (step.when !== undefined) {
+        Object.keys(step.input_connections).forEach((inputName) => {
+            if (!step.inputs.find((input) => input.name === inputName) && step.when?.includes(inputName)) {
+                const terminalSource = {
+                    name: inputName,
+                    optional: false,
+                    input_type: "parameter" as const,
+                    type: "boolean" as const,
+                    multiple: false,
+                    label: inputName,
+                    extensions: [],
+                };
+                extraInputs.push(terminalSource);
+            }
+        });
+    }
+    return extraInputs;
 }

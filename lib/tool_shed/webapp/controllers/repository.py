@@ -73,7 +73,6 @@ def get_mercurial_default_options_dict(command):
 
 
 class RepositoryController(BaseUIController, ratings_util.ItemRatings):
-
     category_grid = repository_grids.CategoryGrid()
     datatypes_grid = repository_grids.DatatypesGrid()
     deprecated_repositories_i_own_grid = repository_grids.DeprecatedRepositoriesIOwnGrid()
@@ -1699,7 +1698,7 @@ class RepositoryController(BaseUIController, ratings_util.ItemRatings):
                 type=repository_type,
             )
 
-            repository, message = repository_util.update_repository(app=trans.app, trans=trans, id=id, **update_kwds)
+            repository, message = repository_util.update_repository(trans=trans, id=id, **update_kwds)
             if repository is None:
                 return trans.response.send_redirect(
                     web.url_for(

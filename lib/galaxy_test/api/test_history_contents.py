@@ -7,6 +7,12 @@ from typing import (
 )
 
 from galaxy_test.api._framework import ApiTestCase
+from galaxy_test.base.decorators import (
+    requires_admin,
+    requires_celery,
+    requires_new_library,
+    requires_new_user,
+)
 from galaxy_test.base.populators import (
     DatasetCollectionPopulator,
     DatasetPopulator,
@@ -35,6 +41,7 @@ class TestHistoryContentsApi(ApiTestCase):
         hda_summary = self.__check_for_hda(contents_response, hda1)
         assert "display_types" not in hda_summary  # Quick summary, not full details
 
+    @requires_admin
     def test_make_private_and_public(self, history_id):
         hda1 = self._wait_for_new_hda(history_id)
         update_url = f"histories/{history_id}/contents/{hda1['id']}/permissions"
@@ -64,9 +71,11 @@ class TestHistoryContentsApi(ApiTestCase):
         self._assert_status_code_is(update_response, 200)
         self._assert_other_user_can_access(history_id, hda1["id"])
 
+    @requires_new_user
     def test_set_permissions_add_admin_history_contents(self, history_id):
         self._verify_dataset_permissions(history_id, "history_contents")
 
+    @requires_new_user
     def test_set_permissions_add_admin_datasets(self, history_id):
         self._verify_dataset_permissions(history_id, "dataset")
 
@@ -204,6 +213,7 @@ class TestHistoryContentsApi(ApiTestCase):
         inheritance_chain = inheritance_chain_response.json()
         assert len(inheritance_chain) == 1
 
+    @requires_new_library
     def test_library_copy(self, history_id):
         ld = self.library_populator.new_library_dataset("lda_test_library")
         create_data = dict(
@@ -591,6 +601,7 @@ class TestHistoryContentsApi(ApiTestCase):
 
         return element0["object"], element1["object"]
 
+    @requires_new_library
     def test_hdca_from_library_datasets(self, history_id):
         ld = self.library_populator.new_library_dataset("el1")
         ldda_id = ld["ldda_id"]
@@ -612,6 +623,7 @@ class TestHistoryContentsApi(ApiTestCase):
         assert hda["copied_from_ldda_id"] == ldda_id
         assert hda["history_id"] == history_id
 
+    @requires_new_library
     def test_hdca_from_inaccessible_library_datasets(self, history_id):
         library, library_dataset = self.library_populator.new_library_dataset_in_private_library(
             "HDCACreateInaccesibleLibrary"
@@ -724,6 +736,38 @@ class TestHistoryContentsApi(ApiTestCase):
             f"histories/{history_id}/contents?v=dev&q=name-contains&qv={contains_text}"
         ).json()
         assert len(contents_response) == 0
+
+    @skip_without_tool("cat_data_and_sleep")
+    def test_index_filter_by_related_items(self, history_id):
+        # initialise history with 2 datasets
+        input_hda_id = self.dataset_populator.new_dataset(history_id)["id"]
+        unrelated_hid = self.dataset_populator.new_dataset(history_id)["hid"]
+
+        # Run tool on first dataset to get 3rd, related dataset
+        inputs = {
+            "input1": {"src": "hda", "id": input_hda_id},
+            "sleep_time": 0,
+        }
+        run_response = self.dataset_populator.run_tool_raw(
+            "cat_data_and_sleep",
+            inputs,
+            history_id,
+        )
+        related_hid = run_response.json()["outputs"][0]["hid"]
+
+        # Test q = related-eq, for related items
+        contents_response = self._get(f"histories/{history_id}/contents?v=dev&q=related-eq&qv={related_hid}").json()
+        assert len(contents_response) == 2
+
+        # Test q = related, for unrelated item
+        contents_response = self._get(f"histories/{history_id}/contents?v=dev&q=related&qv={unrelated_hid}").json()
+        assert len(contents_response) == 1
+
+        # Test error case: qv is string
+        related_qv = "one"
+        contents_response = self._get(f"histories/{history_id}/contents?v=dev&q=related-eq&qv={related_qv}")
+        assert contents_response.status_code == 400
+        assert contents_response.json()["err_msg"] == "unparsable value for related filter"
 
     def test_elements_datatypes_field(self, history_id):
         collection_name = "homogeneous"
@@ -943,6 +987,7 @@ class TestHistoryContentsApiBulkOperation(ApiTestCase):
                 if item["history_content_type"] == "dataset":
                     self.dataset_populator.wait_for_purge(history_id=history_id, content_id=item["id"])
 
+    @requires_new_user
     def test_only_owner_can_apply_bulk_operations(self):
         with self.dataset_populator.test_history() as history_id:
             self._create_test_history_contents(history_id)
@@ -993,6 +1038,7 @@ class TestHistoryContentsApiBulkOperation(ApiTestCase):
                     for expected_tag in expected_tags:
                         assert expected_tag in item["tags"]
 
+    @requires_celery
     def test_bulk_dbkey_change(self):
         with self.dataset_populator.test_history() as history_id:
             _, _, history_contents = self._create_test_history_contents(history_id)
@@ -1015,6 +1061,7 @@ class TestHistoryContentsApiBulkOperation(ApiTestCase):
                 if item["history_content_type"] == "dataset":
                     assert item["dbkey"] == expected_dbkey
 
+    @requires_celery
     def test_bulk_dbkey_change_dataset_collection(self):
         with self.dataset_populator.test_history() as history_id:
             _, collection_ids, history_contents = self._create_test_history_contents(history_id)
@@ -1248,7 +1295,7 @@ class TestHistoryContentsApiBulkOperation(ApiTestCase):
         with self.dataset_populator.test_history() as history_id:
             self._create_test_history_contents(history_id)
 
-            invalid_filter_keys_with_stats = ["genome_build", "data_type", "annotation"]
+            invalid_filter_keys_with_stats = ["data_type", "annotation"]
 
             for filter_key in invalid_filter_keys_with_stats:
                 response = self._get_contents_with_stats(

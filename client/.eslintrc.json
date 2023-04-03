@@ -2,24 +2,23 @@
     "root": true,
     "extends": [
         "eslint:recommended",
-        "plugin:vue/recommended",
         "plugin:compat/recommended",
+        "plugin:vue/recommended",
         "plugin:vuejs-accessibility/recommended"
     ],
     "env": {
         "browser": true,
-        "commonjs": true,
-        "es6": true,
         "node": true,
-        "jest": true
+        "es6": true
     },
     "rules": {
         // Standard rules
         "no-console": "off",
-        "no-unused-vars": ["error", { "args": "none", "varsIgnorePattern": "[iI]gnoreUnused.*"}],
+        "no-unused-vars": ["error", { "args": "none", "varsIgnorePattern": "[iI]gnoreUnused.*" }],
         "prefer-const": "error",
         "one-var": ["error", "never"],
         "curly": "error",
+        "no-throw-literal": "error",
 
         "vue/valid-v-slot": "error",
         "vue/v-slot-style": ["error", { "atComponent": "v-slot", "default": "v-slot", "named": "longform" }],
@@ -57,10 +56,17 @@
         "vuejs-accessibility/label-has-for": "warn",
         "vuejs-accessibility/mouse-events-have-key-events": "warn",
         "vuejs-accessibility/no-autofocus": "error",
+        "vuejs-accessibility/no-static-element-interactions": "warn",
         "vuejs-accessibility/tabindex-no-positive": "error"
     },
-    "ignorePatterns": ["dist", "src/qunit", "src/mocha", "src/libs", "src/nls", "src/legacy"],
+    "ignorePatterns": ["dist", "src/libs", "src/nls", "src/legacy"],
     "overrides": [
+        {
+            "files": ["**/*.test.js", "**/*.test.ts"],
+            "env": {
+                "jest": true
+            }
+        },
         {
             "files": ["**/*.vue"],
             "parser": "vue-eslint-parser",
@@ -81,6 +87,9 @@
                 "plugin:@typescript-eslint/eslint-recommended",
                 "plugin:@typescript-eslint/recommended"
             ],
+            "rules": {
+                "@typescript-eslint/no-throw-literal": "error"
+            },
             "parser": "@typescript-eslint/parser",
             "parserOptions": {
                 "ecmaFeatures": { "jsx": true },

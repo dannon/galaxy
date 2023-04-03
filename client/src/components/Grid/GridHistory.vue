@@ -8,7 +8,7 @@ export default {
     props: {
         actionId: {
             type: String,
-            default: null,
+            required: true,
         },
     },
     mounted() {

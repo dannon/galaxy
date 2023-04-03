@@ -1,5 +1,7 @@
 import { mount } from "@vue/test-utils";
 import { getLocalVue, mockModule } from "tests/jest/helpers";
+import axios from "axios";
+import MockAdapter from "axios-mock-adapter";
 import FormTool from "./FormTool";
 import MockCurrentUser from "components/providers/MockCurrentUser";
 import MockConfigProvider from "components/providers/MockConfigProvider";
@@ -11,9 +13,10 @@ import { createTestingPinia } from "@pinia/testing";
 const localVue = getLocalVue();
 
 describe("FormTool", () => {
-    let wrapper;
+    const axiosMock = new MockAdapter(axios);
+    axiosMock.onGet(`/api/webhooks`).reply(200, []);
 
-    beforeEach(() => {
+    function mountTarget() {
         const store = new Vuex.Store({
             modules: {
                 user: mockModule(userStore),
@@ -21,7 +24,7 @@ describe("FormTool", () => {
             },
         });
 
-        wrapper = mount(FormTool, {
+        return mount(FormTool, {
             propsData: {
                 id: "input",
                 datatypes: [],
@@ -32,7 +35,7 @@ describe("FormTool", () => {
                         name: "tool_name",
                         version: "1.0",
                         description: "description",
-                        inputs: [],
+                        inputs: [{ name: "input", label: "input", type: "text", value: "value" }],
                         help: "help_text",
                         versions: ["1.0", "2.0", "3.0"],
                         citations: false,
@@ -46,15 +49,16 @@ describe("FormTool", () => {
             stubs: {
                 CurrentUser: MockCurrentUser({ id: "fakeuser" }),
                 ConfigProvider: MockConfigProvider({ id: "fakeconfig" }),
-                FormElement: { template: "<div>form-element</div>" },
                 ToolFooter: { template: "<div>tool-footer</div>" },
             },
             pinia: createTestingPinia(),
             provide: { store },
         });
-    });
+    }
 
     it("changes between different versions", async () => {
+        const wrapper = mountTarget();
+
         const dropdowns = wrapper.findAll(".tool-versions .dropdown-item");
         let version = dropdowns.at(1);
         expect(version.text()).toBe("Switch to 2.0");

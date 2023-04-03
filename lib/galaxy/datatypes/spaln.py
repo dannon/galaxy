@@ -11,13 +11,13 @@ from typing import (
     Optional,
 )
 
-from galaxy.datatypes._protocols import (
+from galaxy.datatypes.data import Data
+from galaxy.datatypes.metadata import MetadataElement
+from galaxy.datatypes.protocols import (
     DatasetHasHidProtocol,
     DatasetProtocol,
     HasExtraFilesAndMetadata,
 )
-from galaxy.datatypes.data import Data
-from galaxy.datatypes.metadata import MetadataElement
 from galaxy.util import smart_str
 
 log = logging.getLogger(__name__)
@@ -129,7 +129,7 @@ class _SpalnDb(Data):
         If preview is `True` allows us to format the data shown in the central pane via the "eye" icon.
         If preview is `False` triggers download.
         """
-        headers = kwd.get("headers", {})
+        headers = kwd.pop("headers", {})
         if not preview:
             return super().display_data(
                 trans,

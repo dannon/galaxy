@@ -195,7 +195,7 @@ def get_openapi_operation_metadata(*, route: routing.APIRoute, method: str, oper
         file_name = getattr(route.endpoint, "__globals__", {}).get("__file__")
         if file_name:
             message += f" at {file_name}"
-        warnings.warn(message)
+        warnings.warn(message)  # noqa: B028
     operation_ids.add(operation_id)
     operation["operationId"] = operation_id
     if route.deprecated:
@@ -245,7 +245,7 @@ def get_openapi_path(
                 callbacks = {}
                 for callback in route.callbacks:
                     if isinstance(callback, routing.APIRoute):
-                        (cb_path, cb_security_schemes, cb_definitions,) = get_openapi_path(
+                        cb_path, cb_security_schemes, cb_definitions = get_openapi_path(
                             route=callback,
                             model_name_map=model_name_map,
                             operation_ids=operation_ids,
@@ -460,7 +460,7 @@ def merge_operation_id(operation_id_by_id: Dict[str, Optional[str]]) -> Optional
         if update_operation_id and operation_id != update_operation_id:
             if operation_id:
                 message = f"Merging operation with id {operation_id} with operation with id {update_operation_id}."
-                warnings.warn(message)
+                warnings.warn(message)  # noqa: B028
                 operation_id = f"{operation_id}+{update_operation_id}"
             else:
                 operation_id = update_operation_id
@@ -480,7 +480,7 @@ def merge_parameters(params_by_id: Dict[str, Optional[List[Dict[str, Any]]]]) ->
     if len(with_params) == 1:
         return with_params[0][1]
     param_by_id_by_name: Dict[str, Any] = {}
-    for (param_id, params) in with_params:
+    for param_id, params in with_params:
         for param in params:
             param_by_id_by_name.setdefault(param["name"], {})[param_id] = param
 

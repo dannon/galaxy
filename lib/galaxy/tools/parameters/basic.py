@@ -164,6 +164,7 @@ class ToolParameter(Dictifiable):
         self.hidden = input_source.get_bool("hidden", False)
         self.refresh_on_change = input_source.get_bool("refresh_on_change", False)
         self.optional = input_source.parse_optional()
+        self.optionality_inferred = False
         self.is_dynamic = False
         self.label = input_source.parse_label()
         self.help = input_source.parse_help()
@@ -326,7 +327,24 @@ class SimpleTextToolParameter(ToolParameter):
     def __init__(self, tool, input_source):
         input_source = ensure_input_source(input_source)
         super().__init__(tool, input_source)
-        self.optional = input_source.get_bool("optional", False)
+        optional = input_source.get("optional", None)
+        if optional is not None:
+            optional = string_as_bool(optional)
+        else:
+            # Optionality not explicitly defined, default to False
+            optional = False
+            if self.type == "text":
+                # A text parameter that doesn't raise a validation error on empty string
+                # is considered to be optional
+                try:
+                    for validator in self.validators:
+                        validator.validate("")
+                    optional = True
+                    self.optionality_inferred = True
+                except ValueError:
+                    pass
+        self.optional = optional
+
         if self.optional:
             self.value = None
         else:
@@ -353,14 +371,15 @@ class TextToolParameter(SimpleTextToolParameter):
     >>> p = TextToolParameter(None, XML('<param name="_name" type="text" value="default" />'))
     >>> print(p.name)
     _name
-    >>> assert sorted(p.to_dict(trans).items()) == [('area', False), ('argument', None), ('datalist', []), ('help', ''), ('hidden', False), ('is_dynamic', False), ('label', ''), ('model_class', 'TextToolParameter'), ('name', '_name'), ('optional', False), ('refresh_on_change', False), ('type', 'text'), ('value', u'default')]
+    >>> sorted(p.to_dict(trans).items())
+    [('area', False), ('argument', None), ('datalist', []), ('help', ''), ('hidden', False), ('is_dynamic', False), ('label', ''), ('model_class', 'TextToolParameter'), ('name', '_name'), ('optional', True), ('refresh_on_change', False), ('type', 'text'), ('value', 'default')]
     """
 
     def __init__(self, tool, input_source):
         input_source = ensure_input_source(input_source)
         super().__init__(tool, input_source)
         self.datalist = []
-        for (title, value, _) in input_source.parse_static_options():
+        for title, value, _ in input_source.parse_static_options():
             self.datalist.append({"label": title, "value": value})
         self.value = input_source.get("value")
         self.area = input_source.get_bool("area", False)
@@ -905,7 +924,7 @@ class SelectToolParameter(ToolParameter):
                 self.validators.append(validator)
         if self.dynamic_options is None and self.options is None:
             self.static_options = input_source.parse_static_options()
-            for (_, value, _) in self.static_options:
+            for _, value, _ in self.static_options:
                 self.legal_values.add(value)
         self.is_dynamic = (self.dynamic_options is not None) or (self.options is not None)
 
@@ -1399,6 +1418,8 @@ class ColumnListParameter(SelectToolParameter):
             # Use representative dataset if a dataset collection is parsed
             if isinstance(dataset, HistoryDatasetCollectionAssociation):
                 dataset = dataset.to_hda_representative()
+            if isinstance(dataset, DatasetCollectionElement) and dataset.hda:
+                dataset = dataset.hda
             if isinstance(dataset, HistoryDatasetAssociation) and self.ref_input and self.ref_input.formats:
                 direct_match, target_ext, converted_dataset = dataset.find_conversion_destination(
                     self.ref_input.formats
@@ -1483,6 +1504,8 @@ class ColumnListParameter(SelectToolParameter):
             # Use representative dataset if a dataset collection is parsed
             if isinstance(dataset, HistoryDatasetCollectionAssociation):
                 dataset = dataset.to_hda_representative()
+            if isinstance(dataset, DatasetCollectionElement):
+                dataset = dataset.hda
             if isinstance(dataset, DatasetInstance):
                 return not dataset.has_data()
             if is_runtime_value(dataset):
@@ -1790,7 +1813,6 @@ class DrillDownSelectToolParameter(SelectToolParameter):
 
 
 class BaseDataToolParameter(ToolParameter):
-
     multiple: bool
 
     def __init__(self, tool, input_source, trans):

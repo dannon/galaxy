@@ -155,7 +155,16 @@ class TestDockerizedJobsIntegration(BaseJobEnvironmentIntegrationTestCase, Mulle
         status = response[0]["status"]
         assert status[0]["model_class"] == "ContainerDependency"
         assert status[0]["dependency_type"] == self.container_type
-        assert status[0]["container_description"]["identifier"].startswith("quay.io/local/mulled-v2-")
+        self._assert_container_description_identifier(
+            status[0]["container_description"]["identifier"],
+            "mulled-v2-8186960447c5cb2faa697666dc1e6d919ad23f3e:a6419f25efff953fc505dbd5ee734856180bb619-0",
+        )
+
+    def _assert_container_description_identifier(self, identifier, expected_hash):
+        """
+        Helper function to assert a correct container identifier.
+        """
+        assert identifier.startswith(f"quay.io/local/{expected_hash}")
 
 
 class TestMappingContainerResolver(integration_util.IntegrationTestCase):
@@ -211,6 +220,7 @@ class TestInlineContainerConfiguration(TestMappingContainerResolver):
         config["jobs_directory"] = cls.jobs_directory
         config["job_config_file"] = cls.job_config_file
         disable_dependency_resolution(config)
+        config.pop("container_resolvers_config_file")
         container_resolvers_config = [
             {
                 "type": "mapping",
@@ -218,6 +228,68 @@ class TestInlineContainerConfiguration(TestMappingContainerResolver):
                     {
                         "container_type": "docker",
                         "tool_id": "mulled_example_broken_no_requirements",
+                        "identifier": "quay.io/biocontainers/bwa:0.7.15--0",
+                    }
+                ],
+            }
+        ]
+        config["container_resolvers"] = container_resolvers_config
+
+
+class TestPerDestinationContainerConfiguration(TestMappingContainerResolver):
+    """
+    This tests:
+    - that container_resolvers_config_file works when specified in a destination
+    - and it does so also in presence of a global container_resolvers_config
+    """
+
+    @classmethod
+    def handle_galaxy_config_kwds(cls, config):
+        super().handle_galaxy_config_kwds(config)
+        # make sure that job_config_file is unset and set job_config
+        # its the same content as dockerized_job_conf.yml + the per
+        # destination container_resolver_config_file
+        try:
+            config.pop("job_config_file")
+        except KeyError:
+            pass
+        config["job_config"] = {
+            "runners": {"local": {"load": "galaxy.jobs.runners.local:LocalJobRunner", "workers": 1}},
+            "execution": {
+                "default": "local_docker",
+                "environments": {
+                    "local_docker": {"runner": "local", "docker_enabled": True},
+                    "local_docker_inline_container_resolvers": {
+                        "runner": "local",
+                        "docker_enabled": True,
+                        "container_resolvers_config_file": os.path.join(
+                            SCRIPT_DIRECTORY, "fallback_container_resolver.yml"
+                        ),
+                    },
+                },
+            },
+            "tools": [
+                {"id": "upload1", "environment": "local_upload"},
+                {
+                    "id": "mulled_example_broken_no_requirements",
+                    "environment": "local_docker_inline_container_resolvers",
+                },
+            ],
+        }
+        # define a global container_resolvers (that can not work .. thereby
+        # showing that the per destination config is used) and make sure that
+        # container_resolvers_config_file is not set
+        try:
+            config.pop("container_resolvers_config_file")
+        except KeyError:
+            pass
+        container_resolvers_config = [
+            {
+                "type": "mapping",
+                "mappings": [
+                    {
+                        "container_type": "docker",
+                        "tool_id": "some_bogus_too_id",
                         "identifier": "quay.io/biocontainers/bwa:0.7.15--0",
                     }
                 ],
@@ -256,12 +328,11 @@ class TestInlineJobEnvironmentContainerResolver(integration_util.IntegrationTest
         assert "0.7.15-r1140" in output
 
 
-# Singularity 2.4 in the official Vagrant issue has some problems running this test
-# case by default because subdirectories of /tmp don't bind correctly. Overridding
-# TMPDIR can fix this.
-# TMPDIR=/home/vagrant/tmp/ pytest test/integration/test_containerized_jobs.py::TestSingularityJobsIntegration
 class TestSingularityJobsIntegration(TestDockerizedJobsIntegration):
-
     job_config_file = SINGULARITY_JOB_CONFIG_FILE
     build_mulled_resolver = "build_mulled_singularity"
     container_type = "singularity"
+
+    def _assert_container_description_identifier(self, identifier, expected_hash):
+        assert os.path.exists(identifier)
+        assert identifier.endswith(f"singularity/mulled/{expected_hash}")

@@ -61,6 +61,7 @@ from galaxy.schema.schema import (
     DatasetAssociationRoles,
     DatasetSourceId,
     DatasetSourceType,
+    EncodedDatasetSourceId,
     Model,
     UpdateDatasetPermissionsPayload,
 )
@@ -98,7 +99,6 @@ class RequestDataType(str, Enum):
     genome_data = "genome_data"
     in_use_state = "in_use_state"
 
-
 class DatasetContentType(str, Enum):
     """For retrieving content from a structured dataset (e.g. HDF5)"""
 
@@ -106,6 +106,14 @@ class DatasetContentType(str, Enum):
     attr = "attr"
     stats = "stats"
     data = "data"
+    
+class ConcreteObjectStoreQuotaSourceDetails(Model):
+    source: Optional[str] = Field(
+        description="The quota source label corresponding to the object store the dataset is stored in (or would be stored in)"
+    )
+    enabled: bool = Field(
+        description="Whether the object store tracks quota on the data (independent of Galaxy's configuration)"
+    )
 
 
 class DatasetStorageDetails(Model):
@@ -126,6 +134,13 @@ class DatasetStorageDetails(Model):
     )
     hashes: List[dict] = Field(description="The file contents hashes associated with the supplied dataset instance.")
     sources: List[dict] = Field(description="The file sources associated with the supplied dataset instance.")
+    shareable: bool = Field(
+        description="Is this dataset shareable.",
+    )
+    quota: dict = Field(description="Information about quota sources around dataset storage.")
+    badges: List[Dict[str, Any]] = Field(
+        description="A mapping of object store labels to badges describing object store properties."
+    )
 
 
 class DatasetInheritanceChainEntry(Model):
@@ -225,7 +240,7 @@ class ComputeDatasetHashPayload(Model):
 
 
 class DatasetErrorMessage(Model):
-    dataset: DatasetSourceId = Field(
+    dataset: EncodedDatasetSourceId = Field(
         description="The encoded ID of the dataset and its source.",
     )
     error_message: str = Field(
@@ -374,6 +389,7 @@ class DatasetsService(ServiceBase, UsesVisualizationMixin):
         object_store_id = dataset.object_store_id
         name = object_store.get_concrete_store_name(dataset)
         description = object_store.get_concrete_store_description_markdown(dataset)
+        badges = object_store.get_concrete_store_badges(dataset)
         # not really working (existing problem)
         try:
             percent_used = object_store.get_store_usage_percent()
@@ -383,17 +399,27 @@ class DatasetsService(ServiceBase, UsesVisualizationMixin):
         except FileNotFoundError:
             # uninitalized directory (emtpy) disk object store can cause this...
             percent_used = None
+
+        quota_source = dataset.quota_source_info
+        quota = ConcreteObjectStoreQuotaSourceDetails(
+            source=quota_source.label,
+            enabled=quota_source.use,
+        )
+
         dataset_state = dataset.state
         hashes = [h.to_dict() for h in dataset.hashes]
         sources = [s.to_dict() for s in dataset.sources]
         return DatasetStorageDetails(
             object_store_id=object_store_id,
+            shareable=dataset.shareable,
             name=name,
             description=description,
             percent_used=percent_used,
             dataset_state=dataset_state,
             hashes=hashes,
             sources=sources,
+            quota=quota,
+            badges=badges,
         )
 
     def show_inheritance_chain(
@@ -583,7 +609,7 @@ class DatasetsService(ServiceBase, UsesVisualizationMixin):
         item_url = web.url_for(
             controller="dataset",
             action="display_by_username_and_slug",
-            username=hda.history.user.username,
+            username=hda.user and hda.user.username,
             slug=self.encode_id(hda.id),
             preview=False,
         )
@@ -670,10 +696,8 @@ class DatasetsService(ServiceBase, UsesVisualizationMixin):
                 success_count += 1
             except galaxy_exceptions.MessageException as e:
                 errors.append(
-                    DatasetErrorMessage.construct(
-                        dataset=DatasetSourceId.construct(
-                            id=DecodedDatabaseIdField.encode(dataset.id), src=dataset.src
-                        ),
+                    DatasetErrorMessage(
+                        dataset=EncodedDatasetSourceId(id=dataset.id, src=dataset.src),
                         error_message=str(e),
                     )
                 )

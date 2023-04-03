@@ -182,6 +182,10 @@ def _process_raw_inputs(
                 name = raw_input_dict["name"]
                 param_value = raw_input_dict["value"]
                 param_extra = raw_input_dict["attributes"]
+                location = param_extra.get("location")
+                if param_value is None and location:
+                    # If no value is given, we try to get the file name directly from the URL
+                    param_value = os.path.basename(location)
                 if not value.type == "text":
                     param_value = _split_if_str(param_value)
                 if isinstance(value, galaxy.tools.parameters.basic.DataToolParameter):
@@ -216,7 +220,7 @@ def _process_simple_value(param, param_value, required_data_tables, required_loc
         def process_param_value(param_value):
             found_value = False
             value_for_text = None
-            for (text, opt_value, _) in getattr(param, "static_options", []):
+            for text, opt_value, _ in getattr(param, "static_options", []):
                 if param_value == opt_value:
                     found_value = True
                 if value_for_text is None and param_value == text:
@@ -270,7 +274,7 @@ def _matching_case_for_value(tool, cond, declared_value):
             # No explicit value in test case, not much to do if options are dynamic but
             # if static options are available can find the one specified as default or
             # fallback on top most option (like GUI).
-            for (name, _, selected) in test_param.static_options:
+            for name, _, selected in test_param.static_options:
                 if selected:
                     default_option = name
             else:

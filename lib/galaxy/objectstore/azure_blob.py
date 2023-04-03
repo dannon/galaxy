@@ -77,6 +77,7 @@ def parse_config_xml(config_xml):
                 "path": staging_path,
             },
             "extra_dirs": extra_dirs,
+            "private": ConcreteObjectStore.parse_private_from_config_xml(config_xml),
         }
     except Exception:
         # Toss it back up after logging, we can't continue loading at this point.
@@ -400,9 +401,7 @@ class AzureBlobObjectStore(ConcreteObjectStore):
         return False
 
     def _create(self, obj, **kwargs):
-
         if not self._exists(obj, **kwargs):
-
             # Pull out locally used fields
             extra_dir = kwargs.get("extra_dir", None)
             extra_dir_at_root = kwargs.get("extra_dir_at_root", False)

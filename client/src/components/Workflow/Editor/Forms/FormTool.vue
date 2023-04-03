@@ -1,62 +1,58 @@
 <template>
-    <CurrentUser v-slot="{ user }">
-        <ToolCard
-            v-if="hasData"
-            :id="configForm.id"
-            :user="user"
-            :version="configForm.version"
-            :title="configForm.name"
-            :description="configForm.description"
-            :options="configForm"
-            :message-text="messageText"
-            :message-variant="messageVariant"
-            @onChangeVersion="onChangeVersion"
-            @onUpdateFavorites="onUpdateFavorites">
-            <template v-slot:body>
-                <FormElement
-                    id="__label"
-                    :value="label"
-                    title="Label"
-                    help="Add a step label."
-                    :error="uniqueErrorLabel"
-                    @input="onLabel" />
-                <FormElement
-                    id="__annotation"
-                    :value="annotation"
-                    title="Step Annotation"
-                    :area="true"
-                    help="Add an annotation or notes to this step. Annotations are available when a workflow is viewed."
-                    @input="onAnnotation" />
-                <FormConditional :step="step" v-on="$listeners" />
-                <div class="mt-2 mb-4">
-                    <Heading h2 separator bold size="sm"> Tool Parameters </Heading>
-                    <FormDisplay
-                        :id="id"
-                        :inputs="inputs"
-                        :errors="errors"
-                        text-enable="Set in Advance"
-                        text-disable="Set at Runtime"
-                        :workflow-building-mode="true"
-                        @onChange="onChange" />
-                </div>
-                <div class="mt-2 mb-4">
-                    <Heading h2 separator bold size="sm"> Additional Options </Heading>
-                    <FormSection
-                        :id="stepId"
-                        :node-inputs="stepInputs"
-                        :node-outputs="stepOutputs"
-                        :step="step"
-                        :datatypes="datatypes"
-                        :post-job-actions="postJobActions"
-                        @onChange="onChangePostJobActions" />
-                </div>
-            </template>
-        </ToolCard>
-    </CurrentUser>
+    <ToolCard
+        v-if="hasData"
+        :id="configForm.id"
+        :version="configForm.version"
+        :title="configForm.name"
+        :description="configForm.description"
+        :options="configForm"
+        :message-text="messageText"
+        :message-variant="messageVariant"
+        @onChangeVersion="onChangeVersion"
+        @onUpdateFavorites="onUpdateFavorites">
+        <template v-slot:body>
+            <FormElement
+                id="__label"
+                :value="label"
+                title="Label"
+                help="Add a step label."
+                :error="uniqueErrorLabel"
+                @input="onLabel" />
+            <FormElement
+                id="__annotation"
+                :value="annotation"
+                title="Step Annotation"
+                :area="true"
+                help="Add an annotation or notes to this step. Annotations are available when a workflow is viewed."
+                @input="onAnnotation" />
+            <FormConditional :step="step" v-on="$listeners" />
+            <div class="mt-2 mb-4">
+                <Heading h2 separator bold size="sm"> Tool Parameters </Heading>
+                <FormDisplay
+                    :id="id"
+                    :inputs="inputs"
+                    :errors="errors"
+                    text-enable="Set in Advance"
+                    text-disable="Set at Runtime"
+                    :workflow-building-mode="true"
+                    @onChange="onChange" />
+            </div>
+            <div class="mt-2 mb-4">
+                <Heading h2 separator bold size="sm"> Additional Options </Heading>
+                <FormSection
+                    :id="stepId"
+                    :node-inputs="stepInputs"
+                    :node-outputs="stepOutputs"
+                    :step="step"
+                    :datatypes="datatypes"
+                    :post-job-actions="postJobActions"
+                    @onChange="onChangePostJobActions" />
+            </div>
+        </template>
+    </ToolCard>
 </template>
 
 <script>
-import CurrentUser from "@/components/providers/CurrentUser";
 import FormDisplay from "@/components/Form/FormDisplay.vue";
 import ToolCard from "@/components/Tool/ToolCard.vue";
 import FormSection from "./FormSection.vue";
@@ -71,7 +67,6 @@ import { toRef } from "vue";
 
 export default {
     components: {
-        CurrentUser,
         FormDisplay,
         ToolCard,
         FormElement,
@@ -81,6 +76,7 @@ export default {
     },
     props: {
         step: {
+            // type Step from @/stores/workflowStepStore
             type: Object,
             required: true,
         },
@@ -110,7 +106,7 @@ export default {
     },
     data() {
         return {
-            mainValues: {},
+            mainValues: null,
             messageText: "",
             messageVariant: "success",
         };
@@ -127,11 +123,12 @@ export default {
         },
         inputs() {
             const inputs = this.configForm.inputs;
-            Utils.deepeach(inputs, (input) => {
+            Utils.deepEach(inputs, (input) => {
                 if (input.type) {
                     if (["data", "data_collection"].indexOf(input.type) != -1) {
+                        const extensions = Array.isArray(input.extensions) ? Utils.textify(input.extensions) : "";
                         input.titleonly = true;
-                        input.info = `Data input '${input.name}' (${Utils.textify(input.extensions)})`;
+                        input.info = `Data input '${input.name}' (${extensions})`;
                         input.value = { __class__: "RuntimeValue" };
                     } else {
                         input.connectable = ["rules"].indexOf(input.type) == -1;
@@ -144,7 +141,7 @@ export default {
                     }
                 }
             });
-            Utils.deepeach(inputs, (input) => {
+            Utils.deepEach(inputs, (input) => {
                 if (input.type === "conditional") {
                     input.connectable = false;
                     input.test_param.collapsible_value = undefined;
@@ -163,9 +160,16 @@ export default {
         onLabel(newLabel) {
             this.$emit("onLabel", this.stepId, newLabel);
         },
+        /**
+         * Change event is triggered on component creation and input changes.
+         * @param { Object } values contains flat key-value pairs `prefixed-name=value`
+         */
         onChange(values) {
+            const initialRequest = this.mainValues === null;
             this.mainValues = values;
-            this.postChanges();
+            if (!initialRequest) {
+                this.postChanges();
+            }
         },
         onChangePostJobActions(postJobActions) {
             this.$emit("onChangePostJobActions", this.stepId, postJobActions);

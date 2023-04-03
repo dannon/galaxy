@@ -10,6 +10,7 @@ import FormNumber from "./Elements/FormNumber.vue";
 import FormText from "./Elements/FormText.vue";
 import FormOptionalText from "./Elements/FormOptionalText.vue";
 import FormRulesEdit from "./Elements/FormRulesEdit.vue";
+import FormUpload from "./Elements/FormUpload.vue";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import { ref, computed, useAttrs } from "vue";
 import { library } from "@fortawesome/fontawesome-svg-core";
@@ -81,9 +82,8 @@ const collapsed = ref(false);
 const collapsible = computed(() => !props.disabled && collapsibleValue.value !== undefined);
 const connectable = computed(() => collapsible.value && Boolean(attrs.value["connectable"]));
 
-// Determines to wether expand or collapse the input
+// Determines whether to expand or collapse the input
 {
-    setValue(props.value);
     const valueJson = JSON.stringify(props.value);
     connected.value = valueJson === JSON.stringify(connectedValue);
     collapsed.value =
@@ -265,13 +265,14 @@ const isOptional = computed(() => !isRequired.value && attrs.value["optional"] !
                 :multiple="attrs.multiple" />
             <FormColor v-else-if="props.type === 'color'" :id="props.id" v-model="currentValue" />
             <FormDirectory v-else-if="props.type === 'directory_uri'" v-model="currentValue" />
+            <FormUpload v-else-if="props.type === 'upload'" v-model="currentValue" />
             <FormRulesEdit v-else-if="props.type == 'rules'" v-model="currentValue" :target="attrs.target" />
             <FormParameter
                 v-else-if="backbonejs"
                 :id="props.id"
                 v-model="currentValue"
                 :data-label="props.title"
-                :type="props.type ?? 'text'"
+                :type="props.type ?? (attrs.options ? 'select' : 'text')"
                 :attributes="attrs" />
             <FormInput v-else :id="props.id" v-model="currentValue" :area="attrs['area']" />
         </div>

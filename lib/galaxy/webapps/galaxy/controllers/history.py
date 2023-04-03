@@ -51,7 +51,6 @@ class NameColumn(grids.TextColumn):
 
 
 class HistoryListGrid(grids.Grid):
-
     # Custom column types
     class ItemCountColumn(grids.GridColumn):
         def get_value(self, trans, grid, history):
@@ -175,7 +174,6 @@ class HistoryListGrid(grids.Grid):
 
 
 class SharedHistoryListGrid(grids.Grid):
-
     # Custom column types
     class DatasetsByStateColumn(grids.GridColumn):
         def get_value(self, trans, grid, history):
@@ -611,7 +609,7 @@ class HistoryController(BaseUIController, SharableMixin, UsesAnnotations, UsesIt
             for hda in trans.history.datasets:
                 if not hda.deleted or hda.purged:
                     continue
-                hda.purge_usage_from_quota(trans.user)
+                hda.purge_usage_from_quota(trans.user, hda.dataset.quota_source_info)
                 hda.purged = True
                 trans.sa_session.add(hda)
                 trans.log_event(f"HDA id {hda.id} has been purged")

@@ -17,7 +17,7 @@ describe("test helpers in tool searching utilities", () => {
     });
 
     it("test tool search helper that searches for tools given keys", async () => {
-        const q = "collection";
+        let q = "collection";
         let expectedResults = [
             "__FILTER_FAILED_DATASETS__",
             "__FILTER_EMPTY_DATASETS__",
@@ -36,6 +36,35 @@ describe("test helpers in tool searching utilities", () => {
         ];
         keys = { description: 0, name: 1 };
         results = searchToolsByKeys(normalizeTools(toolsList), keys, q);
+        expect(results).toEqual(expectedResults);
+
+        // whitespace precedes to ensure query.trim() works
+        q = " filter empty datasets";
+        expectedResults = ["__FILTER_EMPTY_DATASETS__"];
+        keys = { description: 1, name: 2, combined: 0 };
+        results = searchToolsByKeys(normalizeTools(toolsList), keys, q);
+        expect(results).toEqual(expectedResults);
+
+        const tempToolsList = [
+            {
+                elems: [
+                    {
+                        panel_section_name: "FASTA/FASTQ",
+                        description: "Extract UMI from fastq files",
+                        id: "toolshed.g2.bx.psu.edu/repos/iuc/umi_tools_extract/umi_tools_extract/1.1.2+galaxy2",
+                        name: "UMI-tools extract",
+                    },
+                ],
+                model_class: "ToolSection",
+                id: "fasta/fastq",
+                name: "FASTA/FASTQ",
+            },
+        ];
+        // hyphenated tool-name is searchable
+        q = "uMi tools extract ";
+        expectedResults = ["toolshed.g2.bx.psu.edu/repos/iuc/umi_tools_extract/umi_tools_extract/1.1.2+galaxy2"];
+        keys = { description: 1, name: 2, hyphenated: 0 };
+        results = searchToolsByKeys(normalizeTools(tempToolsList), keys, q);
         expect(results).toEqual(expectedResults);
     });
 

@@ -23,7 +23,10 @@ from markupsafe import escape
 from typing_extensions import Literal
 
 from galaxy import util
-from galaxy.datatypes._protocols import (
+from galaxy.datatypes.metadata import (
+    MetadataElement,  # import directly to maintain ease of use in Datatype class definitions
+)
+from galaxy.datatypes.protocols import (
     DatasetHasHidProtocol,
     DatasetProtocol,
     HasClearAssociatedFiles,
@@ -34,9 +37,6 @@ from galaxy.datatypes._protocols import (
     HasInfo,
     HasMetadata,
     HasName,
-)
-from galaxy.datatypes.metadata import (
-    MetadataElement,  # import directly to maintain ease of use in Datatype class definitions
 )
 from galaxy.datatypes.sniff import (
     build_sniff_from_prefix,
@@ -539,7 +539,7 @@ class Data(metaclass=DataMeta):
                 trans.fill_template_mako(
                     "/dataset/large_file.mako",
                     truncated_data=open(dataset.file_name, "rb").read(max_peek_size),
-                    dataset=dataset,
+                    data=dataset,
                 ),
                 headers,
             )

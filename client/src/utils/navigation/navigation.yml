@@ -64,6 +64,7 @@ masthead:
     histories: 'Histories'
     invocations: 'Workflow Invocations'
     pages: 'Pages'
+    histories_shared_with_me: 'Histories shared with me'
 
     # Shared data
     libraries: 'Data Libraries'
@@ -79,11 +80,18 @@ preferences:
     current_email: "#user-preferences-current-email"
     get_new_key: '.create-button'
     api_key_input: '[data-test-id="api-key-input"]'
+    object_store: '#select-preferred-object-store'
     delete_account: '#delete-account'
     delete_account_input: '#name-input'
     delete_account_ok_btn: '.modal-footer .btn-primary'
     email_input: "input[id='email']"
     username_input: "input[id='username']"
+    preferred_storage: '.preferred-storage'
+
+  object_store_selection:
+    selectors:
+      option_buttons: '.preferred-object-store-select-button'
+      option_button: '.preferred-object-store-select-button[data-object-store-id="${object_store_id}"]'
 
 toolbox_filters:
   selectors:
@@ -117,6 +125,15 @@ dataset_details:
     tool_parameters: 'table#tool-parameters'
     transform_action: '[data-transform-action="${action}"]'
     deferred_source_uri: '.deferred-dataset-source-uri'
+
+object_store_details:
+  selectors:
+    stored_by_name: '.display-os-by-name'
+    badge_of_type: '.object-store-badge-wrapper [data-badge-type="${type}"]'
+    usage_details: '.quota-usage-bar'
+    usage_bytes: '.quota-usage'
+    usage_percent: '.quota-percent-text'
+    usage_progress: '.quota-usage-bar .progress'
 
 history_panel:
   menu:
@@ -189,10 +206,11 @@ history_panel:
       # Action buttons...
       download_button: '${_} .download-btn'
       info_button: '${_} .params-btn'
+      highlight_button: '${_} .highlight-btn'
       alltags: '${_} .stateless-tags .tag'
       metadata_file_download: '${_} [data-description="download ${metadata_name}"]'
 
-      dataset_operations_dropdown: '${_}  .dataset-actions'
+      dataset_operations: '${_} .dataset-actions'
 
   # re-usable history editor, scoped for use in different layout scenarios (multi, etc.)
   editor:
@@ -309,6 +327,7 @@ edit_dataset_attributes:
 
 edit_collection_attributes:
   selectors:
+    alert_info: 'div.alert-info'
     database_genome_tab:
       type: xpath
       selector: '//a[contains(text(), "Database/Build")]'
@@ -364,6 +383,11 @@ published_histories:
     advanced_search_submit: '#published-histories-advanced-filter-submit'
     tag_content: '#published-histories-table tbody tr .ti-tag .tag-name'
     column_header: '#published-histories-table thead tr th:nth-child(${column_number})'
+
+shared_histories:
+  selectors:
+    _: ".histories-shared-with-you-by-others"
+    histories: "#grid-table-body tr"
 
 history_copy_elements:
   selectors:
@@ -490,8 +514,10 @@ tool_form:
     parameter_checkbox: 'div.ui-form-element[id="form-element-${parameter}"] .ui-switch'
     parameter_input: 'div.ui-form-element[id="form-element-${parameter}"] .ui-input'
     parameter_textarea: 'div.ui-form-element[id="form-element-${parameter}"] textarea'
+    repeat_insert: '[data-description="repeat insert"]'
     reference: '.formatted-reference'
     about: '.tool-footer'
+    storage_options: '.tool-storage'
 
   labels:
     generate_tour: 'Generate Tour'
@@ -573,6 +599,8 @@ workflow_run:
     input_select_field:
       type: xpath
       selector: '//div[@data-label="${label}"]//span[@class="select2-chosen"]'
+    primary_storage_indciator: '.workflow-storage-indicator-primary'
+    intermediate_storage_indciator: '.workflow-storage-indicator-intermediate'
 
 workflow_editor:
   node:
@@ -587,6 +615,8 @@ workflow_editor:
       output_terminal: "${_} [output-name='${name}']"
       input_terminal: "${_} [input-name='${name}']"
       input_mapping_icon: "${_} [input-name='${name}'].multiple"
+      workflow_output_toggle: "${_} [data-output-name='${name}'] .callout-terminal "
+      workflow_output_toggle_active: "${_} [data-output-name='${name}'] .mark-terminal-active"
   selectors:
     canvas_body: '#workflow-canvas'
     edit_annotation: '#workflow-annotation'
@@ -615,6 +645,11 @@ workflow_editor:
       type: xpath
       selector: >
         //div[@id='form-element-__annotation']//textarea
+    step_when:
+      type: xpath
+      selector: >
+       //div[@id='form-element-__conditional']//input
+    param_type_form: '#parameter_definition\|parameter_type'
     configure_output:
       type: xpath
       selector: >
@@ -623,6 +658,10 @@ workflow_editor:
       type: xpath
       selector: >
         //div[@id='form-element-__label__${output}']//input
+    duplicate_label_error:
+      type: xpath
+      selector: >
+        //div[@id='form-element-__label__${output}']//span[contains(text(), 'Duplicate output label')]
     rename_output:
       type: xpath
       selector: >
@@ -652,6 +691,7 @@ workflow_editor:
     connector_invalid_for: "#connection-${sink_id}-${source_id} .ribbon-inner-invalid"
     connector_destroy_callout: '.delete-terminal'
     save_button: '.editor-button-save'
+    save_workflow_confirmation_button: '#save-workflow-confirmation .btn-primary'
     state_modal_body: '.state-upgrade-modal'
     modal_button_continue: '.modal-footer .btn'
 
@@ -744,6 +784,13 @@ admin:
       repo_search: '#toolshed-repo-search'
       search_results: '#shed-search-results'
       upgrade_notification: '#repository-table .badge'
+
+  quota:
+    selectors:
+      add_new: '.quotas .manage-table-actions .action-button'
+      items: '.quotas tbody tr td'
+      add_form: "[url='/admin/create_quota']"
+      add_form_submit: "[url='/admin/create_quota'] #submit"
 
   index:
     selectors:

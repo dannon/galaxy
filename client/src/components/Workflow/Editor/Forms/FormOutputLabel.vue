@@ -44,8 +44,26 @@ const label = computed(() => {
     return null;
 });
 
-function onInput(newLabel: string) {
-    if (!stepStore.workflowOutputs[newLabel]) {
+function onInput(newLabel: string | undefined | null) {
+    if (newLabel === undefined || newLabel === null) {
+        // form got activated or we set a workflow output through the checkbox
+        // shouldn't change status of error label or result in deleting the label
+        return;
+    }
+
+    if (newLabel === "") {
+        // user deleted existing label, we inactivate this as output
+        const strippedWorkflowOutputs = (props.step.workflow_outputs || []).filter(
+            (workflowOutput) => workflowOutput.output_name !== props.name
+        );
+        stepStore.updateStep({ ...props.step, workflow_outputs: strippedWorkflowOutputs });
+        error.value = undefined;
+        return;
+    }
+
+    const existingWorkflowOutput = stepStore.workflowOutputs[newLabel];
+    if (!existingWorkflowOutput) {
+        // got a new label that isn't in use yet
         const newWorkflowOutputs = [...(props.step.workflow_outputs || [])].filter(
             (workflowOutput) => workflowOutput.output_name !== props.name
         );
@@ -55,7 +73,7 @@ function onInput(newLabel: string) {
         });
         stepStore.updateStep({ ...props.step, workflow_outputs: newWorkflowOutputs });
         error.value = undefined;
-    } else {
+    } else if (existingWorkflowOutput.stepId !== props.step.id) {
         error.value = `Duplicate output label '${newLabel}' will be ignored.`;
     }
 }

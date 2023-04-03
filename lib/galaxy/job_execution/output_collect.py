@@ -189,7 +189,6 @@ def collect_dynamic_outputs(
 
 
 class BaseJobContext(ModelPersistenceContext):
-
     max_discovered_files: Union[int, float]
     tool_provided_metadata: BaseToolProvidedMetadata
     job_working_directory: str
@@ -339,7 +338,7 @@ class JobContext(BaseJobContext):
         trans.app.security_agent.copy_library_permissions(trans, ld, ldda)
         # Copy the current user's DefaultUserPermissions to the new LibraryDatasetDatasetAssociation.dataset
         trans.app.security_agent.set_all_dataset_permissions(
-            ldda.dataset, trans.app.security_agent.user_get_default_permissions(trans.user)
+            ldda.dataset, trans.app.security_agent.user_get_default_permissions(trans.user), flush=False, new=True
         )
         library_folder.add_library_dataset(ld, genome_build=ldda.dbkey)
         trans.sa_session.add(library_folder)
@@ -575,7 +574,7 @@ def discover_files(output_name, tool_provided_metadata, extra_file_collectors, j
                 JsonCollectedDatasetMatch(dataset, extra_file_collector, filename, path=path),
             )
     else:
-        for (match, collector) in walk_over_file_collectors(extra_file_collectors, job_working_directory, matchable):
+        for match, collector in walk_over_file_collectors(extra_file_collectors, job_working_directory, matchable):
             yield DiscoveredFile(match.path, collector, match)
 
 

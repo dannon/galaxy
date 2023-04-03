@@ -48,6 +48,12 @@ class TestLibrariesApi(ApiTestCase):
         assert ld
 
     @requires_new_library
+    def test_index(self):
+        self.library_populator.new_library("TestIndexLibraries")
+        libraries = self.library_populator.get_libraries()
+        assert len(libraries) > 0
+
+    @requires_new_library
     def test_delete(self):
         library = self.library_populator.new_library("DeleteTestLibrary")
         create_response = self._delete(f"libraries/{library['id']}", admin=True)
@@ -599,4 +605,5 @@ class TestLibrariesApi(ApiTestCase):
         hda_id = self.dataset_populator.new_dataset(history_id, content=content, wait=wait)["id"]
         payload = {"from_hda_id": hda_id, "create_type": "file", "folder_id": folder_id}
         ld = self._post(f"libraries/{folder_id}/contents", payload)
+        ld.raise_for_status()
         return ld

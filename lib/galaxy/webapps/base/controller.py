@@ -392,7 +392,6 @@ class SharableItemSecurityMixin:
 
 
 class UsesLibraryMixinItems(SharableItemSecurityMixin):
-
     get_object: Callable
 
     def get_library_folder(self, trans, id: int, check_ownership=False, check_accessible=True):
@@ -1078,7 +1077,7 @@ class UsesVisualizationMixin(UsesLibraryMixinItems):
             user = trans.get_user()
             if not user:
                 error("Must be logged in to manage Galaxy items")
-            if data.history.user != user:
+            if data.user != user:
                 error(f"{data.__class__.__name__} is not owned by current user")
 
         if check_accessible:

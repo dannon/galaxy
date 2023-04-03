@@ -89,8 +89,15 @@ export function searchToolsByKeys(tools, keys, query) {
     const returnedTools = [];
     for (const tool of tools) {
         for (const key of Object.keys(keys)) {
-            const actualValue = tool[key] ? tool[key].toLowerCase() : "";
-            const queryLowerCase = query.toLowerCase();
+            let actualValue = "";
+            if (key === "combined") {
+                actualValue = tool.name.toLowerCase() + " " + tool.description.toLowerCase();
+            } else if (key === "hyphenated") {
+                actualValue = tool.name.toLowerCase().replaceAll("-", " ");
+            } else {
+                actualValue = tool[key] ? tool[key].toLowerCase() : "";
+            }
+            const queryLowerCase = query.trim().toLowerCase();
             if (actualValue.match(queryLowerCase)) {
                 // do we care for exact matches && is it an exact match ?
                 const order = keys.exact && actualValue === queryLowerCase ? keys.exact : keys[key];
@@ -107,6 +114,26 @@ export function normalizeTools(tools) {
     tools = hideToolsSection(tools);
     tools = flattenTools(tools);
     return tools;
+}
+
+export function hideToolsSection(tools) {
+    return tools.filter((section) => !TOOLS_RESULTS_SECTIONS_HIDE.includes(section.name));
+}
+
+export function removeDisabledTools(tools) {
+    return tools.filter((section) => {
+        if (section.model_class === "ToolSectionLabel") {
+            return true;
+        } else if (!section.elems && section.disabled) {
+            return false;
+        } else if (section.elems) {
+            section.elems = section.elems.filter((el) => !el.disabled);
+            if (!section.elems.length) {
+                return false;
+            }
+        }
+        return true;
+    });
 }
 
 function flattenToolsSection(section) {
@@ -170,10 +197,6 @@ function deleteEmptyToolsSections(tools, results) {
         });
 
     return tools;
-}
-
-function hideToolsSection(tools) {
-    return tools.filter((section) => !TOOLS_RESULTS_SECTIONS_HIDE.includes(section.name));
 }
 
 function flattenTools(tools) {
