@@ -99,6 +99,7 @@ class RequestDataType(str, Enum):
     genome_data = "genome_data"
     in_use_state = "in_use_state"
 
+
 class DatasetContentType(str, Enum):
     """For retrieving content from a structured dataset (e.g. HDF5)"""
 
@@ -106,7 +107,8 @@ class DatasetContentType(str, Enum):
     attr = "attr"
     stats = "stats"
     data = "data"
-    
+
+
 class ConcreteObjectStoreQuotaSourceDetails(Model):
     source: Optional[str] = Field(
         description="The quota source label corresponding to the object store the dataset is stored in (or would be stored in)"
