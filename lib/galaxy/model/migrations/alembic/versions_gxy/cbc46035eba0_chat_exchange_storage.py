@@ -15,11 +15,6 @@ from sqlalchemy import (
     Text,
 )
 
-from galaxy.model.custom_types import (
-    JSONType,
-    TrimmedString,
-    UUIDType,
-)
 from galaxy.model.migrations.util import (
     create_table,
     drop_table,
@@ -41,7 +36,7 @@ def upgrade():
     create_table(
         "chat_exchange_message",
         Column("id", Integer, primary_key=True),
-        Column("exchange_id", Integer, index=True),
+        Column("chat_exchange_id", Integer, index=True),
         Column("create_time", DateTime),
         Column("message", Text),
     )
