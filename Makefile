@@ -185,8 +185,8 @@ build-api-schema:
 remove-api-schema:
 	rm _schema.yaml
 
-update-client-api-schema: client-node-deps build-api-schema
-	$(IN_VENV) cd client && node openapi_to_schema.mjs ../_schema.yaml > src/schema/schema.ts && npx prettier --write src/schema/schema.ts
+update-client-api-schema: client-node-deps build-api-schema  ## Update the client API schema
+	$(IN_VENV) cd client && npx openapi-typescript ../_schema.yaml > src/schema/schema.ts && npx prettier --write src/schema/schema.ts
 	$(MAKE) remove-api-schema
 
 lint-api-schema: build-api-schema
