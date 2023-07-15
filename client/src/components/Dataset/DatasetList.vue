@@ -4,7 +4,7 @@
         <div v-else>
             <GAlert :variant="messageVariant" :show="showMessage">{{ message }}</GAlert>
             <delayed-input class="m-1 mb-3" placeholder="Search Datasets" @change="onQuery" />
-            <b-table
+            <GTable
                 id="dataset-table"
                 striped
                 no-sort-reset
@@ -27,7 +27,7 @@
                 <template v-slot:cell(update_time)="data">
                     <UtcDate :date="data.value" mode="elapsed" />
                 </template>
-            </b-table>
+            </GTable>
             <loading-span v-if="loading" message="Loading datasets" />
             <div v-if="showNotFound">
                 No matching entries found for: <span class="font-weight-bold">{{ query }}</span
@@ -52,10 +52,12 @@ import DatasetName from "./DatasetName";
 import { copyDataset, getDatasets, updateTags } from "./services";
 
 import GAlert from "@/component-library/GAlert.vue";
+import GTable from "@/component-library/GTable.vue";
 
 export default {
     components: {
         GAlert,
+        GTable,
         DatasetHistory,
         DatasetName,
         LoadingSpan,

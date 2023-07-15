@@ -15,7 +15,7 @@
             @deleteFromTable="deleteFromTable"
             @setBusy="setBusy($event)"
             @newFolder="newFolder" />
-        <b-table
+        <GTable
             id="folder_list_body"
             ref="folder_content_table"
             striped
@@ -217,7 +217,7 @@
                     </button>
                 </div>
             </template>
-        </b-table>
+        </GTable>
         <!-- hide pagination if the table is loading-->
         <GContainer>
             <GRow align-v="center" class="justify-content-md-center">
@@ -284,6 +284,7 @@ import GContainer from "@/component-library/GContainer.vue";
 import GLink from "@/component-library/GLink.vue";
 import GPagination from "@/component-library/GPagination.vue";
 import GRow from "@/component-library/GRow.vue";
+import GTable from "@/component-library/GTable.vue";
 
 initFolderTableIcons();
 
@@ -306,6 +307,7 @@ export default {
         GRow,
         GCol,
         GLink,
+        GTable,
         FolderTopBar,
         UtcDate,
         FontAwesomeIcon,

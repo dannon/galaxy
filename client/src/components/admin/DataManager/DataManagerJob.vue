@@ -30,7 +30,7 @@
                         </template>
                         <GCard v-for="(hda, i) in hdaInfo" :id="'data-card-' + i" :key="i" class="mb-4">
                             <template v-slot:header>
-                                <b-table :fields="fields" :items="[hda]" caption-top small stacked>
+                                <GTable :fields="fields" :items="[hda]" caption-top small stacked>
                                     <template v-slot:table-caption>
                                         <GContainer>
                                             <GRow align-v="center">
@@ -49,9 +49,9 @@
                                             </GRow>
                                         </GContainer>
                                     </template>
-                                </b-table>
+                                </GTable>
                             </template>
-                            <b-table
+                            <GTable
                                 v-for="(output, j) in dataManagerOutput[i]"
                                 :key="j"
                                 :fields="outputFields(output[1][0])"
@@ -63,7 +63,7 @@
                                 <template v-slot:table-caption>
                                     Data Table: <b>{{ output[0] }}</b>
                                 </template>
-                            </b-table>
+                            </GTable>
                         </GCard>
                     </GCard>
                 </GCol>
@@ -82,6 +82,7 @@ import GCard from "@/component-library/GCard.vue";
 import GCol from "@/component-library/GCol.vue";
 import GContainer from "@/component-library/GContainer.vue";
 import GRow from "@/component-library/GRow.vue";
+import GTable from "@/component-library/GTable.vue";
 
 export default {
     components: {
@@ -91,6 +92,7 @@ export default {
         GRow,
         GCol,
         GAlert,
+        GTable,
     },
     props: {
         id: {

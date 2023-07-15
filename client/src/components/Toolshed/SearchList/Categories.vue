@@ -1,13 +1,13 @@
 <template>
     <div>
         <loading-span v-if="loading" message="Loading categories" />
-        <b-table v-else striped no-sort-reset :items="categories" :fields="fields">
+        <GTable v-else striped no-sort-reset :items="categories" :fields="fields">
             <template v-slot:cell(name)="data">
                 <GLink href="javascript:void(0)" role="button" class="font-weight-bold" @click="onCategory(data.value)">
                     {{ data.value }}
                 </GLink>
             </template>
-        </b-table>
+        </GTable>
     </div>
 </template>
 <script>
@@ -18,11 +18,16 @@ import Vue from "vue";
 import { Services } from "../services";
 
 import GLink from "@/component-library/GLink.vue";
+import GTable from "@/component-library/GTable.vue";
 
 Vue.use(BootstrapVue);
 
 export default {
-    components: { GLink, LoadingSpan },
+    components: {
+        GLink,
+        GTable,
+        LoadingSpan,
+    },
     props: {
         toolshedUrl: {
             type: String,

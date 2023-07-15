@@ -7,7 +7,7 @@
         </GRow>
         <GRow>
             <GCol>
-                <b-table small show-empty class="grid" :items="customBuilds" :fields="fields">
+                <GTable small show-empty class="grid" :items="customBuilds" :fields="fields">
                     <template v-slot:cell(action)="row">
                         <a
                             v-b-tooltip.bottom.hover
@@ -17,7 +17,7 @@
                             <i class="icon fa fa-lg fa-trash-o" />
                         </a>
                     </template>
-                </b-table>
+                </GTable>
             </GCol>
         </GRow>
         <template v-if="installedBuilds.length > 0">
@@ -161,6 +161,7 @@ import GCard from "@/component-library/GCard.vue";
 import GCol from "@/component-library/GCol.vue";
 import GContainer from "@/component-library/GContainer.vue";
 import GRow from "@/component-library/GRow.vue";
+import GTable from "@/component-library/GTable.vue";
 
 Vue.use(BootstrapVue);
 
@@ -171,6 +172,7 @@ export default {
         GRow,
         GCol,
         GAlert,
+        GTable,
         Multiselect,
         GInput,
     },

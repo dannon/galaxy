@@ -58,7 +58,7 @@
                 title="Copy link to this dataset " />
         </div>
         <!-- Table -->
-        <b-table
+        <GTable
             v-if="table_items"
             :fields="fields"
             :items="table_items"
@@ -110,7 +110,7 @@
                     <div>{{ row.item.value }}</div>
                 </div>
             </template>
-        </b-table>
+        </GTable>
         <!-- Edit Controls -->
         <div v-if="isEditMode">
             <b-button class="mr-1 mb-2" @click="isEditMode = false">
@@ -147,6 +147,8 @@ import { mapState } from "pinia";
 
 import { useUserStore } from "@/stores/userStore";
 
+import GTable from "@/component-library/GTable.vue";
+
 library.add(faUsers, faRedo, faBook, faDownload, faPencilAlt, faTimes, faSave);
 
 export default {
@@ -157,6 +159,7 @@ export default {
         DbKeyProvider,
         DatatypesProvider,
         GInput,
+        GTable,
         SingleItemSelector,
     },
     props: {

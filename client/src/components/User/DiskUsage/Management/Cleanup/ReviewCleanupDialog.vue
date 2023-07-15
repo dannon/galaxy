@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { BButton, BFormCheckbox, BModal, BTable } from "bootstrap-vue";
+import { BButton, BFormCheckbox, BModal } from "bootstrap-vue";
 import { computed, ref, watch } from "vue";
 
 import localize from "@/utils/localization";
@@ -8,6 +8,7 @@ import { bytesToString } from "@/utils/utils";
 import { type CleanableItem, type CleanupOperation, PaginationOptions, type SortableKey } from "./model";
 
 import GPagination from "@/component-library/GPagination.vue";
+import GTable from "@/component-library/GTable.vue";
 import UtcDate from "@/components/UtcDate.vue";
 
 interface ReviewCleanupDialogProps {
@@ -207,7 +208,7 @@ defineExpose({
         <div>
             {{ captionText }}
         </div>
-        <b-table
+        <GTable
             v-if="operation"
             v-model="items"
             :fields="fields"
@@ -235,7 +236,7 @@ defineExpose({
             <template v-slot:cell(update_time)="data">
                 <UtcDate :date="data.value" mode="elapsed" />
             </template>
-        </b-table>
+        </GTable>
         <template v-slot:modal-footer>
             <GPagination
                 v-if="hasPages"

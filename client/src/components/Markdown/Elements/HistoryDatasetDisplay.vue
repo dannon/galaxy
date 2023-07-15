@@ -72,7 +72,7 @@
                                     :url="metaUrl">
                                     <LoadingSpan v-if="metaLoading" message="Loading Metadata" />
                                     <div v-else-if="metaError">{{ metaError }}</div>
-                                    <b-table
+                                    <GTable
                                         v-else
                                         striped
                                         hover
@@ -104,6 +104,7 @@ import GCardBody from "@/component-library/GCardBody.vue";
 import GCardHeader from "@/component-library/GCardHeader.vue";
 import GEmbed from "@/component-library/GEmbed.vue";
 import GLink from "@/component-library/GLink.vue";
+import GTable from "@/component-library/GTable.vue";
 
 export default {
     components: {
@@ -112,6 +113,7 @@ export default {
         GCardHeader,
         GCardBody,
         GLink,
+        GTable,
         LoadingSpan,
         UrlDataProvider,
     },

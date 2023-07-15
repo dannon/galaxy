@@ -6,7 +6,7 @@
             :placement="hoverPlacement"
             :target="$refs['button'] || 'works-lazily'"
             title="Organization">
-            <b-table striped :items="items"> </b-table>
+            <GTable striped :items="items"> </GTable>
         </b-popover>
         <span v-if="name">
             <span itemprop="name">{{ name }}</span>
@@ -38,11 +38,14 @@ import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 
 import ThingViewerMixin from "./ThingViewerMixin";
 
+import GTable from "@/component-library/GTable.vue";
+
 library.add(faExternalLinkAlt, faBuilding);
 
 export default {
     components: {
         FontAwesomeIcon,
+        GTable,
     },
     mixins: [ThingViewerMixin],
     props: {

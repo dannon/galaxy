@@ -64,7 +64,7 @@
             </GRow>
         </template>
         <template v-slot:body>
-            <b-table id="containers-table" striped :fields="fields" :items="items" @row-clicked="showRowDetails">
+            <GTable id="containers-table" striped :fields="fields" :items="items" @row-clicked="showRowDetails">
                 <template v-slot:cell(selected)="data">
                     <b-form-checkbox v-model="data.item.selected"></b-form-checkbox>
                 </template>
@@ -86,7 +86,7 @@
                 <template v-slot:row-details="row">
                     <container-resolution-details :resolution="row.item" />
                 </template>
-            </b-table>
+            </GTable>
         </template>
     </dependency-index-wrapper>
 </template>
@@ -101,6 +101,7 @@ import { DESCRIPTION } from "./ContainerResolver";
 import DependencyIndexMixin from "./DependencyIndexMixin";
 
 import GRow from "@/component-library/GRow.vue";
+import GTable from "@/component-library/GTable.vue";
 
 Vue.use(BootstrapVue);
 
@@ -110,6 +111,7 @@ RESOLVER_TYPE_OPTIONS.splice(0, 0, { value: null, text: "*any*" });
 export default {
     components: {
         GRow,
+        GTable,
         ContainerResolutionDetails,
     },
     mixins: [DependencyIndexMixin],

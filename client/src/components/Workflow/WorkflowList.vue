@@ -15,7 +15,7 @@
                 <WorkflowIndexActions :root="root" class="float-right"></WorkflowIndexActions>
             </GCol>
         </GRow>
-        <b-table v-model="workflowItemsModel" v-bind="{ ...defaultTableAttrs, ...indexTableAttrs }">
+        <GTable v-model="workflowItemsModel" v-bind="{ ...defaultTableAttrs, ...indexTableAttrs }">
             <template v-slot:empty>
                 <loading-span v-if="loading" message="Loading workflows" />
                 <GAlert v-else id="no-workflows" variant="info" show>
@@ -77,7 +77,7 @@
                     <p class="workflow-dropdown-description">{{ data.item.description }}</p>
                 </GCard>
             </template>
-        </b-table>
+        </GTable>
         <GPagination
             v-show="rows >= perPage"
             v-model="currentPage"
@@ -106,6 +106,7 @@ import GCard from "@/component-library/GCard.vue";
 import GCol from "@/component-library/GCol.vue";
 import GPagination from "@/component-library/GPagination.vue";
 import GRow from "@/component-library/GRow.vue";
+import GTable from "@/component-library/GTable.vue";
 import StatelessTags from "@/components/TagsMultiselect/StatelessTags.vue";
 
 const helpHtml = `<div>
@@ -176,6 +177,7 @@ export default {
         GRow,
         GCol,
         GAlert,
+        GTable,
         UtcDate,
         StatelessTags,
         WorkflowDropdown,

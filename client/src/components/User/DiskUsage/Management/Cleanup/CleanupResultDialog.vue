@@ -6,6 +6,7 @@ import localize from "@/utils/localization";
 import type { CleanupResult } from "./model";
 
 import GAlert from "@/component-library/GAlert.vue";
+import GTableLite from "@/component-library/GTableLite.vue";
 
 interface CleanupResultDialogProps {
     result?: CleanupResult;
@@ -72,7 +73,7 @@ defineExpose({
                         </h3>
                     </GAlert>
                 </div>
-                <b-table-lite
+                <GTableLite
                     v-if="result.hasSomeErrors"
                     :fields="errorFields"
                     :items="result.errors"

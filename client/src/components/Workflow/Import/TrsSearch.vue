@@ -16,6 +16,7 @@ import GCard from "@/component-library/GCard.vue";
 import GInput from "@/component-library/GInput.vue";
 import GInputGroup from "@/component-library/GInputGroup.vue";
 import GInputGroupAppend from "@/component-library/GInputGroupAppend.vue";
+import GTable from "@/component-library/GTable.vue";
 import LoadingSpan from "@/components/LoadingSpan.vue";
 
 type TrsSearchData = {
@@ -168,7 +169,7 @@ async function importVersion(trsId?: string, toolIdToImport?: string, version?: 
             <GAlert v-else-if="results.length == 0" variant="info" show>
                 No search results found, refine your search.
             </GAlert>
-            <b-table
+            <GTable
                 v-else
                 :fields="fields"
                 :items="itemsComputed"
@@ -187,7 +188,7 @@ async function importVersion(trsId?: string, toolIdToImport?: string, version?: 
                             @onImport="(versionId) => importVersion(trsSelection?.id, row.item.data.id, versionId)" />
                     </GCard>
                 </template>
-            </b-table>
+            </GTable>
         </div>
     </GCard>
 </template>

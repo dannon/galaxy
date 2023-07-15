@@ -26,12 +26,7 @@
                                 </GRow>
                             </GContainer>
                         </template>
-                        <b-table
-                            :fields="fields(dataTable['columns'])"
-                            :items="dataTable['data']"
-                            small
-                            hover
-                            striped />
+                        <GTable :fields="fields(dataTable['columns'])" :items="dataTable['data']" small hover striped />
                     </GCard>
                 </GCol>
             </GRow>
@@ -49,6 +44,7 @@ import GCard from "@/component-library/GCard.vue";
 import GCol from "@/component-library/GCol.vue";
 import GContainer from "@/component-library/GContainer.vue";
 import GRow from "@/component-library/GRow.vue";
+import GTable from "@/component-library/GTable.vue";
 
 export default {
     components: {
@@ -58,6 +54,7 @@ export default {
         GRow,
         GCol,
         GAlert,
+        GTable,
     },
     props: {
         name: {

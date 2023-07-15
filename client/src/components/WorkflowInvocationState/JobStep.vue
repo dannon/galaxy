@@ -1,6 +1,6 @@
 <template>
     <GCard v-if="jobs">
-        <b-table small caption-top :items="jobsProvider" :fields="fields" primary-key="id" @row-clicked="toggleDetails">
+        <GTable small caption-top :items="jobsProvider" :fields="fields" primary-key="id" @row-clicked="toggleDetails">
             <template v-slot:row-details="row">
                 <job-provider :id="row.item.id" v-slot="{ item, loading }">
                     <div v-if="loading"><b-spinner label="Loading Job..."></b-spinner></div>
@@ -17,7 +17,7 @@
             <template v-slot:cell(update_time)="data">
                 <UtcDate :date="data.value" mode="elapsed" />
             </template>
-        </b-table>
+        </GTable>
     </GCard>
 </template>
 <script>
@@ -29,12 +29,14 @@ import UtcDate from "components/UtcDate";
 import Vue from "vue";
 
 import GCard from "@/component-library/GCard.vue";
+import GTable from "@/component-library/GTable.vue";
 
 Vue.use(BootstrapVue);
 
 export default {
     components: {
         GCard,
+        GTable,
         UtcDate,
         JobProvider,
         JobParameters,

@@ -42,7 +42,7 @@
                 </b-form>
             </GCard>
         </GCollapse>
-        <b-table
+        <GTable
             id="libraries_list"
             ref="libraries_list"
             no-sort-reset
@@ -143,7 +143,7 @@
                     {{ titleDelete }}
                 </b-button>
             </template>
-        </b-table>
+        </GTable>
 
         <GContainer>
             <GRow class="justify-content-md-center">
@@ -206,6 +206,7 @@ import GInputGroup from "@/component-library/GInputGroup.vue";
 import GLink from "@/component-library/GLink.vue";
 import GPagination from "@/component-library/GPagination.vue";
 import GRow from "@/component-library/GRow.vue";
+import GTable from "@/component-library/GTable.vue";
 
 initLibrariesIcons();
 
@@ -221,6 +222,7 @@ export default {
         GCol,
         GInputGroup,
         GLink,
+        GTable,
         FontAwesomeIcon,
         GInput,
         LibraryEditField,

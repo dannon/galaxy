@@ -14,7 +14,7 @@
                     type="text" />
             </GCol>
         </GRow>
-        <b-table
+        <GTable
             id="interactive-tool-table"
             striped
             :fields="fields"
@@ -47,7 +47,7 @@
             <template v-slot:cell(last_updated)="row">
                 <UtcDate :date="row.item.modified_time" mode="elapsed" />
             </template>
-        </b-table>
+        </GTable>
         <label v-if="isActiveToolsListEmpty">You do not have active interactive tools yet </label>
         <div v-if="showNotFound">
             No matching entries found for: <span class="font-weight-bold">{{ filter }}</span
@@ -78,6 +78,7 @@ import { Services } from "./services";
 import GAlert from "@/component-library/GAlert.vue";
 import GCol from "@/component-library/GCol.vue";
 import GRow from "@/component-library/GRow.vue";
+import GTable from "@/component-library/GTable.vue";
 
 library.add(faExternalLinkAlt);
 
@@ -86,6 +87,7 @@ export default {
         GRow,
         GCol,
         GAlert,
+        GTable,
         UtcDate,
         FontAwesomeIcon,
     },

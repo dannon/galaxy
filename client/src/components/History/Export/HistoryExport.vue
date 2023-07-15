@@ -2,7 +2,7 @@
 import { library } from "@fortawesome/fontawesome-svg-core";
 import { faFileExport } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
-import { BButton, BTab, BTabs } from "bootstrap-vue";
+import { BButton } from "bootstrap-vue";
 import LoadingSpan from "components/LoadingSpan";
 import { useConfirmDialog } from "composables/confirmDialog";
 import { useFileSources } from "composables/fileSources";

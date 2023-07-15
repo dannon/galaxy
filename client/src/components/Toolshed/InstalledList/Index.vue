@@ -21,7 +21,7 @@
                     </GLink>
                 </div>
                 <Monitor v-if="showMonitor" @onQuery="onQuery" />
-                <b-table
+                <GTable
                     id="repository-table"
                     striped
                     :fields="fields"
@@ -41,7 +41,7 @@
                     <template v-slot:row-details="row">
                         <RepositoryDetails :repo="row.item" />
                     </template>
-                </b-table>
+                </GTable>
                 <div v-if="showNotFound">
                     No matching entries found for: <span class="font-weight-bold">{{ filter }}</span
                     >.
@@ -64,6 +64,7 @@ import Monitor from "./Monitor";
 import GAlert from "@/component-library/GAlert.vue";
 import GBadge from "@/component-library/GBadge.vue";
 import GLink from "@/component-library/GLink.vue";
+import GTable from "@/component-library/GTable.vue";
 
 Vue.use(BootstrapVue);
 
@@ -72,6 +73,7 @@ export default {
         GBadge,
         GLink,
         GAlert,
+        GTable,
         LoadingSpan,
         Monitor,
         RepositoryDetails,

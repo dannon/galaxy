@@ -2,7 +2,7 @@
     <div>
         <!-- todo: rewrite this to send events up instead of two way prop binding -->
         <!-- eslint-disable vue/no-mutating-props-->
-        <b-table
+        <GTable
             small
             hover
             :items="items"
@@ -49,7 +49,7 @@
             <template v-slot:cell(time)="data">
                 {{ data.value ? data.value : "-" }}
             </template>
-        </b-table>
+        </GTable>
         <div v-if="isBusy" class="text-center">
             <b-spinner small type="grow"></b-spinner>
             <b-spinner small type="grow"></b-spinner>
@@ -82,6 +82,7 @@ import Vue from "vue";
 
 import GLink from "@/component-library/GLink.vue";
 import GPagination from "@/component-library/GPagination.vue";
+import GTable from "@/component-library/GTable.vue";
 
 Vue.use(BootstrapVue);
 library.add(faCheckSquare, faSquare, faFolder, faMinusSquare);
@@ -95,6 +96,7 @@ export default {
     components: {
         GPagination,
         GLink,
+        GTable,
         FontAwesomeIcon,
     },
     props: {

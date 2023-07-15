@@ -12,7 +12,7 @@
                 <PageIndexActions :root="root" class="float-right" />
             </GCol>
         </GRow>
-        <b-table v-model="pageItemsModel" v-bind="{ ...defaultTableAttrs, ...indexTableAttrs }">
+        <GTable v-model="pageItemsModel" v-bind="{ ...defaultTableAttrs, ...indexTableAttrs }">
             <template v-slot:empty>
                 <loading-span v-if="loading" message="Loading pages" />
                 <GAlert v-else id="no-pages" variant="info" show>
@@ -69,7 +69,7 @@
             <template v-slot:cell(update_time)="data">
                 <UtcDate :date="data.value" mode="elapsed" />
             </template>
-        </b-table>
+        </GTable>
         <GPagination
             v-if="rows >= perPage"
             v-model="currentPage"
@@ -100,6 +100,7 @@ import GAlert from "@/component-library/GAlert.vue";
 import GCol from "@/component-library/GCol.vue";
 import GPagination from "@/component-library/GPagination.vue";
 import GRow from "@/component-library/GRow.vue";
+import GTable from "@/component-library/GTable.vue";
 
 const helpHtml = `<div>
 <p>This textbox can be used to filter the pages displayed.
@@ -146,6 +147,7 @@ export default {
         GRow,
         GCol,
         GAlert,
+        GTable,
         UtcDate,
         StatelessTags,
         PageIndexActions,

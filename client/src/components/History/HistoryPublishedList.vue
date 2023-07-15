@@ -14,6 +14,7 @@ import GAlert from "@/component-library/GAlert.vue";
 import GInputGroup from "@/component-library/GInputGroup.vue";
 import GInputGroupAppend from "@/component-library/GInputGroupAppend.vue";
 import GPagination from "@/component-library/GPagination.vue";
+import GTable from "@/component-library/GTable.vue";
 
 const validFilters = {
     name: contains("name"),
@@ -196,7 +197,7 @@ watch([filterText, sortBy, sortDesc], () => {
                 <LoadingSpan message="Loading published histories" />
             </GAlert>
 
-            <b-table
+            <GTable
                 v-if="items.length"
                 id="published-histories-table"
                 no-sort-reset
@@ -225,7 +226,7 @@ watch([filterText, sortBy, sortDesc], () => {
                 <template v-slot:cell(update_time)="data">
                     <UtcDate :date="data.value" mode="elapsed" />
                 </template>
-            </b-table>
+            </GTable>
 
             <GPagination
                 v-if="items.length > perPage"

@@ -34,6 +34,8 @@ import ToLink from "./ToLink.vue";
 import ToRemoteFile from "./ToRemoteFile.vue";
 import GCard from "@/component-library/GCard.vue";
 import GCardText from "@/component-library/GCardText.vue";
+import GTab from "@/component-library/GTab.vue";
+import GTabs from "@/component-library/GTabs.vue";
 
 export default {
     components: {
@@ -41,8 +43,8 @@ export default {
         ToLink,
         ToRemoteFile,
         GCard,
-        BTabs,
-        BTab,
+        GTabs,
+        GTab,
     },
     mixins: [exportsMixin],
     props: {

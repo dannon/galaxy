@@ -18,7 +18,7 @@
             <div>
                 <GAlert :show="hasError" variant="danger" data-testid="error-alert"> {{ error }} </GAlert>
                 <div v-if="libraryDetails">
-                    <b-table-lite
+                    <GTableLite
                         :fields="fields"
                         :items="libraryDetails"
                         striped
@@ -31,10 +31,10 @@
                                 <b>{{ libraryHeader }}</b>
                             </h2>
                         </template>
-                    </b-table-lite>
+                    </GTableLite>
                 </div>
                 <div>
-                    <b-table-lite
+                    <GTableLite
                         :fields="fields"
                         :items="folderDetails"
                         striped
@@ -53,7 +53,7 @@
                             </div>
                             <div v-else>{{ row.item.value }}</div>
                         </template>
-                    </b-table-lite>
+                    </GTableLite>
                 </div>
             </div>
         </b-modal>
@@ -71,6 +71,7 @@ import { getAppRoot } from "onload/loadConfig";
 import _l from "utils/localization";
 
 import GAlert from "@/component-library/GAlert.vue";
+import GTableLite from "@/component-library/GTableLite.vue";
 
 library.add(faInfoCircle);
 
@@ -78,6 +79,7 @@ export default {
     components: {
         FontAwesomeIcon,
         GAlert,
+        GTableLite,
         UtcDate,
     },
     props: {

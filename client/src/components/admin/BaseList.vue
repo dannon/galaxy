@@ -13,7 +13,7 @@
             </b-button>
             {{ plural }} available.
         </div>
-        <b-table v-if="itemsVisible" striped no-sort-reset :fields="fields" :items="items">
+        <GTable v-if="itemsVisible" striped no-sort-reset :fields="fields" :items="items">
             <template v-slot:cell(execute)="data">
                 <b-button
                     size="sm"
@@ -29,7 +29,7 @@
                     {{ link.name }}
                 </li>
             </template>
-        </b-table>
+        </GTable>
     </div>
 </template>
 <script>
@@ -37,12 +37,14 @@ import BootstrapVue from "bootstrap-vue";
 import Vue from "vue";
 
 import GAlert from "@/component-library/GAlert.vue";
+import GTable from "@/component-library/GTable.vue";
 
 Vue.use(BootstrapVue);
 
 export default {
     components: {
         GAlert,
+        GTable,
     },
     props: {
         icon: {

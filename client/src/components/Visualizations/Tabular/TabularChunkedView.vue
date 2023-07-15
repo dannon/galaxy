@@ -6,6 +6,8 @@ import { computed, onMounted, reactive, ref, watch } from "vue";
 
 import { getAppRoot } from "@/onload/loadConfig";
 
+import GTableSimple from "@/component-library/GTableSimple.vue";
+
 interface TabularChunk {
     ck_data: string;
     offset: number;
@@ -174,7 +176,7 @@ onMounted(() => {
 <template>
     <div>
         <!-- TODO loading spinner locked to top right -->
-        <b-table-simple hover small striped>
+        <GTableSimple hover small striped>
             <b-thead head-variant="dark">
                 <b-tr>
                     <b-th v-for="(column, index) in columns" :key="column">{{ column || `Column ${index + 1}` }}</b-th>
@@ -193,7 +195,7 @@ onMounted(() => {
                     </b-td>
                 </b-tr>
             </b-tbody>
-        </b-table-simple>
+        </GTableSimple>
     </div>
 </template>
 

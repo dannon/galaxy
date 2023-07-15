@@ -7,7 +7,7 @@
             {{ headerMessage }}
         </GAlert>
         <GAlert v-bind="alertAttrs">{{ message }}</GAlert>
-        <b-table
+        <GTable
             v-bind="indexTableAttrs"
             v-model="invocationItemsModel"
             no-sort-reset
@@ -76,7 +76,7 @@
                     :id="getStoredWorkflowIdByInstanceId(data.item.workflow_id)"
                     :root="root" />
             </template>
-        </b-table>
+        </GTable>
         <GPagination
             v-if="rows >= perPage"
             v-model="currentPage"
@@ -102,6 +102,7 @@ import GAlert from "@/component-library/GAlert.vue";
 import GCard from "@/component-library/GCard.vue";
 import GLink from "@/component-library/GLink.vue";
 import GPagination from "@/component-library/GPagination.vue";
+import GTable from "@/component-library/GTable.vue";
 
 export default {
     components: {
@@ -109,6 +110,7 @@ export default {
         GCard,
         GLink,
         GAlert,
+        GTable,
         UtcDate,
         WorkflowInvocationState,
         WorkflowRunButton,
