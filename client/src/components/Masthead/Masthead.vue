@@ -1,5 +1,5 @@
 <script setup>
-import { BNavbar, BNavbarBrand } from "bootstrap-vue";
+import { BNavbar } from "bootstrap-vue";
 import { storeToRefs } from "pinia";
 import { useEntryPointStore } from "stores/entryPointStore";
 import { withPrefix } from "utils/redirect";
@@ -14,6 +14,7 @@ import MastheadItem from "./MastheadItem";
 import QuotaMeter from "./QuotaMeter";
 import { getActiveTab } from "./utilities";
 
+import GNavbarBrand from "@/component-library/GNavbarBrand.vue";
 import GNavbarNav from "@/component-library/GNavbarNav.vue";
 import NotificationsBell from "@/components/Notifications/NotificationsBell.vue";
 
@@ -104,7 +105,7 @@ onMounted(() => {
 <template>
     <b-navbar id="masthead" type="dark" role="navigation" aria-label="Main" class="justify-content-between">
         <GNavbarNav>
-            <b-navbar-brand
+            <GNavbarBrand
                 v-b-tooltip.hover
                 class="ml-2 mr-2"
                 title="Home"
@@ -112,7 +113,7 @@ onMounted(() => {
                 :href="withPrefix(logoUrl)">
                 <img alt="logo" :src="withPrefix(logoSrc)" />
                 <img v-if="logoSrcSecondary" alt="logo" :src="withPrefix(logoSrcSecondary)" />
-            </b-navbar-brand>
+            </GNavbarBrand>
             <span v-if="brand" class="navbar-text px-2">
                 {{ brand }}
             </span>
