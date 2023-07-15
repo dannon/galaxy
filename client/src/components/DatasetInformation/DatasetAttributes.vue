@@ -106,6 +106,8 @@ import { DatasetAttributesProvider } from "components/providers/DatasetProvider"
 import { setAttributes } from "./services";
 
 import GAlert from "@/component-library/GAlert.vue";
+import GTab from "@/component-library/GTab.vue";
+import GTabs from "@/component-library/GTabs.vue";
 
 library.add(faBars, faCog, faDatabase, faExchangeAlt, faRedo, faSave, faUser);
 
@@ -115,6 +117,8 @@ export default {
         FontAwesomeIcon,
         FormDisplay,
         GAlert,
+        GTabs,
+        GTab,
     },
     props: {
         datasetId: {

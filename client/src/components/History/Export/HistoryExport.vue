@@ -2,7 +2,7 @@
 import { library } from "@fortawesome/fontawesome-svg-core";
 import { faFileExport } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
-import { BButton, BTab, BTabs } from "bootstrap-vue";
+import { BButton, BCard } from "bootstrap-vue";
 import LoadingSpan from "components/LoadingSpan";
 import { useConfirmDialog } from "composables/confirmDialog";
 import { useFileSources } from "composables/fileSources";
@@ -18,7 +18,8 @@ import { exportToFileSource, getExportRecords, reimportHistoryFromRecord } from 
 
 import ExportOptions from "./ExportOptions.vue";
 import GAlert from "@/component-library/GAlert.vue";
-import GCard from "@/component-library/GCard.vue";
+import GTab from "@/component-library/GTab.vue";
+import GTabs from "@/component-library/GTabs.vue";
 import ExportForm from "components/Common/ExportForm.vue";
 import ExportRecordDetails from "components/Common/ExportRecordDetails.vue";
 import ExportRecordTable from "components/Common/ExportRecordTable.vue";

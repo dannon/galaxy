@@ -42,10 +42,14 @@ import WorkflowInvocationDetails from "./WorkflowInvocationDetails.vue";
 import WorkflowInvocationExportOptions from "./WorkflowInvocationExportOptions.vue";
 import WorkflowInvocationSummary from "./WorkflowInvocationSummary.vue";
 import GAlert from "@/component-library/GAlert.vue";
+import GTab from "@/component-library/GTab.vue";
+import GTabs from "@/component-library/GTabs.vue";
 
 export default {
     components: {
         GAlert,
+        GTabs,
+        GTab,
         LoadingSpan,
         WorkflowInvocationSummary,
         WorkflowInvocationDetails,

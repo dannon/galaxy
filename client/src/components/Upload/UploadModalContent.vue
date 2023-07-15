@@ -27,7 +27,6 @@
 
 <script>
 import Backbone from "backbone";
-import { BTab, BTabs } from "bootstrap-vue";
 import { getDatatypesMapper } from "components/Datatypes";
 import LoadingSpan from "components/LoadingSpan";
 import UploadUtils from "mvc/upload/upload-utils";
@@ -38,6 +37,9 @@ import Default from "./Default";
 import { uploadModelsToPayload } from "./helpers";
 import RulesInput from "./RulesInput";
 
+import GTab from "@/component-library/GTab.vue";
+import GTabs from "@/component-library/GTabs.vue";
+
 export default {
     components: {
         Collection,
@@ -45,8 +47,8 @@ export default {
         Default,
         RulesInput,
         LoadingSpan,
-        BTabs,
-        BTab,
+        GTabs,
+        GTab,
     },
     props: {
         currentHistoryId: { type: String, required: true },
