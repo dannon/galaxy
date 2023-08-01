@@ -204,7 +204,11 @@ $galaxy-state-border: (
     "error": $state-danger-border,
     "deleted": darken($state-default-border, 30%),
     "hidden": $state-default-border,
+    "deferred": $state-info-border,
+    "paused": $state-info-border,
+    "discarded": $state-danger-border,
     "setting_metadata": $state-warning-border,
+    "failed_metadata": $state-danger-border,
 );
 
 $galaxy-state-bg: (
@@ -217,7 +221,11 @@ $galaxy-state-bg: (
     "error": $state-danger-bg,
     "deleted": darken($state-default-bg, 30%),
     "hidden": $state-default-bg,
+    "deferred": $state-info-bg,
+    "paused": $state-info-bg,
+    "discarded": $state-danger-bg,
     "setting_metadata": $state-warning-bg,
+    "failed_metadata": $state-danger-bg,
 );
 
 @each $state in map-keys($galaxy-state-border) {
