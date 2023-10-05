@@ -17,6 +17,7 @@ import HistoryMultipleView from "components/History/Multiple/MultipleView";
 import { HistoryExport } from "components/HistoryExport/index";
 import HistoryImport from "components/HistoryImport";
 import InteractiveTools from "components/InteractiveTools/InteractiveTools";
+import IWCList from "components/IWCList";
 import JobDetails from "components/JobInformation/JobDetails";
 import CarbonEmissionsCalculations from "components/JobMetrics/CarbonEmissions/CarbonEmissionsCalculations";
 import NewUserWelcome from "components/NewUserWelcome/NewUserWelcome";
@@ -185,6 +186,10 @@ export function getRouter(Galaxy) {
                     {
                         path: "datasets/list",
                         component: DatasetList,
+                    },
+                    {
+                        path: "iwc",
+                        component: IWCList,
                     },
                     {
                         path: "datasets/:datasetId/details",
