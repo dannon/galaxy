@@ -19,7 +19,7 @@
         "allowJs": true,
         "checkJs": false,
         "allowSyntheticDefaultImports": true,
-        "strict": false, // TEMPORARILY MINIMIZE TS ISSUES -- DO NOT MERGE
+
         "noUncheckedIndexedAccess": true,
 
         // Necessary for now, was previously the default setting
