@@ -57,9 +57,6 @@
                     >{{ data.value }}</a
                 >
             </template>
-            <template v-for="(index, name) in $slots" v-slot:[name]>
-                <slot :name="name" />
-            </template>
             <template v-for="(index, name) in $slots" v-slot:[name]="data">
                 <slot :name="name" v-bind="data"></slot>
             </template>
