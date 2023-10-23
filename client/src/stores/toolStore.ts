@@ -4,7 +4,7 @@
 
 import axios from "axios";
 import { defineStore } from "pinia";
-import Vue, { computed, Ref, ref } from "vue";
+import { computed, Ref, ref } from "vue";
 
 import { createWhooshQuery, filterTools, types_to_icons } from "@/components/Panels/utilities";
 import { useUserLocalStorage } from "@/composables/userLocalStorage";
@@ -228,11 +228,11 @@ export const useToolStore = defineStore("toolStore", () => {
     }
 
     function saveToolForId(toolId: string, toolData: Tool) {
-        Vue.set(toolsById.value, toolId, toolData);
+        toolsById.value[toolId] = toolData;
     }
 
     function saveToolResults(whooshQuery: string, toolsData: Array<string>) {
-        Vue.set(toolResults.value, whooshQuery, toolsData);
+        toolResults.value[whooshQuery] = toolsData;
     }
 
     function saveAllTools(toolsData: Tool[]) {
@@ -243,7 +243,7 @@ export const useToolStore = defineStore("toolStore", () => {
     }
 
     function savePanelView(panelView: string, newPanel: { [id: string]: ToolSection | Tool }) {
-        Vue.set(panel.value, panelView, newPanel);
+        panel.value[panelView] = newPanel;
     }
 
     return {

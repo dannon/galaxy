@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { PropType } from "vue";
-import Vue, { ref } from "vue";
+import { ref } from "vue";
 
 import type { components } from "@/api/schema";
 
@@ -17,7 +17,7 @@ const expandCollections = ref({});
 const expandDatasets = ref({});
 
 function toggle(expansionMap: Record<string, boolean>, itemId: string) {
-    Vue.set(expansionMap, itemId, !expansionMap[itemId]);
+    expansionMap[itemId] = !expansionMap[itemId];
 }
 </script>
 

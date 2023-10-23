@@ -123,7 +123,7 @@ export default {
                 if (item.isLeaf) {
                     _rowVariant = this.model.exists(item.id) ? "success" : "default";
                 }
-                Vue.set(item, "_rowVariant", _rowVariant);
+                item._rowVariant = _rowVariant;
             }
         },
         /** Collects selected datasets in value array **/

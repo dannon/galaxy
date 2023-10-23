@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import { BAlert, BButton, BCol, BFormGroup, BFormInput, BRow } from "bootstrap-vue";
-import Vue, { computed, ref } from "vue";
+import { computed, ref } from "vue";
 import { useRouter } from "vue-router/composables";
 
 import { createBroadcast, fetchBroadcast, updateBroadcast } from "@/api/notifications.broadcast";
@@ -78,7 +78,7 @@ function convertUTCtoLocal(utcTimeString: string) {
 
 function addActionLink() {
     if (!broadcastData.value.content.action_links) {
-        Vue.set(broadcastData.value.content, "action_links", []);
+        broadcastData.value.content.action_links = [];
     }
 
     broadcastData.value.content.action_links?.push({

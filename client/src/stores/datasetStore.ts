@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import Vue, { computed, ref } from "vue";
+import { computed, ref } from "vue";
 
 import type { DatasetDetails, DatasetEntry, HistoryContentItemBase } from "@/api";
 import { fetchDatasetDetails } from "@/api/datasets";
@@ -25,10 +25,10 @@ export const useDatasetStore = defineStore("datasetStore", () => {
     });
 
     async function fetchDataset(params: { id: string }) {
-        Vue.set(loadingDatasets.value, params.id, true);
+        loadingDatasets.value[params.id] = true;
         try {
             const dataset = await fetchDatasetDetails(params);
-            Vue.set(storedDatasets.value, dataset.id, dataset);
+            storedDatasets.value[dataset.id] = dataset;
             return dataset;
         } finally {
             delete loadingDatasets.value[params.id];
@@ -40,7 +40,7 @@ export const useDatasetStore = defineStore("datasetStore", () => {
             (entry) => entry.history_content_type === "dataset"
         ) as DatasetEntry[];
         for (const dataset of datasetList) {
-            Vue.set(storedDatasets.value, dataset.id, dataset);
+            storedDatasets.value[dataset.id] = dataset;
         }
     }
 

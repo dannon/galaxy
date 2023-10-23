@@ -158,7 +158,6 @@ import { rewatchHistory } from "store/historyStore/model/watchHistory";
 import { useHistoryItemsStore } from "stores/historyItemsStore";
 import { useHistoryStore } from "stores/historyStore";
 import { getOperatorForAlias } from "utils/filtering";
-import Vue from "vue";
 
 import { copyDataset } from "@/api/datasets";
 
@@ -394,7 +393,7 @@ export default {
             rewatchHistory();
         },
         setInvisible(item) {
-            Vue.set(this.invisible, item.hid, true);
+            this.invisible[item.hid] = true;
         },
         onTagChange(item, newTags) {
             item.tags = newTags;

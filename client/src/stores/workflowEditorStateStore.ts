@@ -1,7 +1,7 @@
 import type { UseElementBoundingReturn } from "@vueuse/core";
 import { defineStore } from "pinia";
 import type { UnwrapRef } from "vue";
-import Vue, { reactive } from "vue";
+import { reactive } from "vue";
 
 import type { OutputTerminals } from "@/components/Workflow/Editor/modules/terminals";
 
@@ -67,17 +67,15 @@ export const useWorkflowStateStore = (workflowId: string) => {
         actions: {
             setInputTerminalPosition(stepId: number, inputName: string, position: InputTerminalPosition) {
                 if (!this.inputTerminals[stepId]) {
-                    Vue.set(this.inputTerminals, stepId, {});
+                    this.inputTerminals[stepId] = {};
                 }
-
-                Vue.set(this.inputTerminals[stepId]!, inputName, position);
+                this.inputTerminals[stepId]![inputName] = position;
             },
             setOutputTerminalPosition(stepId: number, outputName: string, position: OutputTerminalPosition) {
                 if (!this.outputTerminals[stepId]) {
-                    Vue.set(this.outputTerminals, stepId, reactive({}));
+                    this.outputTerminals[stepId] = reactive({});
                 }
-
-                Vue.set(this.outputTerminals[stepId]!, outputName, position);
+                this.outputTerminals[stepId]![outputName] = position;
             },
             deleteInputTerminalPosition(stepId: number, inputName: string) {
                 delete this.inputTerminals[stepId]?.[inputName];
@@ -92,13 +90,13 @@ export const useWorkflowStateStore = (workflowId: string) => {
                 this.scale = scale;
             },
             setStepPosition(stepId: number, position: UnwrapRef<UseElementBoundingReturn>) {
-                Vue.set(this.stepPosition, stepId, position);
+                this.stepPosition[stepId] = position;
             },
             deleteStepPosition(stepId: number) {
                 delete this.stepPosition[stepId];
             },
             setLoadingState(stepId: number, loading: boolean, error: string | undefined) {
-                Vue.set(this.stepLoadingState, stepId, { loading, error });
+                this.stepLoadingState[stepId] = { loading, error };
             },
         },
     })();

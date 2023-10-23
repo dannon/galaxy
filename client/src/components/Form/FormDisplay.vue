@@ -16,8 +16,6 @@
 </template>
 
 <script>
-import Vue from "vue";
-
 import FormInputs from "./FormInputs";
 import { matchInputs, validateInputs, visitInputs } from "./utilities";
 
@@ -175,7 +173,7 @@ export default {
         onCloneInputs() {
             this.formInputs = JSON.parse(JSON.stringify(this.inputs));
             visitInputs(this.formInputs, (input) => {
-                Vue.set(input, "error", null);
+                input.error = null;
             });
             this.onCreateIndex();
         },

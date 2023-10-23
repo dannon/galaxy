@@ -1,5 +1,4 @@
 import { defineStore } from "pinia";
-import Vue from "vue";
 
 import type { CollectionTypeDescriptor } from "@/components/Workflow/Editor/modules/collectionTypeDescription";
 import { type Connection, getConnectionId, useConnectionStore } from "@/stores/workflowConnectionStore";
@@ -210,7 +209,7 @@ export const useWorkflowStepStore = (workflowId: string) => {
             addStep(newStep: NewStep): Step {
                 const stepId = newStep.id ? newStep.id : this.getStepIndex + 1;
                 const step = Object.freeze({ ...newStep, id: stepId } as Step);
-                Vue.set(this.steps, stepId.toString(), step);
+                this.steps[stepId.toString()] = step;
                 const connectionStore = useConnectionStore(workflowId);
                 stepToConnections(step).map((connection) => connectionStore.addConnection(connection));
                 this.stepExtraInputs[step.id] = getStepExtraInputs(step);
@@ -243,16 +242,16 @@ export const useWorkflowStepStore = (workflowId: string) => {
                 this.stepExtraInputs[step.id] = getStepExtraInputs(step);
             },
             changeStepMapOver(stepId: number, mapOver: CollectionTypeDescriptor) {
-                Vue.set(this.stepMapOver, stepId, mapOver);
+                this.stepMapOver[stepId] = mapOver;
             },
             resetStepInputMapOver(stepId: number) {
-                Vue.set(this.stepInputMapOver, stepId, {});
+                this.stepInputMapOver[stepId] = {};
             },
             changeStepInputMapOver(stepId: number, inputName: string, mapOver: CollectionTypeDescriptor) {
                 if (this.stepInputMapOver[stepId]) {
-                    Vue.set(this.stepInputMapOver[stepId]!, inputName, mapOver);
+                    this.stepInputMapOver[stepId]![inputName] = mapOver;
                 } else {
-                    Vue.set(this.stepInputMapOver, stepId, { [inputName]: mapOver });
+                    this.stepInputMapOver[stepId] = { [inputName]: mapOver };
                 }
             },
             addConnection(connection: Connection) {

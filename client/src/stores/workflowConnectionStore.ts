@@ -1,5 +1,4 @@
 import { defineStore } from "pinia";
-import Vue from "vue";
 
 import { useWorkflowStepStore } from "@/stores/workflowStepStore";
 import { pushOrSet } from "@/utils/pushOrSet";
@@ -81,7 +80,7 @@ export const useConnectionStore = (workflowId: string) => {
                 this.stepToConnections = updateStepToConnections(this.connections);
             },
             markInvalidConnection(this: State, connectionId: string, reason: string) {
-                Vue.set(this.invalidConnections, connectionId, reason);
+                this.invalidConnections[connectionId] = reason;
             },
             dropFromInvalidConnections(this: State, connectionId: string) {
                 delete this.invalidConnections[connectionId];

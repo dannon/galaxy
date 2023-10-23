@@ -1,6 +1,5 @@
 import axios from "axios";
 import { getAppRoot } from "onload/loadConfig";
-import Vue from "vue";
 
 export const state = {
     invocationDetailsById: {},
@@ -37,13 +36,13 @@ const actions = {
 
 const mutations = {
     saveInvocationForId: (state, { invocationId, invocationData }) => {
-        Vue.set(state.invocationDetailsById, invocationId, invocationData);
+        state.invocationDetailsById[invocationId] = invocationData;
     },
     saveInvocationJobsSummaryForId: (state, { invocationId, jobsSummary }) => {
-        Vue.set(state.invocationJobsSummaryById, invocationId, jobsSummary);
+        state.invocationJobsSummaryById[invocationId] = jobsSummary;
     },
     saveInvocationStepById: (state, { invocationStepId, invocationStepData }) => {
-        Vue.set(state.invocationStepById, invocationStepId, invocationStepData);
+        state.invocationStepById[invocationStepId] = invocationStepData;
     },
 };
 

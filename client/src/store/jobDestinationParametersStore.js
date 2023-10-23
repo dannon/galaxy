@@ -1,6 +1,5 @@
 import axios from "axios";
 import { getAppRoot } from "onload/loadConfig";
-import Vue from "vue";
 
 export const state = {
     jobDestinationParametersByJobId: {},
@@ -21,7 +20,7 @@ const actions = {
 
 const mutations = {
     saveJobDestinationParamsForJobId: (state, { jobId, jobDestinationParams }) => {
-        Vue.set(state.jobDestinationParametersByJobId, jobId, jobDestinationParams);
+        state.jobDestinationParametersByJobId[jobId] = jobDestinationParams;
     },
 };
 

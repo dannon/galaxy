@@ -4,7 +4,7 @@ import { faCopy, faEdit, faFolderOpen, faLaptop } from "@fortawesome/free-solid-
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import { BButton } from "bootstrap-vue";
 import { filesDialog } from "utils/data";
-import Vue, { computed, ref } from "vue";
+import { computed, ref } from "vue";
 
 import { UploadQueue } from "@/utils/upload-queue.js";
 
@@ -141,7 +141,7 @@ function eventAnnounce(index, file) {
         fileSize: file.size,
         fileUri: file.uri,
     };
-    Vue.set(uploadItems.value, index, uploadModel);
+    uploadItems.value[index] = uploadModel;
 }
 
 /** Populates collection builder with uploaded files */

@@ -3,7 +3,7 @@ import { library } from "@fortawesome/fontawesome-svg-core";
 import { faCaretLeft } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import { BAlert, BButton } from "bootstrap-vue";
-import Vue, { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 
 import {
     BrowsableFilesSourcePlugin,
@@ -182,7 +182,7 @@ function formatRows() {
         else if (!item.isLeaf) {
             _rowVariant = getIcon(isDirectorySelected(item.id), item.url);
         }
-        Vue.set(item, "_rowVariant", _rowVariant);
+        item._rowVariant = _rowVariant;
     }
     allSelected.value = checkIfAllSelected();
     if (currentDirectory.value?.url) {

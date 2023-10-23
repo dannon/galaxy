@@ -1,6 +1,5 @@
 import axios from "axios";
 import { getAppRoot } from "onload/loadConfig";
-import Vue from "vue";
 
 export const state = {
     datasetExtFilesById: {},
@@ -23,7 +22,7 @@ const actions = {
 
 const mutations = {
     saveDatasetExtFiles: (state, { history_dataset_id, datasetExtFiles }) => {
-        Vue.set(state.datasetExtFilesById, history_dataset_id, datasetExtFiles);
+        state.datasetExtFilesById[history_dataset_id] = datasetExtFiles;
     },
 };
 

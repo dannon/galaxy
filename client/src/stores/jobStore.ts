@@ -5,7 +5,6 @@
 
 import axios from "axios";
 import { defineStore } from "pinia";
-import Vue from "vue";
 
 import { getAppRoot } from "@/onload/loadConfig";
 
@@ -46,7 +45,7 @@ export const useJobStore = defineStore("jobStore", {
         },
         // Setters
         saveJobForJobId(jobId: string, job: Job) {
-            Vue.set(this.jobs, jobId, job);
+            this.jobs[jobId] = job;
         },
         saveLatestResponse(response: ResponseVal) {
             this.response = response;
