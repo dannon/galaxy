@@ -37,7 +37,7 @@
             <div>
                 <b-button class="mr-3" @click="cancel()"> Cancel </b-button>
                 <b-button :variant="saveVariant" :disabled="loading || !formValid" @click="copy(ok)">
-                    {{ saveTitle | localize }}
+                    {{ saveTitle }}
                 </b-button>
             </div>
         </div>
@@ -49,6 +49,7 @@ import { mapActions, mapState } from "pinia";
 
 import { useHistoryStore } from "@/stores/historyStore";
 import { useUserStore } from "@/stores/userStore";
+import { localize } from "@/utils/localization";
 
 export default {
     props: {
@@ -67,7 +68,7 @@ export default {
             return `Copying History: ${this.history.name}`;
         },
         saveTitle() {
-            return this.loading ? "Saving..." : "Copy History";
+            return localize(this.loading ? "Saving..." : "Copy History");
         },
         saveVariant() {
             return this.loading ? "info" : this.formValid ? "primary" : "secondary";

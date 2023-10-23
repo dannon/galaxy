@@ -190,6 +190,12 @@ onUnmounted(() => {
     useInfiniteScroll(scrollableDiv.value, () => {});
 });
 
+const localized = computed(() => {
+    return {
+        placeholder: "Search by name or use the advanced filtering options",
+    };
+});
+
 watch([filterText, sortBy, sortDesc], async () => {
     await load();
 });
@@ -204,7 +210,7 @@ watch([filterText, sortBy, sortDesc], async () => {
         <div v-else>
             <FilterMenu
                 name="Published Histories"
-                :placeholder="'Search by name or use the advanced filtering options' | localize"
+                :placeholder="localized.placeholder"
                 :filter-class="filters"
                 :filter-text.sync="filterText"
                 :loading="loading"

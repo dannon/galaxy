@@ -95,7 +95,7 @@ async function handleSubmit(preferredObjectStoreId: string) {
                             class="preferred-object-store-select-button"
                             data-object-store-id="__null__"
                             @click="handleSubmit(null)"
-                            ><i>{{ defaultOptionTitle | localize }}</i></b-button
+                            ><i v-localize>{{ defaultOptionTitle }}</i></b-button
                         >
                         <b-button
                             v-for="object_store in objectStores"

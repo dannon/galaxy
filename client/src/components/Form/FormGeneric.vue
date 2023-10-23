@@ -14,10 +14,10 @@
             </FormCard>
             <div class="mt-3">
                 <b-button id="submit" variant="primary" class="mr-1" @click="onSubmit()">
-                    <span :class="submitIconClass" />{{ submitTitle | l }}
+                    <span :class="submitIconClass" />{{ localized.submitTitle }}
                 </b-button>
                 <b-button v-if="cancelRedirect" @click="onCancel()">
-                    <span class="mr-1 fa fa-times" />{{ "Cancel" | l }}
+                    <span class="mr-1 fa fa-times" />{{ localized.cancel }}
                 </b-button>
             </div>
         </div>
@@ -84,6 +84,12 @@ export default {
     computed: {
         submitIconClass() {
             return `mr-1 fa ${this.submitIcon}`;
+        },
+        localized() {
+            return {
+                submitTitle: this.submitTitle,
+                cancel: "Cancel",
+            };
         },
     },
     methods: {

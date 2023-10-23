@@ -1,8 +1,8 @@
 <template>
     <div>
         <header class="main-header">
-            <h1 class="text-center my-3">{{ title | localize }}</h1>
-            <h2 class="text-center my-3 h-sm">{{ intro | localize }}</h2>
+            <h1 v-localize class="text-center my-3">{{ title }}</h1>
+            <h2 v-localize class="text-center my-3 h-sm">{{ intro }}</h2>
         </header>
         <b-row class="justify-content-md-center mb-3">
             <b-card-group v-for="(subject, idx) in topics" :key="idx">
@@ -15,9 +15,9 @@
                         height="50h"
                         :src="imgUrl(subject.image)"
                         :alt="subject.alt"></b-card-img>
-                    <b-card-text class="font-weight-light">{{ subject.blurb | localize }}</b-card-text>
-                    <b-button class="mt-auto" variant="info" @click="$emit('select', idx)">{{
-                        subject.title | localize
+                    <b-card-text v-localize class="font-weight-light">{{ subject.blurb }}</b-card-text>
+                    <b-button v-localize class="mt-auto" variant="info" @click="$emit('select', idx)">{{
+                        subject.title
                     }}</b-button>
                 </b-card>
             </b-card-group>

@@ -7,7 +7,7 @@
                     name="query"
                     :value="debouncedValue"
                     autocomplete="off"
-                    :placeholder="placeholder | localize"
+                    :placeholder="localized.placeholder"
                     data-description="filter index input"
                     class="search-query index-filter-query"
                     :size="size"
@@ -91,6 +91,13 @@ export default {
             showHelp: false,
             localFilter: this.value,
         };
+    },
+    computed: {
+        localized() {
+            return {
+                placeholder: this.placeholder,
+            };
+        },
     },
     watch: {
         value(newValue) {

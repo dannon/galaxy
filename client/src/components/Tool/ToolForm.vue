@@ -7,7 +7,7 @@
         <div v-if="showEntryPoints">
             <ToolEntryPoints v-for="job in entryPoints" :key="job.id" :job-id="job.id" />
         </div>
-        <b-modal v-model="showError" size="sm" :title="errorTitle | l" scrollable ok-only>
+        <b-modal v-model="showError" size="sm" :title="errorTitle" scrollable ok-only>
             <b-alert v-if="errorMessage" show variant="danger">
                 {{ errorMessage }}
             </b-alert>
@@ -110,6 +110,7 @@ import { mapActions, mapState } from "pinia";
 import { useHistoryItemsStore } from "stores/historyItemsStore";
 import { useJobStore } from "stores/jobStore";
 import { refreshContentsWrapper } from "utils/data";
+import { localize } from "utils/localization";
 
 import { useConfig } from "@/composables/config";
 import { useHistoryStore } from "@/stores/historyStore";
@@ -350,7 +351,7 @@ export default {
                     } else {
                         this.showError = true;
                         this.showForm = true;
-                        this.errorTitle = "Job submission rejected.";
+                        this.errorTitle = localize("Job submission rejected.");
                         this.errorContent = jobResponse;
                     }
                     if (changeRoute) {
@@ -376,7 +377,7 @@ export default {
                     }
                     if (genericError) {
                         this.showError = true;
-                        this.errorTitle = "Job submission failed.";
+                        this.errorTitle = localize("Job submission failed.");
                         this.errorContent = jobDef;
                     }
                 }

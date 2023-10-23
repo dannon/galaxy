@@ -14,12 +14,12 @@
             position="float">
             <b-carousel-slide v-for="(slide, idx) in slides" :key="idx">
                 <h2 class="carousel-caption h-md">
-                    {{ slide.text | localize }}
+                    {{ slide.text }}
                 </h2>
                 <img class="carousel-fig" :src="imgUrl(slide.file)" :class="slide.size" :alt="slide.alt" />
             </b-carousel-slide>
             <b-carousel-slide>
-                <h2 class="h-md">{{ "Enjoy using Galaxy!" | localize }}</h2>
+                <h2 class="h-md">{{ "Enjoy using Galaxy!" }}</h2>
                 <img class="large-img" :src="imgUrl('sections/galaxy_logo.png')" alt="Galaxy logo" />
             </b-carousel-slide>
         </b-carousel>

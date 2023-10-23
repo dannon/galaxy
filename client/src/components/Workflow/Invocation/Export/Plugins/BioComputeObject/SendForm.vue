@@ -173,7 +173,7 @@ defineExpose({ showModal });
                         <FontAwesomeIcon icon="spinner" spin />
                         Generating BCO please wait...
                     </div>
-                    <button v-else class="btn btn-primary">{{ "Submit" | localize }}</button>
+                    <button v-else v-localize class="btn btn-primary">Submit</button>
                 </div>
             </form>
         </div>

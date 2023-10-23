@@ -19,7 +19,7 @@
                 size="sm"
                 :pressed="showAdvanced"
                 :variant="showAdvanced ? 'info' : 'secondary'"
-                :title="titleAdvanced | l"
+                :title="localized.titleAdvanced"
                 data-description="toggle advanced search"
                 @click="onToggle">
                 <icon v-if="showAdvanced" fixed-width icon="angle-double-up" />
@@ -30,7 +30,7 @@
                 aria-haspopup="true"
                 class="search-clear"
                 size="sm"
-                :title="titleClear | l"
+                :title="localized.titleClear"
                 data-description="reset query"
                 @click="clearBox">
                 <icon v-if="loading" fixed-width icon="spinner" spin />
@@ -40,6 +40,8 @@
     </b-input-group>
 </template>
 <script>
+import localize from "@/utils/localization";
+
 export default {
     props: {
         query: {
@@ -75,6 +77,14 @@ export default {
             titleClear: "Clear Search (esc)",
             titleAdvanced: "Toggle Advanced Search",
         };
+    },
+    computed: {
+        localized() {
+            return {
+                titleClear: localize(this.titleClear),
+                titleAdvanced: localize(this.titleAdvanced),
+            };
+        },
     },
     watch: {
         query(queryNew) {

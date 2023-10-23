@@ -1,13 +1,10 @@
 <template>
     <div v-if="hasMessages" class="mx-3 my-2">
         <b-alert :show="history.isDeleted" variant="warning">
-            {{ "This history has been deleted" | localize }}
+            {{ localized.isDeleted }}
         </b-alert>
         <b-alert :show="userOverQuota" variant="warning">
-            {{
-                "You are over your disk quota. Tool execution is on hold until your disk usage drops below your allocated quota."
-                    | localize
-            }}
+            {{ localized.userOverQuota }}
         </b-alert>
     </div>
 </template>
@@ -25,6 +22,13 @@ export default {
     computed: {
         hasMessages() {
             return this.userOverQuota || history.isDeleted;
+        },
+        localized() {
+            return {
+                isDeleted: "This history has been deleted",
+                userOverQuota:
+                    "You are over your disk quota. Tool execution is on hold until your disk usage drops below your allocated quota.",
+            };
         },
     },
 };

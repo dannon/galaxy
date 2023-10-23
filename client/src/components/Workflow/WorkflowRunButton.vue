@@ -1,7 +1,7 @@
 <template>
     <BButton
         v-b-tooltip.hover.bottom
-        :title="title | localize"
+        :title="title"
         :data-workflow-run="id"
         class="workflow-run btn-sm btn-primary fa fa-play"
         @click.stop="executeWorkflow" />
@@ -9,6 +9,8 @@
 
 <script>
 import { BButton, VBTooltip } from "bootstrap-vue";
+
+import { localize } from "@/utils/localization";
 
 export default {
     components: {
@@ -29,7 +31,7 @@ export default {
     },
     computed: {
         title() {
-            return "Run workflow";
+            return localize("Run workflow");
         },
     },
     methods: {

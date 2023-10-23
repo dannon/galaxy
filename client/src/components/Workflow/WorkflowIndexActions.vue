@@ -3,24 +3,26 @@
         <BButton
             id="workflow-create"
             v-b-tooltip.hover
+            v-localize
             aria-haspopup="true"
             :title="createTitle"
             :disabled="isAnonymous"
             class="m-1"
             @click="navigateToCreate">
             <FontAwesomeIcon icon="plus" />
-            {{ "Create" | localize }}
+            Create
         </BButton>
         <BButton
             id="workflow-import"
             v-b-tooltip.hover
+            v-localize
             aria-haspopup="true"
             :title="importTitle"
             :disabled="isAnonymous"
             class="m-1"
             @click="navigateToImport">
             <FontAwesomeIcon icon="upload" />
-            {{ "Import" | localize }}
+            Import
         </BButton>
     </span>
 </template>

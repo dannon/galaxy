@@ -6,7 +6,7 @@
         </div>
         <div v-else>
             <FontAwesomeIcon icon="exclamation-triangle" class="text-warning" />
-            <span>{{ warningMessage | localize }}</span>
+            <span v-localize>{{ warningMessage }}</span>
             <div v-if="hasWarningItems" class="mt-2">
                 <div
                     v-for="(item, idx) in warningItems"

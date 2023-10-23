@@ -67,9 +67,9 @@
                 <span v-if="row.item.published || row.item.shared || row.item.importable">
                     <SharingIndicators :object="row.item" @filter="(filter) => applyFilter(filter, true)" />
                     <CopyToClipboard
-                        :title="'Copy URL' | localize"
+                        :title="localized.copyURL"
                         :text="copyUrl(row.item)"
-                        :message="'Link copied to your clipboard' | localize" />
+                        :message="localized.linkCopied" />
                 </span>
                 <a
                     v-if="!row.item.published && !row.item.shared && !row.item.importable"
@@ -105,6 +105,7 @@ import _l from "utils/localization";
 import { useRouter } from "vue-router/composables";
 
 import { updateTags } from "@/api/tags";
+import { localize } from "@/utils/localization";
 import { absPath } from "@/utils/redirect";
 
 import PageDropdown from "./PageDropdown";
@@ -260,7 +261,13 @@ export default {
             return extraParams;
         },
         title() {
-            return this.published ? `Published Pages` : `Pages`;
+            return localize(this.published ? `Published Pages` : `Pages`);
+        },
+        localized() {
+            return {
+                copyURL: localize("Copy URL"),
+                linkCopied: localize("Link copied to your clipboard"),
+            };
         },
     },
     created() {

@@ -64,7 +64,7 @@
                     <div v-if="showForm" id="fieldsAndButton">
                         <span class="mr-2 font-weight-bold">{{ emailTitle }}</span>
                         <span v-if="!!currentUser?.email">{{ currentUser?.email }}</span>
-                        <span v-else>{{ "You must be logged in to receive emails" | l }}</span>
+                        <span v-else>{{ localized.loginForEmail }}</span>
                         <FormElement
                             id="dataset-error-message"
                             v-model="message"
@@ -95,6 +95,7 @@ import { mapState } from "pinia";
 
 import { useMarkdown } from "@/composables/markdown";
 import { useUserStore } from "@/stores/userStore";
+import { localize } from "@/utils/localization";
 
 import DatasetErrorDetails from "./DatasetErrorDetails";
 import { sendErrorReport } from "./services";
@@ -134,6 +135,11 @@ export default {
             const noResult = !this.resultMessages.length;
             const hasError = this.resultMessages.some((msg) => msg[1] === "danger");
             return noResult || hasError;
+        },
+        localized() {
+            return {
+                loginForEmail: localize("You must be logged in to receive emails"),
+            };
         },
     },
     methods: {
