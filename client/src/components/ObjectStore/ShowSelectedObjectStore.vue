@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 
 import { getObjectStoreDetails } from "@/api/objectStores";
+import { localize } from "@/utils/localization";
 import { errorMessageAsString } from "@/utils/simple-error";
 
 import type { ConcreteObjectStoreModel } from "./types";
@@ -20,6 +21,10 @@ const objectStore = ref<ConcreteObjectStoreModel | null>(null);
 const loading = ref(true);
 const error = ref<string | null>(null);
 
+const loadingMessage = computed(() => {
+    return localize("Loading storage location details");
+});
+
 async function fetch() {
     loading.value = true;
     try {
@@ -37,13 +42,13 @@ watch(
         fetch();
     }
 );
+
 fetch();
-const loadingMessage = "Loading storage location details";
 </script>
 
 <template>
     <div>
-        <LoadingSpan v-if="loading" :message="loadingMessage | localize" />
+        <LoadingSpan v-if="loading" :message="loadingMessage" />
         <DescribeObjectStore v-else-if="objectStore != null" :what="forWhat" :storage-info="objectStore">
         </DescribeObjectStore>
         <b-alert v-else-if="error" show variant="danger">{{ error }}</b-alert>

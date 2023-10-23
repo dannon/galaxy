@@ -86,7 +86,7 @@ async function handleSubmit(preferredObjectStore: ConcreteObjectStoreModel | nul
                             class="preferred-object-store-select-button"
                             data-object-store-id="__null__"
                             @click="handleSubmit(null)"
-                            ><i>{{ defaultOptionTitle | localize }}</i></b-button
+                            ><i v-localize>{{ defaultOptionTitle }}</i></b-button
                         >
                         <ObjectStoreSelectButton
                             v-for="objectStore in selectableAndVisibleObjectStores"

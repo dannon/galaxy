@@ -1,9 +1,11 @@
 <template>
     <b-alert class="mt-2" :variant="variant" :show="showAlert">
-        {{ message | l }}
+        {{ localized.message }}
     </b-alert>
 </template>
 <script>
+import { localize } from "@/utils/localization";
+
 export default {
     props: {
         message: {
@@ -37,6 +39,11 @@ export default {
                 return true;
             }
             return false;
+        },
+        localized() {
+            return {
+                message: localize(this.message),
+            };
         },
     },
     watch: {

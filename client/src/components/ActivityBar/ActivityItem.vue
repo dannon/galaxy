@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
+import { computed } from "vue";
 import { useRouter } from "vue-router/composables";
+
+import { localize } from "@/utils/localization";
 
 import TextShort from "@/components/Common/TextShort.vue";
 import Popper from "@/components/Popper/Popper.vue";
@@ -45,6 +48,13 @@ const emit = defineEmits<{
     (e: "click"): void;
 }>();
 
+const localized = computed(() => {
+    return {
+        tooltip: localize(props.tooltip),
+        title: localize(props.title),
+    };
+});
+
 function onClick(evt: MouseEvent): void {
     emit("click");
     if (props.to) {
@@ -60,7 +70,7 @@ function onClick(evt: MouseEvent): void {
                 <b-nav-item
                     class="position-relative my-1 p-2"
                     :class="{ 'nav-item-active': isActive }"
-                    :aria-label="title | l">
+                    :aria-label="localized.title">
                     <span v-if="progressStatus" class="progress">
                         <div
                             class="progress-bar notransition"
@@ -85,7 +95,7 @@ function onClick(evt: MouseEvent): void {
             </div>
         </template>
         <div class="text-center px-2 py-1">
-            <small v-if="tooltip">{{ tooltip | l }}</small>
+            <small v-if="tooltip">{{ localized.tooltip }}</small>
             <small v-else>No tooltip available for this item</small>
             <div v-if="options" class="nav-options p-1">
                 <router-link v-for="(option, index) in options" :key="index" :to="option.value">

@@ -1,7 +1,7 @@
 <template>
     <span>
         <span :class="spinnerClasses" title="loading"></span>
-        <span v-if="!spinnerOnly" class="loading-message" data-description="loading message">
+        <span v-if="!spinnerOnly" v-localize class="loading-message" data-description="loading message">
             {{ message }}.<span class="blinking">..</span>
         </span>
     </span>
