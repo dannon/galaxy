@@ -172,15 +172,15 @@ function onAdvancedSearch(filters: any) {
     <div>
         <FilterMenu
             v-if="props.enableAdvanced"
+            v-model:filter-text="localFilterText"
+            v-model:show-advanced="propShowAdvanced"
             :class="!propShowAdvanced && 'mb-3'"
             name="Tools"
             :placeholder="props.placeholder"
             :debounce-delay="200"
             :filter-class="ToolFilters"
-            :filter-text.sync="localFilterText"
             has-help
             :loading="props.queryPending"
-            :show-advanced.sync="propShowAdvanced"
             menu-type="separate"
             @on-search="onAdvancedSearch">
             <template v-slot:menu-help-text>

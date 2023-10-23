@@ -24,7 +24,7 @@
                 </b-row>
                 <b-row>
                     <b-col>
-                        <b-button :pressed.sync="showCommandLine" variant="outline-secondary">
+                        <b-button v-model:pressed="showCommandLine" variant="outline-secondary">
                             {{ showCommandLine ? "Hide" : "Show" }} Command Line
                         </b-button>
                     </b-col>
@@ -52,7 +52,7 @@
                         </b-button>
                         <b-button
                             v-if="!showCommandLine"
-                            :pressed.sync="row.detailsShowing"
+                            v-model:pressed="row.detailsShowing"
                             @click.stop="row.toggleDetails()">
                             {{ row.detailsShowing ? "Hide" : "Show" }} Command Line
                         </b-button>

@@ -154,9 +154,9 @@
         <SelectorModal
             v-show="showSwitchModal"
             id="selector-history-modal"
+            v-model:show-modal="showSwitchModal"
             :histories="histories"
             :additional-options="['center', 'multi']"
-            :show-modal.sync="showSwitchModal"
             @selectHistory="setCurrentHistory($event.id)" />
 
         <CopyModal id="copy-current-history-modal" :history="history" />

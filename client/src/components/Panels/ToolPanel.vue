@@ -174,10 +174,10 @@ function onInsertWorkflowSteps(workflowId: string, workflowStepCount: number | u
         </div>
         <ToolBox
             v-if="isPanelPopulated"
+            v-model:panel-query="query"
+            v-model:show-advanced="showAdvanced"
             :workflow="props.workflow"
-            :panel-query.sync="query"
             :panel-view="currentPanelView"
-            :show-advanced.sync="showAdvanced"
             :editor-workflows="editorWorkflows"
             :data-managers="dataManagers"
             :module-sections="moduleSections"

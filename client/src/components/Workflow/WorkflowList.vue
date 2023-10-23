@@ -10,12 +10,12 @@
         <b-row class="mb-3">
             <b-col cols="6" class="m-1">
                 <FilterMenu
+                    v-model:filter-text="filterText"
+                    v-model:show-advanced="showAdvanced"
                     :name="title"
                     :placeholder="titleSearch"
                     :filter-class="filterClass"
-                    :filter-text.sync="filterText"
                     :loading="loading"
-                    :show-advanced.sync="showAdvanced"
                     has-help
                     @on-backend-filter="onSearch">
                     <template v-slot:menu-help-text>

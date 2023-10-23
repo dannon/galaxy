@@ -227,12 +227,12 @@ async function loadMore(noScroll = false) {
             <BFormGroup :description="localize('Filter histories')">
                 <FilterMenu
                     ref="filterMenuRef"
+                    v-model:filter-text="filter"
+                    v-model:show-advanced="showAdvanced"
                     name="Histories"
                     placeholder="search histories"
                     :filter-class="HistoriesFilters"
-                    :filter-text.sync="filter"
-                    :loading="busy"
-                    :show-advanced.sync="showAdvanced" />
+                    :loading="busy" />
             </BFormGroup>
 
             <BBadge v-if="filter && !validFilter" class="alert-danger w-100">Search string too short!</BBadge>

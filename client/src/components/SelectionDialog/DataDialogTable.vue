@@ -3,6 +3,7 @@
         <!-- todo: rewrite this to send events up instead of two way prop binding -->
         <!-- eslint-disable vue/no-mutating-props-->
         <b-table
+            v-model:busy="isBusy"
             small
             hover
             :items="items"
@@ -10,7 +11,6 @@
             :filter="filter"
             :per-page="perPage"
             :current-page="currentPage"
-            :busy.sync="isBusy"
             primary-key="id"
             @row-clicked="clicked"
             @filtered="filtered">

@@ -92,21 +92,21 @@ function updateFilter(newFilter: string) {
                 </b-input-group-append>
             </b-input-group>
             <MultipleViewList
+                v-model:show-modal="showSelectModal"
                 :histories="histories"
                 :filter="filter"
                 :current-history="currentHistory"
-                :selected-histories="selectedHistories"
-                :show-modal.sync="showSelectModal" />
+                :selected-histories="selectedHistories" />
         </div>
         <b-alert v-else class="m-2" variant="danger" show>
             <span v-localize class="font-weight-bold">No History found.</span>
         </b-alert>
         <SelectorModal
             v-show="showSelectModal"
+            v-model:show-modal="showSelectModal"
             :multiple="true"
             :histories="histories"
             :additional-options="['center', 'set-current']"
-            :show-modal.sync="showSelectModal"
             title="Select/Deselect histories"
             @selectHistories="addHistoriesToList" />
     </div>

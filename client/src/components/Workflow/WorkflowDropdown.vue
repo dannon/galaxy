@@ -26,7 +26,7 @@
             </span>
         </b-link>
         <p v-if="workflow.description" class="workflow-dropdown-description">
-            <TextSummary :description="workflow.description" :show-details.sync="showDetails" />
+            <TextSummary v-model:show-details="showDetails" :description="workflow.description" />
         </p>
         <div class="dropdown-menu" aria-labelledby="workflow-dropdown">
             <a

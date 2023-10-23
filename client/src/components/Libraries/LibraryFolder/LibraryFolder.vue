@@ -1,8 +1,8 @@
 <template>
     <div>
         <FolderTopBar
+            v-model:include-deleted="includeDeleted"
             :folder-contents="folderContents"
-            :include-deleted.sync="includeDeleted"
             :folder_id="currentFolderId"
             :selected="selected"
             :metadata="folder_metadata"
@@ -18,9 +18,9 @@
         <b-table
             id="folder_list_body"
             ref="folder_content_table"
+            v-model:busy="isBusy"
             striped
             hover
-            :busy.sync="isBusy"
             :fields="fields"
             :items="folderContents"
             :per-page="perPage"

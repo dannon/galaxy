@@ -110,11 +110,11 @@
                         <WorkflowAttributes
                             v-else-if="showAttributes"
                             :id="id"
+                            v-model:annotation-current="annotation"
+                            v-model:name-current="name"
                             :tags="tags"
                             :parameters="parameters"
-                            :annotation-current.sync="annotation"
                             :annotation="annotation"
-                            :name-current.sync="name"
                             :name="name"
                             :version="version"
                             :versions="versions"

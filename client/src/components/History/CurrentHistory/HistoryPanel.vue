@@ -29,42 +29,42 @@
                 <slot name="navigation" :history="history" />
                 <FilterMenu
                     v-if="filterable"
+                    v-model:filter-text="filterText"
+                    v-model:show-advanced="showAdvanced"
                     class="content-operations-filters mx-3"
                     name="History Items"
                     placeholder="search datasets"
                     :filter-class="filterClass"
-                    :filter-text.sync="filterText"
                     :loading="loading"
-                    :search-error="searchError"
-                    :show-advanced.sync="showAdvanced" />
+                    :search-error="searchError" />
                 <section v-if="!showAdvanced">
                     <HistoryDetails :history="history" :writeable="writable" @update:history="updateHistory($event)" />
                     <HistoryMessages :history="history" />
                     <HistoryCounter
+                        v-model:filter-text="filterText"
                         :history="history"
                         :is-watching="isWatching"
                         :last-checked="lastCheckedTime"
                         :show-controls="showControls"
-                        :filter-text.sync="filterText"
                         @reloadContents="reloadContents" />
                     <HistoryOperations
                         v-if="showControls"
+                        v-model:operation-running="operationRunning"
                         :history="history"
                         :show-selection="showSelection"
                         :expanded-count="expandedCount"
                         :has-matches="hasMatches(itemsLoaded)"
-                        :operation-running.sync="operationRunning"
                         @update:show-selection="setShowSelection"
                         @collapse-all="collapseAll">
                         <template v-slot:selection-operations>
                             <HistorySelectionOperations
+                                v-model:operation-running="operationRunning"
                                 :history="history"
                                 :filter-text="filterText"
                                 :content-selection="selectedItems"
                                 :selection-size="selectionSize"
                                 :is-query-selection="isQuerySelection"
                                 :total-items-in-query="totalMatchesCount"
-                                :operation-running.sync="operationRunning"
                                 @update:show-selection="setShowSelection"
                                 @operation-error="onOperationError"
                                 @hide-selection="onHideSelection"
@@ -309,7 +309,7 @@ export default {
             if (this.invisible) {
                 newItems.forEach((item) => {
                     if (this.invisible[item.hid]) {
-                        Vue.set(this.invisible, item.hid, false);
+                        this.invisible[item.hid] = false;
                     }
                 });
             }

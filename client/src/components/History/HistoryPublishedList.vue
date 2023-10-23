@@ -209,12 +209,12 @@ watch([filterText, sortBy, sortDesc], async () => {
 
         <div v-else>
             <FilterMenu
+                v-model:filter-text="filterText"
+                v-model:show-advanced="showAdvanced"
                 name="Published Histories"
                 :placeholder="localized.placeholder"
                 :filter-class="filters"
-                :filter-text.sync="filterText"
-                :loading="loading"
-                :show-advanced.sync="showAdvanced" />
+                :loading="loading" />
 
             <b-alert v-if="noResults || error" :variant="error ? 'danger' : 'info'" show>
                 <div>
@@ -234,12 +234,12 @@ watch([filterText, sortBy, sortDesc], async () => {
             <b-table
                 v-if="results.length"
                 id="published-histories-table"
+                v-model:sort-by="sortBy"
+                v-model:sort-desc="sortDesc"
                 no-sort-reset
                 striped
                 :fields="fields"
-                :items="results"
-                :sort-by.sync="sortBy"
-                :sort-desc.sync="sortDesc">
+                :items="results">
                 <template v-slot:cell(name)="row">
                     <router-link :to="`/published/history?id=${row.item.id}`">
                         {{ row.item.name }}
