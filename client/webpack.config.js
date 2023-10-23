@@ -1,7 +1,7 @@
 /* eslint-env node */
 const webpack = require("webpack");
 const path = require("path");
-const VueLoaderPlugin = require("vue-loader/lib/plugin");
+const { VueLoaderPlugin } = require("vue-loader");
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const CssMinimizerPlugin = require("css-minimizer-webpack-plugin");
 const DuplicatePackageCheckerPlugin = require("@cerner/duplicate-package-checker-webpack-plugin");
@@ -69,7 +69,7 @@ module.exports = (env = {}, argv = {}) => {
                 assert: require.resolve("assert/"),
             },
             alias: {
-                vue$: path.resolve(__dirname, "node_modules/vue/dist/vue.esm.js"),
+                vue$: "@vue/compat",
                 jquery$: `${libsBase}/jquery.custom.js`,
                 jqueryVendor$: `${libsBase}/jquery/jquery.js`,
                 storemodern$: "store/dist/store.modern.js",
@@ -103,6 +103,13 @@ module.exports = (env = {}, argv = {}) => {
                 {
                     test: /\.vue$/,
                     loader: "vue-loader",
+                    options: {
+                        compilerOptions: {
+                            compatConfig: {
+                                MODE: 2,
+                            },
+                        },
+                    },
                 },
                 {
                     test: /\.tsx?$/,
