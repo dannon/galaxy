@@ -101,7 +101,7 @@ export default {
         this.pollStepStatesUntilTerminal();
         this.pollJobStatesUntilTerminal();
     },
-    beforeDestroy: function () {
+    beforeUnmount: function () {
         clearTimeout(this.jobStatesInterval);
         clearTimeout(this.stepStatesInterval);
     },

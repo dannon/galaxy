@@ -126,7 +126,7 @@ export default {
             this.fetchPanel("default");
         }
     },
-    destroyed() {
+    unmounted() {
         this.clearTimeout();
     },
     methods: {
