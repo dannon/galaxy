@@ -84,7 +84,7 @@ export const useConnectionStore = (workflowId: string) => {
                 Vue.set(this.invalidConnections, connectionId, reason);
             },
             dropFromInvalidConnections(this: State, connectionId: string) {
-                Vue.delete(this.invalidConnections, connectionId);
+                delete this.invalidConnections[connectionId];
             },
             removeConnection(this, terminal: InputTerminal | OutputTerminal | ConnectionId) {
                 const stepStore = useWorkflowStepStore(workflowId);
@@ -94,7 +94,7 @@ export const useConnectionStore = (workflowId: string) => {
                     if (typeof terminal === "string") {
                         if (id === terminal) {
                             stepStore.removeConnection(connection);
-                            Vue.delete(this.invalidConnections, id);
+                            delete this.invalidConnections[id];
                             return false;
                         } else {
                             return true;
@@ -102,7 +102,7 @@ export const useConnectionStore = (workflowId: string) => {
                     } else if (terminal.connectorType === "input") {
                         if (connection.input.stepId == terminal.stepId && connection.input.name == terminal.name) {
                             stepStore.removeConnection(connection);
-                            Vue.delete(this.invalidConnections, id);
+                            delete this.invalidConnections[id];
                             return false;
                         } else {
                             return true;
@@ -110,7 +110,7 @@ export const useConnectionStore = (workflowId: string) => {
                     } else {
                         if (connection.output.stepId == terminal.stepId && connection.output.name == terminal.name) {
                             stepStore.removeConnection(connection);
-                            Vue.delete(this.invalidConnections, id);
+                            delete this.invalidConnections[id];
                             return false;
                         } else {
                             return true;

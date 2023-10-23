@@ -31,7 +31,7 @@ export const useDatasetStore = defineStore("datasetStore", () => {
             Vue.set(storedDatasets.value, dataset.id, dataset);
             return dataset;
         } finally {
-            Vue.delete(loadingDatasets.value, params.id);
+            delete loadingDatasets.value[params.id];
         }
     }
 

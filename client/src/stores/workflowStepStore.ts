@@ -313,7 +313,7 @@ export const useWorkflowStepStore = (workflowId: string) => {
                                 outputLink.output_name === connection.output.name)
                         );
                     } else {
-                        Vue.delete(inputStep.input_connections, connection.input.name);
+                        delete inputStep.input_connections[connection.input.name];
                     }
                 }
                 this.updateStep(inputStep);
@@ -323,8 +323,8 @@ export const useWorkflowStepStore = (workflowId: string) => {
                 connectionStore
                     .getConnectionsForStep(stepId)
                     .forEach((connection) => connectionStore.removeConnection(getConnectionId(connection)));
-                Vue.delete(this.steps, stepId.toString());
-                Vue.delete(this.stepExtraInputs, stepId);
+                delete this.steps[stepId.toString()];
+                delete this.stepExtraInputs[stepId];
             },
         },
     })();

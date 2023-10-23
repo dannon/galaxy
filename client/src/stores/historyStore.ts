@@ -179,7 +179,7 @@ export const useHistoryStore = defineStore("historyStore", () => {
         } else {
             await createNewHistory();
         }
-        Vue.delete(storedHistories.value, deletedHistory.id);
+        delete storedHistories.value[deletedHistory.id];
         await handleTotalCountChange(1, true);
     }
 
