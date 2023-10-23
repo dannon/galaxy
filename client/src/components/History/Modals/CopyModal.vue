@@ -33,14 +33,14 @@
             </b-form>
         </transition>
 
-        <div slot="modal-footer" slot-scope="{ ok, cancel }">
+        <template v-slot:modal-footer="{ ok, cancel }">
             <div>
                 <b-button class="mr-3" @click="cancel()"> Cancel </b-button>
                 <b-button :variant="saveVariant" :disabled="loading || !formValid" @click="copy(ok)">
                     {{ saveTitle }}
                 </b-button>
             </div>
-        </div>
+        </template>
     </b-modal>
 </template>
 
