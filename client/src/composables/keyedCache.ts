@@ -1,5 +1,5 @@
 import { type MaybeRefOrGetter, toValue } from "@vueuse/core";
-import { computed, del, type Ref, ref, set, unref } from "vue";
+import { computed, type Ref, ref, set, unref } from "vue";
 
 /**
  * Parameters for fetching an item from the server.
@@ -90,7 +90,7 @@ export function useKeyedCache<T>(
         } catch (error) {
             set(loadingErrors.value, itemId, error);
         } finally {
-            del(loadingItem.value, itemId);
+            delete loadingItem.value[itemId];
         }
     }
 

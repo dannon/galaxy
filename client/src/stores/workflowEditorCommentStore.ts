@@ -1,4 +1,4 @@
-import { computed, del, ref, set } from "vue";
+import { computed, ref, set } from "vue";
 
 import { type Color } from "@/components/Workflow/Editor/Comments/colors";
 import {
@@ -200,8 +200,8 @@ export const useWorkflowCommentStore = defineScopedStore("workflowCommentStore",
     }
 
     function deleteComment(id: number) {
-        del(commentsRecord.value, id);
-        del(localCommentsMetadata.value, id);
+        delete commentsRecord.value[id];
+        delete localCommentsMetadata.value[id];
     }
 
     /**
@@ -222,7 +222,7 @@ export const useWorkflowCommentStore = defineScopedStore("workflowCommentStore",
         const metadata = localCommentsMetadata.value[id];
 
         if (metadata) {
-            del(metadata, "justCreated");
+            delete metadata["justCreated"];
         }
     }
 

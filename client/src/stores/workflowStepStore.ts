@@ -1,4 +1,4 @@
-import { computed, del, ref, set } from "vue";
+import { computed, ref, set } from "vue";
 
 import { type CollectionTypeDescriptor } from "@/components/Workflow/Editor/modules/collectionTypeDescription";
 import { type Connection, getConnectionId, useConnectionStore } from "@/stores/workflowConnectionStore";
@@ -350,7 +350,7 @@ export const useWorkflowStepStore = defineScopedStore("workflowStepStore", (work
                         !(outputLink.id === connection.output.stepId, outputLink.output_name === connection.output.name)
                 );
             } else {
-                del(inputStep.input_connections, connection.input.name);
+                delete inputStep.input_connections[connection.input.name];
             }
         }
 
@@ -364,10 +364,10 @@ export const useWorkflowStepStore = defineScopedStore("workflowStepStore", (work
             .getConnectionsForStep(stepId)
             .forEach((connection) => connectionStore.removeConnection(getConnectionId(connection)));
 
-        del(steps.value, stepId.toString());
-        del(stepExtraInputs.value, stepId);
-        del(stateStore.multiSelectedSteps, stepId);
-        del(stepMapOver.value, stepId.toString());
+        delete steps.value[stepId.toString()];
+        delete stepExtraInputs.value[stepId];
+        delete stateStore.multiSelectedSteps[stepId];
+        delete stepMapOver.value[stepId.toString()];
 
         deleteStepPosition(stepId);
         deleteStepTerminals(stepId);

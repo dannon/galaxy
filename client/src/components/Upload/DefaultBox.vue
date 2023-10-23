@@ -208,7 +208,7 @@ function eventRemove(index) {
     } else {
         counterAnnounce.value--;
     }
-    Vue.delete(uploadItems.value, index);
+    delete uploadItems.value[index];
     queue.value.remove(index);
 }
 

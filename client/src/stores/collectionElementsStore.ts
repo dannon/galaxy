@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { computed, del, ref, set } from "vue";
+import { computed, ref, set } from "vue";
 
 import { type CollectionEntry, type DCESummary, type HDCASummary, type HistoryContentItemBase, isHDCA } from "@/api";
 import { fetchCollectionDetails, fetchElementsFromCollection } from "@/api/datasetCollections";
@@ -115,7 +115,7 @@ export const useCollectionElementsStore = defineStore("collectionElementsStore",
         } catch (error) {
             set(loadingCollectionElementsErrors.value, collectionKey, error);
         } finally {
-            del(loadingCollectionElements.value, collectionKey);
+            delete loadingCollectionElements.value[collectionKey];
         }
     }
 
@@ -187,7 +187,7 @@ export const useCollectionElementsStore = defineStore("collectionElementsStore",
         } catch (error) {
             set(loadingCollectionElementsErrors.value, params.id, error);
         } finally {
-            del(loadingCollectionElements.value, params.id);
+            delete loadingCollectionElements.value[params.id];
         }
     }
 
