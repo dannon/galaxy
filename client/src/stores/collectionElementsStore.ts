@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { computed, del, ref, set } from "vue";
+import { computed, ref } from "vue";
 
 import type { CollectionEntry, DCESummary, HDCASummary, HistoryContentItemBase } from "@/api";
 import { isHDCA } from "@/api";
@@ -80,7 +80,7 @@ export const useCollectionElementsStore = defineStore("collectionElementsStore",
             // Adjust the offset to the first missing element
             params.offset += firstMissingIndexInRange;
 
-            set(loadingCollectionElements.value, collectionKey, true);
+            loadingCollectionElements.value[collectionKey] = true;
             // Mark all elements in the range as fetching
             params.storedElements
                 .slice(params.offset, params.offset + params.limit)
@@ -92,15 +92,15 @@ export const useCollectionElementsStore = defineStore("collectionElementsStore",
             });
             // Update only the elements that were fetched
             params.storedElements.splice(params.offset, fetchedElements.length, ...fetchedElements);
-            set(storedCollectionElements.value, collectionKey, params.storedElements);
+            storedCollectionElements.value[collectionKey] = params.storedElements;
         } finally {
-            del(loadingCollectionElements.value, collectionKey);
+            delete loadingCollectionElements.value[collectionKey];
         }
     }
 
     async function loadCollectionElements(collection: CollectionEntry) {
         const elements = await fetchElementsFromCollection({ entry: collection });
-        set(storedCollectionElements.value, getCollectionKey(collection), elements);
+        storedCollectionElements.value[getCollectionKey(collection)] = elements;
     }
 
     function saveCollections(historyContentsPayload: HistoryContentItemBase[]) {
@@ -108,7 +108,7 @@ export const useCollectionElementsStore = defineStore("collectionElementsStore",
             (entry) => entry.history_content_type === "dataset_collection"
         ) as HDCASummary[];
         for (const collection of collectionsInHistory) {
-            set<HDCASummary>(storedCollections.value, collection.id, collection);
+            storedCollections.value[collection.id] = collection;
         }
     }
 
@@ -121,13 +121,13 @@ export const useCollectionElementsStore = defineStore("collectionElementsStore",
     }
 
     async function fetchCollection(params: { id: string }) {
-        set(loadingCollectionElements.value, params.id, true);
+        loadingCollectionElements.value[params.id] = true;
         try {
             const collection = await fetchCollectionDetails({ id: params.id });
-            set(storedCollections.value, collection.id, collection);
+            storedCollections.value[collection.id] = collection;
             return collection;
         } finally {
-            del(loadingCollectionElements.value, params.id);
+            delete loadingCollectionElements.value[params.id];
         }
     }
 

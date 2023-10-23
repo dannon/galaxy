@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { computed, del, ref, set } from "vue";
+import { computed, ref } from "vue";
 
 import type { DatasetCollectionAttributes } from "@/api";
 import { fetchCollectionAttributes } from "@/api/datasetCollections";
@@ -11,7 +11,7 @@ export const useCollectionAttributesStore = defineStore("collectionAttributesSto
     const getAttributes = computed(() => {
         return (hdcaId: string) => {
             if (!storedAttributes.value[hdcaId]) {
-                set(storedAttributes.value, hdcaId, {});
+                storedAttributes.value[hdcaId] = {};
                 fetchAttributes({ hdcaId });
             }
             return storedAttributes.value[hdcaId];
@@ -25,13 +25,13 @@ export const useCollectionAttributesStore = defineStore("collectionAttributesSto
     });
 
     async function fetchAttributes(params: { hdcaId: string }) {
-        set(loadingAttributes.value, params.hdcaId, true);
+        loadingAttributes.value[params.hdcaId] = true;
         try {
             const attributes = await fetchCollectionAttributes(params);
-            set(storedAttributes.value, params.hdcaId, attributes);
+            storedAttributes.value[params.hdcaId] = attributes;
             return attributes;
         } finally {
-            del(loadingAttributes.value, params.hdcaId);
+            delete loadingAttributes.value[params.hdcaId];
         }
     }
 
