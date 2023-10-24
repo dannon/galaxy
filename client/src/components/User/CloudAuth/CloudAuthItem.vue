@@ -42,7 +42,7 @@
         <!-- eslint-disable vue/no-mutating-props-->
         <CredentialForm
             v-if="expanded"
-            v-model="credential"
+            :value="credential"
             class="border-top"
             @click.self="expand()"
             @save="$emit('save', credential)"
