@@ -254,7 +254,7 @@ function toggleContextMenu(evt: MouseEvent) {
     transition: all 0.3s;
 }
 
-.panels-enter,
+.panels-enter-from,
 .panels-leave-to {
     transform: translateX(-100%);
 }

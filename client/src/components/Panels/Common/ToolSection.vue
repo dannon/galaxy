@@ -248,12 +248,12 @@ function toggleMenu(nextState = !opened.value) {
 }
 
 .slide-enter-to,
-.slide-leave {
+.slide-leave-from {
     max-height: 100px;
     overflow: hidden;
 }
 
-.slide-enter,
+.slide-enter-from,
 .slide-leave-to {
     overflow: hidden;
     max-height: 0;
