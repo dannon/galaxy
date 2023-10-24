@@ -3,9 +3,9 @@
         <!-- todo: rewrite this to send events up instead of two way prop binding -->
         <!-- eslint-disable vue/no-mutating-props-->
         <b-table
-            v-model:busy="isBusy"
             small
             hover
+            :busy="isBusy"
             :items="items"
             :fields="fields"
             :filter="filter"
