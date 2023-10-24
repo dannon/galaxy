@@ -87,7 +87,7 @@ const baseRules = {
 const baseExtends = [
     "eslint:recommended",
     "plugin:compat/recommended",
-    "plugin:vue/recommended",
+    "plugin:vue/vue3-recommended",
     "plugin:vuejs-accessibility/recommended",
 ];
 
