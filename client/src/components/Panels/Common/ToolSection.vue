@@ -175,14 +175,10 @@ function toggleMenu(nextState = !opened.value) {
         </div>
         <transition name="slide">
             <div v-if="opened" data-description="opened tool panel section">
-                <template v-for="[key, el] in sortedElements">
-                    <ToolPanelLabel
-                        v-if="category.text || el.model_class === 'ToolSectionLabel'"
-                        :key="key"
-                        :definition="el" />
+                <template v-for="[key, el] in sortedElements" :key="key">
+                    <ToolPanelLabel v-if="category.text || el.model_class === 'ToolSectionLabel'" :definition="el" />
                     <Tool
                         v-else
-                        :key="key"
                         class="ml-2"
                         :tool="el"
                         :tool-key="toolKey"
