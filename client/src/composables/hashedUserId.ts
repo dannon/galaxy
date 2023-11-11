@@ -2,7 +2,7 @@ import { useLocalStorage } from "@vueuse/core";
 import { storeToRefs } from "pinia";
 import { computed, type Ref, ref, watch } from "vue";
 
-import { type AnyUser } from "@/api";
+import { type AnyUser, type RegisteredUser } from "@/api";
 import { useUserStore } from "@/stores/userStore";
 
 async function hash32(value: string): Promise<string> {
@@ -49,7 +49,7 @@ export function useHashedUserId(user?: Ref<AnyUser>) {
         () => currentUser.value,
         () => {
             if (currentUser.value && !currentUser.value.isAnonymous) {
-                hashUserId(currentUser.value.id + localStorageSalt.value);
+                hashUserId((currentUser.value as RegisteredUser).id + localStorageSalt.value);
             }
         },
         {
