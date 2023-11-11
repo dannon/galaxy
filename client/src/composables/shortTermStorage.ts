@@ -1,7 +1,7 @@
 import { readonly, ref } from "vue";
 
 import { fetcher } from "@/api/schema";
-import { ExportParams, StoreExportPayload } from "@/components/Common/models/exportRecordModel";
+import { type ExportParams, type StoreExportPayload } from "@/components/Common/models/exportRecordModel";
 import { withPrefix } from "@/utils/redirect";
 
 export const DEFAULT_EXPORT_PARAMS: ExportParams = {

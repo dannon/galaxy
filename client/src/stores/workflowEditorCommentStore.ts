@@ -10,14 +10,14 @@ import {
     vecMin,
     vecReduceFigures,
     vecSubtract,
-    Vector,
+    type Vector,
 } from "@/components/Workflow/Editor/modules/geometry";
 import { assertDefined } from "@/utils/assertions";
 import { hasKeys, match } from "@/utils/utils";
 
 import { useScopePointerStore } from "./scopePointerStore";
 import { useWorkflowStateStore } from "./workflowEditorStateStore";
-import { Step, useWorkflowStepStore } from "./workflowStepStore";
+import { type Step, useWorkflowStepStore } from "./workflowStepStore";
 
 export type WorkflowCommentColor = Color | "none";
 

@@ -6,12 +6,12 @@ import { BAlert, BButton } from "bootstrap-vue";
 import { computed, onMounted, ref } from "vue";
 
 import {
-    BrowsableFilesSourcePlugin,
+    type BrowsableFilesSourcePlugin,
     browseRemoteFiles,
-    FileSourceBrowsingMode,
-    FilterFileSourcesOptions,
+    type FileSourceBrowsingMode,
+    type FilterFileSourcesOptions,
     getFileSources,
-    RemoteEntry,
+    type RemoteEntry,
 } from "@/api/remoteFiles";
 import { UrlTracker } from "@/components/DataDialog/utilities";
 import { isSubPath } from "@/components/FilesDialog/utilities";
@@ -19,7 +19,7 @@ import { selectionStates } from "@/components/SelectionDialog/selectionStates";
 import { useConfig } from "@/composables/config";
 import { errorMessageAsString } from "@/utils/simple-error";
 
-import { DirectoryRecord, Model, RecordItem } from "./model";
+import { type DirectoryRecord, Model, type RecordItem } from "./model";
 
 import DataDialogSearch from "@/components/SelectionDialog/DataDialogSearch.vue";
 import DataDialogTable from "@/components/SelectionDialog/DataDialogTable.vue";

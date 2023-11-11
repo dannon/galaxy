@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, type PropType, ref, watch } from "vue";
 
-import { ValidFilter } from "@/utils/filtering";
+import { type ValidFilter } from "@/utils/filtering";
 
 import StatelessTags from "@/components/TagsMultiselect/StatelessTags.vue";
 

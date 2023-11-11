@@ -19,7 +19,7 @@ import { type components } from "@/api/schema";
 import { useConfirmDialog } from "@/composables/confirmDialog";
 import { useMarkdown } from "@/composables/markdown";
 import { Toast } from "@/composables/toast";
-import { BroadcastNotification } from "@/stores/broadcastsStore";
+import { type BroadcastNotification } from "@/stores/broadcastsStore";
 
 import Heading from "@/components/Common/Heading.vue";
 import LoadingSpan from "@/components/LoadingSpan.vue";

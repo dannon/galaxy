@@ -8,7 +8,7 @@ import { computed, ref, watch } from "vue";
 import {
     getNotificationsPreferencesFromServer,
     updateNotificationsPreferencesOnServer,
-    UserNotificationPreferences,
+    type UserNotificationPreferences,
 } from "@/api/notifications.preferences";
 import { useConfig } from "@/composables/config";
 import { Toast } from "@/composables/toast";

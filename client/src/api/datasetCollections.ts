@@ -1,4 +1,10 @@
-import { CollectionEntry, DatasetCollectionAttributes, DCESummary, HDCADetailed, isHDCA } from "@/api";
+import {
+    type CollectionEntry,
+    type DatasetCollectionAttributes,
+    type DCESummary,
+    type HDCADetailed,
+    isHDCA,
+} from "@/api";
 import { fetcher } from "@/api/schema";
 
 const DEFAULT_LIMIT = 50;

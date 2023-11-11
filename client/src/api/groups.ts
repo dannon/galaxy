@@ -1,6 +1,6 @@
 import axios from "axios";
 
-import { components } from "@/api/schema";
+import type { components } from "@/api/schema";
 
 type GroupModel = components["schemas"]["GroupModel"];
 export async function getAllGroups(): Promise<GroupModel[]> {

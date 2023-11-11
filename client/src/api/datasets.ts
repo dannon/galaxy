@@ -1,6 +1,6 @@
 import type { FetchArgType } from "openapi-typescript-fetch";
 
-import { DatasetDetails } from "@/api";
+import type { DatasetDetails } from "@/api";
 import { fetcher } from "@/api/schema";
 import { withPrefix } from "@/utils/redirect";
 

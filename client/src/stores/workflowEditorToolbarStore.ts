@@ -5,7 +5,7 @@ import { computed, onScopeDispose, reactive, ref, watch } from "vue";
 import { useUserLocalStorage } from "@/composables/userLocalStorage";
 
 import { useScopePointerStore } from "./scopePointerStore";
-import { WorkflowCommentColor } from "./workflowEditorCommentStore";
+import { type WorkflowCommentColor } from "./workflowEditorCommentStore";
 
 export type CommentTool = "textComment" | "markdownComment" | "frameComment" | "freehandComment" | "freehandEraser";
 export type EditorTool = "pointer" | CommentTool;

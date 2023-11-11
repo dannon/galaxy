@@ -1,6 +1,6 @@
 import { onMounted, readonly, ref } from "vue";
 
-import { BrowsableFilesSourcePlugin, FilterFileSourcesOptions, getFileSources } from "@/api/remoteFiles";
+import { type BrowsableFilesSourcePlugin, type FilterFileSourcesOptions, getFileSources } from "@/api/remoteFiles";
 
 /**
  * Composable for accessing and working with file sources.
