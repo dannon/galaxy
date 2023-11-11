@@ -182,7 +182,6 @@ class Terminal extends EventEmitter {
 class BaseInputTerminal extends Terminal {
     datatypes: InputTerminalInputs["datatypes"];
     optional: InputTerminalInputs["optional"];
-    localMapOver: CollectionTypeDescriptor;
 
     constructor(attr: InputTerminalArgs) {
         super(attr);
@@ -436,7 +435,6 @@ interface InvalidInputTerminalArgs extends InputTerminalArgs {
 
 export class InvalidInputTerminal extends BaseInputTerminal {
     valid: false;
-    localMapOver: CollectionTypeDescriptor;
 
     constructor(attr: InvalidInputTerminalArgs) {
         super(attr);
