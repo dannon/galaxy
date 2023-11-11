@@ -1,133 +1,10 @@
-<template>
-    <DraggableWrapper
-        :id="idString"
-        ref="el"
-        class="workflow-node card"
-        :scale="scale"
-        :root-offset="rootOffset"
-        :name="name"
-        :node-label="title"
-        :class="classes"
-        :style="style"
-        :disabled="readonly"
-        @move="onMoveTo"
-        @pan-by="onPanBy">
-        <div
-            class="node-header unselectable clearfix card-header py-1 px-2"
-            @click="makeActive"
-            @keyup.enter="makeActive">
-            <b-button-group class="float-right">
-                <LoadingSpan v-if="isLoading" spinner-only />
-                <b-button
-                    v-if="canClone && !readonly"
-                    v-b-tooltip.hover
-                    class="node-clone py-0"
-                    variant="primary"
-                    size="sm"
-                    aria-label="clone node"
-                    title="Duplicate"
-                    @click.prevent.stop="onClone">
-                    <i class="fa fa-files-o" />
-                </b-button>
-                <b-button
-                    v-if="!readonly"
-                    v-b-tooltip.hover
-                    class="node-destroy py-0"
-                    variant="primary"
-                    size="sm"
-                    aria-label="destroy node"
-                    title="Remove"
-                    @click.prevent.stop="remove">
-                    <i class="fa fa-times" />
-                </b-button>
-                <b-button
-                    v-if="isEnabled && !readonly"
-                    :id="popoverId"
-                    class="node-recommendations py-0"
-                    variant="primary"
-                    size="sm"
-                    aria-label="tool recommendations">
-                    <i class="fa fa-arrow-right" />
-                </b-button>
-                <b-popover
-                    v-if="isEnabled && !readonly"
-                    v-model:show="popoverShow"
-                    :target="popoverId"
-                    triggers="hover"
-                    placement="bottom">
-                    <div>
-                        <Recommendations
-                            v-if="popoverShow"
-                            :step-id="id"
-                            :datatypes-mapper="datatypesMapper"
-                            @onCreate="onCreate" />
-                    </div>
-                </b-popover>
-            </b-button-group>
-            <i :class="iconClass" />
-            <span v-if="step.when" v-b-tooltip.hover title="This step is conditionally executed.">
-                <FontAwesomeIcon icon="fa-code-branch" />
-            </span>
-            <span
-                v-b-tooltip.hover
-                title="Index of the step in the workflow run form. Steps are ordered by distance to the upper-left corner of the window; inputs are listed first."
-                >{{ step.id + 1 }}:
-            </span>
-            <span class="node-title">{{ title }}</span>
-        </div>
-        <b-alert
-            v-if="!!errors"
-            variant="danger"
-            show
-            class="node-error m-0 rounded-0 rounded-bottom"
-            @click="makeActive">
-            {{ errors }}
-        </b-alert>
-        <div v-else class="node-body card-body p-0 mx-2" @click="makeActive" @keyup.enter="makeActive">
-            <NodeInput
-                v-for="(input, index) in inputs"
-                :key="`in-${index}-${input.name}`"
-                :input="input"
-                :step-id="id"
-                :datatypes-mapper="datatypesMapper"
-                :step-position="step.position ?? { top: 0, left: 0 }"
-                :root-offset="rootOffset"
-                :scroll="scroll"
-                :scale="scale"
-                :parent-node="elHtml"
-                :readonly="readonly"
-                @onChange="onChange" />
-            <div v-if="showRule" class="rule" />
-            <NodeOutput
-                v-for="(output, index) in outputs"
-                :key="`out-${index}-${output.name}`"
-                :output="output"
-                :workflow-outputs="workflowOutputs"
-                :post-job-actions="postJobActions"
-                :step-id="id"
-                :step-type="step.type"
-                :step-position="step.position ?? { top: 0, left: 0 }"
-                :root-offset="reactive(rootOffset)"
-                :scroll="scroll"
-                :scale="scale"
-                :datatypes-mapper="datatypesMapper"
-                :parent-node="elHtml"
-                :readonly="readonly"
-                @onDragConnector="onDragConnector"
-                @stopDragging="onStopDragging"
-                @onChange="onChange" />
-        </div>
-    </DraggableWrapper>
-</template>
-
 <script setup lang="ts">
 import { library } from "@fortawesome/fontawesome-svg-core";
 import { faCodeBranch } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import type { UseElementBoundingReturn, UseScrollReturn, VueInstance } from "@vueuse/core";
-import BootstrapVue from "bootstrap-vue";
 import type { PropType, Ref } from "vue";
-import Vue, { computed, reactive, ref } from "vue";
+import { computed, reactive, ref } from "vue";
 
 import { getGalaxyInstance } from "@/app";
 import { DatatypesMapperModel } from "@/components/Datatypes/model";
@@ -144,8 +21,6 @@ import DraggableWrapper from "@/components/Workflow/Editor/DraggablePan.vue";
 import NodeInput from "@/components/Workflow/Editor/NodeInput.vue";
 import NodeOutput from "@/components/Workflow/Editor/NodeOutput.vue";
 import Recommendations from "@/components/Workflow/Editor/Recommendations.vue";
-
-Vue.use(BootstrapVue);
 
 library.add(faCodeBranch);
 
@@ -288,6 +163,128 @@ function makeActive() {
     emit("onActivate", props.id);
 }
 </script>
+
+<template>
+    <DraggableWrapper
+        :id="idString"
+        ref="el"
+        class="workflow-node card"
+        :scale="scale"
+        :root-offset="rootOffset"
+        :name="name"
+        :node-label="title"
+        :class="classes"
+        :style="style"
+        :disabled="readonly"
+        @move="onMoveTo"
+        @pan-by="onPanBy">
+        <div
+            class="node-header unselectable clearfix card-header py-1 px-2"
+            @click="makeActive"
+            @keyup.enter="makeActive">
+            <b-button-group class="float-right">
+                <LoadingSpan v-if="isLoading" spinner-only />
+                <b-button
+                    v-if="canClone && !readonly"
+                    v-b-tooltip.hover
+                    class="node-clone py-0"
+                    variant="primary"
+                    size="sm"
+                    aria-label="clone node"
+                    title="Duplicate"
+                    @click.prevent.stop="onClone">
+                    <i class="fa fa-files-o" />
+                </b-button>
+                <b-button
+                    v-if="!readonly"
+                    v-b-tooltip.hover
+                    class="node-destroy py-0"
+                    variant="primary"
+                    size="sm"
+                    aria-label="destroy node"
+                    title="Remove"
+                    @click.prevent.stop="remove">
+                    <i class="fa fa-times" />
+                </b-button>
+                <b-button
+                    v-if="isEnabled && !readonly"
+                    :id="popoverId"
+                    class="node-recommendations py-0"
+                    variant="primary"
+                    size="sm"
+                    aria-label="tool recommendations">
+                    <i class="fa fa-arrow-right" />
+                </b-button>
+                <b-popover
+                    v-if="isEnabled && !readonly"
+                    v-model:show="popoverShow"
+                    :target="popoverId"
+                    triggers="hover"
+                    placement="bottom">
+                    <div>
+                        <Recommendations
+                            v-if="popoverShow"
+                            :step-id="id"
+                            :datatypes-mapper="datatypesMapper"
+                            @onCreate="onCreate" />
+                    </div>
+                </b-popover>
+            </b-button-group>
+            <i :class="iconClass" />
+            <span v-if="step.when" v-b-tooltip.hover title="This step is conditionally executed.">
+                <FontAwesomeIcon icon="fa-code-branch" />
+            </span>
+            <span
+                v-b-tooltip.hover
+                title="Index of the step in the workflow run form. Steps are ordered by distance to the upper-left corner of the window; inputs are listed first."
+                >{{ step.id + 1 }}:
+            </span>
+            <span class="node-title">{{ title }}</span>
+        </div>
+        <b-alert
+            v-if="!!errors"
+            variant="danger"
+            show
+            class="node-error m-0 rounded-0 rounded-bottom"
+            @click="makeActive">
+            {{ errors }}
+        </b-alert>
+        <div v-else class="node-body card-body p-0 mx-2" @click="makeActive" @keyup.enter="makeActive">
+            <NodeInput
+                v-for="(input, index) in inputs"
+                :key="`in-${index}-${input.name}`"
+                :input="input"
+                :step-id="id"
+                :datatypes-mapper="datatypesMapper"
+                :step-position="step.position ?? { top: 0, left: 0 }"
+                :root-offset="rootOffset"
+                :scroll="scroll"
+                :scale="scale"
+                :parent-node="elHtml"
+                :readonly="readonly"
+                @onChange="onChange" />
+            <div v-if="showRule" class="rule" />
+            <NodeOutput
+                v-for="(output, index) in outputs"
+                :key="`out-${index}-${output.name}`"
+                :output="output"
+                :workflow-outputs="workflowOutputs"
+                :post-job-actions="postJobActions"
+                :step-id="id"
+                :step-type="step.type"
+                :step-position="step.position ?? { top: 0, left: 0 }"
+                :root-offset="reactive(rootOffset)"
+                :scroll="scroll"
+                :scale="scale"
+                :datatypes-mapper="datatypesMapper"
+                :parent-node="elHtml"
+                :readonly="readonly"
+                @onDragConnector="onDragConnector"
+                @stopDragging="onStopDragging"
+                @onChange="onChange" />
+        </div>
+    </DraggableWrapper>
+</template>
 
 <style scoped lang="scss">
 @import "theme/blue.scss";
