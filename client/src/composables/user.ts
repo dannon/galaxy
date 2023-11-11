@@ -1,7 +1,7 @@
 import { storeToRefs } from "pinia";
 import { computed, ref } from "vue";
 
-import { useUserStore } from "@/stores/userStore";
+import { isUser, useUserStore } from "@/stores/userStore";
 
 export function useCurrentTheme() {
     const userStore = useUserStore();
@@ -25,7 +25,7 @@ export function useUserTags() {
     const { currentUser } = storeToRefs(useUserStore());
     const userTags = computed(() => {
         let tags: string[];
-        if (currentUser.value && !currentUser.value.isAnonymous) {
+        if (isUser(currentUser.value)) {
             tags = [...currentUser.value.tags_used, ...localTags.value];
         } else {
             tags = localTags.value;
