@@ -124,7 +124,7 @@ export const useUserStore = defineStore("userStore", () => {
 
     function setFavoriteTools(tools: string[]) {
         if (currentPreferences.value) {
-            currentPreferences.value.favorites.tools = tools;
+            currentPreferences.value.favorites.tools = tools ?? [];
         }
     }
 
