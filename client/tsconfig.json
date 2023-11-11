@@ -1,5 +1,5 @@
 {
-    "extends": "@vue/tsconfig/tsconfig.dom.json",
+    "extends": "@vue/tsconfig/tsconfig.json",
     "compilerOptions": {
         "target": "es2016",
         "module": "es2020",
