@@ -75,8 +75,9 @@ watch(
 );
 
 function renderBarChart() {
-    chartBars.value = drawChart();
-    legendEntries.value = createLegend();
+    // TODO: Fix these types correctly, this is a quick hack
+    chartBars.value = drawChart() as any;
+    legendEntries.value = createLegend() as any;
     setupEvents();
 }
 
@@ -118,7 +119,7 @@ function drawChart() {
     const yScale = d3
         .scaleLinear()
         .range([chartHeight - xAxisHeight, 0])
-        .domain([0, d3.max(data, (d) => d.value) || 0]);
+        .domain([0, d3.max(data, (d: DataValuePoint) => d.value) || 0]);
 
     const yAxis = d3
         .axisLeft<number>(yScale)
@@ -145,11 +146,11 @@ function drawChart() {
         .enter()
         .append("rect")
         .classed("bar", true)
-        .attr("x", (d) => xScale(d.id) || 0)
-        .attr("y", (d) => yScale(d.value) - xAxisHeight)
+        .attr("x", (d: DataValuePoint) => xScale(d.id) || 0)
+        .attr("y", (d: DataValuePoint) => yScale(d.value) - xAxisHeight)
         .attr("width", xScale.bandwidth())
-        .attr("height", (d) => chartHeight - yScale(d.value))
-        .attr("fill", (d) => entryColor(d));
+        .attr("height", (d: DataValuePoint) => chartHeight - yScale(d.value))
+        .attr("fill", (d: DataValuePoint) => entryColor(d));
 
     return bars;
 }
@@ -181,7 +182,7 @@ function createLegend() {
         .append("circle")
         .attr("cx", entryRadius)
         .attr("r", entryRadius)
-        .attr("fill", (d) => entryColor(d));
+        .attr("fill", (d: DataValuePoint) => entryColor(d));
 
     entries
         .append("text")
