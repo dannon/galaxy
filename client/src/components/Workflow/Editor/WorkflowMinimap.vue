@@ -57,7 +57,7 @@ let canvasTransform = new Transform();
 function recalculateAABB() {
     aabb.reset();
 
-    Object.values(props.steps).forEach((step) => {
+    Object.values(props.steps).forEach((step: Step) => {
         const rect = stateStore.stepPosition[step.id];
 
         if (rect) {
@@ -187,7 +187,7 @@ function renderMinimap() {
     const errorSteps: Step[] = [];
     let selectedStep: Step | undefined;
 
-    allSteps.forEach((step) => {
+    allSteps.forEach((step: Step) => {
         if (stateStore.activeNodeId === step.id) {
             selectedStep = step;
         }
