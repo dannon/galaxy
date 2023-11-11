@@ -23,6 +23,13 @@ interface Preferences {
 
 type ListViewMode = "grid" | "list";
 
+/**
+ * Check if genericUser or null is a real user.
+ */
+export function isUser(user: AnyUser | null): user is RegisteredUser {
+    return user !== null && !user.isAnonymous;
+}
+
 export const useUserStore = defineStore("userStore", () => {
     const currentUser = ref<AnyUser>(null);
     const currentPreferences = ref<Preferences | null>(null);
@@ -98,28 +105,25 @@ export const useUserStore = defineStore("userStore", () => {
     }
 
     async function setCurrentTheme(theme: string) {
-        if (!currentUser.value || currentUser.value.isAnonymous) {
-            return;
-        }
-        const currentTheme = await setCurrentThemeQuery(currentUser.value.id, theme);
-        if (currentPreferences.value) {
-            currentPreferences.value.theme = currentTheme;
+        if (isUser(currentUser.value)) {
+            const currentTheme = await setCurrentThemeQuery(currentUser.value.id, theme);
+            if (currentPreferences.value) {
+                currentPreferences.value.theme = currentTheme;
+            }
         }
     }
     async function addFavoriteTool(toolId: string) {
-        if (!currentUser.value || currentUser.value.isAnonymous) {
-            return;
+        if (isUser(currentUser.value)) {
+            const tools = await addFavoriteToolQuery(currentUser.value.id, toolId);
+            setFavoriteTools(tools);
         }
-        const tools = await addFavoriteToolQuery(currentUser.value.id, toolId);
-        setFavoriteTools(tools);
     }
 
     async function removeFavoriteTool(toolId: string) {
-        if (!currentUser.value || currentUser.value.isAnonymous) {
-            return;
+        if (isUser(currentUser.value)) {
+            const tools = await removeFavoriteToolQuery(currentUser.value.id, toolId);
+            setFavoriteTools(tools);
         }
-        const tools = await removeFavoriteToolQuery(currentUser.value.id, toolId);
-        setFavoriteTools(tools);
     }
 
     function setFavoriteTools(tools: string[]) {
