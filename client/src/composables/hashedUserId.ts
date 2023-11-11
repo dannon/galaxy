@@ -2,7 +2,7 @@ import { useLocalStorage } from "@vueuse/core";
 import { storeToRefs } from "pinia";
 import { computed, type Ref, ref, watch } from "vue";
 
-import { type GenericUser, useUserStore } from "@/stores/userStore";
+import { type GenericUser, type User, useUserStore } from "@/stores/userStore";
 
 async function hash32(value: string): Promise<string> {
     const valueUtf8 = new TextEncoder().encode(value);
@@ -48,7 +48,7 @@ export function useHashedUserId(user?: Ref<GenericUser | null>) {
         () => currentUser.value,
         () => {
             if (currentUser.value && !currentUser.value.isAnonymous) {
-                hashUserId(currentUser.value.id + localStorageSalt.value);
+                hashUserId((currentUser.value as User).id + localStorageSalt.value);
             }
         },
         {
