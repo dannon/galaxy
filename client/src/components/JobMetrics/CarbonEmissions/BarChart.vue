@@ -2,8 +2,13 @@
 import * as d3 from "d3";
 import { onMounted, ref, watch } from "vue";
 
+interface ChartData {
+    name: string;
+    value: number;
+}
+
 const props = defineProps<{
-    data: { name: string; value: number }[];
+    data: ChartData[];
 }>();
 
 const barChart = ref<HTMLDivElement | null>(null);
@@ -53,10 +58,10 @@ function drawChart() {
     svg.selectAll("bar")
         .data(data)
         .join("rect")
-        .attr("x", (d) => String(x(d.name)))
-        .attr("y", (d) => y(d.value))
+        .attr("x", (d: ChartData) => String(x(d.name)))
+        .attr("y", (d: ChartData) => y(d.value))
         .attr("width", x.bandwidth())
-        .attr("height", (d) => height - y(d.value))
+        .attr("height", (d: ChartData) => height - y(d.value))
         .attr("fill", "#41B883");
 }
 
