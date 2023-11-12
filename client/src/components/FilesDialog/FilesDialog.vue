@@ -40,6 +40,10 @@ interface FilesDialogProps {
     callback?: (files: any) => void;
 }
 
+type RecordItemWithVariant = RecordItem & {
+    _rowVariant?: string;
+};
+
 const props = withDefaults(defineProps<FilesDialogProps>(), {
     multiple: false,
     mode: "file",
@@ -56,7 +60,7 @@ const allSelected = ref(false);
 const selectedDirectories = ref<DirectoryRecord[]>([]);
 const errorMessage = ref<string>();
 const filter = ref();
-const items = ref<RecordItem[]>([]);
+const items = ref<RecordItemWithVariant[]>([]);
 const modalShow = ref(true);
 const optionsShow = ref(false);
 const undoShow = ref(false);
@@ -85,7 +89,7 @@ function clicked(record: RecordItem) {
         selectSingleRecord(record);
     } else {
         // you cannot select entire root directory
-        urlTracker.value.atRoot() ? open(record) : selectDirectoryRecursive(record);
+        urlTracker.value.atRoot() ? open(record) : selectDirectoryRecursive(record as DirectoryRecord);
     }
     formatRows();
 }
@@ -154,7 +158,7 @@ function selectDirectoryRecursive(record: DirectoryRecord) {
                     selectSingleRecord(subRecord, true);
                 } else {
                     // select subdirectory
-                    selectedDirectories.value.push(subRecord);
+                    selectedDirectories.value.push(subRecord as DirectoryRecord);
                 }
             });
             isBusy.value = false;
@@ -182,6 +186,7 @@ function formatRows() {
         else if (!item.isLeaf) {
             _rowVariant = getIcon(isDirectorySelected(item.id), item.url);
         }
+        // Add rowVariant or union
         item._rowVariant = _rowVariant;
     }
     allSelected.value = checkIfAllSelected();
@@ -208,12 +213,12 @@ function checkIfAllSelected(): boolean {
     return isAllSelected;
 }
 
-function open(record: DirectoryRecord) {
+function open(record: DirectoryRecord | RecordItem) {
     load(record);
 }
 
 /** Performs server request to retrieve data records **/
-function load(record?: DirectoryRecord) {
+function load(record?: DirectoryRecord | RecordItem) {
     currentDirectory.value = urlTracker.value.getUrl(record);
     showFTPHelper.value = record?.url === "gxftp://";
     filter.value = undefined;
@@ -305,10 +310,10 @@ function toggleSelectAll() {
     for (const item of items.value) {
         if (isUnselectAll) {
             if (selectionModel.value.exists(item.id) || selectionModel.value.pathExists(item.id)) {
-                item.isLeaf ? selectionModel.value.add(item) : selectDirectoryRecursive(item);
+                item.isLeaf ? selectionModel.value.add(item) : selectDirectoryRecursive(item as DirectoryRecord);
             }
         } else {
-            item.isLeaf ? selectionModel.value.add(item) : selectDirectoryRecursive(item);
+            item.isLeaf ? selectionModel.value.add(item) : selectDirectoryRecursive(item as DirectoryRecord);
         }
     }
 
