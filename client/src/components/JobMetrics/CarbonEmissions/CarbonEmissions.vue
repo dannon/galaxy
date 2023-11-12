@@ -2,10 +2,10 @@
 import { library } from "@fortawesome/fontawesome-svg-core";
 import { faQuestionCircle } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
-import type { GetComponentPropTypes } from "types/utilityTypes";
 import { computed, unref } from "vue";
 
 import * as carbonEmissionsConstants from "./carbonEmissionConstants.js";
+import type { IconName } from "./IconTypes";
 
 import BarChart from "./BarChart.vue";
 import CarbonEmissionsCard from "./CarbonEmissionCard.vue";
@@ -90,7 +90,7 @@ const carbonEmissionsComparisons = computed(() => {
         heading: string;
         explanation: string;
         value: string;
-        icon: GetComponentPropTypes<typeof CarbonEmissionsCard>["icon"];
+        icon: IconName;
     };
 
     const gasolineConsumed: CarbonComparison = {
