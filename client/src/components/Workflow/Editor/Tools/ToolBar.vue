@@ -120,11 +120,11 @@ whenever(ctrl_7!, () => (toolbarStore.currentTool = "freehandEraser"));
                     <FontAwesomeIcon icon="fa-mouse-pointer" size="lg" />
                 </BButton>
                 <BButton
+                    v-model:pressed="snapActive"
                     v-b-tooltip.hover.noninteractive.right
                     class="button"
                     data-tool="toggle_snap"
                     :title="snapButtonTitle"
-                    :pressed.sync="snapActive"
                     variant="outline-primary">
                     <FontAwesomeIcon icon="fa-magnet" size="lg" />
                 </BButton>
@@ -209,14 +209,14 @@ whenever(ctrl_7!, () => (toolbarStore.currentTool = "freehandEraser"));
             <div v-if="toolbarStore.currentTool === 'textComment'" class="option buttons">
                 <BButtonGroup>
                     <BButton
-                        :pressed.sync="commentOptions.bold"
+                        v-model:pressed="commentOptions.bold"
                         variant="outline-primary"
                         class="button font-weight-bold"
                         data-option="toggle-bold">
                         Bold
                     </BButton>
                     <BButton
-                        :pressed.sync="commentOptions.italic"
+                        v-model:pressed="commentOptions.italic"
                         variant="outline-primary"
                         class="button font-italic"
                         data-option="toggle-italic">
