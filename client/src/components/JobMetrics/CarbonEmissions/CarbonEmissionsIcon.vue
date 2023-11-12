@@ -12,10 +12,12 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 
+import type { IconName } from "./IconTypes";
+
 library.add(faBolt, faCar, faGasPump, faLightbulb, faMobile, faSmog, faTree, faTruck);
 
 const props = defineProps<{
-    icon: "bolt" | "car" | "gasPump" | "lightbulb" | "mobilePhone" | "smog" | "tree";
+    icon: IconName;
 }>();
 </script>
 
