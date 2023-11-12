@@ -19,16 +19,6 @@ interface StepPosition {
     left: number;
 }
 
-/*
-      "ChangeDatatypeActionout_file1": {
-        "action_type": "ChangeDatatypeAction",
-        "output_name": "out_file1",
-        "action_arguments": {
-          "newtype": "ab1"
-        }
-      }
-*/
-
 export interface PostJobAction {
     action_type: string;
     output_name: string;
