@@ -12,7 +12,7 @@ import { useRouter } from "vue-router/composables";
 
 import type { HistoryDetailed, HistorySummary } from "@/api";
 import { useHistoryStore } from "@/stores/historyStore";
-import { useUserStore } from "@/stores/userStore";
+import { isUser, useUserStore } from "@/stores/userStore";
 import Filtering, { compare, contains, expandNameTag, toDate } from "@/utils/filtering";
 import localize from "@/utils/localization";
 
@@ -118,9 +118,13 @@ const historiesProxy: Ref<HistorySummary[]> = ref([]);
 watch(
     () => props.histories as HistoryDetailed[],
     (h: HistoryDetailed[]) => {
-        historiesProxy.value = h.filter(
-            (h) => !h.user_id || (!currentUser.value?.isAnonymous && h.user_id === currentUser.value?.id)
-        );
+        historiesProxy.value = h.filter((history) => {
+            if (history.user_id && isUser(currentUser.value)) {
+                return history.user_id === currentUser.value.id;
+            } else {
+                return false;
+            }
+        });
     },
     {
         immediate: true,

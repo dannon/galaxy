@@ -5,7 +5,7 @@ import { computed, onMounted, ref, watch } from "vue";
 import { fetchQuotaUsages, recalculateDiskUsage } from "@/api/users";
 import { useConfig } from "@/composables/config";
 import { useTaskMonitor } from "@/composables/taskMonitor";
-import { useUserStore } from "@/stores/userStore";
+import { isUser, useUserStore } from "@/stores/userStore";
 import { errorMessageAsString } from "@/utils/simple-error";
 import { bytesToString } from "@/utils/utils";
 
@@ -23,10 +23,11 @@ const errorMessage = ref<string>();
 const isRecalculating = ref<boolean>(false);
 
 const niceTotalDiskUsage = computed(() => {
-    if (!currentUser.value || currentUser.value.isAnonymous) {
+    if (isUser(currentUser.value)) {
+        return bytesToString(currentUser.value.total_disk_usage, true);
+    } else {
         return "Unknown";
     }
-    return bytesToString(currentUser.value.total_disk_usage, true);
 });
 
 const isRefreshing = computed(() => {
