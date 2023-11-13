@@ -57,8 +57,7 @@ import AdminRoutes from "entry/analysis/routes/admin-routes";
 import LibraryRoutes from "entry/analysis/routes/library-routes";
 import StorageDashboardRoutes from "entry/analysis/routes/storageDashboardRoutes";
 import { getAppRoot } from "onload/loadConfig";
-import Vue from "vue";
-import VueRouter from "vue-router";
+import { createRouter, createWebHistory } from "vue-router";
 
 import AvailableDatatypes from "@/components/AvailableDatatypes/AvailableDatatypes";
 import { parseBool } from "@/utils/utils";
@@ -72,11 +71,6 @@ import NotificationsList from "@/components/Notifications/NotificationsList.vue"
 import Sharing from "@/components/Sharing/SharingPage.vue";
 import HistoryStorageOverview from "@/components/User/DiskUsage/Visualizations/HistoryStorageOverview.vue";
 import WorkflowPublished from "@/components/Workflow/Published/WorkflowPublished.vue";
-
-Vue.use(VueRouter);
-
-// patches $router.push() to trigger an event and hide duplication warnings
-patchRouterPush(VueRouter);
 
 // redirect anon users
 function redirectAnon() {
@@ -572,6 +566,9 @@ export function getRouter(Galaxy) {
             },
         ],
     });
+
+    // TODO: remove this once we have a better solution for galaxy frame handling.
+    patchRouterPush(router);
 
     function checkAdminAccessRequired(to) {
         // Check parent route hierarchy to see if we require admin access here.
