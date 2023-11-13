@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, type ComputedRef, onMounted, onUnmounted, type PropType, type Ref, ref } from "vue";
-import { useRouter } from "vue-router/composables";
+import { useRouter } from "vue-router";
 
 import { getGalaxyInstance } from "@/app";
 import { type Tool, type ToolSection, useToolStore } from "@/stores/toolStore";

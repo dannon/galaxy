@@ -8,7 +8,7 @@ import { BBadge, BButton, BButtonGroup, BFormGroup, BListGroup, BListGroupItem, 
 import isEqual from "lodash.isequal";
 import { storeToRefs } from "pinia";
 import { computed, onMounted, onUnmounted, type PropType, type Ref, ref, watch } from "vue";
-import { useRouter } from "vue-router/composables";
+import { useRouter } from "vue-router";
 
 import type { HistoryDetailed, HistorySummary } from "@/api";
 import { useHistoryStore } from "@/stores/historyStore";

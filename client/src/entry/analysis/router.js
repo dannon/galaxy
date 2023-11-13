@@ -102,9 +102,9 @@ function redirectIf(condition, path) {
 
 // produces the client router
 export function getRouter(Galaxy) {
-    const router = new VueRouter({
+    const router = createRouter({
         base: getAppRoot(),
-        mode: "history",
+        history: createWebHistory(),
         routes: [
             ...AdminRoutes,
             ...LibraryRoutes,

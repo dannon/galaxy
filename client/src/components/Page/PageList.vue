@@ -102,7 +102,7 @@ import paginationMixin from "components/Workflow/paginationMixin";
 import { getAppRoot } from "onload/loadConfig";
 import Filtering, { contains, equals, expandNameTag, toBool } from "utils/filtering";
 import _l from "utils/localization";
-import { useRouter } from "vue-router/composables";
+import { useRouter } from "vue-router";
 
 import { updateTags } from "@/api/tags";
 import { localize } from "@/utils/localization";

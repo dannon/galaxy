@@ -1,4 +1,4 @@
-import type { RawLocation } from "vue-router";
+import type { RouteLocationRaw } from "vue-router";
 
 const statusMap = new Map([
     ["error", "danger"],
@@ -8,7 +8,7 @@ const statusMap = new Map([
 export function getRedirectOnImportPath(
     response: { id?: string; message?: string; status?: string },
     isRunFormRedirect = false
-): RawLocation {
+): RouteLocationRaw {
     if (isRunFormRedirect) {
         return { path: "/workflows/run", query: { id: response.id } };
     } else {

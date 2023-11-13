@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import { BButton } from "bootstrap-vue";
-import { useRouter } from "vue-router/composables";
+import { useRouter } from "vue-router";
 
 import BroadcastsList from "@/components/admin/Notifications/BroadcastsList.vue";
 import Heading from "@/components/Common/Heading.vue";

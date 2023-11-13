@@ -1,5 +1,5 @@
 import { createPinia } from "pinia";
-import { createApp, provide } from "vue";
+import { createApp } from "vue";
 
 import { addInitialization, standardInit } from "@/onload";
 import store from "@/store";
