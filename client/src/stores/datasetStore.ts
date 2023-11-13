@@ -38,7 +38,7 @@ export const useDatasetStore = defineStore("datasetStore", () => {
     function saveDatasets(historyContentsPayload: HistoryContentItemBase[]) {
         const datasetList = historyContentsPayload.filter(
             (entry) => entry.history_content_type === "dataset"
-        ) as DatasetEntry[];
+        ) as DatasetDetails[];
         for (const dataset of datasetList) {
             storedDatasets.value[dataset.id] = dataset;
         }
