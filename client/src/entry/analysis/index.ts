@@ -1,5 +1,5 @@
-import { createPinia, PiniaVuePlugin } from "pinia";
-import Vue, { provide } from "vue";
+import { createPinia } from "pinia";
+import { createApp, provide } from "vue";
 
 import { addInitialization, standardInit } from "@/onload";
 import store from "@/store";
@@ -8,7 +8,6 @@ import { getRouter } from "./router";
 
 import App from "./App.vue";
 
-Vue.use(PiniaVuePlugin);
 const pinia = createPinia();
 
 addInitialization((Galaxy: any) => {
@@ -18,16 +17,15 @@ addInitialization((Galaxy: any) => {
     // external use (e.g. gtn webhook) -- longer term we discussed plans to
     // parameterize webhooks and initialize them explicitly with state.
     Galaxy.router = router;
-    new Vue({
-        el: "#app",
-        setup() {
-            provide("store", store);
-        },
-        render: (h) => h(App),
-        router: router,
-        store: store,
-        pinia: pinia,
+    const app = createApp({
+        router,
+        store,
+        ...App,
     });
+
+    app.provide("store", store);
+    app.use(pinia);
+    app.mount("#app");
 });
 
 window.addEventListener("load", () => standardInit("app"));
