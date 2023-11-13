@@ -10,7 +10,11 @@ export function useRouteQueryBool(
     const route = useRoute();
     return computed(() => {
         const p = toValue(parameter);
-        return p in route.query ? route.query[p] === "true" : toValue(defaultValue);
+        if (route){
+            return p in route.query ? route.query[p] === "true" : toValue(defaultValue);
+        } else {
+            return toValue(defaultValue);
+        }
     });
 }
 
