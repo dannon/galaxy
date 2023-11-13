@@ -11,7 +11,7 @@ export const useCollectionAttributesStore = defineStore("collectionAttributesSto
     const getAttributes = computed(() => {
         return (hdcaId: string) => {
             if (!storedAttributes.value[hdcaId]) {
-                storedAttributes.value[hdcaId] = {};
+                storedAttributes.value[hdcaId] = {} as any; // TODO: Fix default type value here
                 fetchAttributes({ hdcaId });
             }
             return storedAttributes.value[hdcaId];
