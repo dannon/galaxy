@@ -1,4 +1,4 @@
-import { useRouter } from "vue-router/composables";
+import { useRouter } from "vue-router";
 
 import { type Activity } from "@/stores/activityStore";
 import { useUserStore } from "@/stores/userStore";

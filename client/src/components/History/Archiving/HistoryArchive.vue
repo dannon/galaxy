@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { BAlert, BListGroup, BListGroupItem, BPagination } from "bootstrap-vue";
 import { computed, onMounted, ref, watch } from "vue";
-import { useRouter } from "vue-router/composables";
+import { useRouter } from "vue-router";
 
 import { GalaxyApi } from "@/api";
 import { type ArchivedHistorySummary, fetchArchivedHistories } from "@/api/histories.archived";

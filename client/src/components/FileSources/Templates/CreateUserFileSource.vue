@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { BAlert } from "bootstrap-vue";
 import { computed, ref } from "vue";
-import { useRouter } from "vue-router/composables";
+import { useRouter } from "vue-router";
 
 import { useFileSourceTemplatesStore } from "@/stores/fileSourceTemplatesStore";
 

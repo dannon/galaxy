@@ -15,7 +15,7 @@ import Masthead from "./Masthead.vue";
 
 jest.mock("app");
 jest.mock("./_webhooks");
-jest.mock("vue-router/composables", () => ({
+jest.mock("vue-router", () => ({
     useRoute: jest.fn(() => ({ name: "Home" })),
     useRouter: jest.fn(),
 }));

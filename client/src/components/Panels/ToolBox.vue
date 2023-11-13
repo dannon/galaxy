@@ -4,7 +4,7 @@ import { faEye, faEyeSlash } from "@fortawesome/free-regular-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import { storeToRefs } from "pinia";
 import { computed, type ComputedRef, type PropType, type Ref, ref } from "vue";
-import { useRouter } from "vue-router/composables";
+import { useRouter } from "vue-router";
 
 import { getGalaxyInstance } from "@/app";
 import { useGlobalUploadModal } from "@/composables/globalUploadModal";

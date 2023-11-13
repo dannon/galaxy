@@ -7,7 +7,7 @@ import { useInfiniteScroll } from "@vueuse/core";
 import { BAlert, BBadge, BButton, BButtonGroup, BListGroup, BListGroupItem, BOverlay } from "bootstrap-vue";
 import { storeToRefs } from "pinia";
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
-import { useRouter } from "vue-router/composables";
+import { useRouter } from "vue-router";
 
 import { type AnyHistory, type HistorySummary, userOwnsHistory } from "@/api";
 import { useAnimationFrameResizeObserver } from "@/composables/sensors/animationFrameResizeObserver";

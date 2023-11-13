@@ -7,7 +7,7 @@ import { useInfiniteScroll } from "@vueuse/core";
 import { BAlert, BBadge, BButton, BListGroup, BListGroupItem } from "bootstrap-vue";
 import { storeToRefs } from "pinia";
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
-import { useRoute, useRouter } from "vue-router/composables";
+import { useRoute, useRouter } from "vue-router";
 
 import type { WorkflowInvocation } from "@/api/invocations";
 import { getData } from "@/components/Grid/configs/invocations";
