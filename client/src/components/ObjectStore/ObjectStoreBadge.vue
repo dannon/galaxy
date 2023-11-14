@@ -78,7 +78,7 @@ const message = computed(() => {
                 <FontAwesomeIcon v-if="badgeType == 'user_defined'" icon="plug" :class="neutral" />
                 -->
                 <FontAwesomeIcon v-if="badgeType == 'quota'" icon="chart-line" :class="disadvantage" />
-                <FontAwesomeIcon v-if="badgeType == 'no_quota'" icon="chart-line" :class="neutral" v-bind="shrink" />
+                <FontAwesomeIcon v-if="badgeType == 'no_quota'" v-bind="shrink" icon="chart-line" :class="neutral" />
                 <FontAwesomeIcon v-if="badgeType == 'no_quota'" icon="ban" :class="[transparent, advantage]" />
                 <FontAwesomeIcon v-if="badgeType == 'no_quota'" icon="circle-notch" :class="advantage" />
                 <FontAwesomeIcon
@@ -95,7 +95,7 @@ const message = computed(() => {
                 <FontAwesomeIcon v-if="badgeType == 'short_term'" icon="recycle" :class="disadvantage" />
 
                 <FontAwesomeIcon v-if="badgeType == 'backed_up'" icon="archive" :class="advantage" />
-                <FontAwesomeIcon v-if="badgeType == 'not_backed_up'" icon="archive" :class="neutral" v-bind="shrink" />
+                <FontAwesomeIcon v-if="badgeType == 'not_backed_up'" v-bind="shrink" icon="archive" :class="neutral" />
                 <FontAwesomeIcon v-if="badgeType == 'not_backed_up'" icon="ban" :class="[transparent, disadvantage]" />
                 <FontAwesomeIcon v-if="badgeType == 'not_backed_up'" icon="circle-notch" :class="disadvantage" />
                 <FontAwesomeIcon
@@ -105,7 +105,7 @@ const message = computed(() => {
                     flip="vertical" />
 
                 <FontAwesomeIcon v-if="badgeType == 'more_secure'" icon="key" :class="advantage" />
-                <FontAwesomeIcon v-if="badgeType == 'less_secure'" icon="key" :class="neutral" v-bind="shrink" />
+                <FontAwesomeIcon v-if="badgeType == 'less_secure'" v-bind="shrink" icon="key" :class="neutral" />
                 <FontAwesomeIcon v-if="badgeType == 'less_secure'" icon="ban" :class="[transparent, disadvantage]" />
                 <FontAwesomeIcon v-if="badgeType == 'less_secure'" icon="circle-notch" :class="disadvantage" />
                 <FontAwesomeIcon
@@ -115,7 +115,7 @@ const message = computed(() => {
                     flip="vertical" />
 
                 <FontAwesomeIcon v-if="badgeType == 'more_stable'" icon="shield-alt" :class="advantage" />
-                <FontAwesomeIcon v-if="badgeType == 'less_stable'" icon="shield-alt" :class="neutral" v-bind="shrink" />
+                <FontAwesomeIcon v-if="badgeType == 'less_stable'" v-bind="shrink" icon="shield-alt" :class="neutral" />
                 <FontAwesomeIcon v-if="badgeType == 'less_stable'" icon="ban" :class="[transparent, disadvantage]" />
                 <FontAwesomeIcon v-if="badgeType == 'less_stable'" icon="circle-notch" :class="disadvantage" />
                 <FontAwesomeIcon

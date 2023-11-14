@@ -79,9 +79,9 @@
         </b-table>
         <b-pagination
             v-if="rows >= perPage"
+            v-bind="paginationAttrs"
             v-model="currentPage"
-            class="gx-invocations-grid-pager"
-            v-bind="paginationAttrs"></b-pagination>
+            class="gx-invocations-grid-pager"></b-pagination>
     </div>
 </template>
 

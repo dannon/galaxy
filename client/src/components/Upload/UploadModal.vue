@@ -91,11 +91,11 @@ defineExpose({
         </template>
         <UploadContainer
             v-if="currentHistoryId"
+            v-bind="options"
             ref="content"
             :key="showModal"
             :current-user-id="currentUser?.id"
             :current-history-id="currentHistoryId"
-            v-bind="options"
             @dismiss="dismiss" />
     </b-modal>
 </template>

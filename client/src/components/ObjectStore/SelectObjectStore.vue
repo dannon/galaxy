@@ -118,7 +118,7 @@ async function handleSubmit(preferredObjectStoreId: string) {
                     </p>
                 </b-col>
             </b-row>
-            <b-popover target="no-preferred-object-store-button" triggers="hover" v-bind="popoverProps">
+            <b-popover v-bind="popoverProps" target="no-preferred-object-store-button" triggers="hover">
                 <template v-slot:title
                     ><span v-localize>{{ defaultOptionTitle }}</span></template
                 >
@@ -126,10 +126,10 @@ async function handleSubmit(preferredObjectStoreId: string) {
             </b-popover>
             <b-popover
                 v-for="object_store in objectStores"
+                v-bind="popoverProps"
                 :key="object_store.object_store_id"
                 :target="`preferred-object-store-button-${object_store.object_store_id}`"
-                triggers="hover"
-                v-bind="popoverProps">
+                triggers="hover">
                 <template v-slot:title>{{ object_store.name }}</template>
                 <DescribeObjectStore :what="forWhat" :storage-info="object_store"> </DescribeObjectStore>
             </b-popover>

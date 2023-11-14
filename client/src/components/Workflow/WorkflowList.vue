@@ -27,7 +27,7 @@
                 <WorkflowIndexActions :root="root" class="float-right"></WorkflowIndexActions>
             </b-col>
         </b-row>
-        <b-table v-model="workflowItemsModel" v-bind="{ ...defaultTableAttrs, ...indexTableAttrs }">
+        <b-table v-bind="{ ...defaultTableAttrs, ...indexTableAttrs }" v-model="workflowItemsModel">
             <template v-slot:empty>
                 <loading-span v-if="loading" message="Loading workflows" />
                 <b-alert v-else id="no-workflows" variant="info" show>
@@ -92,9 +92,9 @@
         </b-table>
         <b-pagination
             v-show="rows >= perPage"
+            v-bind="paginationAttrs"
             v-model="currentPage"
-            class="gx-workflows-grid-pager"
-            v-bind="paginationAttrs"></b-pagination>
+            class="gx-workflows-grid-pager"></b-pagination>
     </div>
 </template>
 <script>

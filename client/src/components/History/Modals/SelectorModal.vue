@@ -218,10 +218,10 @@ async function loadMore(noScroll = false) {
 <template>
     <div>
         <BModal
+            v-bind="$attrs"
             ref="modal"
             v-model="propShowModal"
             class="history-selector-modal"
-            v-bind="$attrs"
             static
             v-on="$listeners">
             <template v-slot:modal-title>

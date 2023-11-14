@@ -24,7 +24,7 @@
                 <PageIndexActions class="float-right" />
             </b-col>
         </b-row>
-        <b-table v-model="pageItemsModel" v-bind="{ ...defaultTableAttrs, ...indexTableAttrs }">
+        <b-table v-bind="{ ...defaultTableAttrs, ...indexTableAttrs }" v-model="pageItemsModel">
             <template v-slot:empty>
                 <LoadingSpan v-if="loading" message="Loading pages" />
                 <b-alert v-else id="no-pages" variant="info" show>
@@ -85,9 +85,9 @@
         </b-table>
         <b-pagination
             v-if="rows >= perPage"
+            v-bind="paginationAttrs"
             v-model="currentPage"
-            class="gx-pages-grid-pager"
-            v-bind="paginationAttrs" />
+            class="gx-pages-grid-pager" />
     </div>
 </template>
 <script>
