@@ -3,7 +3,7 @@ import { getAppRoot } from "onload";
 import { storeToRefs } from "pinia";
 import { withPrefix } from "utils/redirect";
 import { computed, onMounted, ref, watch } from "vue";
-import { useRoute,useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 
 import { getGalaxyInstance } from "@/app";
 import ConfirmDialog from "@/components/ConfirmDialog";
@@ -52,8 +52,6 @@ const router = useRouter();
 const route = useRoute();
 
 const Galaxy = getGalaxyInstance();
-
-
 
 function startNotificationsPolling() {
     const notificationsStore = useNotificationsStore();

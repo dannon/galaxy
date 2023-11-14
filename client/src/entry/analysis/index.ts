@@ -17,11 +17,12 @@ addInitialization((Galaxy: any) => {
     // external use (e.g. gtn webhook) -- longer term we discussed plans to
     // parameterize webhooks and initialize them explicitly with state.
     Galaxy.router = router;
+
     const app = createApp({
-        router,
         ...App,
     });
 
+    app.use(router);
     app.use(store);
     app.provide("store", store);
     app.use(pinia);
