@@ -19,10 +19,10 @@ addInitialization((Galaxy: any) => {
     Galaxy.router = router;
     const app = createApp({
         router,
-        store,
         ...App,
     });
 
+    app.use(store);
     app.provide("store", store);
     app.use(pinia);
     app.mount("#app");
