@@ -1,12 +1,6 @@
-import type Vue from "vue";
-import { type Ref } from "vue";
-import { ref } from "vue";
+import { type Ref, ref } from "vue";
 
-import type ToastComponentFile from "@/components/Toast";
-
-export type ToastComponent = Vue & typeof ToastComponentFile.methods;
-
-let toastRef: Ref<ToastComponent | null> = ref(null);
+let toastRef: Ref = ref(null);
 
 export const setToastComponentRef = (newRef: typeof toastRef) => {
     // eslint-disable-next-line vue/no-ref-as-operand
