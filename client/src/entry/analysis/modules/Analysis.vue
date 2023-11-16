@@ -1,6 +1,6 @@
 <script setup>
+import { useEventBus } from "@vueuse/core";
 import { onMounted, onUnmounted, ref } from "vue";
-import { useRouter } from "vue-router";
 
 import { usePanels } from "@/composables/usePanels";
 
@@ -11,9 +11,10 @@ import FlexPanel from "@/components/Panels/FlexPanel.vue";
 import ToolPanel from "@/components/Panels/ToolPanel.vue";
 import DragAndDropModal from "@/components/Upload/DragAndDropModal.vue";
 
-const router = useRouter();
 const showCenter = ref(false);
 const { showActivityBar, showToolbox, showPanels } = usePanels();
+
+const { on, off } = useEventBus("router-push");
 
 // methods
 function hideCenter() {
@@ -28,11 +29,11 @@ function onLoad() {
 onMounted(() => {
     // Using a custom event here which, in contrast to watching $route,
     // always fires when a route is pushed instead of validating it first.
-    router.app.$on("router-push", hideCenter);
+    on(hideCenter);
 });
 
 onUnmounted(() => {
-    router.app.$off("router-push", hideCenter);
+    off(hideCenter);
 });
 </script>
 

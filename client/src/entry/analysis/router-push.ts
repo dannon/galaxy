@@ -1,8 +1,10 @@
+import { useEventBus } from "@vueuse/core";
 import { type RouteLocationRaw, type Router } from "vue-router";
 
 import { getGalaxyInstance } from "@/app";
 import { addSearchParams } from "@/utils/url";
 
+const { emit } = useEventBus("router-push");
 /**
  * Is called before the regular router.push() and allows us to provide logs,
  * handle the window manager, avoid duplication warnings, and force a component
@@ -36,7 +38,7 @@ export function patchRouterPush(router: Router) {
         }
 
         // Always emit event, even when a duplicate route is pushed
-        // this.app.emit("router-push");
+        emit();
 
         // Avoid console warning when user clicks to revisit the same route
         return originalPush.call(this, location).catch((err: Error) => {
