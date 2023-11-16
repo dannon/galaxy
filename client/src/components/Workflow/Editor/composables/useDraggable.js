@@ -1,6 +1,6 @@
 import { useEventListener } from "@vueuse/core";
 import { isClient, resolveUnref, toRefs } from "@vueuse/shared";
-import { computed, ref } from "vue-demi";
+import { computed, ref } from "vue";
 
 /**
  * Make elements draggable.
