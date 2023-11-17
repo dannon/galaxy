@@ -10,37 +10,39 @@
         height="100%"
         @load="onLoad" />
 </template>
-<script>
-import { withPrefix } from "utils/redirect";
 
-export default {
-    props: {
-        id: {
-            type: String,
-            default: "frame",
-        },
-        src: {
-            type: String,
-            default: "",
-        },
-    },
-    computed: {
-        srcWithRoot() {
-            return withPrefix(this.src);
-        },
-    },
-    methods: {
-        onLoad(ev) {
-            const iframe = ev.currentTarget;
-            const location = iframe.contentWindow && iframe.contentWindow.location;
-            try {
-                if (location && location.host && location.pathname != "/") {
-                    this.$emit("load");
-                }
-            } catch (err) {
-                console.warn("CenterFrame - onLoad location access forbidden.", ev, location);
-            }
-        },
-    },
+<script setup lang="ts">
+import { computed } from "vue";
+
+import { withPrefix } from "@/utils/redirect";
+
+const props = withDefaults(
+    defineProps<{
+        id?: string;
+        src?: string;
+    }>(),
+    {
+        id: "frame",
+        src: "",
+    }
+);
+
+// Computed property
+const srcWithRoot = computed(() => withPrefix(props.src));
+
+// Event handler
+const onLoad = (ev: Event) => {
+    const iframe = ev.currentTarget as HTMLIFrameElement;
+    const location = iframe.contentWindow?.location;
+    try {
+        if (location && location.host && location.pathname != "/") {
+            emit("load");
+        }
+    } catch (err) {
+        console.warn("CenterFrame - onLoad location access forbidden.", ev, location);
+    }
 };
+
+// Emit setup
+const emit = defineEmits(["load"]);
 </script>
