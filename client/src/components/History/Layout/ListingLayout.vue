@@ -1,9 +1,9 @@
 <script setup>
 import { useElementBounding } from "@vueuse/core";
-import { computed, defineEmits, defineProps, ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import VirtualList from "vue-virtual-scroll-list";
 
-import LoadingSpan from "@/components/LoadingSpan";
+import LoadingSpan from "@/components/LoadingSpan.vue";
 
 const props = defineProps({
     dataKey: { type: String, default: "id" },
@@ -16,7 +16,9 @@ const props = defineProps({
 const emits = defineEmits(["scroll"]);
 
 const listing = ref(null);
-const { height } = useElementBounding(listing);
+const layout = ref(null);
+
+const { height } = useElementBounding(layout);
 const estimatedItemHeight = 40;
 
 const estimatedItemCount = computed(() => {
@@ -44,7 +46,7 @@ const onScroll = () => {
 const getOffset = () => listing.value?.getOffset() || 0;
 </script>
 <template>
-    <div class="listing-layout">
+    <div ref="layout" class="listing-layout">
         <VirtualList
             ref="listing"
             class="listing"
