@@ -4,7 +4,7 @@ import { faCaretDown, faCaretUp } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import { BAlert, BButton, BLink, BPagination } from "bootstrap-vue";
 import { computed, onMounted, ref, watch } from "vue";
-import { useRouter } from "vue-router/composables";
+import { useRouter } from "vue-router";
 
 import { timeout } from "@/utils/timeout";
 
@@ -172,13 +172,13 @@ watch(operationMessage, () => {
                     {{ config.title }}
                 </h1>
                 <FilterMenu
+                    v-model:filter-text="filterText"
+                    v-model:show-advanced="showAdvanced"
                     class="py-2"
                     :name="config.plural"
                     :placeholder="`search ${config.plural.toLowerCase()}`"
                     :filter-class="config.filtering"
-                    :filter-text.sync="filterText"
                     :loading="loading"
-                    :show-advanced.sync="showAdvanced"
                     @on-backend-filter="onSearch" />
                 <hr v-if="showAdvanced" />
             </div>
