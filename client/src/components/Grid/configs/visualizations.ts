@@ -1,6 +1,6 @@
 import { faCopy, faEdit, faEye, faPlus, faShareAlt, faTrash, faTrashRestore } from "@fortawesome/free-solid-svg-icons";
 import axios from "axios";
-import type Router from "vue-router";
+import type { Router } from "vue-router";
 
 import { fetcher } from "@/api/schema";
 import { getGalaxyInstance } from "@/app";

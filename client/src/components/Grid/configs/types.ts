@@ -1,5 +1,5 @@
-import { IconDefinition } from "@fortawesome/fontawesome-svg-core";
-import type Router from "vue-router";
+import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
+import type { Router } from "vue-router";
 
 import Filtering from "@/utils/filtering";
 

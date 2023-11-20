@@ -8,7 +8,7 @@ import { useRouter } from "vue-router/composables";
 
 import { timeout } from "@/utils/timeout";
 
-import { Config, FieldHandler, Operation, RowData } from "./configs/types";
+import type { Config, FieldHandler, Operation, RowData } from "./configs/types";
 
 import GridLink from "./GridElements/GridLink.vue";
 import GridOperations from "./GridElements/GridOperations.vue";

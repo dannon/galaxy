@@ -1,9 +1,10 @@
+import { defineStore } from "pinia";
+import { computed, ref } from "vue";
+
 import { fetchAllBroadcasts } from "@/api/notifications.broadcast";
 import type { components } from "@/api/schema";
 import { useUserLocalStorage } from "@/composables/userLocalStorage";
 import { mergeObjectListsById } from "@/utils/utils";
-import { defineStore } from "pinia";
-import { computed, ref } from "vue";
 
 export type BroadcastNotification = components["schemas"]["BroadcastNotificationResponse"];
 type Expirable = Pick<BroadcastNotification, "expiration_time">;
