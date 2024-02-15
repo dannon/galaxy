@@ -5,7 +5,7 @@
 import { getGalaxyInstance } from "@/app";
 import axios from "axios";
 import { getAppRoot } from "onload/loadConfig";
-import { rethrowSimple } from "utils/simple-error";
+import { rethrowSimple } from "@/utils/simple-error";
 
 export default {
     props: {

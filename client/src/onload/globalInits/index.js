@@ -8,7 +8,7 @@
  */
 
 import { make_popup_menus } from "ui/popupmenu";
-import { monitorInit } from "utils/installMonitor";
+import { monitorInit } from "@/utils/installMonitor";
 
 import { prependInitialization } from "../initQueue";
 // specific initialization functions

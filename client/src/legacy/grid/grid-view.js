@@ -7,7 +7,7 @@ import Backbone from "backbone";
 jQuery.ajaxSettings.traditional = true;
 
 // dependencies
-import Utils from "utils/utils";
+import Utils from "@/utils/utils";
 import GridModel from "legacy/grid/grid-model";
 import Templates from "legacy/grid/grid-template";
 import PopupMenu from "./popup-menu";

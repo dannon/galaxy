@@ -3,7 +3,7 @@ import { library } from "@fortawesome/fontawesome-svg-core";
 import { faCopy, faEdit, faFolderOpen, faLaptop } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import { BButton } from "bootstrap-vue";
-import { filesDialog } from "utils/data";
+import { filesDialog } from "@/utils/data";
 import Vue, { computed, ref } from "vue";
 
 import { UploadQueue } from "@/utils/upload-queue.js";

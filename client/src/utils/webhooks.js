@@ -1,7 +1,7 @@
 import axios from "axios";
 import Backbone from "backbone";
 import { getAppRoot } from "onload/loadConfig";
-import Utils from "utils/utils";
+import Utils from "@/utils/utils";
 
 import { rethrowSimple } from "@/utils/simple-error";
 

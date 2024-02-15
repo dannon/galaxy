@@ -1,8 +1,8 @@
 <script setup>
 import { BNavbar, BNavbarBrand, BNavbarNav } from "bootstrap-vue";
 import { storeToRefs } from "pinia";
-import { userLogout } from "utils/logout";
-import { withPrefix } from "utils/redirect";
+import { userLogout } from "@/utils/logout";
+import { withPrefix } from "@/utils/redirect";
 import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router/composables";
 
