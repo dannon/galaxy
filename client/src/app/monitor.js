@@ -2,7 +2,7 @@
 // pass through the singleton accessors. All future code should access galaxy
 // through getGalaxyInstance, and rarely with setGalaxyInstance
 
-import { getGalaxyInstance, setGalaxyInstance } from "app";
+import { getGalaxyInstance, setGalaxyInstance } from "@/app";
 import config from "config";
 import { getAppRoot } from "onload/loadConfig";
 import { serverPath } from "utils/serverPath";

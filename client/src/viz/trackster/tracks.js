@@ -1,6 +1,6 @@
 import "ui/editable-text";
 
-import { getGalaxyInstance } from "app";
+import { getGalaxyInstance } from "@/app";
 import Backbone from "backbone";
 import $ from "jquery";
 import { Dataset } from "mvc/dataset/data";

@@ -5,7 +5,7 @@
  * submitted, delayed only by the throttle period and the request response time.
  */
 
-import { getGalaxyInstance } from "app";
+import { getGalaxyInstance } from "@/app";
 import { storeToRefs } from "pinia";
 import { useHistoryItemsStore } from "stores/historyItemsStore";
 import { useHistoryStore } from "stores/historyStore";

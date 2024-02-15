@@ -11,7 +11,7 @@
 </template>
 
 <script>
-import { getGalaxyInstance } from "app";
+import { getGalaxyInstance } from "@/app";
 import LibraryPermissionsWarning from "components/Libraries/LibraryFolder/LibraryFolderPermissions/LibraryPermissionsWarning";
 
 export default {

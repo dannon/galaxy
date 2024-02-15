@@ -1,7 +1,7 @@
 /*
  * Interface with rule builder
  */
-import { getGalaxyInstance } from "app";
+import { getGalaxyInstance } from "@/app";
 
 /** Populates collection builder with uploaded files */
 export function collectionBuilder(historyId, type, uploadValues) {

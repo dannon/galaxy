@@ -77,7 +77,7 @@
 import "vue-multiselect/dist/vue-multiselect.min.css";
 
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
-import { getGalaxyInstance } from "app";
+import { getGalaxyInstance } from "@/app";
 import BootstrapVue from "bootstrap-vue";
 import { initPermissionsIcons } from "components/Libraries/icons";
 import { extractRoles } from "components/Libraries/library-utils";
