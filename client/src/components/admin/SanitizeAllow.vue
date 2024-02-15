@@ -106,7 +106,7 @@
 
 <script>
 import axios from "axios";
-import { getAppRoot } from "onload/loadConfig";
+import { getAppRoot } from "@/onload/loadconfig";
 
 import Message from "../Message.vue";
 import BaseGrid from "./BaseGrid.vue";

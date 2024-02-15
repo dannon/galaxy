@@ -83,7 +83,7 @@ onMounted(() => {
 import { ref, onMounted } from "vue";
 
 import axios from "axios";
-import { getAppRoot } from "onload/loadConfig";
+import { getAppRoot } from "@/onload/loadConfig";
 import { errorMessageAsString } from "@/utils/simple-error";
 
 interface Props {
