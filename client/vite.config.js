@@ -3,6 +3,9 @@ import { defineConfig } from 'vite';
 import tsconfigPaths from 'vite-tsconfig-paths';
 import path from 'path';
 
+const targetEnv = process.env.NODE_ENV == "production" ? "production" : "development";
+
+const scriptsBase = path.resolve(__dirname, "./src");
 export default defineConfig({
   plugins: [
     vue(),
@@ -17,7 +20,8 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-        '@': path.resolve(__dirname, './src'),
+      '@': path.resolve(__dirname, './src'),
+        config: path.resolve(scriptsBase, "config", targetEnv) + ".js",
     },
   },
   build: {
