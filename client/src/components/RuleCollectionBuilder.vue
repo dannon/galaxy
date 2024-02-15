@@ -568,7 +568,7 @@
 
 <script>
 import HotTable from "@handsontable/vue";
-import { getGalaxyInstance } from "app";
+import { getGalaxyInstance } from "@/app";
 import axios from "axios";
 import BootstrapVue from "bootstrap-vue";
 import ColumnSelector from "components/RuleBuilder/ColumnSelector";

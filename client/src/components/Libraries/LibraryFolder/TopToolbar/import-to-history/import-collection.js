@@ -1,4 +1,4 @@
-import { getGalaxyInstance } from "app";
+import { getGalaxyInstance } from "@/app";
 import axios from "axios";
 import Backbone from "backbone";
 import { Toast } from "composables/toast";

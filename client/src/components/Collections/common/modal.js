@@ -1,4 +1,4 @@
-import { getGalaxyInstance } from "app";
+import { getGalaxyInstance } from "@/app";
 import UI_MODAL from "mvc/ui/ui-modal";
 import _l from "utils/localization";
 

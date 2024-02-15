@@ -1,4 +1,4 @@
-import { getGalaxyInstance } from "app";
+import { getGalaxyInstance } from "@/app";
 import { Toast } from "composables/toast";
 import $ from "jquery";
 import _ from "underscore";

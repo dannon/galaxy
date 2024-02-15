@@ -13,7 +13,7 @@ import "libs/jquery/jquery.form";
 import "libs/jquery/jquery.rating";
 import "ui/editable-text";
 
-import { getGalaxyInstance } from "app";
+import { getGalaxyInstance } from "@/app";
 import Backbone from "backbone";
 import $ from "jquery";
 import { getAppRoot } from "onload/loadConfig";

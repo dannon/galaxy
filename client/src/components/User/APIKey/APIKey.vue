@@ -1,5 +1,5 @@
 <script setup>
-import { getGalaxyInstance } from "app";
+import { getGalaxyInstance } from "@/app";
 import LoadingSpan from "components/LoadingSpan";
 import { ref } from "vue";
 

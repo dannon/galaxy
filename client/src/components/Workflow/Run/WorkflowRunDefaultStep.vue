@@ -23,7 +23,7 @@
 <script>
 import { library } from "@fortawesome/fontawesome-svg-core";
 import { faEdit, faUndo } from "@fortawesome/free-solid-svg-icons";
-import { getGalaxyInstance } from "app";
+import { getGalaxyInstance } from "@/app";
 import FormCard from "components/Form/FormCard";
 import FormDisplay from "components/Form/FormDisplay";
 import FormMessage from "components/Form/FormMessage";

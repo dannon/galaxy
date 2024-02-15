@@ -92,7 +92,7 @@
 </template>
 
 <script>
-import { getGalaxyInstance } from "app";
+import { getGalaxyInstance } from "@/app";
 import BootstrapVue from "bootstrap-vue";
 import { Toast } from "composables/toast";
 import { sanitize } from "dompurify";
