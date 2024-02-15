@@ -46,7 +46,7 @@
     </div>
 </template>
 <script>
-import { getGalaxyInstance } from "app";
+import { getGalaxyInstance } from "@/app";
 import ConfirmDialog from "components/ConfirmDialog";
 import { HistoryPanelProxy } from "components/History/adapters/HistoryPanelProxy";
 import Toast from "components/Toast";

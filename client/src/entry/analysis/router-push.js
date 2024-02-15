@@ -1,4 +1,4 @@
-import { getGalaxyInstance } from "app";
+import { getGalaxyInstance } from "@/app";
 import { addSearchParams } from "utils/url";
 
 /**
