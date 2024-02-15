@@ -77,8 +77,8 @@ import { useWorkflowStore } from "@/stores/workflowStore";
 import { splitMarkdown as splitMarkdownUnrendered } from "./parse";
 
 import MarkdownContainer from "./MarkdownContainer.vue";
-import LoadingSpan from "components/LoadingSpan.vue";
-import StsDownloadButton from "components/StsDownloadButton.vue";
+import LoadingSpan from "@/components/LoadingSpan.vue";
+import StsDownloadButton from "@/components/StsDownloadButton.vue";
 
 const mdNewline = markdownItRegexp(/<br>/, () => {
     return "<div style='clear:both;'/><br>";

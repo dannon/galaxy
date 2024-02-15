@@ -11,7 +11,7 @@ import {
     faWrench,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
-import ToolFavoriteButton from "components/Tool/Buttons/ToolFavoriteButton";
+import ToolFavoriteButton from "@/components/Tool/Buttons/ToolFavoriteButton";
 import { useFormattedToolHelp } from "composables/formattedToolHelp";
 import { computed, ref } from "vue";
 

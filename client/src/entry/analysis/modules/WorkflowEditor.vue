@@ -11,7 +11,7 @@
         @update:confirmation="$emit('update:confirmation', $event)" />
 </template>
 <script>
-import Editor from "components/Workflow/Editor/Index";
+import Editor from "@/components/Workflow/Editor/Index";
 import Query from "utils/query-string-parsing";
 import { urlData } from "utils/url";
 

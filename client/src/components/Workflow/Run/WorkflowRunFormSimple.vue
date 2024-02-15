@@ -62,10 +62,10 @@
 </template>
 
 <script>
-import ButtonSpinner from "components/Common/ButtonSpinner";
-import FormDisplay from "components/Form/FormDisplay";
-import { allowCachedJobs } from "components/Tool/utilities";
-import { isWorkflowInput } from "components/Workflow/constants";
+import ButtonSpinner from "@/components/Common/ButtonSpinner";
+import FormDisplay from "@/components/Form/FormDisplay";
+import { allowCachedJobs } from "@/components/Tool/utilities";
+import { isWorkflowInput } from "@/components/Workflow/constants";
 import { storeToRefs } from "pinia";
 import { errorMessageAsString } from "utils/simple-error";
 import Vue from "vue";

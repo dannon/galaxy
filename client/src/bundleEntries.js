@@ -16,7 +16,7 @@ import { TracksterUIView } from "viz/trackster";
 // Previously "chart"
 
 export { getGalaxyInstance, setGalaxyInstance } from "@/app";
-export { runTour } from "components/Tour/runTour";
+export { runTour } from "@/components/Tour/runTour";
 export { default as LegacyGridView } from "legacy/grid/grid-view";
 export { createTabularDatasetChunkedView } from "mvc/dataset/data";
 export { create_chart, create_histogram } from "reports/run_stats";

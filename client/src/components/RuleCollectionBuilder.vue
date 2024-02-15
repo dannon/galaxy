@@ -593,7 +593,7 @@ import { refreshContentsWrapper } from "utils/data";
 import _l from "utils/localization";
 import Vue from "vue";
 
-import TooltipOnHover from "components/TooltipOnHover.vue";
+import TooltipOnHover from "@/components/TooltipOnHover.vue";
 
 Vue.use(BootstrapVue);
 

@@ -24,8 +24,8 @@
 </template>
 
 <script>
-import LoadingSpan from "components/LoadingSpan";
-import { Toast } from "composables/toast";
+import LoadingSpan from "@/components/LoadingSpan.vue";
+import { Toast } from "@/composables/toast";
 import { mapActions } from "pinia";
 
 import { deleteContent, updateContentFields } from "@/components/History/model/queries";

@@ -42,7 +42,7 @@ import { library } from "@fortawesome/fontawesome-svg-core";
 import { faQuestion } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import BootstrapVue from "bootstrap-vue";
-import FlexPanel from "components/Panels/FlexPanel";
+import FlexPanel from "@/components/Panels/FlexPanel";
 import _ from "underscore";
 import Vue from "vue";
 

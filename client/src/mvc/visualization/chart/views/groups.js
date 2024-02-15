@@ -1,8 +1,8 @@
 /** This class renders the chart data selection form with repeats. */
 
 import Backbone from "backbone";
-import FormDisplay from "components/Form/FormDisplay";
-import { visitInputs } from "components/Form/utilities";
+import FormDisplay from "@/components/Form/FormDisplay";
+import { visitInputs } from "@/components/Form/utilities";
 import $ from "jquery";
 import { getAppRoot } from "onload/loadConfig";
 import _ from "underscore";

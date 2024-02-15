@@ -11,7 +11,7 @@
 </template>
 
 <script>
-import GenericHistoryItem from "components/History/Content/GenericItem";
+import GenericHistoryItem from "@/components/History/Content/GenericItem";
 
 export default {
     components: {

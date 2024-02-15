@@ -121,10 +121,10 @@
 import { library } from "@fortawesome/fontawesome-svg-core";
 import { faChevronDown, faChevronUp } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
-import GenericHistoryItem from "components/History/Content/GenericItem";
-import LoadingSpan from "components/LoadingSpan";
-import { InvocationStepProvider } from "components/providers";
-import ToolLinkPopover from "components/Tool/ToolLinkPopover";
+import GenericHistoryItem from "@/components/History/Content/GenericItem";
+import LoadingSpan from "@/components/LoadingSpan";
+import { InvocationStepProvider } from "@/components/providers";
+import ToolLinkPopover from "@/components/Tool/ToolLinkPopover";
 import { mapActions, mapState } from "pinia";
 import { useToolStore } from "stores/toolStore";
 import { useWorkflowStore } from "stores/workflowStore";

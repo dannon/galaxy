@@ -111,12 +111,12 @@
 
 <script>
 import { getGalaxyInstance } from "@/app";
-import ButtonSpinner from "components/Common/ButtonSpinner";
-import Heading from "components/Common/Heading";
-import FormDisplay from "components/Form/FormDisplay";
-import FormElement from "components/Form/FormElement";
-import LoadingSpan from "components/LoadingSpan";
-import ToolEntryPoints from "components/ToolEntryPoints/ToolEntryPoints";
+import ButtonSpinner from "@/components/Common/ButtonSpinner";
+import Heading from "@/components/Common/Heading";
+import FormDisplay from "@/components/Form/FormDisplay";
+import FormElement from "@/components/Form/FormElement";
+import LoadingSpan from "@/components/LoadingSpan";
+import ToolEntryPoints from "@/components/ToolEntryPoints/ToolEntryPoints";
 import { mapActions, mapState, storeToRefs } from "pinia";
 import { useHistoryItemsStore } from "stores/historyItemsStore";
 import { useJobStore } from "stores/jobStore";
