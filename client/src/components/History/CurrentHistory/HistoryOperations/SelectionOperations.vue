@@ -142,8 +142,8 @@
 </template>
 
 <script>
-import { buildCollectionModal } from "components/History/adapters/buildCollectionModal";
-import { HistoryFilters } from "components/History/HistoryFilters";
+import { buildCollectionModal } from "@/components/History/adapters/buildCollectionModal";
+import { HistoryFilters } from "@/components/History/HistoryFilters";
 import {
     addTagsToSelectedContent,
     changeDatatypeOfSelectedContent,
@@ -154,10 +154,10 @@ import {
     removeTagsFromSelectedContent,
     undeleteSelectedContent,
     unhideSelectedContent,
-} from "components/History/model/crud";
-import { DatatypesProvider, DbKeyProvider } from "components/providers";
-import SingleItemSelector from "components/SingleItemSelector";
-import { StatelessTags } from "components/Tags";
+} from "@/components/History/model/crud";
+import { DatatypesProvider, DbKeyProvider } from "@/components/providers";
+import SingleItemSelector from "@/components/SingleItemSelector";
+import { StatelessTags } from "@/components/Tags";
 
 import { GalaxyApi } from "@/api";
 import { createDatasetCollection, filtersToQueryValues } from "@/components/History/model/queries";

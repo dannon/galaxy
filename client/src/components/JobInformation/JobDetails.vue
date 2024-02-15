@@ -30,12 +30,12 @@
 </template>
 
 <script>
-import JobMetrics from "components/JobMetrics/JobMetrics";
+import JobMetrics from "@/components/JobMetrics/JobMetrics";
 
 import JobInformation from "./JobInformation";
 
 import CodeRow from "./CodeRow.vue";
-import JobParameters from "components/JobParameters/JobParameters.vue";
+import JobParameters from "@/components/JobParameters/JobParameters.vue";
 
 export default {
     components: {
