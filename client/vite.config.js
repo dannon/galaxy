@@ -1,6 +1,7 @@
 import vue from '@vitejs/plugin-vue2'; // For Vue 2
 import { defineConfig } from 'vite';
 import tsconfigPaths from 'vite-tsconfig-paths';
+import path from 'path';
 
 export default defineConfig({
   plugins: [
@@ -10,8 +11,13 @@ export default defineConfig({
   css: {
     preprocessorOptions: {
       scss: {
-        //...
+        // Do we need includePaths?
       },
+    },
+  },
+  resolve: {
+    alias: {
+        '@': path.resolve(__dirname, './src'),
     },
   },
   build: {
