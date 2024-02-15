@@ -90,7 +90,7 @@ import JobError from "@/components/JobInformation/JobError";
 import { waitOnJob } from "@/components/JobStates/wait";
 import LoadingSpan from "@/components/LoadingSpan";
 import { getAppRoot } from "onload/loadConfig";
-import { errorMessageAsString } from "utils/simple-error";
+import { errorMessageAsString } from "@/utils/simple-error";
 import Vue, { ref, watch } from "vue";
 
 import { fetchFileSources } from "@/api/remoteFiles";

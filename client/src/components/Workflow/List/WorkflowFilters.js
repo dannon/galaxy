@@ -1,4 +1,4 @@
-import Filtering, { contains, equals, expandNameTag, toBool } from "utils/filtering";
+import Filtering, { contains, equals, expandNameTag, toBool } from "@/utils/filtering";
 
 export function helpHtml(activeList = "my") {
     let extra = "";

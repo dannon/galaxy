@@ -1,6 +1,6 @@
 import { getGalaxyInstance } from "@/app";
 import UI_MODAL from "mvc/ui/ui-modal";
-import _l from "utils/localization";
+import _l from "@/utils/localization";
 
 export function collectionCreatorModalSetup(options, Galaxy = null) {
     Galaxy = Galaxy || getGalaxyInstance();

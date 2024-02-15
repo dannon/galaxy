@@ -29,7 +29,7 @@ import FormCard from "@/components/Form/FormCard";
 import FormDisplay from "@/components/Form/FormDisplay";
 import { visitInputs } from "@/components/Form/utilities";
 import { UrlDataProvider } from "@/components/providers/UrlDataProvider";
-import { withPrefix } from "utils/redirect";
+import { withPrefix } from "@/utils/redirect";
 
 import { submitData } from "./services";
 

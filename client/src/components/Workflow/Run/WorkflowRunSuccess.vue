@@ -34,10 +34,10 @@
 
 <script>
 import WorkflowInvocationState from "@/components/WorkflowInvocationState/WorkflowInvocationState";
-import { getAppRoot } from "onload/loadConfig";
+import { getAppRoot } from "@/onload/loadConfig";
 import { mapActions, mapState } from "pinia";
-import { refreshContentsWrapper } from "utils/data";
-import Webhooks from "utils/webhooks";
+import { refreshContentsWrapper } from "@/utils/data";
+import Webhooks from "@/utils/webhooks";
 
 import { useHistoryStore } from "@/stores/historyStore";
 

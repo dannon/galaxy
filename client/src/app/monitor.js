@@ -5,7 +5,7 @@
 import { getGalaxyInstance, setGalaxyInstance } from "@/app";
 import config from "config";
 import { getAppRoot } from "onload/loadConfig";
-import { serverPath } from "utils/serverPath";
+import { serverPath } from "@/utils/serverPath";
 
 const galaxyStub = {
     root: getAppRoot(),

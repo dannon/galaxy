@@ -42,7 +42,7 @@ component inside the old Backbone layout until the application is fully converte
 
 import { getGalaxyInstance } from "@/app";
 import MyComponent from "@/components/MyComponent";
-import { mountVueComponent } from "utils/mountVueComponent";
+import { mountVueComponent } from "@/utils/mountVueComponent";
 
 const OldBackboneView = {
     someInitMethodYouMake() {

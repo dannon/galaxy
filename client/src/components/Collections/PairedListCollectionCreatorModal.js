@@ -1,4 +1,4 @@
-import _l from "utils/localization";
+import _l from "@/utils/localization";
 import Vue from "vue";
 
 import { collectionCreatorModalSetup } from "./common/modal";

@@ -11,7 +11,7 @@
         @load="onLoad" />
 </template>
 <script>
-import { withPrefix } from "utils/redirect";
+import { withPrefix } from "@/utils/redirect";
 
 export default {
     props: {

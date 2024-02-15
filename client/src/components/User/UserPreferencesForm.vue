@@ -4,7 +4,7 @@
 <script>
 import FormGeneric from "@/components/Form/FormGeneric";
 import { getUserPreferencesModel } from "@/components/User/UserPreferencesModel";
-import Query from "utils/query-string-parsing";
+import Query from "@/utils/query-string-parsing";
 
 export default {
     components: {

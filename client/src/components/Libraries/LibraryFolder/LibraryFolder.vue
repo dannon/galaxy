@@ -272,7 +272,7 @@ import { sanitize } from "dompurify";
 import linkifyHtml from "linkify-html";
 import { getAppRoot } from "onload/loadConfig";
 import { mapState } from "pinia";
-import Utils from "utils/utils";
+import Utils from "@/utils/utils";
 import Vue from "vue";
 
 import { useUserStore } from "@/stores/userStore";

@@ -1,6 +1,6 @@
 import { mount } from "@vue/test-utils";
 import { getLocalVue } from "tests/jest/helpers";
-import { ROOT_COMPONENT } from "utils/navigation";
+import { ROOT_COMPONENT } from "@/utils/navigation";
 
 import ObjectStoreBadge from "./ObjectStoreBadge";
 

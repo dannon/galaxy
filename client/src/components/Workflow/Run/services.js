@@ -3,7 +3,7 @@
  */
 import axios from "axios";
 import { getAppRoot } from "onload/loadConfig";
-import { rethrowSimple } from "utils/simple-error";
+import { rethrowSimple } from "@/utils/simple-error";
 
 /**
  * Download the workflow using the 'run' style (see workflow manager on backend
