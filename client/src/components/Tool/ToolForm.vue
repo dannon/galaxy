@@ -110,7 +110,7 @@
 </template>
 
 <script>
-import { getGalaxyInstance } from "app";
+import { getGalaxyInstance } from "@/app";
 import ButtonSpinner from "components/Common/ButtonSpinner";
 import Heading from "components/Common/Heading";
 import FormDisplay from "components/Form/FormDisplay";

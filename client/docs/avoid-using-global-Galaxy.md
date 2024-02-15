@@ -40,7 +40,7 @@ component inside the old Backbone layout until the application is fully converte
 ```js static
 // src/mvc/OldBackboneView.js
 
-import { getGalaxyInstance } from "app";
+import { getGalaxyInstance } from "@/app";
 import MyComponent from "components/MyComponent";
 import { mountVueComponent } from "utils/mountVueComponent";
 

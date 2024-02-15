@@ -1,4 +1,4 @@
-import { getGalaxyInstance } from "app";
+import { getGalaxyInstance } from "@/app";
 import axios from "axios";
 import { FilesDialog } from "components/FilesDialog";
 import { useGlobalUploadModal } from "composables/globalUploadModal";

@@ -59,7 +59,7 @@
     </div>
 </template>
 <script>
-import { getGalaxyInstance } from "app";
+import { getGalaxyInstance } from "@/app";
 import axios from "axios";
 import DelayedInput from "components/Common/DelayedInput";
 import { getAppRoot } from "onload/loadConfig";

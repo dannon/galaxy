@@ -1,6 +1,6 @@
 import "libs/jquery/jstree";
 
-import { getGalaxyInstance } from "app";
+import { getGalaxyInstance } from "@/app";
 import Backbone from "backbone";
 import { Toast } from "composables/toast";
 import $ from "jquery";
