@@ -1,7 +1,7 @@
 import { createTestingPinia } from "@pinia/testing";
 import { mount } from "@vue/test-utils";
 import { findViaNavigation, getLocalVue } from "tests/jest/helpers";
-import { ROOT_COMPONENT } from "utils/navigation";
+import { ROOT_COMPONENT } from "@/utils/navigation";
 
 import WorkflowStorageConfiguration from "./WorkflowStorageConfiguration";
 

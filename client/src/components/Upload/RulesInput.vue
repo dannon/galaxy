@@ -5,8 +5,8 @@ import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import { getGalaxyInstance } from "@/app";
 import { BAlert, BButton } from "bootstrap-vue";
 import { getRemoteEntries, getRemoteEntriesAt } from "@/components/Upload/utils";
-import { filesDialog } from "utils/data";
-import { urlData } from "utils/url";
+import { filesDialog } from "@/utils/data";
+import { urlData } from "@/utils/url";
 import { computed, ref } from "vue";
 
 import { RULES_TYPES } from "./utils.js";

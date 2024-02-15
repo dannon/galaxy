@@ -120,7 +120,7 @@ import ToolEntryPoints from "@/components/ToolEntryPoints/ToolEntryPoints";
 import { mapActions, mapState, storeToRefs } from "pinia";
 import { useHistoryItemsStore } from "stores/historyItemsStore";
 import { useJobStore } from "stores/jobStore";
-import { refreshContentsWrapper } from "utils/data";
+import { refreshContentsWrapper } from "@/utils/data";
 
 import { canMutateHistory } from "@/api";
 import { useConfigStore } from "@/stores/configurationStore";

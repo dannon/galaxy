@@ -589,8 +589,8 @@ import { ERROR_STATES, NON_TERMINAL_STATES } from "@/components/WorkflowInvocati
 import $ from "jquery";
 import { getAppRoot } from "onload/loadConfig";
 import _ from "underscore";
-import { refreshContentsWrapper } from "utils/data";
-import _l from "utils/localization";
+import { refreshContentsWrapper } from "@/utils/data";
+import _l from "@/utils/localization";
 import Vue from "vue";
 
 import TooltipOnHover from "@/components/TooltipOnHover.vue";

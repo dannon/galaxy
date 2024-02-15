@@ -6,8 +6,8 @@ import { visitInputs } from "@/components/Form/utilities";
 import $ from "jquery";
 import { getAppRoot } from "onload/loadConfig";
 import _ from "underscore";
-import { replaceChildrenWithComponent } from "utils/mountVueComponent";
-import Utils from "utils/utils";
+import { replaceChildrenWithComponent } from "@/utils/mountVueComponent";
+import Utils from "@/utils/utils";
 
 import Repeat from "./repeat";
 

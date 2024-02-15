@@ -14,7 +14,7 @@
 </template>
 
 <script>
-import _l from "utils/localization";
+import _l from "@/utils/localization";
 
 export default {
     props: {

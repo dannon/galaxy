@@ -2,7 +2,7 @@
 import { library } from "@fortawesome/fontawesome-svg-core";
 import { faEdit, faFolderOpen, faLaptop } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
-import { bytesToString } from "utils/utils";
+import { bytesToString } from "@/utils/utils";
 import { computed, onMounted, ref } from "vue";
 
 import UploadExtension from "./UploadExtension.vue";
