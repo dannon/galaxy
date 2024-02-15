@@ -141,7 +141,7 @@ import download from "@/components/Libraries/LibraryFolder/TopToolbar/download";
 import mod_import_dataset from "@/components/Libraries/LibraryFolder/TopToolbar/import-to-history/import-dataset";
 import { DatatypesProvider, DbKeyProvider } from "@/components/providers";
 import SingleItemSelector from "@/components/SingleItemSelector";
-import { Toast } from "composables/toast";
+import { Toast } from "@/composables/toast";
 import { mapState } from "pinia";
 
 import { useUserStore } from "@/stores/userStore";

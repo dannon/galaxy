@@ -48,7 +48,7 @@ import { faEye, faSave, faUsers } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import BootstrapVue from "bootstrap-vue";
 import MarkdownEditor from "@/components/Markdown/MarkdownEditor";
-import { Toast } from "composables/toast";
+import { Toast } from "@/composables/toast";
 import Vue from "vue";
 
 import { save } from "./util";

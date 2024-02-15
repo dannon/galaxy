@@ -187,7 +187,7 @@ import { initLibrariesIcons } from "@/components/Libraries/icons";
 import { DEFAULT_PER_PAGE, MAX_DESCRIPTION_LENGTH, onError } from "@/components/Libraries/library-utils";
 import LibraryEditField from "@/components/Libraries/LibraryEditField";
 import SearchField from "@/components/Libraries/LibraryFolder/SearchField";
-import { Toast } from "composables/toast";
+import { Toast } from "@/composables/toast";
 import { getAppRoot } from "onload/loadConfig";
 import { mapState } from "pinia";
 import _l from "utils/localization";

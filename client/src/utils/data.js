@@ -1,4 +1,4 @@
-import { useGlobalUploadModal } from "composables/globalUploadModal";
+import { useGlobalUploadModal } from "@/composables/globalUploadModal";
 
 import { uploadPayload } from "@/utils/upload-payload.js";
 import { uploadSubmit } from "@/utils/upload-submit.js";
