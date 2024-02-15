@@ -19,7 +19,7 @@
 
 <script>
 import LoadingSpan from "@/components/LoadingSpan";
-import _l from "utils/localization";
+import _l from "@/utils/localization";
 
 import { useWorkflowStores } from "@/composables/workflowStores";
 import { getShortToolId } from "@/utils/tool";

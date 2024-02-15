@@ -120,7 +120,7 @@
 import axios from "axios";
 import { BAlert, BButton, BModal, BRow } from "bootstrap-vue";
 import { mapActions } from "pinia";
-import { withPrefix } from "utils/redirect";
+import { withPrefix } from "@/utils/redirect";
 
 import { useHistoryStore } from "@/stores/historyStore";
 

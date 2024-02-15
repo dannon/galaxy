@@ -123,7 +123,7 @@ What you're looking for is the ``data()`` block which returns a dictionary. Ther
      </template>
 
      <script>
-    +import _l from "utils/localization";
+    +import _l from "@/utils/localization";
      import { VBTooltip } from "bootstrap-vue";
      import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
      import { library } from "@fortawesome/fontawesome-svg-core";

@@ -25,7 +25,7 @@ import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import axios from "axios";
 import { Toast } from "@/composables/toast";
 import { getAppRoot } from "onload/loadConfig";
-import { withPrefix } from "utils/redirect";
+import { withPrefix } from "@/utils/redirect";
 
 import { useConfig } from "@/composables/config";
 

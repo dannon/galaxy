@@ -1,7 +1,7 @@
 import Backbone from "backbone";
 import $ from "jquery";
 import _ from "underscore";
-import _l from "utils/localization";
+import _l from "@/utils/localization";
 
 //==============================================================================
 /** Backbone model that syncs to the browser's sessionStorage API.

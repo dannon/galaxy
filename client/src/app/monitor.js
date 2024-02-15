@@ -4,7 +4,7 @@
 
 import config from "config";
 import { getAppRoot } from "onload/loadConfig";
-import { serverPath } from "utils/serverPath";
+import { serverPath } from "@/utils/serverPath";
 
 import { getGalaxyInstance, setGalaxyInstance } from "./singleton";
 

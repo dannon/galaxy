@@ -2,7 +2,7 @@
 
 import Backbone from "backbone";
 import { getAppRoot } from "onload/loadConfig";
-import Utils from "utils/utils";
+import Utils from "@/utils/utils";
 
 export default Backbone.View.extend({
     initialize: function (app) {

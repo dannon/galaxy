@@ -5,7 +5,7 @@ import { faCaretDown, faDownload, faExternalLinkAlt, faLink } from "@fortawesome
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import ToolSourceMenuItem from "@/components/Tool/ToolSourceMenuItem";
 import { storeToRefs } from "pinia";
-import Webhooks from "utils/webhooks";
+import Webhooks from "@/utils/webhooks";
 import { computed, ref } from "vue";
 
 import { useUserStore } from "@/stores/userStore";

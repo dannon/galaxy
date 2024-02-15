@@ -5,7 +5,7 @@
 import Backbone from "backbone";
 import $ from "jquery";
 import { getAppRoot } from "onload/loadConfig";
-import Utils from "utils/utils";
+import Utils from "@/utils/utils";
 
 export default Backbone.View.extend({
     initialize: function (app, options) {

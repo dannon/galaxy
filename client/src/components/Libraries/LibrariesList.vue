@@ -190,7 +190,7 @@ import SearchField from "@/components/Libraries/LibraryFolder/SearchField";
 import { Toast } from "@/composables/toast";
 import { getAppRoot } from "onload/loadConfig";
 import { mapState } from "pinia";
-import _l from "utils/localization";
+import _l from "@/utils/localization";
 import Vue from "vue";
 
 import { useUserStore } from "@/stores/userStore";
