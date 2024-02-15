@@ -26,7 +26,7 @@ import GridInvocation from "@/components/Grid/GridInvocation";
 import GridList from "@/components/Grid/GridList";
 import RegisterForm from "@/components/Login/RegisterForm";
 import Toolshed from "@/components/Toolshed/Index";
-import Admin from "entry/analysis/modules/Admin";
+import Admin from "@/entry/analysis/modules/Admin";
 
 export default [
     {
