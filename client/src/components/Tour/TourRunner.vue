@@ -3,7 +3,7 @@
 </template>
 
 <script>
-import CenterFrame from "entry/analysis/modules/CenterFrame";
+import CenterFrame from "@/entry/analysis/modules/CenterFrame";
 
 import { runTour } from "./runTour";
 
