@@ -11,7 +11,7 @@
 <script>
 import BootstrapVue from "bootstrap-vue";
 import Markdown from "@/components/Markdown/Markdown";
-import { Toast } from "composables/toast";
+import { Toast } from "@/composables/toast";
 import { withPrefix } from "utils/redirect";
 import { urlData } from "utils/url";
 import Vue from "vue";
