@@ -1,7 +1,7 @@
 import { getGalaxyInstance } from "@/app";
 import axios from "axios";
 import { FilesDialog } from "@/components/FilesDialog";
-import { useGlobalUploadModal } from "composables/globalUploadModal";
+import { useGlobalUploadModal } from "@/composables/globalUploadModal";
 import $ from "jquery";
 import { getAppRoot } from "onload/loadConfig";
 import { startWatchingHistory } from "store/historyStore/model/watchHistory";
