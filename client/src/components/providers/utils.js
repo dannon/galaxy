@@ -1,4 +1,4 @@
-import { NON_TERMINAL_STATES } from "components/WorkflowInvocationState/util";
+import { NON_TERMINAL_STATES } from "@/components/WorkflowInvocationState/util";
 import { snakeCase } from "lodash";
 
 export function stateIsTerminal(result) {

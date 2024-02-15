@@ -1,7 +1,7 @@
 /** This class renders the chart configuration form. */
 import Backbone from "backbone";
-import FormDisplay from "components/Form/FormDisplay";
-import { visitInputs } from "components/Form/utilities";
+import FormDisplay from "@/components/Form/FormDisplay";
+import { visitInputs } from "@/components/Form/utilities";
 import { replaceChildrenWithComponent } from "utils/mountVueComponent";
 import Utils from "utils/utils";
 

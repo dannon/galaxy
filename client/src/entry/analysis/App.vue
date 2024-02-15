@@ -47,9 +47,9 @@
 </template>
 <script>
 import { getGalaxyInstance } from "@/app";
-import ConfirmDialog from "components/ConfirmDialog";
-import { HistoryPanelProxy } from "components/History/adapters/HistoryPanelProxy";
-import Toast from "components/Toast";
+import ConfirmDialog from "@/components/ConfirmDialog";
+import { HistoryPanelProxy } from "@/components/History/adapters/HistoryPanelProxy";
+import Toast from "@/components/Toast";
 import { setConfirmDialogComponentRef } from "composables/confirmDialog";
 import { setGlobalUploadModal } from "composables/globalUploadModal";
 import { setToastComponentRef } from "composables/toast";
@@ -70,8 +70,8 @@ import { useUserStore } from "@/stores/userStore";
 import Alert from "@/components/Alert.vue";
 import DragGhost from "@/components/DragGhost.vue";
 import BroadcastsOverlay from "@/components/Notifications/Broadcasts/BroadcastsOverlay.vue";
-import Masthead from "components/Masthead/Masthead.vue";
-import UploadModal from "components/Upload/UploadModal.vue";
+import Masthead from "@/components/Masthead/Masthead.vue";
+import UploadModal from "@/components/Upload/UploadModal.vue";
 
 export default {
     components: {

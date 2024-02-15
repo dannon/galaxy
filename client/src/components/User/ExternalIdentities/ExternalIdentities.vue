@@ -103,7 +103,7 @@ import { capitalizeFirstLetter } from "@/utils/strings";
 
 import svc from "./service";
 
-import ExternalLogin from "components/User/ExternalIdentities/ExternalLogin.vue";
+import ExternalLogin from "@/components/User/ExternalIdentities/ExternalLogin.vue";
 
 Vue.use(BootstrapVue);
 

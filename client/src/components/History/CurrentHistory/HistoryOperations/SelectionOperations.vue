@@ -163,10 +163,10 @@ import {
     removeTagsFromSelectedContent,
     undeleteSelectedContent,
     unhideSelectedContent,
-} from "components/History/model/crud";
-import { DatatypesProvider, DbKeyProvider } from "components/providers";
-import SingleItemSelector from "components/SingleItemSelector";
-import { StatelessTags } from "components/Tags";
+} from "@/components/History/model/crud";
+import { DatatypesProvider, DbKeyProvider } from "@/components/providers";
+import SingleItemSelector from "@/components/SingleItemSelector";
+import { StatelessTags } from "@/components/Tags";
 
 import { createDatasetCollection } from "@/components/History/model/queries";
 import { useConfig } from "@/composables/config";

@@ -1,5 +1,5 @@
-import { STATES } from "components/History/Content/model/states";
-import StatesInfo from "components/History/Content/model/StatesInfo";
+import { STATES } from "@/components/History/Content/model/states";
+import StatesInfo from "@/components/History/Content/model/StatesInfo";
 import Filtering, {
     compare,
     contains,

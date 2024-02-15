@@ -26,7 +26,7 @@
 
 <script>
 import BootstrapVue from "bootstrap-vue";
-import ToolSection from "components/Panels/Common/ToolSection";
+import ToolSection from "@/components/Panels/Common/ToolSection";
 import Vue from "vue";
 
 import { fromSteps } from "@/components/Workflow/Editor/modules/labels";

@@ -8,8 +8,8 @@
 </template>
 
 <script>
-import ToolForm from "components/Tool/ToolForm";
-import WorkflowRun from "components/Workflow/Run/WorkflowRun";
+import ToolForm from "@/components/Tool/ToolForm";
+import WorkflowRun from "@/components/Workflow/Run/WorkflowRun";
 import decodeUriComponent from "decode-uri-component";
 import CenterFrame from "entry/analysis/modules/CenterFrame";
 

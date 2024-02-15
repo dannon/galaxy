@@ -53,7 +53,7 @@
 </template>
 <script>
 import BootstrapVue from "bootstrap-vue";
-import LoadingSpan from "components/LoadingSpan";
+import LoadingSpan from "@/components/LoadingSpan";
 import { getAppRoot } from "onload/loadConfig";
 import Vue from "vue";
 

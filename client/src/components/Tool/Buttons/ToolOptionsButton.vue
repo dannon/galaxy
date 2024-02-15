@@ -3,7 +3,7 @@ import { library } from "@fortawesome/fontawesome-svg-core";
 import { faCopy } from "@fortawesome/free-regular-svg-icons";
 import { faCaretDown, faDownload, faExternalLinkAlt, faLink } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
-import ToolSourceMenuItem from "components/Tool/ToolSourceMenuItem";
+import ToolSourceMenuItem from "@/components/Tool/ToolSourceMenuItem";
 import { storeToRefs } from "pinia";
 import Webhooks from "utils/webhooks";
 import { computed, ref } from "vue";
