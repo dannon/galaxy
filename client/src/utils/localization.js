@@ -1,9 +1,12 @@
-import localeStrings from "i18n!nls/locale";
+// import localeStrings from "i18n!nls/locale";
 
 /**
  * @param {String} strToLocalize
  * @returns
  */
+
+// TODO: Fix this for vite.
+const localeStrings = [];
 
 let localeStringsSubset = [];
 
