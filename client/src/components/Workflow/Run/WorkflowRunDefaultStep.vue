@@ -30,7 +30,7 @@ import FormMessage from "@/components/Form/FormMessage";
 import { visitInputs } from "@/components/Form/utilities";
 import WorkflowIcons from "@/components/Workflow/icons";
 import { mapState } from "pinia";
-import { useHistoryItemsStore } from "stores/historyItemsStore";
+import { useHistoryItemsStore } from "@/stores/historyItemsStore";
 
 import { getTool } from "./services";
 

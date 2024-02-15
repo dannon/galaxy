@@ -7,8 +7,8 @@
 
 import { getGalaxyInstance } from "@/app";
 import { storeToRefs } from "pinia";
-import { useHistoryItemsStore } from "stores/historyItemsStore";
-import { useHistoryStore } from "stores/historyStore";
+import { useHistoryItemsStore } from "@/stores/historyItemsStore";
+import { useHistoryStore } from "@/stores/historyStore";
 import { loadSet } from "@/utils/setCache";
 import { urlData } from "@/utils/url";
 
