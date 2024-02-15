@@ -28,7 +28,7 @@
 </template>
 
 <script>
-import DelayedInput from "components/Common/DelayedInput";
+import DelayedInput from "@/components/Common/DelayedInput";
 import { getAppRoot } from "onload/loadConfig";
 import _l from "utils/localization";
 import { urlData } from "utils/url";

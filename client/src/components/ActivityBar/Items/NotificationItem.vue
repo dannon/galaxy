@@ -4,7 +4,7 @@ import { computed } from "vue";
 
 import { useNotificationsStore } from "@/stores/notificationsStore";
 
-import ActivityItem from "components/ActivityBar/ActivityItem.vue";
+import ActivityItem from "@/components/ActivityBar/ActivityItem.vue";
 
 const { totalUnreadCount } = storeToRefs(useNotificationsStore());
 

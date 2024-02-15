@@ -4,7 +4,7 @@ import { faEdit, faFile, faFolderOpen, faLock } from "@fortawesome/free-solid-sv
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import { getGalaxyInstance } from "@/app";
 import { BAlert, BButton } from "bootstrap-vue";
-import { getRemoteEntries, getRemoteEntriesAt } from "components/Upload/utils";
+import { getRemoteEntries, getRemoteEntriesAt } from "@/components/Upload/utils";
 import { filesDialog } from "utils/data";
 import { urlData } from "utils/url";
 import { computed, ref } from "vue";
