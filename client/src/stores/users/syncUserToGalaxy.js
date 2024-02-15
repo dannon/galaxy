@@ -1,6 +1,6 @@
 // Sync Galaxy store to legacy galaxy current user
 import { pluck, switchMap } from "rxjs/operators";
-import { useUserStore } from "stores/userStore";
+import { useUserStore } from "@/stores/userStore";
 import { monitorBackboneModel } from "@/utils/observable";
 
 export function syncUserToGalaxy(galaxy$) {
