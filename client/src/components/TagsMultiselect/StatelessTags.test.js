@@ -1,5 +1,5 @@
 import { mount } from "@vue/test-utils";
-import { useToast } from "composables/toast";
+import { useToast } from "@/composables/toast";
 import { getLocalVue } from "tests/jest/helpers";
 import { computed } from "vue";
 

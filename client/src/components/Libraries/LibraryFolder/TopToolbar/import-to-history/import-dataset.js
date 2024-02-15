@@ -1,6 +1,6 @@
 import { getGalaxyInstance } from "@/app";
 import Backbone from "backbone";
-import { Toast } from "composables/toast";
+import { Toast } from "@/composables/toast";
 import $ from "jquery";
 import { getAppRoot } from "onload/loadConfig";
 import _ from "underscore";

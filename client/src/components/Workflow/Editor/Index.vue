@@ -192,7 +192,7 @@ import { faArrowLeft, faArrowRight, faHistory } from "@fortawesome/free-solid-sv
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import { useMagicKeys, whenever } from "@vueuse/core";
 import { logicAnd, logicNot, logicOr } from "@vueuse/math";
-import { Toast } from "composables/toast";
+import { Toast } from "@/composables/toast";
 import { storeToRefs } from "pinia";
 import Vue, { computed, nextTick, onUnmounted, ref, unref, watch } from "vue";
 
