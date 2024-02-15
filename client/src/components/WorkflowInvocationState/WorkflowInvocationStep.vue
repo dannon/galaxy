@@ -126,8 +126,8 @@ import LoadingSpan from "@/components/LoadingSpan";
 import { InvocationStepProvider } from "@/components/providers";
 import ToolLinkPopover from "@/components/Tool/ToolLinkPopover";
 import { mapActions, mapState } from "pinia";
-import { useToolStore } from "stores/toolStore";
-import { useWorkflowStore } from "stores/workflowStore";
+import { useToolStore } from "@/stores/toolStore";
+import { useWorkflowStore } from "@/stores/workflowStore";
 
 import JobStep from "./JobStep";
 import ParameterStep from "./ParameterStep";

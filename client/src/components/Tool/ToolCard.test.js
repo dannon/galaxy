@@ -2,7 +2,7 @@ import { mount } from "@vue/test-utils";
 import axios from "axios";
 import MockAdapter from "axios-mock-adapter";
 import { createPinia } from "pinia";
-import { useUserStore } from "stores/userStore";
+import { useUserStore } from "@/stores/userStore";
 import { getLocalVue } from "tests/jest/helpers";
 
 import ToolCard from "./ToolCard";
