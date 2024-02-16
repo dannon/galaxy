@@ -45,7 +45,7 @@
 
 <script>
 import axios from "axios";
-import LoadingSpan from "@/components/LoadingSpan";
+import LoadingSpan from "@/components/LoadingSpan.vue";
 import { copyCollection } from "@/components/Markdown/services";
 import { getAppRoot } from "@/onload/loadConfig";
 import { mapState } from "pinia";

@@ -1,4 +1,4 @@
-import CollectionCreator from "./CollectionCreator";
+import CollectionCreator from "./CollectionCreator.vue";
 
 export default {
     components: {
