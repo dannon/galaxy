@@ -279,7 +279,7 @@ import { useUserStore } from "@/stores/userStore";
 
 import { Services } from "./services";
 import { fields } from "./table-fields";
-import FolderTopBar from "./TopToolbar/FolderTopBar";
+import FolderTopBar from "./TopToolbar/FolderTopBar.vue";
 
 initFolderTableIcons();
 

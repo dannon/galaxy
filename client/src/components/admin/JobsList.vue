@@ -106,7 +106,7 @@ import { getAppRoot } from "onload/loadConfig";
 import { errorMessageAsString } from "utils/simple-error";
 
 import { commonJobFields } from "./JobFields";
-import JobLock from "./JobLock";
+import JobLock from "./JobLock.vue";
 
 function cancelJob(jobId, message) {
     const url = `${getAppRoot()}api/jobs/${jobId}`;

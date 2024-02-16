@@ -30,7 +30,7 @@
 </template>
 
 <script>
-import JobMetrics from "@/components/JobMetrics/JobMetrics";
+import JobMetrics from "@/components/JobMetrics/JobMetrics.vue";
 
 import JobInformation from "./JobInformation.vue";
 

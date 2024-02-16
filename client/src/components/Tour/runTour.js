@@ -2,7 +2,7 @@ import axios from "axios";
 import { getAppRoot } from "@/onload";
 import { mountVueComponent } from "@/utils/mountVueComponent";
 
-import Tour from "./Tour";
+import Tour from "./Tour.vue";
 
 // delays and maximum number of attempts to wait for element
 const attempts = 200;

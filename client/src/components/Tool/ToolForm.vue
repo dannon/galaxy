@@ -127,9 +127,9 @@ import { useConfigStore } from "@/stores/configurationStore";
 import { useHistoryStore } from "@/stores/historyStore";
 import { useUserStore } from "@/stores/userStore";
 
-import ToolRecommendation from "../ToolRecommendation";
+import ToolRecommendation from "../ToolRecommendation.vue";
 import { getToolFormData, submitJob, updateToolFormData } from "./services";
-import ToolCard from "./ToolCard";
+import ToolCard from "./ToolCard.vue";
 import { allowCachedJobs } from "./utilities";
 
 import FormSelect from "@/components/Form/Elements/FormSelect.vue";

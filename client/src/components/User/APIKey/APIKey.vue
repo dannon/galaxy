@@ -3,7 +3,7 @@ import { getGalaxyInstance } from "@/app";
 import LoadingSpan from "@/components/LoadingSpan";
 import { ref } from "vue";
 
-import APIKeyItem from "./APIKeyItem";
+import APIKeyItem from "./APIKeyItem.vue";
 import svc from "./model/service";
 
 const apiKey = ref(null);
