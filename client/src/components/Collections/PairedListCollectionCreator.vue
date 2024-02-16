@@ -1035,10 +1035,10 @@ export default {
 </script>
 <style lang="scss">
 $fa-font-path: "../../../node_modules/@fortawesome/fontawesome-free/webfonts/";
-@import "~@fortawesome/fontawesome-free/scss/_variables";
-@import "~@fortawesome/fontawesome-free/scss/solid";
-@import "~@fortawesome/fontawesome-free/scss/fontawesome";
-@import "~@fortawesome/fontawesome-free/scss/brands";
+@import "@fortawesome/fontawesome-free/scss/_variables";
+@import "@fortawesome/fontawesome-free/scss/solid";
+@import "@fortawesome/fontawesome-free/scss/fontawesome";
+@import "@fortawesome/fontawesome-free/scss/brands";
 .paired-column {
     text-align: center;
     // mess with these two to make center more/scss priority

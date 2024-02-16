@@ -15,6 +15,7 @@ export default defineConfig({
             scss: {
                 quietDeps: true,
                 includePaths: [
+                    styleBase,
                     path.join(styleBase, "scss"),
                     path.resolve(__dirname, "./node_modules"),
                 ],
