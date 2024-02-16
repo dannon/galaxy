@@ -73,8 +73,8 @@ import { useUserStore } from "@/stores/userStore";
 
 import { getReplacements } from "./model";
 import { invokeWorkflow } from "./services";
-import WorkflowRunDefaultStep from "./WorkflowRunDefaultStep";
-import WorkflowRunInputStep from "./WorkflowRunInputStep";
+import WorkflowRunDefaultStep from "./WorkflowRunDefaultStep.vue";
+import WorkflowRunInputStep from "./WorkflowRunInputStep.vue";
 
 export default {
     components: {

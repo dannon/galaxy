@@ -19,8 +19,8 @@
 
 <script>
 import axios from "axios";
-import ExternalLink from "@/components/ExternalLink";
-import LoadingSpan from "@/components/LoadingSpan";
+import ExternalLink from "@/components/ExternalLink.vue";
+import LoadingSpan from "@/components/LoadingSpan.vue";
 import { getAppRoot } from "@/onload/loadConfig";
 
 export default {

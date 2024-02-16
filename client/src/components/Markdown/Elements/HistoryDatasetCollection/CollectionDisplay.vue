@@ -53,7 +53,7 @@ import { mapState } from "pinia";
 import { useHistoryStore } from "@/stores/historyStore";
 import { useUserStore } from "@/stores/userStore";
 
-import CollectionTree from "./CollectionTree";
+import CollectionTree from "./CollectionTree.vue";
 
 export default {
     components: {

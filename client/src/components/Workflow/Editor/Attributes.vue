@@ -57,9 +57,9 @@
 
 <script>
 import BootstrapVue from "bootstrap-vue";
-import LicenseSelector from "@/components/License/LicenseSelector";
-import CreatorEditor from "@/components/SchemaOrg/CreatorEditor";
-import StatelessTags from "@/components/TagsMultiselect/StatelessTags";
+import LicenseSelector from "@/components/License/LicenseSelector.vue";
+import CreatorEditor from "@/components/SchemaOrg/CreatorEditor.vue";
+import StatelessTags from "@/components/TagsMultiselect/StatelessTags.vue";
 import { Services } from "@/components/Workflow/services";
 import { format, parseISO } from "date-fns";
 import Vue from "vue";

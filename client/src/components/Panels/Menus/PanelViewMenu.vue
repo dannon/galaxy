@@ -50,7 +50,7 @@
 </template>
 
 <script>
-import PanelViewMenuItem from "./PanelViewMenuItem";
+import PanelViewMenuItem from "./PanelViewMenuItem.vue";
 
 const groupsDefinitions = [
     { type: "ontology", title: "...by Ontology" },

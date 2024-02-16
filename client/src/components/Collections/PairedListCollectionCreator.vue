@@ -416,8 +416,8 @@ import Vue from "vue";
 import draggable from "vuedraggable";
 
 import mixin from "./common/mixin";
-import PairedElementView from "./PairedElementView";
-import UnpairedDatasetElementView from "./UnpairedDatasetElementView";
+import PairedElementView from "./PairedElementView.vue";
+import UnpairedDatasetElementView from "./UnpairedDatasetElementView.vue";
 
 Vue.use(BootstrapVue);
 export default {

@@ -34,8 +34,8 @@ import { DatasetCollectionElementProvider } from "@/components/providers/storePr
 import { useHistoryStore } from "@/stores/historyStore";
 import { errorMessageAsString } from "@/utils/simple-error";
 
-import ContentItem from "./ContentItem";
-import GenericElement from "./GenericElement";
+import ContentItem from "./ContentItem.vue";
+import GenericElement from "./GenericElement.vue";
 
 export default {
     components: {

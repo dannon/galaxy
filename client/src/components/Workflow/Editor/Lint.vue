@@ -79,7 +79,7 @@ import { library } from "@fortawesome/fontawesome-svg-core";
 import { faExclamationTriangle, faMagic } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import BootstrapVue from "bootstrap-vue";
-import LintSection from "@/components/Workflow/Editor/LintSection";
+import LintSection from "@/components/Workflow/Editor/LintSection.vue";
 import { UntypedParameters } from "@/components/Workflow/Editor/modules/parameters";
 import { storeToRefs } from "pinia";
 import Vue from "vue";

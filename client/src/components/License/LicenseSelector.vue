@@ -47,7 +47,7 @@ import LoadingSpan from "@/components/LoadingSpan";
 import { getAppRoot } from "@/onload/loadConfig";
 import Vue from "vue";
 
-import License from "./License";
+import License from "./License.vue";
 
 library.add(faSave);
 library.add(faTimes);

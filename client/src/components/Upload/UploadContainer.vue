@@ -1,7 +1,7 @@
 <script setup>
 import { BAlert, BTab, BTabs } from "bootstrap-vue";
 import { getDatatypesMapper } from "@/components/Datatypes";
-import LoadingSpan from "@/components/LoadingSpan";
+import LoadingSpan from "@/components/LoadingSpan.vue";
 import {
     AUTO_EXTENSION,
     DEFAULT_DBKEY,

@@ -1,4 +1,4 @@
-import "libs/jquery/jstree";
+import "@/libs/jquery/jstree";
 
 import { getGalaxyInstance } from "@/app";
 import Backbone from "backbone";

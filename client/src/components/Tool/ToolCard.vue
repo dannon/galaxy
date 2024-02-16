@@ -1,8 +1,8 @@
 <script setup>
-import Heading from "@/components/Common/Heading";
-import FormMessage from "@/components/Form/FormMessage";
-import ToolFooter from "@/components/Tool/ToolFooter";
-import ToolHelp from "@/components/Tool/ToolHelp";
+import Heading from "@/components/Common/Heading.vue";
+import FormMessage from "@/components/Form/FormMessage.vue";
+import ToolFooter from "@/components/Tool/ToolFooter.vue";
+import ToolHelp from "@/components/Tool/ToolHelp.vue";
 import { getAppRoot } from "@/onload/loadConfig";
 import { storeToRefs } from "pinia";
 import { computed, ref, watch } from "vue";
@@ -11,8 +11,8 @@ import { useStorageLocationConfiguration } from "@/composables/storageLocation";
 import { useConfigStore } from "@/stores/configurationStore";
 import { useUserStore } from "@/stores/userStore";
 
-import ToolSelectPreferredObjectStore from "./ToolSelectPreferredObjectStore";
-import ToolTargetPreferredObjectStorePopover from "./ToolTargetPreferredObjectStorePopover";
+import ToolSelectPreferredObjectStore from "./ToolSelectPreferredObjectStore.vue";
+import ToolTargetPreferredObjectStorePopover from "./ToolTargetPreferredObjectStorePopover.vue";
 
 import ToolHelpForum from "./ToolHelpForum.vue";
 import ToolTutorialRecommendations from "./ToolTutorialRecommendations.vue";
