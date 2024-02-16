@@ -73,7 +73,7 @@ watch(
 </template>
 
 <style lang="scss" scoped>
-@import "~bootstrap/scss/bootstrap.scss";
+@import "bootstrap/scss/bootstrap.scss";
 .grid-datasets {
     @extend .d-flex;
     @extend .text-nowrap;
