@@ -1,5 +1,5 @@
 import { mount } from "@vue/test-utils";
-import { getAppRoot } from "@/onload/loadconfig";
+import { getAppRoot } from "@/onload/loadConfig";
 import { getLocalVue } from "tests/jest/helpers";
 
 import { Services } from "../services";

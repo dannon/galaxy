@@ -13,7 +13,7 @@
     </div>
 </template>
 <script>
-import { getAppRoot } from "@/onload/loadconfig";
+import { getAppRoot } from "@/onload/loadConfig";
 
 export default {
     computed: {
