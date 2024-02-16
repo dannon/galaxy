@@ -6,6 +6,8 @@ import path from 'path';
 const targetEnv = process.env.NODE_ENV == "production" ? "production" : "development";
 
 const scriptsBase = path.resolve(__dirname, "./src");
+const styleBase = path.join(scriptsBase, "style");
+
 export default defineConfig({
   plugins: [
     vue(),
@@ -14,7 +16,11 @@ export default defineConfig({
   css: {
     preprocessorOptions: {
       scss: {
-        // Do we need includePaths?
+        quietDeps: true,
+        includePaths: [
+          path.join(styleBase, "scss"),
+          path.resolve(__dirname, "./node_modules"),
+        ],
       },
     },
   },
