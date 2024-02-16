@@ -220,7 +220,7 @@ export function getRouter(Galaxy) {
                     },
                     {
                         path: "datasets/:datasetId/details",
-                        name: "DatasetDetails",
+                        name: "DatasetDetails.vue",
                         component: DatasetDetails,
                         props: true,
                     },
@@ -462,7 +462,7 @@ export function getRouter(Galaxy) {
                     },
                     {
                         path: "storage/history/:historyId",
-                        name: "HistoryOverviewInAnalysis",
+                        name: "HistoryOverviewInAnalysis.vue",
                         component: HistoryStorageOverview,
                         props: true,
                     },

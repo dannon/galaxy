@@ -95,7 +95,7 @@ import Vue, { ref, watch } from "vue";
 
 import { fetchFileSources } from "@/api/remoteFiles";
 
-import ExternalLink from "./ExternalLink";
+import ExternalLink from "./ExternalLink.vue";
 
 import FilesInput from "@/components/FilesDialog/FilesInput.vue";
 

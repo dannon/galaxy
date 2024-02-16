@@ -16,7 +16,7 @@ import { Toast } from "@/composables/toast";
 import { getAppRoot } from "@/onload/loadconfig";
 import { rethrowSimple } from "@/utils/simple-error";
 
-import PageEditorMarkdown from "./PageEditorMarkdown";
+import PageEditorMarkdown from "./PageEditorMarkdown.vue";
 
 export default {
     components: {
