@@ -1,3 +1,4 @@
+import ViteYaml from "@modyfi/vite-plugin-yaml";
 import vue from "@vitejs/plugin-vue2"; // For Vue 2
 import path from "path";
 import { defineConfig } from "vite";
@@ -9,7 +10,7 @@ const scriptsBase = path.resolve(__dirname, "./src");
 const styleBase = path.join(scriptsBase, "style");
 
 export default defineConfig({
-    plugins: [vue(), tsconfigPaths()],
+    plugins: [vue(), tsconfigPaths(), ViteYaml()],
     css: {
         preprocessorOptions: {
             scss: {
