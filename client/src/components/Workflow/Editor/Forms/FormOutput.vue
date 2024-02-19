@@ -77,9 +77,9 @@
 </template>
 
 <script>
-import FormCard from "@/components/Form/FormCard";
-import FormElement from "@/components/Form/FormElement";
-import FormOutputLabel from "@/components/Workflow/Editor/Forms/FormOutputLabel";
+import FormCard from "@/components/Form/FormCard.vue";
+import FormElement from "@/components/Form/FormElement.vue";
+import FormOutputLabel from "@/components/Workflow/Editor/Forms/FormOutputLabel.vue";
 
 const actions = [
     "RenameDatasetAction__newname",
