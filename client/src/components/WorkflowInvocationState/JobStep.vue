@@ -49,11 +49,13 @@ import { library } from "@fortawesome/fontawesome-svg-core";
 import { faCaretDown, faCaretRight } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import BootstrapVue from "bootstrap-vue";
+import Vue from "vue";
+
+import { JobProvider } from "@/components/providers";
+
 import JobInformation from "@/components/JobInformation/JobInformation.vue";
 import JobParameters from "@/components/JobParameters/JobParameters.vue";
-import { JobProvider } from "@/components/providers";
 import UtcDate from "@/components/UtcDate.vue";
-import Vue from "vue";
 
 Vue.use(BootstrapVue);
 library.add(faCaretDown, faCaretRight);

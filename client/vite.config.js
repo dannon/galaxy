@@ -5,7 +5,6 @@ import { defineConfig } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 
 const targetEnv = process.env.NODE_ENV == "production" ? "production" : "development";
-
 const scriptsBase = path.resolve(__dirname, "./src");
 const styleBase = path.join(scriptsBase, "style");
 

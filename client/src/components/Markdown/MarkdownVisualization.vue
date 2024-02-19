@@ -22,11 +22,11 @@
 
 <script>
 import BootstrapVue from "bootstrap-vue";
-import DataDialog from "@/components/DataDialog/DataDialog.vue";
-import FormDisplay from "@/components/Form/FormDisplay.vue";
 import Vue from "vue";
 
 import MarkdownSelector from "./MarkdownSelector.vue";
+import DataDialog from "@/components/DataDialog/DataDialog.vue";
+import FormDisplay from "@/components/Form/FormDisplay.vue";
 
 Vue.use(BootstrapVue);
 

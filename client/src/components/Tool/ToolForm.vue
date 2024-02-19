@@ -110,29 +110,29 @@
 </template>
 
 <script>
+import { mapActions, mapState, storeToRefs } from "pinia";
+
+import { canMutateHistory } from "@/api";
 import { getGalaxyInstance } from "@/app";
+import { useConfigStore } from "@/stores/configurationStore";
+import { useHistoryItemsStore } from "@/stores/historyItemsStore";
+import { useHistoryStore } from "@/stores/historyStore";
+import { useJobStore } from "@/stores/jobStore";
+import { useUserStore } from "@/stores/userStore";
+import { refreshContentsWrapper } from "@/utils/data";
+
+import { getToolFormData, submitJob, updateToolFormData } from "./services";
+import { allowCachedJobs } from "./utilities";
+
+import ToolRecommendation from "../ToolRecommendation.vue";
+import ToolCard from "./ToolCard.vue";
 import ButtonSpinner from "@/components/Common/ButtonSpinner.vue";
 import Heading from "@/components/Common/Heading.vue";
+import FormSelect from "@/components/Form/Elements/FormSelect.vue";
 import FormDisplay from "@/components/Form/FormDisplay.vue";
 import FormElement from "@/components/Form/FormElement.vue";
 import LoadingSpan from "@/components/LoadingSpan.vue";
 import ToolEntryPoints from "@/components/ToolEntryPoints/ToolEntryPoints.vue";
-import { mapActions, mapState, storeToRefs } from "pinia";
-import { useHistoryItemsStore } from "@/stores/historyItemsStore";
-import { useJobStore } from "@/stores/jobStore";
-import { refreshContentsWrapper } from "@/utils/data";
-
-import { canMutateHistory } from "@/api";
-import { useConfigStore } from "@/stores/configurationStore";
-import { useHistoryStore } from "@/stores/historyStore";
-import { useUserStore } from "@/stores/userStore";
-
-import ToolRecommendation from "../ToolRecommendation.vue";
-import { getToolFormData, submitJob, updateToolFormData } from "./services";
-import ToolCard from "./ToolCard.vue";
-import { allowCachedJobs } from "./utilities";
-
-import FormSelect from "@/components/Form/Elements/FormSelect.vue";
 
 export default {
     components: {

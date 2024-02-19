@@ -159,13 +159,14 @@ import {
     unhideSelectedContent,
 } from "@/components/History/model/crud";
 import { DatatypesProvider, DbKeyProvider } from "@/components/providers";
-import SingleItemSelector from "@/components/SingleItemSelector.vue";
 import { StatelessTags } from "@/components/Tags";
 
 import { GalaxyApi } from "@/api";
 import { createDatasetCollection, filtersToQueryValues } from "@/components/History/model/queries";
 import { useConfig } from "@/composables/config";
 import { rethrowSimple } from "@/utils/simple-error";
+
+import SingleItemSelector from "@/components/SingleItemSelector.vue";
 
 export default {
     components: {

@@ -1,4 +1,5 @@
 import Backbone from "backbone";
+
 import { Visualization } from "@/mvc/visualization/visualization-model";
 import Utils from "@/utils/utils";
 

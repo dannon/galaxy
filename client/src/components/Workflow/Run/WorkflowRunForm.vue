@@ -61,20 +61,21 @@
 
 <script>
 import { BAlert } from "bootstrap-vue";
-import ButtonSpinner from "@/components/Common/ButtonSpinner";
-import FormCard from "@/components/Form/FormCard";
-import FormDisplay from "@/components/Form/FormDisplay";
-import FormElement from "@/components/Form/FormElement";
-import { allowCachedJobs } from "@/components/Tool/utilities";
 import { mapState } from "pinia";
 
+import { allowCachedJobs } from "@/components/Tool/utilities";
 import { useHistoryStore } from "@/stores/historyStore";
 import { useUserStore } from "@/stores/userStore";
 
 import { getReplacements } from "./model";
 import { invokeWorkflow } from "./services";
+
 import WorkflowRunDefaultStep from "./WorkflowRunDefaultStep.vue";
 import WorkflowRunInputStep from "./WorkflowRunInputStep.vue";
+import ButtonSpinner from "@/components/Common/ButtonSpinner.vue";
+import FormCard from "@/components/Form/FormCard.vue";
+import FormDisplay from "@/components/Form/FormDisplay.vue";
+import FormElement from "@/components/Form/FormElement.vue";
 
 export default {
     components: {

@@ -25,13 +25,14 @@
 </template>
 
 <script>
-import FormCard from "@/components/Form/FormCard.vue";
-import FormDisplay from "@/components/Form/FormDisplay.vue";
 import { visitInputs } from "@/components/Form/utilities";
 import { UrlDataProvider } from "@/components/providers/UrlDataProvider";
 import { withPrefix } from "@/utils/redirect";
 
 import { submitData } from "./services";
+
+import FormCard from "@/components/Form/FormCard.vue";
+import FormDisplay from "@/components/Form/FormDisplay.vue";
 
 export default {
     components: {

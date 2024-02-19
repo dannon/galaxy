@@ -47,8 +47,9 @@
 <script>
 import axios from "axios";
 import BootstrapVue from "bootstrap-vue";
-import { getAppRoot } from "@/onload/loadConfig";
 import Vue from "vue";
+
+import { getAppRoot } from "@/onload/loadConfig";
 
 import JobOutputs from "../JobInformation/JobOutputs.vue";
 import JobParametersArrayValue from "./JobParametersArrayValue.vue";

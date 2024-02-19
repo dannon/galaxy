@@ -43,11 +43,12 @@ import { faEdit, faSave, faTimes } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import axios from "axios";
 import BootstrapVue from "bootstrap-vue";
-import LoadingSpan from "@/components/LoadingSpan.vue";
-import { getAppRoot } from "@/onload/loadConfig";
 import Vue from "vue";
 
+import { getAppRoot } from "@/onload/loadConfig";
+
 import License from "./License.vue";
+import LoadingSpan from "@/components/LoadingSpan.vue";
 
 library.add(faSave);
 library.add(faTimes);

@@ -40,9 +40,11 @@
 </template>
 
 <script>
-import Select2 from "@/components/Select2.vue";
-import _l from "@/utils/localization";
 import Vue from "vue";
+
+import _l from "@/utils/localization";
+
+import Select2 from "@/components/Select2.vue";
 
 export default {
     components: {

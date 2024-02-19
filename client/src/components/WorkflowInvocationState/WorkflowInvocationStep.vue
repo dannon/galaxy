@@ -121,11 +121,9 @@
 import { library } from "@fortawesome/fontawesome-svg-core";
 import { faChevronDown, faChevronUp } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
-import GenericHistoryItem from "@/components/History/Content/GenericItem.vue";
-import LoadingSpan from "@/components/LoadingSpan.vue";
-import { InvocationStepProvider } from "@/components/providers";
-import ToolLinkPopover from "@/components/Tool/ToolLinkPopover.vue";
 import { mapActions, mapState } from "pinia";
+
+import { InvocationStepProvider } from "@/components/providers";
 import { useToolStore } from "@/stores/toolStore";
 import { useWorkflowStore } from "@/stores/workflowStore";
 
@@ -133,6 +131,9 @@ import JobStep from "./JobStep.vue";
 import ParameterStep from "./ParameterStep.vue";
 import WorkflowStepIcon from "./WorkflowStepIcon.vue";
 import WorkflowStepTitle from "./WorkflowStepTitle.vue";
+import GenericHistoryItem from "@/components/History/Content/GenericItem.vue";
+import LoadingSpan from "@/components/LoadingSpan.vue";
+import ToolLinkPopover from "@/components/Tool/ToolLinkPopover.vue";
 
 library.add(faChevronUp, faChevronDown);
 

@@ -24,7 +24,6 @@
 </template>
 
 <script>
-import LoadingSpan from "@/components/LoadingSpan.vue";
 import { Toast } from "@/composables/toast";
 import { mapActions } from "pinia";
 
@@ -36,6 +35,7 @@ import { errorMessageAsString } from "@/utils/simple-error";
 
 import ContentItem from "./ContentItem.vue";
 import GenericElement from "./GenericElement.vue";
+import LoadingSpan from "@/components/LoadingSpan.vue";
 
 export default {
     components: {

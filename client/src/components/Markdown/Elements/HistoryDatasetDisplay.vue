@@ -98,11 +98,11 @@
 
 <script>
 import { DatatypesMapperModel } from "@/components/Datatypes/model";
-import LoadingSpan from "@/components/LoadingSpan.vue";
 import { UrlDataProvider } from "@/components/providers/UrlDataProvider";
 import { getAppRoot } from "@/onload/loadConfig";
 
 import HistoryDatasetAsImage from "./HistoryDatasetAsImage.vue";
+import LoadingSpan from "@/components/LoadingSpan.vue";
 
 export default {
     components: {

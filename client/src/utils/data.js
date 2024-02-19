@@ -1,12 +1,12 @@
-import { getGalaxyInstance } from "@/app";
 import axios from "axios";
-import { FilesDialog } from "@/components/FilesDialog";
-import { useGlobalUploadModal } from "@/composables/globalUploadModal";
 import $ from "jquery";
-import { getAppRoot } from "@/onload/loadConfig";
-import { startWatchingHistory } from "@/store/historyStore/model/watchHistory";
 import Vue from "vue";
 
+import { getGalaxyInstance } from "@/app";
+import { FilesDialog } from "@/components/FilesDialog";
+import { useGlobalUploadModal } from "@/composables/globalUploadModal";
+import { getAppRoot } from "@/onload/loadConfig";
+import { startWatchingHistory } from "@/store/historyStore/model/watchHistory";
 import { uploadPayload } from "@/utils/upload-payload.js";
 import { uploadSubmit } from "@/utils/upload-submit.js";
 

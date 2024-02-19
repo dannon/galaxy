@@ -14,12 +14,12 @@
     </div>
 </template>
 <script>
-import LoadingSpan from "@/components/LoadingSpan.vue";
 import { getAppRoot } from "@/onload/loadConfig";
 
 import { Services } from "../services";
 
 import RepositoryDetails from "../RepositoryDetails/Index.vue";
+import LoadingSpan from "@/components/LoadingSpan.vue";
 
 export default {
     components: {

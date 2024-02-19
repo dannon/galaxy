@@ -1,6 +1,7 @@
 import Backbone from "backbone";
-import { getAppRoot } from "@/onload/loadConfig";
 import _ from "underscore";
+
+import { getAppRoot } from "@/onload/loadConfig";
 import { replaceChildrenWithComponent } from "@/utils/mountVueComponent";
 
 import TabularChunkedView from "@/components/Visualizations/Tabular/TabularChunkedView.vue";

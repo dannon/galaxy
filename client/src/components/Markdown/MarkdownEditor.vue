@@ -42,12 +42,12 @@ import { library } from "@fortawesome/fontawesome-svg-core";
 import { faQuestion } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import BootstrapVue from "bootstrap-vue";
-import FlexPanel from "@/components/Panels/FlexPanel.vue";
 import _ from "underscore";
 import Vue from "vue";
 
 import MarkdownHelpModal from "./MarkdownHelpModal.vue";
 import MarkdownToolBox from "./MarkdownToolBox.vue";
+import FlexPanel from "@/components/Panels/FlexPanel.vue";
 
 Vue.use(BootstrapVue);
 

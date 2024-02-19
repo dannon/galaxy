@@ -28,9 +28,9 @@ export function trackster(options) {
 }
 
 // Previously wandering around as window.thing = thing in the onload script
-export { hide_modal, Modal, show_in_overlay, show_message, show_modal } from "layout/modal";
 export { make_popup_menus, make_popupmenu } from "@/ui/popupmenu";
 export { default as async_save_text } from "@/utils/async-save-text";
+export { hide_modal, Modal, show_in_overlay, show_message, show_modal } from "layout/modal";
 export function chart(options) {
     return new Client(options);
 }

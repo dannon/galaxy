@@ -1,9 +1,9 @@
 import axios from "axios";
 import Backbone from "backbone";
-import { getAppRoot } from "@/onload/loadConfig";
-import Utils from "@/utils/utils";
 
+import { getAppRoot } from "@/onload/loadConfig";
 import { rethrowSimple } from "@/utils/simple-error";
+import Utils from "@/utils/utils";
 
 let webhookData = undefined;
 

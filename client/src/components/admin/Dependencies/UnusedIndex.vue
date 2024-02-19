@@ -19,6 +19,7 @@
 </template>
 <script>
 import { deletedUnusedPaths, getDependencyUnusedPaths } from "../AdminServices";
+
 import DependencyIndexWrapper from "./DependencyIndexWrapper.vue";
 
 export default {

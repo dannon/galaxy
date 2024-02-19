@@ -3,9 +3,9 @@
 </template>
 
 <script>
-import CenterFrame from "@/entry/analysis/modules/CenterFrame.vue";
-
 import { runTour } from "./runTour";
+
+import CenterFrame from "@/entry/analysis/modules/CenterFrame.vue";
 
 export default {
     components: {

@@ -96,9 +96,10 @@ import _ from "underscore";
 import Vue from "vue";
 
 import { getContainerResolutionToolbox, resolveContainersWithInstall } from "../AdminServices";
+import DependencyIndexMixin from "./DependencyIndexMixin";
+
 import ContainerResolutionDetails from "./ContainerResolutionDetails.vue";
 import { DESCRIPTION } from "./ContainerResolver.vue";
-import DependencyIndexMixin from "./DependencyIndexMixin";
 
 Vue.use(BootstrapVue);
 

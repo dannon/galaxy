@@ -9,9 +9,11 @@
 <script>
 import axios from "axios";
 import BootstrapVue from "bootstrap-vue";
-import LoadingSpan from "@/components/LoadingSpan.vue";
-import { getAppRoot } from "@/onload/loadConfig";
 import Vue from "vue";
+
+import { getAppRoot } from "@/onload/loadConfig";
+
+import LoadingSpan from "@/components/LoadingSpan.vue";
 
 Vue.use(BootstrapVue);
 

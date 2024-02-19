@@ -1,8 +1,9 @@
 import axios from "axios";
+import beautify from "xml-beautifier";
+
 import { SingleQueryProvider } from "@/components/providers/SingleQueryProvider";
 import { getAppRoot } from "@/onload/loadConfig";
 import { rethrowSimple } from "@/utils/simple-error";
-import beautify from "xml-beautifier";
 
 async function toolSource({ id }) {
     const url = `${getAppRoot()}api/tools/${id}/raw_tool_source`;

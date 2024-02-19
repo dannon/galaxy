@@ -6,6 +6,8 @@ import { storeToRefs } from "pinia";
 import { useEventStore } from "stores/eventStore";
 import { computed } from "vue";
 
+import { useEventStore } from "@/stores/eventStore";
+
 import TextShort from "@/components/Common/TextShort.vue";
 
 library.add(faPaperPlane);

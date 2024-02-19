@@ -140,28 +140,27 @@
 </template>
 
 <script>
-import { getGalaxyInstance } from "@/app";
 import axios from "axios";
 import BootstrapVue from "bootstrap-vue";
-import { getUserPreferencesModel } from "@/components/User/UserPreferencesModel";
 import { mapActions, mapState } from "pinia";
-import _l from "@/utils/localization";
-import { userLogoutAll } from "@/utils/logout";
-import QueryStringParsing from "@/utils/query-string-parsing";
-import { withPrefix } from "@/utils/redirect";
 import Vue from "vue";
 
+import { getGalaxyInstance } from "@/app";
+import { getUserPreferencesModel } from "@/components/User/UserPreferencesModel";
 import { useConfig } from "@/composables/config";
 import { useFileSourceTemplatesStore } from "@/stores/fileSourceTemplatesStore";
 import { useObjectStoreTemplatesStore } from "@/stores/objectStoreTemplatesStore";
 import { useUserStore } from "@/stores/userStore";
-
-import UserBeaconSettings from "./UserBeaconSettings";
-import UserDeletion from "./UserDeletion";
-import UserPreferencesElement from "./UserPreferencesElement";
-import UserPreferredObjectStore from "./UserPreferredObjectStore";
+import _l from "@/utils/localization";
+import { userLogoutAll } from "@/utils/logout";
+import QueryStringParsing from "@/utils/query-string-parsing";
+import { withPrefix } from "@/utils/redirect";
 
 import ThemeSelector from "./ThemeSelector.vue";
+import UserBeaconSettings from "./UserBeaconSettings.vue";
+import UserDeletion from "./UserDeletion.vue";
+import UserPreferencesElement from "./UserPreferencesElement.vue";
+import UserPreferredObjectStore from "./UserPreferredObjectStore.vue";
 
 Vue.use(BootstrapVue);
 

@@ -1,9 +1,10 @@
 import { mount } from "@vue/test-utils";
 import flushPromises from "flush-promises";
-import { getAppRoot } from "@/onload/loadConfig";
 import { createPinia } from "pinia";
-import { useUserStore } from "@/stores/userStore";
 import { getLocalVue } from "tests/jest/helpers";
+
+import { getAppRoot } from "@/onload/loadConfig";
+import { useUserStore } from "@/stores/userStore";
 
 import { Services } from "../services";
 import LibraryDataset from "./LibraryDataset";

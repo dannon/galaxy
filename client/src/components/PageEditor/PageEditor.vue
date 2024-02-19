@@ -11,12 +11,13 @@
 
 <script>
 import axios from "axios";
-import LoadingSpan from "@/components/LoadingSpan.vue";
+
 import { Toast } from "@/composables/toast";
 import { getAppRoot } from "@/onload/loadConfig";
 import { rethrowSimple } from "@/utils/simple-error";
 
 import PageEditorMarkdown from "./PageEditorMarkdown.vue";
+import LoadingSpan from "@/components/LoadingSpan.vue";
 
 export default {
     components: {

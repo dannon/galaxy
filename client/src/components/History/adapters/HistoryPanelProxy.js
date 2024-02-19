@@ -3,6 +3,7 @@
  * history provided the same interface for other components.
  */
 import Backbone from "backbone";
+
 import { createDatasetCollection } from "@/components/History/model/queries";
 import { startWatchingHistory } from "@/store/historyStore/model/watchHistory";
 import { useHistoryItemsStore } from "@/stores/historyItemsStore";

@@ -45,15 +45,15 @@
 
 <script>
 import axios from "axios";
-import LoadingSpan from "@/components/LoadingSpan.vue";
-import { copyCollection } from "@/components/Markdown/services";
-import { getAppRoot } from "@/onload/loadConfig";
 import { mapState } from "pinia";
 
+import { copyCollection } from "@/components/Markdown/services";
+import { getAppRoot } from "@/onload/loadConfig";
 import { useHistoryStore } from "@/stores/historyStore";
 import { useUserStore } from "@/stores/userStore";
 
 import CollectionTree from "./CollectionTree.vue";
+import LoadingSpan from "@/components/LoadingSpan.vue";
 
 export default {
     components: {
