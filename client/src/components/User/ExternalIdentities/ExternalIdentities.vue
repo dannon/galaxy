@@ -92,7 +92,7 @@
 
 <script>
 import BootstrapVue from "bootstrap-vue";
-import { sanitize } from "dompurify";
+import purify from "dompurify";
 import Vue from "vue";
 
 import { getGalaxyInstance } from "@/app";
@@ -153,7 +153,7 @@ export default {
     },
     mounted() {
         const params = new URLSearchParams(window.location.search);
-        const notificationMessage = sanitize(params.get("notification"));
+        const notificationMessage = purify.sanitize(params.get("notification"));
         Toast.success(notificationMessage);
     },
     methods: {

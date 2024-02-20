@@ -36,7 +36,7 @@
 
 <script>
 import BootstrapVue from "bootstrap-vue";
-import { sanitize } from "dompurify";
+import purify from "dompurify";
 import linkifyHtml from "linkify-html";
 import Vue from "vue";
 
@@ -65,7 +65,9 @@ export default {
         };
     },
     methods: {
-        sanitize,
+        sanitize(raw_text) {
+            return purify.sanitize(raw_text);
+        },
         updateValue(value) {
             this.$emit("update:changedValue", value);
         },

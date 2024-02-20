@@ -264,7 +264,7 @@
 <script>
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import BootstrapVue from "bootstrap-vue";
-import { sanitize } from "dompurify";
+import purify from "dompurify";
 import linkifyHtml from "linkify-html";
 import { mapState } from "pinia";
 import Vue from "vue";
@@ -361,7 +361,9 @@ export default {
         this.getFolder(this.folder_id, this.page);
     },
     methods: {
-        sanitize,
+        sanitize(raw_text) {
+            return purify.sanitize(raw_text);
+        },
         getFolder(folder_id, page) {
             this.currentFolderId = folder_id;
             this.currentPage = page;
