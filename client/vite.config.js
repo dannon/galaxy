@@ -28,6 +28,12 @@ export default defineConfig({
         manifest: "true",
         rollupOptions: {
             input: "src/entry/analysis/index.ts",
+            output: {
+                // Specify the output file name here
+                entryFileNames: 'analysis.js', // For entry chunks
+                chunkFileNames: '[name]-[hash].js', // For non-entry chunks
+                assetFileNames: '[name]-[hash][extname]', // For assets like images and css
+            },
         },
         cssCodeSplit: true,
         sourcemap: true,
