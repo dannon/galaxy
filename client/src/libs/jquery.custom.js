@@ -26,4 +26,7 @@ require("imports-loader?imports=default|jqueryVendor|jQuery!jquery-migrate");
 // Only used in reports
 require("imports-loader?imports=default|jqueryVendor|jQuery!libs/jquery.sparklines");
 
+// Only used in library(?)
+require("imports-loader?imports=default|jqueryVendor|jQuery!libs/jquery/jstree");
+
 module.exports = jQuery;
