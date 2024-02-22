@@ -275,6 +275,7 @@ class JSAppLauncher(BaseUIController):
         Should not be used with url_for -- see
         (https://github.com/galaxyproject/galaxy/issues/1878) for why.
         """
+
         return self._bootstrapped_client(trans, **kwd)
 
     # This includes contextualized user options in the bootstrapped data; we
@@ -283,7 +284,17 @@ class JSAppLauncher(BaseUIController):
     def _bootstrapped_client(self, trans, app_name="analysis", **kwd):
         js_options = self._get_js_options(trans)
         js_options["config"].update(self._get_extended_config(trans))
-        return self.template(trans, app_name, options=js_options, **kwd)
+
+        # Get GALAXY_DEV_CLIENT from the environment to enable development features
+        galaxy_dev_client = os.environ.get("GALAXY_DEV_CLIENT", False)
+
+        return self.template(
+            trans,
+            app_name,
+            options=js_options,
+            galaxy_dev_client=galaxy_dev_client,
+            **kwd
+        )
 
     def _get_js_options(self, trans, root=None):
         """

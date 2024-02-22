@@ -42,10 +42,21 @@
         </main>
 
         ${ js_disabled_warning() }
-        ${ javascripts() }
+
+        %if galaxy_dev_client:
+            ${ development_javascripts() }
+        %else:
+            ${ javascripts() }
+        %endif
+
         ${ javascript_app() }
     </body>
 </html>
+
+<%def name="development_javascripts()">
+    <script type="module" src="http://localhost:5173/@vite/client"></script>>
+    <script type="module" src="http://localhost:5173/src/entry/analysis/index.ts"></script>
+</%def>
 
 <%def name="javascripts()">
     ${ h.dist_js(
@@ -62,7 +73,6 @@
         // js-app.mako
         var options = ${ h.dumps( options ) };
         var bootstrapped = ${ h.dumps( bootstrapped ) };
-
         config.set({
             options: options,
             bootstrapped: bootstrapped,
