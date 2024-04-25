@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import axios from "axios";
-import Vue, { computed, type Ref, ref, watch } from "vue";
+import { computed, type Ref, ref, watch } from "vue";
 
 import { fetchCollectionSummary } from "@/api/datasetCollections";
 import { enableLink, sharing } from "@/api/histories";
@@ -78,7 +78,7 @@ watch(referencedJobIds, async () => {
             .then(({ data }) => {
                 if ("history_id" in data) {
                     const historyId = data.history_id;
-                    Vue.set(jobsToHistories.value, jobId, historyId);
+                    jobsToHistories.value[jobId] = historyId;
                 }
             })
             .catch(handleError);
@@ -98,7 +98,7 @@ watch(referencedInvocationIds, async () => {
             .then(({ data }) => {
                 if ("history_id" in data) {
                     const historyId = data.history_id;
-                    Vue.set(invocationsToHistories.value, invocationId, historyId);
+                    invocationsToHistories.value[invocationId] = historyId;
                 }
             })
             .catch(handleError);
@@ -117,7 +117,7 @@ watch(referencedHistoryDatasetCollectionIds, async () => {
         fetchCollectionSummary({ id: historyDatasetCollectionId })
             .then((data) => {
                 const historyId = data.history_id;
-                Vue.set(historyDatasetCollectionsToHistories.value, historyDatasetCollectionId, historyId);
+                historyDatasetCollectionsToHistories.value[historyDatasetCollectionId] = historyId;
             })
             .catch(handleError);
     });
@@ -185,17 +185,17 @@ watch(historyIds, () => {
     for (const historyId of historyIds.value) {
         loadHistoryById(historyId);
         if (historyId && !(historyId in historyAccessible.value)) {
-            Vue.set(historyAccessible.value, historyId, null);
+            historyAccessible.value[historyId] = null;
             sharing({ history_id: historyId })
                 .then((response) => {
                     const accessible = response.data.importable;
-                    Vue.set(historyAccessible.value, historyId, accessible);
+                    historyAccessible.value[historyId] = accessible;
                 })
                 .catch((e) => {
                     const errorMessage = errorMessageAsString(e);
                     const title = "Failed to fetch history metadata.";
                     toast.error(errorMessage, title);
-                    Vue.set(historyAccessible.value, historyId, `${title} Reason: ${errorMessage}.`);
+                    historyAccessible.value[historyId] = `${title} Reason: ${errorMessage}.`;
                 });
         }
     }
@@ -205,17 +205,17 @@ function initWorkflowData() {
     for (const workflowId of referencedWorkflowIds.value) {
         fetchWorkflowForInstanceId(workflowId);
         if (workflowId && !(workflowId in workflowAccessible.value)) {
-            Vue.set(workflowAccessible.value, workflowId, null);
+            workflowAccessible.value[workflowId] = null;
             sharingWorkflow({ workflow_id: workflowId })
                 .then((response) => {
                     const accessible = response.data.importable;
-                    Vue.set(workflowAccessible.value, workflowId, accessible);
+                    workflowAccessible.value[workflowId] = accessible;
                 })
                 .catch((e) => {
                     const errorMessage = errorMessageAsString(e);
                     const title = "Failed to fetch workflow metadata.";
                     toast.error(errorMessage, title);
-                    Vue.set(workflowAccessible.value, workflowId, `${title} Reason: ${errorMessage}.`);
+                    workflowAccessible.value[workflowId] = `${title} Reason: ${errorMessage}.`;
                 });
         }
     }
@@ -232,7 +232,7 @@ function initHistoryDatasetData() {
                     const permissionInputs = response.data.permission_inputs;
                     if (permissionDisable) {
                         const errorStr = `Cannot modify permissions of this dataset. Reason: ${permissionInputs[0].label}`;
-                        Vue.set(historyDatasetAccessible.value, historyDatasetId, errorStr);
+                        historyDatasetAccessible.value[historyDatasetId] = errorStr;
                         return;
                     }
                     const accessPermissionInput = permissionInputs[1];
@@ -240,13 +240,13 @@ function initHistoryDatasetData() {
                         throw Error("Galaxy Bug");
                     }
                     const accessible = (accessPermissionInput.value || []).length == 0;
-                    Vue.set(historyDatasetAccessible.value, historyDatasetId, accessible);
+                    historyDatasetAccessible.value[historyDatasetId] = accessible;
                 })
                 .catch((e) => {
                     const errorMessage = errorMessageAsString(e);
                     const title = "Failed to fetch dataset metadata.";
                     toast.error(errorMessage, title);
-                    Vue.set(historyDatasetAccessible.value, historyDatasetId, `${title} Reason: ${errorMessage}.`);
+                    historyDatasetAccessible.value[historyDatasetId] = `${title} Reason: ${errorMessage}.`;
                 });
         }
     }
@@ -278,12 +278,12 @@ function makeAccessible(item: ItemInterface) {
         return;
     }
     promise
-        .then(() => Vue.set(accessibleMap.value, item.id, true))
+        .then(() => accessibleMap.value[item.id] = true)
         .catch((e) => {
             const errorMessage = errorMessageAsString(e);
             const title = "Failed update object accessibility.";
             toast.error(errorMessage, title);
-            Vue.set(accessibleMap.value, item.id, `${title} Reason: ${errorMessage}.`);
+            accessibleMap.value[item.id] = `${title} Reason: ${errorMessage}.`;
         });
 }
 </script>
