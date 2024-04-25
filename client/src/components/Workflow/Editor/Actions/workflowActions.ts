@@ -1,9 +1,9 @@
-import { LazyUndoRedoAction, UndoRedoAction, UndoRedoStore } from "@/stores/undoRedoStore";
+import { LazyUndoRedoAction, UndoRedoAction, type UndoRedoStore } from "@/stores/undoRedoStore";
 import { useWorkflowCommentStore } from "@/stores/workflowEditorCommentStore";
 import { useWorkflowStepStore } from "@/stores/workflowStepStore";
 
 import { defaultPosition } from "../composables/useDefaultStepPosition";
-import { fromSimple, Workflow } from "../modules/model";
+import { fromSimple, type Workflow } from "../modules/model";
 
 export class LazySetValueAction<T> extends LazyUndoRedoAction {
     setValueHandler;

@@ -5,7 +5,7 @@ import { computed } from "vue";
 import { type FileSourceBrowsingMode, type FilterFileSourcesOptions } from "@/api/remoteFiles";
 import { filesDialog } from "@/utils/data";
 
-import { SelectionItem } from "../SelectionDialog/selectionTypes";
+import type { SelectionItem } from "../SelectionDialog/selectionTypes";
 
 interface Props {
     value: string;

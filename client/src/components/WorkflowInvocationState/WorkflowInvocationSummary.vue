@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
-import { InvocationJobsSummary, InvocationStep, WorkflowInvocationElementView } from "@/api/invocations";
+import type { InvocationJobsSummary, InvocationStep, WorkflowInvocationElementView } from "@/api/invocations";
 import { getRootFromIndexLink } from "@/onload";
 
 import {

@@ -3,7 +3,7 @@ import { computed, onMounted, ref, type UnwrapRef, watch } from "vue";
 
 import { type QuotaUsage } from "@/components/User/DiskUsage/Quota/model";
 import { fetch } from "@/components/User/DiskUsage/Quota/services";
-import { ValidFilter } from "@/utils/filtering";
+import type { ValidFilter } from "@/utils/filtering";
 import { errorMessageAsString } from "@/utils/simple-error";
 
 import QuotaUsageBar from "@/components/User/DiskUsage/Quota/QuotaUsageBar.vue";

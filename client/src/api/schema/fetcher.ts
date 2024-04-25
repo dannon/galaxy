@@ -6,7 +6,7 @@ import { rethrowSimple } from "@/utils/simple-error";
 
 import type { paths } from "./schema";
 
-export { ApiResponse };
+export type { ApiResponse };
 
 const rethrowSimpleMiddleware: Middleware = async (url, init, next) => {
     try {

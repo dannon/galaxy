@@ -2,7 +2,7 @@
 import { storeToRefs } from "pinia";
 import { computed, ref } from "vue";
 
-import { ConcreteObjectStoreModel, DatasetStorageDetails } from "@/api";
+import type { ConcreteObjectStoreModel, DatasetStorageDetails } from "@/api";
 import { updateObjectStore } from "@/api/objectStores";
 import { useObjectStoreStore } from "@/stores/objectStoreStore";
 

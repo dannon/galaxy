@@ -2,7 +2,7 @@
 import { computed } from "vue";
 import { useRouter } from "vue-router";
 
-import { HDCADetailed } from "@/api";
+import type { HDCADetailed } from "@/api";
 import { getAppRoot } from "@/onload/loadConfig";
 
 const router = useRouter();

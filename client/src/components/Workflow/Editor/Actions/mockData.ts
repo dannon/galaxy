@@ -1,4 +1,4 @@
-import { WorkflowComment } from "@/stores/workflowEditorCommentStore";
+import type { WorkflowComment } from "@/stores/workflowEditorCommentStore";
 import type { Step } from "@/stores/workflowStepStore";
 
 import type { Workflow } from "../modules/model";

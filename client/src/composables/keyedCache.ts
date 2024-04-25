@@ -1,4 +1,4 @@
-import { MaybeRefOrGetter, toValue } from "@vueuse/core";
+import { type MaybeRefOrGetter, toValue } from "@vueuse/core";
 import { computed, del, type Ref, ref, set, unref } from "vue";
 
 import type { ApiResponse } from "@/api/schema";
