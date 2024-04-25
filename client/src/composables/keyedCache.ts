@@ -1,5 +1,5 @@
 import { type MaybeRefOrGetter, toValue } from "@vueuse/core";
-import { computed, del, type Ref, ref, set, unref } from "vue";
+import { computed, type Ref, ref, unref } from "vue";
 
 import type { ApiResponse } from "@/api/schema";
 
@@ -75,14 +75,14 @@ export function useKeyedCache<T>(
         if (isAlreadyLoading) {
             return;
         }
-        set(loadingItem.value, itemId, true);
+        loadingItem.value[itemId] = true;
         try {
             const fetchItem = unref(fetchItemHandler);
             const { data } = await fetchItem({ id: itemId });
-            set(storedItems.value, itemId, data);
+            storedItems.value[itemId] = data;
             return data;
         } finally {
-            del(loadingItem.value, itemId);
+            delete loadingItem.value[itemId];
         }
     }
 
