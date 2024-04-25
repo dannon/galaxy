@@ -24,7 +24,8 @@
                     <small class="float-right" :data-invocation-id="row.item.id">
                         <b>Last updated: <UtcDate :date="row.item.update_time" mode="elapsed" />;</b>
                         <b
-                            >Invocation ID: <code>{{ row.item.id }}</code></b
+                            >Invocation ID:
+                            <router-link :to="invocationLink(row.item)">{{ row.item.id }}</router-link></b
                         >
                     </small>
                     <WorkflowInvocationState :invocation-id="row.item.id" @invocation-cancelled="refresh" />
@@ -55,20 +56,16 @@
                 </div>
             </template>
             <template v-slot:cell(history_id)="data">
-                <div
-                    v-b-tooltip.hover.top.html
-                    :title="`<b>Switch to</b><br>${getHistoryNameById(data.item.history_id)}`"
-                    class="truncate">
-                    <b-link id="switch-to-history" href="#" @click.stop="switchHistory(data.item.history_id)">
-                        {{ getHistoryNameById(data.item.history_id) }}
-                    </b-link>
-                </div>
+                <SwitchToHistoryLink :history-id="data.value" />
             </template>
             <template v-slot:cell(create_time)="data">
                 <UtcDate :date="data.value" mode="elapsed" />
             </template>
             <template v-slot:cell(update_time)="data">
                 <UtcDate :date="data.value" mode="elapsed" />
+            </template>
+            <template v-slot:cell(state)="data">
+                <HelpText :uri="`galaxy.invocations.states.${data.value}`" :text="data.value" />
             </template>
             <template v-slot:cell(execute)="data">
                 <WorkflowRunButton
@@ -86,7 +83,7 @@
 </template>
 
 <script>
-import { getGalaxyInstance } from "app";
+import HelpText from "components/Help/HelpText";
 import { invocationsProvider } from "components/providers/InvocationsProvider";
 import UtcDate from "components/UtcDate";
 import WorkflowInvocationState from "components/WorkflowInvocationState/WorkflowInvocationState";
@@ -98,12 +95,15 @@ import { useWorkflowStore } from "@/stores/workflowStore";
 import paginationMixin from "./paginationMixin";
 
 import WorkflowRunButton from "./WorkflowRunButton.vue";
+import SwitchToHistoryLink from "@/components/History/SwitchToHistoryLink.vue";
 
 export default {
     components: {
+        HelpText,
         UtcDate,
         WorkflowInvocationState,
         WorkflowRunButton,
+        SwitchToHistoryLink,
     },
     mixins: [paginationMixin],
     props: {
@@ -168,6 +168,8 @@ export default {
             const extraParams = this.ownerGrid ? {} : { include_terminal: false };
             if (this.storedWorkflowId) {
                 extraParams["workflow_id"] = this.storedWorkflowId;
+            } else {
+                extraParams["include_nested_invocations"] = false;
             }
             if (this.historyId) {
                 extraParams["history_id"] = this.historyId;
@@ -195,29 +197,11 @@ export default {
     methods: {
         ...mapActions(useHistoryStore, ["loadHistoryById"]),
         ...mapActions(useWorkflowStore, ["fetchWorkflowForInstanceIdCached"]),
-        async provider(ctx) {
-            ctx.root = this.root;
-            const extraParams = this.ownerGrid ? {} : { include_terminal: false };
-            if (this.storedWorkflowId) {
-                extraParams["workflow_id"] = this.storedWorkflowId;
-            }
-            if (this.historyId) {
-                extraParams["history_id"] = this.historyId;
-            }
-            if (this.userId) {
-                extraParams["user_id"] = this.userId;
-            }
-            const promise = invocationsProvider(ctx, this.setRows, extraParams).catch(this.onError);
-            const invocationItems = await promise;
-            this.invocationItems = invocationItems;
-            return invocationItems;
-        },
         swapRowDetails(row) {
             row.toggleDetails();
         },
-        switchHistory(historyId) {
-            const Galaxy = getGalaxyInstance();
-            Galaxy.currHistoryPanel.switchToHistory(historyId);
+        invocationLink(item) {
+            return `/workflows/invocations/${item.id}`;
         },
     },
 };

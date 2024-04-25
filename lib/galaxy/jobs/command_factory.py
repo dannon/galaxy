@@ -123,8 +123,7 @@ def build_command(
 
     __handle_remote_command_line_building(commands_builder, job_wrapper, for_pulsar=for_pulsar)
 
-    container_monitor_command = job_wrapper.container_monitor_command(container)
-    if container_monitor_command:
+    if container_monitor_command := job_wrapper.container_monitor_command(container):
         commands_builder.prepend_command(container_monitor_command)
 
     working_directory = remote_job_directory or job_wrapper.working_directory
@@ -182,13 +181,7 @@ def __externalize_commands(
     source_command = ""
     if container:
         source_command = container.source_environment
-    script_contents = "#!{}\n{}{}{}{}".format(
-        shell,
-        integrity_injection,
-        set_e,
-        source_command,
-        tool_commands,
-    )
+    script_contents = f"#!{shell}\n{integrity_injection}{set_e}{source_command}{tool_commands}"
     write_script(
         local_container_script,
         script_contents,

@@ -8,13 +8,13 @@ from typing import (
 
 from typing_extensions import Unpack
 
-from galaxy.util.drs import fetch_drs_to_file
 from . import (
     BaseFilesSource,
     FilesSourceOptions,
     FilesSourceProperties,
     PluginKind,
 )
+from .util import fetch_drs_to_file
 
 log = logging.getLogger(__name__)
 
@@ -64,8 +64,7 @@ class DRSFilesSource(BaseFilesSource):
         raise NotImplementedError()
 
     def score_url_match(self, url: str):
-        match = self._url_regex.match(url)
-        if match:
+        if match := self._url_regex.match(url):
             return match.span()[1]
         else:
             return 0

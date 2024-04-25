@@ -4,10 +4,74 @@ History
 .. to_doc
 
 ---------
-23.2.dev0
+24.1.dev0
 ---------
 
 
+
+-------------------
+24.0.0 (2024-04-02)
+-------------------
+
+
+============
+Enhancements
+============
+
+* Python 3.8 as minimum by `@mr-c <https://github.com/mr-c>`_ in `#16954 <https://github.com/galaxyproject/galaxy/pull/16954>`_
+* Vueify Admin User Grid by `@guerler <https://github.com/guerler>`_ in `#17030 <https://github.com/galaxyproject/galaxy/pull/17030>`_
+* Remove web framework dependency from tools by `@davelopez <https://github.com/davelopez>`_ in `#17058 <https://github.com/galaxyproject/galaxy/pull/17058>`_
+* Vueify Admin Groups Grid by `@guerler <https://github.com/guerler>`_ in `#17126 <https://github.com/galaxyproject/galaxy/pull/17126>`_
+* Migrate models to pydantic 2 by `@mvdbeek <https://github.com/mvdbeek>`_ in `#17262 <https://github.com/galaxyproject/galaxy/pull/17262>`_
+* Update to black 2024 stable style by `@nsoranzo <https://github.com/nsoranzo>`_ in `#17391 <https://github.com/galaxyproject/galaxy/pull/17391>`_
+* Removes outdated Grid controller and backbone modules by `@guerler <https://github.com/guerler>`_ in `#17434 <https://github.com/galaxyproject/galaxy/pull/17434>`_
+
+-------------------
+23.2.1 (2024-02-21)
+-------------------
+
+
+=========
+Bug fixes
+=========
+
+* Ruff and flake8 fixes by `@nsoranzo <https://github.com/nsoranzo>`_ in `#16884 <https://github.com/galaxyproject/galaxy/pull/16884>`_
+* Provide working routes.url_for every ASGI request by `@mvdbeek <https://github.com/mvdbeek>`_ in `#17497 <https://github.com/galaxyproject/galaxy/pull/17497>`_
+
+============
+Enhancements
+============
+
+* Drop (admin only) userskeys controller by `@dannon <https://github.com/dannon>`_ in `#16318 <https://github.com/galaxyproject/galaxy/pull/16318>`_
+
+-------------------
+23.1.4 (2024-01-04)
+-------------------
+
+No recorded changes since last release
+
+-------------------
+23.1.3 (2023-12-01)
+-------------------
+
+No recorded changes since last release
+
+-------------------
+23.1.2 (2023-11-29)
+-------------------
+
+
+=========
+Bug fixes
+=========
+
+* Workaround issue in Routes by `@nsoranzo <https://github.com/nsoranzo>`_ in `#16981 <https://github.com/galaxyproject/galaxy/pull/16981>`_
+
+============
+Enhancements
+============
+
+* Add HEAD route to job_files endpoint by `@mvdbeek <https://github.com/mvdbeek>`_ in `#17072 <https://github.com/galaxyproject/galaxy/pull/17072>`_
 
 -------------------
 23.1.1 (2023-10-23)
@@ -48,7 +112,6 @@ Bug fixes
 Bug fixes
 =========
 
-* 
 * Media player fix issue 16415 by `@bdwheele <https://github.com/bdwheele>`_ in `#16443 <https://github.com/galaxyproject/galaxy/pull/16443>`_
 * Fix static file serving for ``robots.txt`` and ``favicon.ico`` when using per_host settings by `@mira-miracoli <https://github.com/mira-miracoli>`_ in `#16459 <https://github.com/galaxyproject/galaxy/pull/16459>`_
 
@@ -79,8 +142,6 @@ No recorded changes since last release
 Bug fixes
 =========
 
-* 
-* 
 * Various fixes to path prefix handling by `@mvdbeek <https://github.com/mvdbeek>`_ in `#16033 <https://github.com/galaxyproject/galaxy/pull/16033>`_
 
 -------------------

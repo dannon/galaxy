@@ -1,35 +1,35 @@
+<script setup lang="ts">
+import { BAlert } from "bootstrap-vue";
+import { computed, ref } from "vue";
+
+import type { HistorySummary } from "@/api";
+import localize from "@/utils/localization";
+
+interface Props {
+    history: HistorySummary;
+}
+
+const props = defineProps<Props>();
+
+const userOverQuota = ref(false);
+
+const hasMessages = computed(() => {
+    return userOverQuota.value || props.history.deleted;
+});
+</script>
+
 <template>
     <div v-if="hasMessages" class="mx-3 my-2">
-        <b-alert :show="history.isDeleted" variant="warning">
-            {{ localized.isDeleted }}
-        </b-alert>
-        <b-alert :show="userOverQuota" variant="warning">
-            {{ localized.userOverQuota }}
-        </b-alert>
+        <BAlert :show="history.deleted" variant="warning">
+            {{ localize("This history has been deleted") }}
+        </BAlert>
+
+        <BAlert :show="userOverQuota" variant="warning">
+            {{
+                localize(
+                    "You are over your disk quota. Tool execution is on hold until your disk usage drops below your allocated quota."
+                )
+            }}
+        </BAlert>
     </div>
 </template>
-
-<script>
-export default {
-    props: {
-        history: { type: Object, required: true },
-    },
-    data() {
-        return {
-            userOverQuota: false,
-        };
-    },
-    computed: {
-        hasMessages() {
-            return this.userOverQuota || history.isDeleted;
-        },
-        localized() {
-            return {
-                isDeleted: "This history has been deleted",
-                userOverQuota:
-                    "You are over your disk quota. Tool execution is on hold until your disk usage drops below your allocated quota.",
-            };
-        },
-    },
-};
-</script>

@@ -2,7 +2,7 @@
 import { library } from "@fortawesome/fontawesome-svg-core";
 import { faGlobe, faLink, faShareAlt, faUsers } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
-import { BButton, VBTooltip } from "bootstrap-vue";
+import { BButton } from "bootstrap-vue";
 import { computed } from "vue";
 
 import { localize } from "@/utils/localization";
@@ -10,7 +10,13 @@ import { localize } from "@/utils/localization";
 library.add(faGlobe, faShareAlt, faLink, faUsers);
 
 interface SharingIndicatorsProps {
-    object: Object;
+    object: {
+        deleted?: boolean;
+        importable?: boolean;
+        published?: boolean;
+        purged?: boolean;
+        shared?: boolean;
+    };
 }
 const props = defineProps<SharingIndicatorsProps>();
 
@@ -24,7 +30,9 @@ const localized = computed(() => {
 </script>
 
 <template>
-    <span>
+    <span v-if="props.object.purged" v-localize> Purged </span>
+    <span v-else-if="props.object.deleted" v-localize> Deleted </span>
+    <span v-else>
         <BButton
             v-if="props.object.published"
             v-b-tooltip.hover.noninteractive

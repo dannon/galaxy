@@ -6,9 +6,9 @@ from typing import (
 
 from galaxy.exceptions import RequestParameterInvalidException
 from galaxy.tools.parameters import visit_input_values
-from galaxy.tools.parameters.basic import (
+from galaxy.tools.parameters.basic import contains_workflow_parameter
+from galaxy.tools.parameters.workflow_utils import (
     ConnectedValue,
-    contains_workflow_parameter,
     runtime_to_json,
 )
 from .schema import (
@@ -71,7 +71,7 @@ class WorkflowRefactorExecutor:
             if refactor_method is None:
                 raise RequestParameterInvalidException(f"Unknown workflow editing action encountered [{action_type}]")
             execution = RefactorActionExecution(
-                action=action.dict(),
+                action=action,
                 messages=[],
             )
             refactor_method(action, execution)

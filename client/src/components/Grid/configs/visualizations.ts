@@ -1,20 +1,21 @@
 import { faCopy, faEdit, faEye, faPlus, faShareAlt, faTrash, faTrashRestore } from "@fortawesome/free-solid-svg-icons";
+import { useEventBus } from "@vueuse/core";
 import axios from "axios";
-import type { Router } from "vue-router";
 
 import { fetcher } from "@/api/schema";
-import { getGalaxyInstance } from "@/app";
+import { updateTags } from "@/api/tags";
 import Filtering, { contains, equals, expandNameTag, toBool, type ValidFilter } from "@/utils/filtering";
 import { withPrefix } from "@/utils/redirect";
 import { errorMessageAsString, rethrowSimple } from "@/utils/simple-error";
 
-import type { ActionArray, Config, FieldArray } from "./types";
+import type { ActionArray, FieldArray, GridConfig } from "./types";
+
+const { emit } = useEventBus<string>("grid-router-push");
 
 /**
  * Api endpoint handlers
  */
 const getVisualizations = fetcher.path("/api/visualizations").method("get").create();
-const updateTags = fetcher.path("/api/tags").method("put").create();
 
 /**
  * Local types
@@ -26,12 +27,6 @@ type VisualizationEntry = Record<string, unknown>;
  * Request and return data from server
  */
 async function getData(offset: number, limit: number, search: string, sort_by: string, sort_desc: boolean) {
-    // TODO: Avoid using Galaxy instance to identify current user
-    const Galaxy = getGalaxyInstance();
-    const userId = !Galaxy.isAnonymous && Galaxy.user.id;
-    if (!userId) {
-        rethrowSimple("Please login to access this page.");
-    }
     const { data, headers } = await getVisualizations({
         limit,
         offset,
@@ -39,7 +34,8 @@ async function getData(offset: number, limit: number, search: string, sort_by: s
         sort_by: sort_by as SortKeyLiteral,
         sort_desc,
         show_published: false,
-        user_id: userId,
+        show_own: true,
+        show_shared: false,
     });
     const totalMatches = parseInt(headers.get("total_matches") ?? "0");
     return [data, totalMatches];
@@ -52,8 +48,8 @@ const actions: ActionArray = [
     {
         title: "Create",
         icon: faPlus,
-        handler: (router: Router) => {
-            router.push(`/visualizations`);
+        handler: () => {
+            emit("/visualizations");
         },
     },
 ];
@@ -67,22 +63,25 @@ const fields: FieldArray = [
         key: "title",
         type: "operations",
         width: 40,
-        condition: (data: VisualizationEntry) => !data.deleted,
         operations: [
             {
                 title: "Open",
                 icon: faEye,
                 condition: (data: VisualizationEntry) => !data.deleted,
                 handler: (data: VisualizationEntry) => {
-                    window.location.href = withPrefix(`/plugins/visualizations/${data.type}/saved?id=${data.id}`);
+                    if (data.type === "trackster") {
+                        window.location.href = withPrefix(`/visualization/${data.type}?id=${data.id}`);
+                    } else {
+                        window.location.href = withPrefix(`/plugins/visualizations/${data.type}/saved?id=${data.id}`);
+                    }
                 },
             },
             {
                 title: "Edit Attributes",
                 icon: faEdit,
                 condition: (data: VisualizationEntry) => !data.deleted,
-                handler: (data: VisualizationEntry, router: Router) => {
-                    router.push(`/visualizations/edit?id=${data.id}`);
+                handler: (data: VisualizationEntry) => {
+                    emit(`/visualizations/edit?id=${data.id}`);
                 },
             },
             {
@@ -115,8 +114,8 @@ const fields: FieldArray = [
                 title: "Share and Publish",
                 icon: faShareAlt,
                 condition: (data: VisualizationEntry) => !data.deleted,
-                handler: (data: VisualizationEntry, router: Router) => {
-                    router.push(`/visualizations/sharing?id=${data.id}`);
+                handler: (data: VisualizationEntry) => {
+                    emit(`/visualizations/sharing?id=${data.id}`);
                 },
             },
             {
@@ -170,11 +169,7 @@ const fields: FieldArray = [
         type: "tags",
         handler: async (data: VisualizationEntry) => {
             try {
-                await updateTags({
-                    item_id: data.id as string,
-                    item_class: "Visualization",
-                    item_tags: data.tags as Array<string>,
-                });
+                await updateTags(data.id as string, "Visualization", data.tags as Array<string>);
             } catch (e) {
                 rethrowSimple(e);
             }
@@ -192,7 +187,7 @@ const fields: FieldArray = [
     },
     {
         key: "sharing",
-        title: "Shared",
+        title: "Status",
         type: "sharing",
     },
 ];
@@ -210,21 +205,21 @@ const validFilters: Record<string, ValidFilter<string | boolean | undefined>> = 
         menuItem: true,
     },
     published: {
-        placeholder: "Filter on published visualizations",
+        placeholder: "Published",
         type: Boolean,
         boolType: "is",
         handler: equals("published", "published", toBool),
         menuItem: true,
     },
     importable: {
-        placeholder: "Filter on importable visualizations",
+        placeholder: "Importable",
         type: Boolean,
         boolType: "is",
         handler: equals("importable", "importable", toBool),
         menuItem: true,
     },
     deleted: {
-        placeholder: "Filter on deleted visualizations",
+        placeholder: "Deleted",
         type: Boolean,
         boolType: "is",
         handler: equals("deleted", "deleted", toBool),
@@ -235,7 +230,8 @@ const validFilters: Record<string, ValidFilter<string | boolean | undefined>> = 
 /**
  * Grid configuration
  */
-const config: Config = {
+const gridConfig: GridConfig = {
+    id: "visualizations-grid",
     actions: actions,
     fields: fields,
     filtering: new Filtering(validFilters, undefined, false, false),
@@ -246,4 +242,5 @@ const config: Config = {
     sortKeys: ["create_time", "title", "update_time"],
     title: "Saved Visualizations",
 };
-export default config;
+
+export default gridConfig;

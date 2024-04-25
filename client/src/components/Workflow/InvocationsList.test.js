@@ -6,23 +6,21 @@ import axios from "axios";
 import MockAdapter from "axios-mock-adapter";
 import { formatDistanceToNow, parseISO } from "date-fns";
 import { getLocalVue } from "tests/jest/helpers";
-import VueRouter from "vue-router";
 
 import InvocationsList from "./InvocationsList";
 import mockInvocationData from "./test/json/invocation.json";
 
 const localVue = getLocalVue();
-localVue.use(VueRouter);
-const router = new VueRouter();
 
 const pinia = createTestingPinia();
 describe("InvocationsList.vue", () => {
     let axiosMock;
     let wrapper;
-    let $router;
 
     beforeEach(async () => {
         axiosMock = new MockAdapter(axios);
+        axiosMock.onGet(`api/invocations/${mockInvocationData.id}`).reply(200, mockInvocationData);
+        axiosMock.onGet(`api/invocations/${mockInvocationData.id}/jobs_summary`).reply(200, {});
     });
 
     afterEach(() => {
@@ -72,7 +70,12 @@ describe("InvocationsList.vue", () => {
         beforeEach(async () => {
             axiosMock
                 .onGet("/api/invocations", {
-                    params: { limit: 50, offset: 0, include_terminal: false, workflow_id: "abcde145678" },
+                    params: {
+                        limit: 50,
+                        offset: 0,
+                        include_terminal: false,
+                        workflow_id: "abcde145678",
+                    },
                 })
                 .reply(200, [], { total_matches: "0" });
             const propsData = {
@@ -104,7 +107,13 @@ describe("InvocationsList.vue", () => {
         beforeEach(async () => {
             axiosMock
                 .onGet("/api/invocations", {
-                    params: { limit: 50, offset: 0, include_terminal: false, history_id: "abcde145678" },
+                    params: {
+                        limit: 50,
+                        offset: 0,
+                        include_terminal: false,
+                        history_id: "abcde145678",
+                        include_nested_invocations: false,
+                    },
                 })
                 .reply(200, [], { total_matches: "0" });
             const propsData = {
@@ -134,7 +143,9 @@ describe("InvocationsList.vue", () => {
     describe("with invocation", () => {
         beforeEach(async () => {
             axiosMock
-                .onGet("/api/invocations", { params: { limit: 50, offset: 0, include_terminal: false } })
+                .onGet("/api/invocations", {
+                    params: { limit: 50, offset: 0, include_terminal: false, include_nested_invocations: false },
+                })
                 .reply(200, [mockInvocationData], { total_matches: "1" });
             const propsData = {
                 ownerGrid: false,
@@ -162,9 +173,7 @@ describe("InvocationsList.vue", () => {
                 },
                 localVue,
                 pinia,
-                router,
             });
-            $router = wrapper.vm.$router;
         });
 
         it("renders one row", async () => {
@@ -173,7 +182,7 @@ describe("InvocationsList.vue", () => {
             const row = rows[0];
             const columns = row.findAll("td");
             expect(columns.at(1).text()).toBe("workflow name");
-            expect(columns.at(2).text()).toBe("history name");
+            expect(columns.at(2).text()).toBe("Loading..."); // Checking the actual name will be tested in its own component
             expect(columns.at(3).text()).toBe(
                 formatDistanceToNow(parseISO(`${mockInvocationData.create_time}Z`), { addSuffix: true })
             );
@@ -192,18 +201,10 @@ describe("InvocationsList.vue", () => {
             expect(rows.length).toBe(1);
         });
 
-        it("calls switchHistory", async () => {
-            const mockMethod = jest.fn();
-            wrapper.vm.switchHistory = mockMethod;
-            await wrapper.find("#switch-to-history").trigger("click");
-            expect(mockMethod).toHaveBeenCalled();
-        });
+        it("check run button", async () => {
+            const runButton = await wrapper.find('[data-workflow-run="workflowId"');
 
-        it("calls executeWorkflow", async () => {
-            const mockMethod = jest.fn();
-            $router.push = mockMethod;
-            await wrapper.find(".workflow-run").trigger("click");
-            expect(mockMethod).toHaveBeenCalledWith("/workflows/run?id=workflowId");
+            expect(runButton.attributes("href")).toBe("/workflows/run?id=workflowId");
         });
 
         it("should not render pager", async () => {
@@ -214,7 +215,9 @@ describe("InvocationsList.vue", () => {
     describe("paginations", () => {
         beforeEach(async () => {
             axiosMock
-                .onGet("/api/invocations", { params: { limit: 1, offset: 0, include_terminal: false } })
+                .onGet("/api/invocations", {
+                    params: { limit: 1, offset: 0, include_terminal: false, include_nested_invocations: false },
+                })
                 .reply(200, [mockInvocationData], { total_matches: "3" });
             const propsData = {
                 ownerGrid: false,

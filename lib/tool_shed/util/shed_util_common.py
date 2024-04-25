@@ -287,7 +287,7 @@ def handle_email_alerts(
                     email_alerts.append(user.email)
         else:
             subject = f"Galaxy tool shed update alert for repository named {str(repository.name)}"
-            email_alerts = json.loads(repository.email_alerts)
+            email_alerts = json.loads(repository.email_alerts)  # type:ignore[arg-type]
         for email in email_alerts:
             to = email.strip()
             # Send it
@@ -318,8 +318,7 @@ def is_path_within_dependency_dir(app: "ToolShedApp", path: str) -> bool:
     """
     allowed = False
     resolved_path = os.path.realpath(path)
-    tool_dependency_dir = app.config.get("tool_dependency_dir", None)
-    if tool_dependency_dir:
+    if tool_dependency_dir := app.config.get("tool_dependency_dir", None):
         dependency_path = os.path.abspath(tool_dependency_dir)
         allowed = os.path.commonprefix([dependency_path, resolved_path]) == dependency_path
     return allowed

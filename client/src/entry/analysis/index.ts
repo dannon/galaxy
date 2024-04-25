@@ -2,7 +2,6 @@ import { createPinia } from "pinia";
 import { createApp } from "vue";
 
 import { addInitialization, standardInit } from "@/onload";
-import store from "@/store";
 
 import { getRouter } from "./router";
 
@@ -23,8 +22,6 @@ addInitialization((Galaxy: any) => {
     });
 
     app.use(router);
-    app.use(store);
-    app.provide("store", store);
     app.use(pinia);
     app.mount("#app");
 });

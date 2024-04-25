@@ -31,6 +31,10 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    snappable: {
+        type: Boolean,
+        default: true,
+    },
 });
 
 const emit = defineEmits<{
@@ -80,7 +84,7 @@ const { toolbarStore } = useWorkflowStores();
 const { snapActive } = storeToRefs(toolbarStore);
 
 function getSnappedPosition<T extends Position>(position: T) {
-    if (snapActive.value) {
+    if (props.snappable && snapActive.value) {
         return {
             ...position,
             x: Math.round(position.x / toolbarStore.snapDistance) * toolbarStore.snapDistance,

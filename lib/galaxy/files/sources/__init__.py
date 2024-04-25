@@ -1,6 +1,10 @@
 import abc
 import os
 import time
+from dataclasses import (
+    dataclass,
+    field,
+)
 from enum import Enum
 from typing import (
     Any,
@@ -88,19 +92,20 @@ class FilesSourceProperties(TypedDict):
     browsable: NotRequired[bool]
 
 
+@dataclass
 class FilesSourceOptions:
     """Options to control behavior of file source operations, such as realize_to, write_from and list."""
 
     # Indicates access to the FS operation with intent to write.
     # Even if a file source is "writeable" some directories (or elements) may be restricted or read-only
     # so those should be skipped while browsing with writeable=True.
-    writeable: Optional[bool]
+    writeable: Optional[bool] = False
 
     # Property overrides for values initially configured through the constructor. For example
     # the HTTPFilesSource passes in additional http_headers through these properties, which
     # are merged with constructor defined http_headers. The interpretation of these properties
     # are filesystem specific.
-    extra_props: Optional[FilesSourceProperties]
+    extra_props: Optional[FilesSourceProperties] = field(default_factory=lambda: FilesSourceProperties())
 
 
 class EntryData(TypedDict):
@@ -262,13 +267,14 @@ class FilesSource(SingleFileSource, SupportsBrowsing):
     implements the `SupportsBrowsing` interface.
     """
 
+    plugin_type: ClassVar[str]
+
     @abc.abstractmethod
     def get_browsable(self) -> bool:
         """Return true if the filesource implements the SupportsBrowsing interface."""
 
 
 class BaseFilesSource(FilesSource):
-    plugin_type: ClassVar[str]
     plugin_kind: ClassVar[PluginKind] = PluginKind.rfs  # Remote File Source by default, override in subclasses
 
     def get_browsable(self) -> bool:
@@ -463,8 +469,7 @@ class BaseFilesSource(FilesSource):
 
 def uri_join(*args):
     # url_join doesn't work with non-standard scheme
-    arg0 = args[0]
-    if "://" in arg0:
+    if "://" in (arg0 := args[0]):
         scheme, path = arg0.split("://", 1)
         rval = f"{scheme}://{slash_join(path, *args[1:]) if path else slash_join(*args[1:])}"
     else:

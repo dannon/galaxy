@@ -4,10 +4,46 @@ History
 .. to_doc
 
 ---------
-23.2.dev0
+24.1.dev0
 ---------
 
 
+
+-------------------
+24.0.0 (2024-04-02)
+-------------------
+
+
+============
+Enhancements
+============
+
+* Migrate models to pydantic 2 by `@mvdbeek <https://github.com/mvdbeek>`_ in `#17262 <https://github.com/galaxyproject/galaxy/pull/17262>`_
+* Update to black 2024 stable style by `@nsoranzo <https://github.com/nsoranzo>`_ in `#17391 <https://github.com/galaxyproject/galaxy/pull/17391>`_
+
+-------------------
+23.2.1 (2024-02-21)
+-------------------
+
+No recorded changes since last release
+
+-------------------
+23.1.4 (2024-01-04)
+-------------------
+
+No recorded changes since last release
+
+-------------------
+23.1.3 (2023-12-01)
+-------------------
+
+No recorded changes since last release
+
+-------------------
+23.1.2 (2023-11-29)
+-------------------
+
+No recorded changes since last release
 
 -------------------
 23.1.1 (2023-10-23)

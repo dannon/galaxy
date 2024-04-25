@@ -37,7 +37,6 @@ NoDefault = _NoDefault()
 
 
 class ErrorMiddleware:
-
     """
     Error handling middleware
 
@@ -223,7 +222,6 @@ class ResponseStartChecker:
 
 
 class CatchingIter:
-
     """
     A wrapper around the application iterator that will catch
     exceptions raised by the a generator, or by the close method, and
@@ -286,7 +284,6 @@ class CatchingIter:
 
 
 class Supplement:
-
     """
     This is a supplement used to display standard WSGI information in
     the traceback.
@@ -453,13 +450,11 @@ def send_report(rep, exc_data, html=True):
         output = StringIO()
         traceback.print_exc(file=output)
         if html:
-            return """
-            <p>Additionally an error occurred while sending the {} report:
+            return f"""
+            <p>Additionally an error occurred while sending the {markupsafe.escape(str(rep))} report:
 
-            <pre>{}</pre>
-            </p>""".format(
-                markupsafe.escape(str(rep)), output.getvalue()
-            )
+            <pre>{output.getvalue()}</pre>
+            </p>"""
         else:
             return f"Additionally an error occurred while sending the {rep} report:\n{output.getvalue()}"
     else:

@@ -48,7 +48,7 @@ def create_database(config_file):
     # Initialize the database connection.
     engine = create_engine(database_connection)
     MetaData(bind=engine)
-    install_session = scoped_session(sessionmaker(bind=engine, autoflush=False, autocommit=True))
+    install_session = scoped_session(sessionmaker(bind=engine, autoflush=False))
     model = mapping.init(database_connection)
     return install_session, model
 

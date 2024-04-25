@@ -59,11 +59,11 @@ function onQuery(newQuery: string) {
 </script>
 
 <template>
-    <div class="activity-settings rounded p-3 no-highlight">
-        <DelayedInput class="mb-3" :delay="100" placeholder="Search activities" @change="onQuery" />
-        <div v-if="foundActivities" class="activity-settings-content overflow-auto">
+    <div class="activity-settings rounded no-highlight">
+        <DelayedInput :delay="100" placeholder="Search activities" @change="onQuery" />
+        <div v-if="foundActivities" class="activity-settings-content mt-2">
             <div v-for="activity in filteredActivities" :key="activity.id">
-                <div class="activity-settings-item p-2 cursor-pointer" @click="onClick(activity)">
+                <button class="activity-settings-item p-2 cursor-pointer" @click="onClick(activity)">
                     <div class="d-flex justify-content-between align-items-start">
                         <span class="w-100">
                             <FontAwesomeIcon
@@ -77,12 +77,12 @@ function onQuery(newQuery: string) {
                                 icon="fas fa-check-square"
                                 fa-fw />
                             <FontAwesomeIcon v-else class="mr-1" icon="far fa-square" fa-fw />
-                            <small>
+                            <span>
                                 <icon class="mr-1" :icon="activity.icon" />
                                 <span v-localize class="font-weight-bold">{{
                                     activity.title || "No title available"
                                 }}</span>
-                            </small>
+                            </span>
                         </span>
                         <b-button
                             v-if="activity.mutable"
@@ -94,10 +94,10 @@ function onQuery(newQuery: string) {
                             <FontAwesomeIcon icon="fa-trash" fa-fw />
                         </b-button>
                     </div>
-                    <small v-localize>
+                    <div v-localize class="text-muted">
                         {{ activity.description || "No description available" }}
-                    </small>
-                </div>
+                    </div>
+                </button>
             </div>
         </div>
         <div v-else class="activity-settings-content">
@@ -110,14 +110,22 @@ function onQuery(newQuery: string) {
 @import "theme/blue.scss";
 
 .activity-settings {
-    width: 20rem;
+    overflow-y: hidden;
+    display: flex;
+    flex-direction: column;
 }
 
 .activity-settings-content {
-    height: 20rem;
+    overflow-y: auto;
 }
 
 .activity-settings-item {
+    background: none;
+    border: none;
+    text-align: left;
+    transition: none;
+    width: 100%;
+
     .icon-check {
         color: darken($brand-success, 15%);
     }
@@ -126,14 +134,6 @@ function onQuery(newQuery: string) {
     }
 }
 .activity-settings-item:hover {
-    background: $brand-primary;
-    color: $brand-light;
-    border-radius: $border-radius-large;
-    .icon-check {
-        color: $brand-light;
-    }
-    .button-delete {
-        color: $brand-light;
-    }
+    background: $gray-200;
 }
 </style>

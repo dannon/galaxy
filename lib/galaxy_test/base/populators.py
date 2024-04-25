@@ -37,6 +37,7 @@ API tests and Selenium tests routinely use requests directly and that is totally
 requests should just be filtered through the verb abstractions if that functionality
 is then added to populators to be shared across tests or across testing frameworks.
 """
+
 import base64
 import contextlib
 import json
@@ -629,7 +630,8 @@ class BaseDatasetPopulator(BasePopulator):
             raise TimeoutAssertionError(message)
 
         if assert_ok:
-            self.wait_for_history(history_id, assert_ok=True, timeout=timeout)
+            for job in self.history_jobs(history_id=history_id):
+                assert job["state"] in ("ok", "skipped"), f"Job {job} not in expected state"
 
     def wait_for_jobs(
         self,
@@ -666,7 +668,7 @@ class BaseDatasetPopulator(BasePopulator):
         extra_files_path: Optional[str] = None,
         wait: bool = True,
     ) -> Response:
-        data: Dict[str, Any] = dict()
+        data: Dict[str, Any] = {}
         if hash_function:
             data["hash_function"] = hash_function
         if extra_files_path:
@@ -1046,6 +1048,36 @@ class BaseDatasetPopulator(BasePopulator):
         assert output_details["state"] == "error", output_details
         return output_details["id"]
 
+    def report_job_error_raw(
+        self, job_id: str, dataset_id: str, message: str = "", email: Optional[str] = None
+    ) -> Response:
+        url = f"jobs/{job_id}/error"
+        payload = dict(
+            dataset_id=dataset_id,
+            message=message,
+        )
+        if email is not None:
+            payload["email"] = email
+        report_response = self._post(url, data=payload, json=True)
+        return report_response
+
+    def report_job_error(
+        self, job_id: str, dataset_id: str, message: str = "", email: Optional[str] = None
+    ) -> Response:
+        report_response = self.report_job_error_raw(job_id, dataset_id, message=message, email=email)
+        api_asserts.assert_status_code_is_ok(report_response)
+        return report_response.json()
+
+    def run_detect_errors(self, history_id: str, exit_code: int, stdout: str = "", stderr: str = "") -> dict:
+        inputs = {
+            "stdoutmsg": stdout,
+            "stderrmsg": stderr,
+            "exit_code": exit_code,
+        }
+        response = self.run_tool("detect_errors", inputs, history_id)
+        self.wait_for_history(history_id, assert_ok=False)
+        return response
+
     def run_exit_code_from_file(self, history_id: str, hdca_id: str) -> dict:
         exit_code_inputs = {
             "input": {"batch": True, "values": [{"src": "hdca", "id": hdca_id}]},
@@ -1087,8 +1119,8 @@ class BaseDatasetPopulator(BasePopulator):
                 history_content_id = history_contents[-1]["id"]
         return history_content_id
 
-    def get_history_contents(self, history_id: str) -> List[Dict[str, Any]]:
-        contents_response = self._get_contents_request(history_id)
+    def get_history_contents(self, history_id: str, data=None) -> List[Dict[str, Any]]:
+        contents_response = self._get_contents_request(history_id, data=data)
         contents_response.raise_for_status()
         return contents_response.json()
 
@@ -1180,6 +1212,13 @@ class BaseDatasetPopulator(BasePopulator):
         user_object = response.json()
         assert "total_disk_usage" in user_object
         return user_object["total_disk_usage"]
+
+    def update_object_store_id(self, dataset_id: str, object_store_id: str):
+        payload = {"object_store_id": object_store_id}
+        url = f"datasets/{dataset_id}/object_store_id"
+        update_response = self._put(url, payload, json=True)
+        update_response.raise_for_status()
+        return update_response
 
     def create_role(self, user_ids: list, description: Optional[str] = None) -> dict:
         using_requirement("admin")
@@ -1308,8 +1347,7 @@ class BaseDatasetPopulator(BasePopulator):
 
     def import_history(self, import_data):
         files = {}
-        archive_file = import_data.pop("archive_file", None)
-        if archive_file:
+        if archive_file := import_data.pop("archive_file", None):
             files["archive_file"] = archive_file
         import_response = self._post("histories", data=import_data, files=files)
         api_asserts.assert_status_code_is(import_response, 200)
@@ -1694,7 +1732,7 @@ class BaseWorkflowPopulator(BasePopulator):
 
         return wait_on_state(workflow_state, desc="workflow invocation state", timeout=timeout, assert_ok=assert_ok)
 
-    def workflow_invocations(self, workflow_id: str) -> List[Dict[str, Any]]:
+    def workflow_invocations(self, workflow_id: str, include_nested_invocations=True) -> List[Dict[str, Any]]:
         response = self._get(f"workflows/{workflow_id}/invocations")
         api_asserts.assert_status_code_is(response, 200)
         return response.json()
@@ -1704,8 +1742,10 @@ class BaseWorkflowPopulator(BasePopulator):
         api_asserts.assert_status_code_is(response, 200)
         return response.json()
 
-    def history_invocations(self, history_id: str) -> List[Dict[str, Any]]:
-        history_invocations_response = self._get("invocations", {"history_id": history_id})
+    def history_invocations(self, history_id: str, include_nested_invocations: bool = True) -> List[Dict[str, Any]]:
+        history_invocations_response = self._get(
+            "invocations", {"history_id": history_id, "include_nested_invocations": include_nested_invocations}
+        )
         api_asserts.assert_status_code_is(history_invocations_response, 200)
         return history_invocations_response.json()
 
@@ -1789,11 +1829,6 @@ class BaseWorkflowPopulator(BasePopulator):
         api_asserts.assert_status_code_is_ok(create_response)
         return create_response.json()
 
-    def get_biocompute_object(self, invocation_id):
-        bco_response = self._get(f"invocations/{invocation_id}/biocompute")
-        bco_response.raise_for_status()
-        return bco_response.json()
-
     def validate_biocompute_object(
         self, bco, expected_schema_version="https://w3id.org/ieee/ieee-2791-schema/2791object.json"
     ):
@@ -1814,7 +1849,7 @@ class BaseWorkflowPopulator(BasePopulator):
 
     def invoke_workflow_raw(self, workflow_id: str, request: dict, assert_ok: bool = False) -> Response:
         url = f"workflows/{workflow_id}/invocations"
-        invocation_response = self._post(url, data=request)
+        invocation_response = self._post(url, data=request, json=True)
         if assert_ok:
             invocation_response.raise_for_status()
         return invocation_response
@@ -1883,6 +1918,11 @@ class BaseWorkflowPopulator(BasePopulator):
         response = self._get(f"workflows/{workflow_id}/invocations/{invocation_id}/report")
         api_asserts.assert_status_code_is(response, 200)
         return response.json()
+
+    def workflow_report_pdf(self, workflow_id: str, invocation_id: str) -> Response:
+        response = self._get(f"workflows/{workflow_id}/invocations/{invocation_id}/report.pdf")
+        api_asserts.assert_status_code_is(response, 200)
+        return response
 
     def download_workflow(
         self, workflow_id: str, style: Optional[str] = None, history_id: Optional[str] = None
@@ -2857,6 +2897,8 @@ class BaseDatasetCollectionPopulator:
             history_id=history_id,
             targets=targets,
         )
+        if "__files" in kwds:
+            payload["__files"] = kwds.pop("__files")
         return payload
 
     def wait_for_fetched_collection(self, fetch_response: Union[Dict[str, Any], Response]):
@@ -2992,7 +3034,8 @@ def load_data_dict(
         if is_dict and ("elements" in value or value.get("collection_type")):
             elements_data = value.get("elements", [])
             elements = []
-            for element_data in elements_data:
+            new_collection_kwds: Dict[str, Any] = {}
+            for i, element_data in enumerate(elements_data):
                 # Adapt differences between test_data dict and fetch API description.
                 if "name" not in element_data:
                     identifier = element_data.pop("identifier")
@@ -3000,14 +3043,17 @@ def load_data_dict(
                 input_type = element_data.pop("type", "raw")
                 content = None
                 if input_type == "File":
-                    content = read_test_data(element_data)
+                    content = open_test_data(element_data)
+                    element_data["src"] = "files"
+                    if "__files" not in new_collection_kwds:
+                        new_collection_kwds["__files"] = {}
+                    new_collection_kwds["__files"][f"file_{i}|file_data"] = content
                 else:
                     content = element_data.pop("content")
-                if content is not None:
-                    element_data["src"] = "pasted"
-                    element_data["paste_content"] = content
+                    if content is not None:
+                        element_data["src"] = "pasted"
+                        element_data["paste_content"] = content
                 elements.append(element_data)
-            new_collection_kwds = {}
             if "name" in value:
                 new_collection_kwds["name"] = value["name"]
             collection_type = value.get("collection_type", "")
@@ -3206,7 +3252,6 @@ class GiHttpMixin:
 
 
 class GiDatasetPopulator(GiHttpMixin, BaseDatasetPopulator):
-
     """Implementation of BaseDatasetPopulator backed by bioblend."""
 
     def __init__(self, gi):
@@ -3218,7 +3263,6 @@ class GiDatasetPopulator(GiHttpMixin, BaseDatasetPopulator):
 
 
 class GiDatasetCollectionPopulator(GiHttpMixin, BaseDatasetCollectionPopulator):
-
     """Implementation of BaseDatasetCollectionPopulator backed by bioblend."""
 
     def __init__(self, gi):
@@ -3233,7 +3277,6 @@ class GiDatasetCollectionPopulator(GiHttpMixin, BaseDatasetCollectionPopulator):
 
 
 class GiWorkflowPopulator(GiHttpMixin, BaseWorkflowPopulator):
-
     """Implementation of BaseWorkflowPopulator backed by bioblend."""
 
     def __init__(self, gi):

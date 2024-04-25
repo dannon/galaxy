@@ -267,7 +267,7 @@ def _parse_test(i, test_dict) -> ToolSourceTest:
     return test_dict
 
 
-def __to_test_assert_list(assertions) -> AssertionList:
+def to_test_assert_list(assertions) -> AssertionList:
     def expand_dict_form(item):
         key, value = item
         new_value = value.copy()
@@ -281,10 +281,17 @@ def __to_test_assert_list(assertions) -> AssertionList:
     for assertion in assertions:
         # TODO: not handling nested assertions correctly,
         # not sure these are used though.
-        children = []
-        if "children" in assertion:
-            children = assertion["children"]
-            del assertion["children"]
+        if "that" not in assertion:
+            new_assertion = {}
+            for assertion_key, assertion_value in assertion.items():
+                new_assertion["that"] = assertion_key
+                new_assertion.update(assertion_value)
+            assertion = new_assertion
+        children = assertion.pop("asserts", assertion.pop("children", []))
+        # if there are no nested assertions then children should be []
+        # but to_test_assert_list would return None
+        if children:
+            children = to_test_assert_list(children)
         assert_dict: AssertionDict = dict(
             tag=assertion["that"],
             attributes=assertion,
@@ -293,6 +300,9 @@ def __to_test_assert_list(assertions) -> AssertionList:
         assert_list.append(assert_dict)
 
     return assert_list or None  # XML variant is None if no assertions made
+
+
+__to_test_assert_list = to_test_assert_list
 
 
 class YamlPageSource(PageSource):
@@ -351,7 +361,7 @@ class YamlInputSource(InputSource):
         return sources
 
     def parse_static_options(self):
-        static_options = list()
+        static_options = []
         input_dict = self.input_dict
         for option in input_dict.get("options", {}):
             value = option.get("value")

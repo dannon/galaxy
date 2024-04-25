@@ -4,10 +4,45 @@ History
 .. to_doc
 
 ---------
-23.2.dev0
+24.1.dev0
 ---------
 
 
+
+-------------------
+24.0.0 (2024-04-02)
+-------------------
+
+
+============
+Enhancements
+============
+
+* Python 3.8 as minimum by `@mr-c <https://github.com/mr-c>`_ in `#16954 <https://github.com/galaxyproject/galaxy/pull/16954>`_
+
+-------------------
+23.2.1 (2024-02-21)
+-------------------
+
+No recorded changes since last release
+
+-------------------
+23.1.4 (2024-01-04)
+-------------------
+
+No recorded changes since last release
+
+-------------------
+23.1.3 (2023-12-01)
+-------------------
+
+No recorded changes since last release
+
+-------------------
+23.1.2 (2023-11-29)
+-------------------
+
+No recorded changes since last release
 
 -------------------
 23.1.1 (2023-10-23)

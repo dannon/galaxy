@@ -1,7 +1,6 @@
-import { storeToRefs } from "pinia";
-import { computed, ref } from "vue";
+import { computed } from "vue";
 
-import { isUser, useUserStore } from "@/stores/userStore";
+import { useUserStore } from "@/stores/userStore";
 
 export function useCurrentTheme() {
     const userStore = useUserStore();
@@ -13,28 +12,4 @@ export function useCurrentTheme() {
         currentTheme,
         setCurrentTheme,
     };
-}
-
-// temporarily stores tags which have not yet been fetched from the backend
-const localTags = ref<string[]>([]);
-
-/**
- * Keeps tracks of the tags the current user has used.
- */
-export function useUserTags() {
-    const { currentUser } = storeToRefs(useUserStore());
-    const userTags = computed(() => {
-        let tags: string[];
-        if (isUser(currentUser.value)) {
-            tags = [...currentUser.value.tags_used, ...localTags.value];
-        } else {
-            tags = localTags.value;
-        }
-        const tagSet = new Set(tags);
-        return Array.from(tagSet).map((tag) => tag.replace(/^name:/, "#"));
-    });
-    const addLocalTag = (tag: string) => {
-        localTags.value.push(tag);
-    };
-    return { userTags, addLocalTag };
 }

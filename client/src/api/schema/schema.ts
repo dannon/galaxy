@@ -8,13 +8,6 @@ export interface paths {
         /** Returns returns an API key for authenticated user based on BaseAuth headers. */
         get: operations["get_api_key_api_authenticate_baseauth_get"];
     };
-    "/api/cloud/storage": {
-        /**
-         * Lists cloud-based buckets (e.g., S3 bucket, Azure blob) user has defined. Is not yet implemented
-         * @deprecated
-         */
-        get: operations["index_api_cloud_storage_get"];
-    };
     "/api/cloud/storage/get": {
         /**
          * Gets given objects from a given cloud-based bucket to a Galaxy history.
@@ -53,6 +46,13 @@ export interface paths {
          * @description Return dynamic tool configuration files.
          */
         get: operations["dynamic_tool_confs_api_configuration_dynamic_tool_confs_get"];
+    };
+    "/api/configuration/encode/{decoded_id}": {
+        /**
+         * Encode a given id
+         * @description Decode a given id.
+         */
+        get: operations["encode_id_api_configuration_encode__decoded_id__get"];
     };
     "/api/configuration/tool_lineages": {
         /**
@@ -132,6 +132,18 @@ export interface paths {
          * To get more information please check the source code.
          */
         get: operations["show_api_datasets__dataset_id__get"];
+        /**
+         * Updates the values for the history dataset (HDA) item with the given ``ID``.
+         * @description Updates the values for the history content item with the given ``ID``.
+         */
+        put: operations["datasets__update_dataset"];
+        /**
+         * Delete the history dataset content with the given ``ID``.
+         * @description Delete the history content with the given ``ID`` and path specified type.
+         *
+         * **Note**: Currently does not stop any active jobs for which this dataset is an output.
+         */
+        delete: operations["datasets__delete"];
     };
     "/api/datasets/{dataset_id}/content/{content_type}": {
         /** Retrieve information about the content of a dataset. */
@@ -155,6 +167,10 @@ export interface paths {
          */
         get: operations["converted_ext_api_datasets__dataset_id__converted__ext__get"];
     };
+    "/api/datasets/{dataset_id}/extra_files": {
+        /** Get the list of extra files/directories associated with a dataset. */
+        get: operations["extra_files_api_datasets__dataset_id__extra_files_get"];
+    };
     "/api/datasets/{dataset_id}/get_content_as_text": {
         /** Returns dataset content as Text. */
         get: operations["get_content_as_text_api_datasets__dataset_id__get_content_as_text_get"];
@@ -166,6 +182,27 @@ export interface paths {
     "/api/datasets/{dataset_id}/inheritance_chain": {
         /** For internal use, this endpoint may change without warning. */
         get: operations["show_inheritance_chain_api_datasets__dataset_id__inheritance_chain_get"];
+    };
+    "/api/datasets/{dataset_id}/metrics": {
+        /**
+         * Return job metrics for specified job.
+         * @deprecated
+         */
+        get: operations["get_metrics_api_datasets__dataset_id__metrics_get"];
+    };
+    "/api/datasets/{dataset_id}/object_store_id": {
+        /** Update an object store ID for a dataset you own. */
+        put: operations["datasets__update_object_store_id"];
+    };
+    "/api/datasets/{dataset_id}/parameters_display": {
+        /**
+         * Resolve parameters as a list for nested display.
+         * @deprecated
+         * @description Resolve parameters as a list for nested display.
+         * This API endpoint is unstable and tied heavily to Galaxy's JS client code,
+         * this endpoint will change frequently.
+         */
+        get: operations["resolve_parameters_display_api_datasets__dataset_id__parameters_display_get"];
     };
     "/api/datasets/{dataset_id}/permissions": {
         /**
@@ -340,6 +377,14 @@ export interface paths {
          */
         post: operations["set_permissions_api_folders__id__permissions_post"];
     };
+    "/api/forms/{id}": {
+        /** Delete */
+        delete: operations["delete_api_forms__id__delete"];
+    };
+    "/api/forms/{id}/undelete": {
+        /** Undelete */
+        post: operations["undelete_api_forms__id__undelete_post"];
+    };
     "/api/ftp_files": {
         /**
          * Displays remote files available to the user. Please use /api/remote_files instead.
@@ -364,9 +409,27 @@ export interface paths {
         /** Return raw sequence data */
         get: operations["sequences_api_genomes__id__sequences_get"];
     };
+    "/api/groups": {
+        /** Displays a collection (list) of groups. */
+        get: operations["index_api_groups_get"];
+        /** Creates a new group. */
+        post: operations["create_api_groups_post"];
+    };
+    "/api/groups/{group_id}": {
+        /** Displays information about a group. */
+        get: operations["show_group_api_groups__group_id__get"];
+        /** Modifies a group. */
+        put: operations["update_api_groups__group_id__put"];
+        /** Delete */
+        delete: operations["delete_api_groups__group_id__delete"];
+    };
+    "/api/groups/{group_id}/purge": {
+        /** Purge */
+        post: operations["purge_api_groups__group_id__purge_post"];
+    };
     "/api/groups/{group_id}/roles": {
         /** Displays a collection (list) of groups. */
-        get: operations["index_api_groups__group_id__roles_get"];
+        get: operations["group_roles_api_groups__group_id__roles_get"];
     };
     "/api/groups/{group_id}/roles/{role_id}": {
         /** Displays information about a group role. */
@@ -375,6 +438,10 @@ export interface paths {
         put: operations["update_api_groups__group_id__roles__role_id__put"];
         /** Removes a role from a group */
         delete: operations["delete_api_groups__group_id__roles__role_id__delete"];
+    };
+    "/api/groups/{group_id}/undelete": {
+        /** Undelete */
+        post: operations["undelete_api_groups__group_id__undelete_post"];
     };
     "/api/groups/{group_id}/user/{user_id}": {
         /**
@@ -401,7 +468,7 @@ export interface paths {
          * @description GET /api/groups/{encoded_group_id}/users
          * Displays a collection (list) of groups.
          */
-        get: operations["index_api_groups__group_id__users_get"];
+        get: operations["group_users_api_groups__group_id__users_get"];
     };
     "/api/groups/{group_id}/users/{user_id}": {
         /**
@@ -422,8 +489,17 @@ export interface paths {
          */
         delete: operations["delete_api_groups__group_id__users__user_id__delete"];
     };
+    "/api/help/forum/search": {
+        /**
+         * Search the Galaxy Help forum.
+         * @description Search the Galaxy Help forum using the Discourse API.
+         *
+         * **Note**: This endpoint is for **INTERNAL USE ONLY** and is not part of the public Galaxy API.
+         */
+        get: operations["search_forum_api_help_forum_search_get"];
+    };
     "/api/histories": {
-        /** Returns histories for the current user. */
+        /** Returns histories available to the current user. */
         get: operations["index_api_histories_get"];
         /**
          * Creates a new history.
@@ -439,6 +515,14 @@ export interface paths {
          * Archived histories are histories are not part of the active histories of the user but they can be accessed using this endpoint.
          */
         get: operations["get_archived_histories_api_histories_archived_get"];
+    };
+    "/api/histories/batch/delete": {
+        /** Marks several histories with the given IDs as deleted. */
+        put: operations["batch_delete_api_histories_batch_delete_put"];
+    };
+    "/api/histories/batch/undelete": {
+        /** Marks several histories with the given IDs as undeleted. */
+        put: operations["batch_undelete_api_histories_batch_undelete_put"];
     };
     "/api/histories/count": {
         /** Returns number of histories for the current user. */
@@ -602,12 +686,26 @@ export interface paths {
         head: operations["history_contents_display_api_histories__history_id__contents__history_content_id__display_head"];
     };
     "/api/histories/{history_id}/contents/{history_content_id}/extra_files": {
-        /** Generate list of extra files. */
-        get: operations["extra_files_api_histories__history_id__contents__history_content_id__extra_files_get"];
+        /** Get the list of extra files/directories associated with a dataset. */
+        get: operations["extra_files_history_api_histories__history_id__contents__history_content_id__extra_files_get"];
     };
     "/api/histories/{history_id}/contents/{history_content_id}/metadata_file": {
         /** Returns the metadata file associated with this history item. */
         get: operations["history_contents__get_metadata_file"];
+    };
+    "/api/histories/{history_id}/contents/{history_content_id}/tags": {
+        /** Show tags based on history_content_id */
+        get: operations["index_api_histories__history_id__contents__history_content_id__tags_get"];
+    };
+    "/api/histories/{history_id}/contents/{history_content_id}/tags/{tag_name}": {
+        /** Show tag based on history_content_id */
+        get: operations["show_api_histories__history_id__contents__history_content_id__tags__tag_name__get"];
+        /** Update tag based on history_content_id */
+        put: operations["update_api_histories__history_id__contents__history_content_id__tags__tag_name__put"];
+        /** Create tag based on history_content_id */
+        post: operations["create_api_histories__history_id__contents__history_content_id__tags__tag_name__post"];
+        /** Delete tag based on history_content_id */
+        delete: operations["delete_api_histories__history_id__contents__history_content_id__tags__tag_name__delete"];
     };
     "/api/histories/{history_id}/contents/{id}": {
         /**
@@ -812,6 +910,20 @@ export interface paths {
          */
         put: operations["set_slug_api_histories__history_id__slug_put"];
     };
+    "/api/histories/{history_id}/tags": {
+        /** Show tags based on history_id */
+        get: operations["index_api_histories__history_id__tags_get"];
+    };
+    "/api/histories/{history_id}/tags/{tag_name}": {
+        /** Show tag based on history_id */
+        get: operations["show_api_histories__history_id__tags__tag_name__get"];
+        /** Update tag based on history_id */
+        put: operations["update_api_histories__history_id__tags__tag_name__put"];
+        /** Create tag based on history_id */
+        post: operations["create_api_histories__history_id__tags__tag_name__post"];
+        /** Delete tag based on history_id */
+        delete: operations["delete_api_histories__history_id__tags__tag_name__delete"];
+    };
     "/api/histories/{history_id}/unpublish": {
         /**
          * Removes this item from the published list.
@@ -823,55 +935,67 @@ export interface paths {
         /** Prepare history for export-style download and write to supplied URI. */
         post: operations["write_store_api_histories__history_id__write_store_post"];
     };
-    "/api/invocations/{invocation_id}/biocompute": {
-        /**
-         * Return a BioCompute Object for the workflow invocation.
-         * @deprecated
-         * @description The BioCompute Object endpoints are in beta - important details such
-         * as how inputs and outputs are represented, how the workflow is encoded,
-         * and how author and version information is encoded, and how URLs are
-         * generated will very likely change in important ways over time.
-         *
-         * **Deprecation Notice**: please use the asynchronous short_term_storage export system instead.
-         *
-         * 1. call POST `api/invocations/{id}/prepare_store_download` with payload:
-         *     ```
-         *     {
-         *         model_store_format: bco.json
-         *     }
-         *     ```
-         * 2. Get `storageRequestId` from response and poll GET `api/short_term_storage/${storageRequestId}/ready` until `SUCCESS`
-         *
-         * 3. Get the resulting file with `api/short_term_storage/${storageRequestId}`
-         */
-        get: operations["export_invocation_bco_api_invocations__invocation_id__biocompute_get"];
+    "/api/invocations": {
+        /** Get the list of a user's workflow invocations. */
+        get: operations["index_invocations_api_invocations_get"];
     };
-    "/api/invocations/{invocation_id}/biocompute/download": {
+    "/api/invocations/from_store": {
         /**
-         * Return a BioCompute Object for the workflow invocation as a file for download.
-         * @deprecated
-         * @description The BioCompute Object endpoints are in beta - important details such
-         * as how inputs and outputs are represented, how the workflow is encoded,
-         * and how author and version information is encoded, and how URLs are
-         * generated will very likely change in important ways over time.
-         *
-         * **Deprecation Notice**: please use the asynchronous short_term_storage export system instead.
-         *
-         * 1. call POST `api/invocations/{id}/prepare_store_download` with payload:
-         *     ```
-         *     {
-         *         model_store_format: bco.json
-         *     }
-         *     ```
-         * 2. Get `storageRequestId` from response and poll GET `api/short_term_storage/${storageRequestId}/ready` until `SUCCESS`
-         *
-         * 3. Get the resulting file with `api/short_term_storage/${storageRequestId}`
+         * Create Invocations From Store
+         * @description Create invocation(s) from a supplied model store.
          */
-        get: operations["download_invocation_bco_api_invocations__invocation_id__biocompute_download_get"];
+        post: operations["create_invocations_from_store_api_invocations_from_store_post"];
+    };
+    "/api/invocations/steps/{step_id}": {
+        /** Show details of workflow invocation step. */
+        get: operations["step_api_invocations_steps__step_id__get"];
+    };
+    "/api/invocations/{invocation_id}": {
+        /** Get detailed description of a workflow invocation. */
+        get: operations["show_invocation_api_invocations__invocation_id__get"];
+        /** Cancel the specified workflow invocation. */
+        delete: operations["cancel_invocation_api_invocations__invocation_id__delete"];
+    };
+    "/api/invocations/{invocation_id}/jobs_summary": {
+        /**
+         * Get job state summary info aggregated across all current jobs of the workflow invocation.
+         * @description Warning: We allow anyone to fetch job state information about any object they
+         * can guess an encoded ID for - it isn't considered protected data. This keeps
+         * polling IDs as part of state calculation for large histories and collections as
+         * efficient as possible.
+         */
+        get: operations["invocation_jobs_summary_api_invocations__invocation_id__jobs_summary_get"];
     };
     "/api/invocations/{invocation_id}/prepare_store_download": {
         /** Prepare a workflow invocation export-style download. */
         post: operations["prepare_store_download_api_invocations__invocation_id__prepare_store_download_post"];
+    };
+    "/api/invocations/{invocation_id}/report": {
+        /** Get JSON summarizing invocation for reporting. */
+        get: operations["show_invocation_report_api_invocations__invocation_id__report_get"];
+    };
+    "/api/invocations/{invocation_id}/report.pdf": {
+        /** Get PDF summarizing invocation for reporting. */
+        get: operations["show_invocation_report_pdf_api_invocations__invocation_id__report_pdf_get"];
+    };
+    "/api/invocations/{invocation_id}/step_jobs_summary": {
+        /**
+         * Get job state summary info aggregated per step of the workflow invocation.
+         * @description Warning: We allow anyone to fetch job state information about any object they
+         * can guess an encoded ID for - it isn't considered protected data. This keeps
+         * polling IDs as part of state calculation for large histories and collections as
+         * efficient as possible.
+         */
+        get: operations["invocation_step_jobs_summary_api_invocations__invocation_id__step_jobs_summary_get"];
+    };
+    "/api/invocations/{invocation_id}/steps/{step_id}": {
+        /**
+         * Show details of workflow invocation step.
+         * @description An alias for `GET /api/invocations/steps/{step_id}`. `invocation_id` is ignored.
+         */
+        get: operations["invocation_step_api_invocations__invocation_id__steps__step_id__get"];
+        /** Update state of running workflow step invocation - still very nebulous but this would be for stuff like confirming paused steps can proceed etc. */
+        put: operations["update_invocation_step_api_invocations__invocation_id__steps__step_id__put"];
     };
     "/api/invocations/{invocation_id}/write_store": {
         /** Prepare a workflow invocation export-style download and write to supplied URI. */
@@ -893,16 +1017,40 @@ export interface paths {
         /** Index */
         get: operations["index_api_jobs_get"];
     };
-    "/api/jobs/{id}": {
+    "/api/jobs/search": {
         /**
-         * Show
-         * @description Return dictionary containing description of job data
-         *
-         * Parameters
-         * - id: ID of job to return
-         * - full: Return extra information ?
+         * Return jobs for current user
+         * @description This method is designed to scan the list of previously run jobs and find records of jobs that had
+         * the exact some input parameters and datasets. This can be used to minimize the amount of repeated work, and simply
+         * recycle the old results.
          */
-        get: operations["show_api_jobs__id__get"];
+        post: operations["search_jobs_api_jobs_search_post"];
+    };
+    "/api/jobs/{job_id}": {
+        /** Return dictionary containing description of job data. */
+        get: operations["show_job_api_jobs__job_id__get"];
+        /** Cancels specified job */
+        delete: operations["cancel_job_api_jobs__job_id__delete"];
+    };
+    "/api/jobs/{job_id}/common_problems": {
+        /** Check inputs and job for common potential problems to aid in error reporting */
+        get: operations["check_common_problems_api_jobs__job_id__common_problems_get"];
+    };
+    "/api/jobs/{job_id}/destination_params": {
+        /** Return destination parameters for specified job. */
+        get: operations["destination_params_job_api_jobs__job_id__destination_params_get"];
+    };
+    "/api/jobs/{job_id}/error": {
+        /** Submits a bug report via the API. */
+        post: operations["report_error_api_jobs__job_id__error_post"];
+    };
+    "/api/jobs/{job_id}/inputs": {
+        /** Returns input datasets created by a job. */
+        get: operations["get_inputs_api_jobs__job_id__inputs_get"];
+    };
+    "/api/jobs/{job_id}/metrics": {
+        /** Return job metrics for specified job. */
+        get: operations["get_metrics_api_jobs__job_id__metrics_get"];
     };
     "/api/jobs/{job_id}/oidc-tokens": {
         /**
@@ -910,6 +1058,23 @@ export interface paths {
          * @description Allows remote job running mechanisms to get a fresh OIDC token that can be used on remote side to authorize user. It is not meant to represent part of Galaxy's stable, user facing API
          */
         get: operations["get_token_api_jobs__job_id__oidc_tokens_get"];
+    };
+    "/api/jobs/{job_id}/outputs": {
+        /** Returns output datasets created by a job. */
+        get: operations["get_outputs_api_jobs__job_id__outputs_get"];
+    };
+    "/api/jobs/{job_id}/parameters_display": {
+        /**
+         * Resolve parameters as a list for nested display.
+         * @description Resolve parameters as a list for nested display.
+         * This API endpoint is unstable and tied heavily to Galaxy's JS client code,
+         * this endpoint will change frequently.
+         */
+        get: operations["resolve_parameters_display_api_jobs__job_id__parameters_display_get"];
+    };
+    "/api/jobs/{job_id}/resume": {
+        /** Resumes a paused job. */
+        put: operations["resume_paused_job_api_jobs__job_id__resume_put"];
     };
     "/api/libraries": {
         /**
@@ -1044,6 +1209,9 @@ export interface paths {
         /**
          * Returns the current user's preferences for notifications.
          * @description Anonymous users cannot have notification preferences. They will receive only broadcasted notifications.
+         *
+         * - The settings will contain all possible channels, but the client should only show the ones that are really supported by the server.
+         *   The supported channels are returned in the `supported-channels` header.
          */
         get: operations["get_notification_preferences_api_notifications_preferences_get"];
         /**
@@ -1169,6 +1337,13 @@ export interface paths {
          */
         put: operations["set_slug_api_pages__id__slug_put"];
     };
+    "/api/pages/{id}/undelete": {
+        /**
+         * Undelete the specific Page.
+         * @description Marks the Page with the given ID as undeleted.
+         */
+        put: operations["undelete_api_pages__id__undelete_put"];
+    };
     "/api/pages/{id}/unpublish": {
         /**
          * Removes this item from the published list.
@@ -1226,6 +1401,10 @@ export interface paths {
          */
         delete: operations["delete_api_quotas__id__delete"];
     };
+    "/api/quotas/{id}/purge": {
+        /** Purges a previously deleted quota. */
+        post: operations["purge_api_quotas__id__purge_post"];
+    };
     "/api/remote_files": {
         /**
          * Displays remote files available to the user.
@@ -1254,6 +1433,16 @@ export interface paths {
     "/api/roles/{id}": {
         /** Show */
         get: operations["show_api_roles__id__get"];
+        /** Delete */
+        delete: operations["delete_api_roles__id__delete"];
+    };
+    "/api/roles/{id}/purge": {
+        /** Purge */
+        post: operations["purge_api_roles__id__purge_post"];
+    };
+    "/api/roles/{id}/undelete": {
+        /** Undelete */
+        post: operations["undelete_api_roles__id__undelete_post"];
     };
     "/api/short_term_storage/{storage_request_id}": {
         /** Serve the staged download specified by request ID. */
@@ -1371,7 +1560,7 @@ export interface paths {
     };
     "/api/tools/fetch": {
         /** Upload files to Galaxy */
-        post: operations["fetch_json_api_tools_fetch_post+fetch_form_api_tools_fetch_post"];
+        post: operations["fetch_form_api_tools_fetch_post"];
     };
     "/api/tours": {
         /**
@@ -1485,6 +1674,18 @@ export interface paths {
         /** Remove the object from user's favorites */
         delete: operations["remove_favorite_api_users__user_id__favorites__object_type___object_id__delete"];
     };
+    "/api/users/{user_id}/objectstore_usage": {
+        /** Return the user's object store usage summary broken down by object store ID */
+        get: operations["get_user_objectstore_usage_api_users__user_id__objectstore_usage_get"];
+    };
+    "/api/users/{user_id}/recalculate_disk_usage": {
+        /** Triggers a recalculation of the current user disk usage. */
+        put: operations["recalculate_disk_usage_by_user_id_api_users__user_id__recalculate_disk_usage_put"];
+    };
+    "/api/users/{user_id}/send_activation_email": {
+        /** Sends activation email to user. */
+        post: operations["send_activation_email_api_users__user_id__send_activation_email_post"];
+    };
     "/api/users/{user_id}/theme/{theme}": {
         /** Set the user's theme choice */
         put: operations["set_theme_api_users__user_id__theme__theme__put"];
@@ -1575,62 +1776,216 @@ export interface paths {
         /** Get workflows present in the tools panel. */
         get: operations["get_workflow_menu_api_workflows_menu_get"];
     };
-    "/api/workflows/{id}/disable_link_access": {
+    "/api/workflows/{workflow_id}": {
+        /** Displays information needed to run a workflow. */
+        get: operations["show_workflow_api_workflows__workflow_id__get"];
+        /** Add the deleted flag to a workflow. */
+        delete: operations["delete_workflow_api_workflows__workflow_id__delete"];
+    };
+    "/api/workflows/{workflow_id}/counts": {
+        /** Get state counts for accessible workflow. */
+        get: operations["workflows__invocation_counts"];
+    };
+    "/api/workflows/{workflow_id}/disable_link_access": {
         /**
          * Makes this item inaccessible by a URL link.
          * @description Makes this item inaccessible by a URL link and return the current sharing status.
          */
-        put: operations["disable_link_access_api_workflows__id__disable_link_access_put"];
+        put: operations["disable_link_access_api_workflows__workflow_id__disable_link_access_put"];
     };
-    "/api/workflows/{id}/enable_link_access": {
+    "/api/workflows/{workflow_id}/enable_link_access": {
         /**
          * Makes this item accessible by a URL link.
          * @description Makes this item accessible by a URL link and return the current sharing status.
          */
-        put: operations["enable_link_access_api_workflows__id__enable_link_access_put"];
+        put: operations["enable_link_access_api_workflows__workflow_id__enable_link_access_put"];
     };
-    "/api/workflows/{id}/publish": {
+    "/api/workflows/{workflow_id}/invocations": {
+        /** Get the list of a user's workflow invocations. */
+        get: operations["index_invocations_api_workflows__workflow_id__invocations_get"];
+        /** Schedule the workflow specified by `workflow_id` to run. */
+        post: operations["Invoke_workflow_api_workflows__workflow_id__invocations_post"];
+    };
+    "/api/workflows/{workflow_id}/invocations/{invocation_id}": {
+        /**
+         * Get detailed description of a workflow invocation.
+         * @description An alias for `GET /api/invocations/{invocation_id}`. `workflow_id` is ignored.
+         */
+        get: operations["show_workflow_invocation_api_workflows__workflow_id__invocations__invocation_id__get"];
+        /**
+         * Cancel the specified workflow invocation.
+         * @description An alias for `DELETE /api/invocations/{invocation_id}`. `workflow_id` is ignored.
+         */
+        delete: operations["cancel_workflow_invocation_api_workflows__workflow_id__invocations__invocation_id__delete"];
+    };
+    "/api/workflows/{workflow_id}/invocations/{invocation_id}/jobs_summary": {
+        /**
+         * Get job state summary info aggregated across all current jobs of the workflow invocation.
+         * @description An alias for `GET /api/invocations/{invocation_id}/jobs_summary`. `workflow_id` is ignored.
+         */
+        get: operations["workflow_invocation_jobs_summary_api_workflows__workflow_id__invocations__invocation_id__jobs_summary_get"];
+    };
+    "/api/workflows/{workflow_id}/invocations/{invocation_id}/report": {
+        /**
+         * Get JSON summarizing invocation for reporting.
+         * @description An alias for `GET /api/invocations/{invocation_id}/report`. `workflow_id` is ignored.
+         */
+        get: operations["show_workflow_invocation_report_api_workflows__workflow_id__invocations__invocation_id__report_get"];
+    };
+    "/api/workflows/{workflow_id}/invocations/{invocation_id}/report.pdf": {
+        /**
+         * Get PDF summarizing invocation for reporting.
+         * @description An alias for `GET /api/invocations/{invocation_id}/report.pdf`. `workflow_id` is ignored.
+         */
+        get: operations["show_workflow_invocation_report_pdf_api_workflows__workflow_id__invocations__invocation_id__report_pdf_get"];
+    };
+    "/api/workflows/{workflow_id}/invocations/{invocation_id}/step_jobs_summary": {
+        /**
+         * Get job state summary info aggregated per step of the workflow invocation.
+         * @description An alias for `GET /api/invocations/{invocation_id}/step_jobs_summary`. `workflow_id` is ignored.
+         */
+        get: operations["workflow_invocation_step_jobs_summary_api_workflows__workflow_id__invocations__invocation_id__step_jobs_summary_get"];
+    };
+    "/api/workflows/{workflow_id}/invocations/{invocation_id}/steps/{step_id}": {
+        /**
+         * Show details of workflow invocation step.
+         * @description An alias for `GET /api/invocations/{invocation_id}/steps/{step_id}`. `workflow_id` and `invocation_id` are ignored.
+         */
+        get: operations["workflow_invocation_step_api_workflows__workflow_id__invocations__invocation_id__steps__step_id__get"];
+        /**
+         * Update state of running workflow step invocation.
+         * @description An alias for `PUT /api/invocations/{invocation_id}/steps/{step_id}`. `workflow_id` is ignored.
+         */
+        put: operations["update_workflow_invocation_step_api_workflows__workflow_id__invocations__invocation_id__steps__step_id__put"];
+    };
+    "/api/workflows/{workflow_id}/publish": {
         /**
          * Makes this item public and accessible by a URL link.
          * @description Makes this item publicly available by a URL link and return the current sharing status.
          */
-        put: operations["publish_api_workflows__id__publish_put"];
+        put: operations["publish_api_workflows__workflow_id__publish_put"];
     };
-    "/api/workflows/{id}/share_with_users": {
+    "/api/workflows/{workflow_id}/refactor": {
+        /** Updates the workflow stored with the given ID. */
+        put: operations["refactor_api_workflows__workflow_id__refactor_put"];
+    };
+    "/api/workflows/{workflow_id}/share_with_users": {
         /**
          * Share this item with specific users.
          * @description Shares this item with specific users and return the current sharing status.
          */
-        put: operations["share_with_users_api_workflows__id__share_with_users_put"];
+        put: operations["share_with_users_api_workflows__workflow_id__share_with_users_put"];
     };
-    "/api/workflows/{id}/sharing": {
+    "/api/workflows/{workflow_id}/sharing": {
         /**
          * Get the current sharing status of the given item.
          * @description Return the sharing status of the item.
          */
-        get: operations["sharing_api_workflows__id__sharing_get"];
+        get: operations["sharing_api_workflows__workflow_id__sharing_get"];
     };
-    "/api/workflows/{id}/slug": {
+    "/api/workflows/{workflow_id}/slug": {
         /**
          * Set a new slug for this shared item.
          * @description Sets a new slug to access this item by URL. The new slug must be unique.
          */
-        put: operations["set_slug_api_workflows__id__slug_put"];
+        put: operations["set_slug_api_workflows__workflow_id__slug_put"];
     };
-    "/api/workflows/{id}/unpublish": {
-        /**
-         * Removes this item from the published list.
-         * @description Removes this item from the published list and return the current sharing status.
-         */
-        put: operations["unpublish_api_workflows__id__unpublish_put"];
+    "/api/workflows/{workflow_id}/tags": {
+        /** Show tags based on workflow_id */
+        get: operations["index_api_workflows__workflow_id__tags_get"];
     };
-    "/api/workflows/{workflow_id}": {
-        /** Add the deleted flag to a workflow. */
-        delete: operations["delete_workflow_api_workflows__workflow_id__delete"];
+    "/api/workflows/{workflow_id}/tags/{tag_name}": {
+        /** Show tag based on workflow_id */
+        get: operations["show_api_workflows__workflow_id__tags__tag_name__get"];
+        /** Update tag based on workflow_id */
+        put: operations["update_api_workflows__workflow_id__tags__tag_name__put"];
+        /** Create tag based on workflow_id */
+        post: operations["create_api_workflows__workflow_id__tags__tag_name__post"];
+        /** Delete tag based on workflow_id */
+        delete: operations["delete_api_workflows__workflow_id__tags__tag_name__delete"];
     };
     "/api/workflows/{workflow_id}/undelete": {
         /** Remove the deleted flag from a workflow. */
         post: operations["undelete_workflow_api_workflows__workflow_id__undelete_post"];
+    };
+    "/api/workflows/{workflow_id}/unpublish": {
+        /**
+         * Removes this item from the published list.
+         * @description Removes this item from the published list and return the current sharing status.
+         */
+        put: operations["unpublish_api_workflows__workflow_id__unpublish_put"];
+    };
+    "/api/workflows/{workflow_id}/usage": {
+        /**
+         * Get the list of a user's workflow invocations.
+         * @deprecated
+         */
+        get: operations["index_invocations_api_workflows__workflow_id__usage_get"];
+        /**
+         * Schedule the workflow specified by `workflow_id` to run.
+         * @deprecated
+         */
+        post: operations["Invoke_workflow_api_workflows__workflow_id__usage_post"];
+    };
+    "/api/workflows/{workflow_id}/usage/{invocation_id}": {
+        /**
+         * Get detailed description of a workflow invocation.
+         * @deprecated
+         * @description An alias for `GET /api/invocations/{invocation_id}`. `workflow_id` is ignored.
+         */
+        get: operations["show_workflow_invocation_api_workflows__workflow_id__usage__invocation_id__get"];
+        /**
+         * Cancel the specified workflow invocation.
+         * @deprecated
+         * @description An alias for `DELETE /api/invocations/{invocation_id}`. `workflow_id` is ignored.
+         */
+        delete: operations["cancel_workflow_invocation_api_workflows__workflow_id__usage__invocation_id__delete"];
+    };
+    "/api/workflows/{workflow_id}/usage/{invocation_id}/jobs_summary": {
+        /**
+         * Get job state summary info aggregated across all current jobs of the workflow invocation.
+         * @deprecated
+         * @description An alias for `GET /api/invocations/{invocation_id}/jobs_summary`. `workflow_id` is ignored.
+         */
+        get: operations["workflow_invocation_jobs_summary_api_workflows__workflow_id__usage__invocation_id__jobs_summary_get"];
+    };
+    "/api/workflows/{workflow_id}/usage/{invocation_id}/report": {
+        /**
+         * Get JSON summarizing invocation for reporting.
+         * @deprecated
+         * @description An alias for `GET /api/invocations/{invocation_id}/report`. `workflow_id` is ignored.
+         */
+        get: operations["show_workflow_invocation_report_api_workflows__workflow_id__usage__invocation_id__report_get"];
+    };
+    "/api/workflows/{workflow_id}/usage/{invocation_id}/report.pdf": {
+        /**
+         * Get PDF summarizing invocation for reporting.
+         * @deprecated
+         * @description An alias for `GET /api/invocations/{invocation_id}/report.pdf`. `workflow_id` is ignored.
+         */
+        get: operations["show_workflow_invocation_report_pdf_api_workflows__workflow_id__usage__invocation_id__report_pdf_get"];
+    };
+    "/api/workflows/{workflow_id}/usage/{invocation_id}/step_jobs_summary": {
+        /**
+         * Get job state summary info aggregated per step of the workflow invocation.
+         * @deprecated
+         * @description An alias for `GET /api/invocations/{invocation_id}/step_jobs_summary`. `workflow_id` is ignored.
+         */
+        get: operations["workflow_invocation_step_jobs_summary_api_workflows__workflow_id__usage__invocation_id__step_jobs_summary_get"];
+    };
+    "/api/workflows/{workflow_id}/usage/{invocation_id}/steps/{step_id}": {
+        /**
+         * Show details of workflow invocation step.
+         * @deprecated
+         * @description An alias for `GET /api/invocations/{invocation_id}/steps/{step_id}`. `workflow_id` and `invocation_id` are ignored.
+         */
+        get: operations["workflow_invocation_step_api_workflows__workflow_id__usage__invocation_id__steps__step_id__get"];
+        /**
+         * Update state of running workflow step invocation.
+         * @deprecated
+         * @description An alias for `PUT /api/invocations/{invocation_id}/steps/{step_id}`. `workflow_id` is ignored.
+         */
+        put: operations["update_workflow_invocation_step_api_workflows__workflow_id__usage__invocation_id__steps__step_id__put"];
     };
     "/api/workflows/{workflow_id}/versions": {
         /** List all versions of a workflow. */
@@ -1683,29 +2038,29 @@ export interface components {
              * Access Id
              * @description An arbitrary string to be passed to the `/access` method to get an `AccessURL`. This string must be unique within the scope of a single object. Note that at least one of `access_url` and `access_id` must be provided.
              */
-            access_id?: string;
-            /**
-             * Access Url
-             * @description An `AccessURL` that can be used to fetch the actual object bytes. Note that at least one of `access_url` and `access_id` must be provided.
-             */
-            access_url?: components["schemas"]["AccessURL"];
+            access_id?: string | null;
+            access_url?: components["schemas"]["AccessURL"] | null;
+            authorizations?: components["schemas"]["Authorizations"] | null;
             /**
              * Region
              * @description Name of the region in the cloud service provider that the object belongs to.
-             * @example us-east-1
              */
-            region?: string;
+            region?: string | null;
             /** @description Type of the access method. */
-            type: components["schemas"]["Type"];
+            type: components["schemas"]["AccessMethodType"];
         };
+        /**
+         * AccessMethodType
+         * @enum {string}
+         */
+        AccessMethodType: "s3" | "gs" | "ftp" | "gsiftp" | "globus" | "htsget" | "https" | "file";
         /** AccessURL */
         AccessURL: {
             /**
              * Headers
              * @description An optional list of headers to include in the HTTP request to `url`. These headers can be used to provide auth tokens required to fetch the object bytes.
-             * @example Authorization: Basic Z2E0Z2g6ZHJz
              */
-            headers?: string[];
+            headers?: string[] | null;
             /**
              * Url
              * @description A fully resolvable URL that can be used to fetch the actual object bytes.
@@ -1724,15 +2079,70 @@ export interface components {
             action_name: string;
             /**
              * Link
-             * Format: uri
              * @description The link to be opened when the button is clicked.
              */
             link: string;
         };
+        /** AddInputAction */
+        AddInputAction: {
+            /**
+             * Action Type
+             * @constant
+             * @enum {string}
+             */
+            action_type: "add_input";
+            /** Collection Type */
+            collection_type?: string | null;
+            /** Default */
+            default?: Record<string, never> | null;
+            /** Label */
+            label?: string | null;
+            /**
+             * Optional
+             * @default false
+             */
+            optional?: boolean | null;
+            position?: components["schemas"]["Position"] | null;
+            /** Restrict On Connections */
+            restrict_on_connections?: boolean | null;
+            /** Restrictions */
+            restrictions?: string[] | null;
+            /** Suggestions */
+            suggestions?: string[] | null;
+            /** Type */
+            type: string;
+        };
         /**
-         * AnonUserModel
-         * @description Base model definition with common configuration used by all derived models.
+         * AddStepAction
+         * @description Add a new action to the workflow.
+         *
+         * After the workflow is updated, an order_index will be assigned
+         * and this step may cause other steps to have their output_index
+         * adjusted.
          */
+        AddStepAction: {
+            /**
+             * Action Type
+             * @constant
+             * @enum {string}
+             */
+            action_type: "add_step";
+            /**
+             * Label
+             * @description A unique label for the step being added, must be distinct from the labels already present in the workflow.
+             */
+            label?: string | null;
+            /** @description The location of the step in the Galaxy workflow editor. */
+            position?: components["schemas"]["Position"] | null;
+            /** Tool State */
+            tool_state?: Record<string, never> | null;
+            /**
+             * Type
+             * @description Module type of the step to add, see galaxy.workflow.modules for available types.
+             */
+            type: string;
+        };
+        /** AnonUserModel */
         AnonUserModel: {
             /**
              * Nice total disc usage
@@ -1750,17 +2160,13 @@ export interface components {
              */
             total_disk_usage: number;
         };
-        /**
-         * ArchiveHistoryRequestPayload
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** ArchiveHistoryRequestPayload */
         ArchiveHistoryRequestPayload: {
             /**
              * Export Record ID
              * @description The encoded ID of the export record to associate with this history archival.This is used to be able to recover the history from the export record.
-             * @example 0123456789ABCDEF
              */
-            archive_export_id?: string;
+            archive_export_id?: string | null;
             /**
              * Purge History
              * @description Whether to purge the history after archiving it. It requires an `archive_export_id` to be set.
@@ -1768,16 +2174,13 @@ export interface components {
              */
             purge_history?: boolean;
         };
-        /**
-         * ArchivedHistoryDetailed
-         * @description History detailed information.
-         */
+        /** ArchivedHistoryDetailed */
         ArchivedHistoryDetailed: {
             /**
              * Annotation
              * @description An annotation to provide details or to help understand the purpose and usage of this item.
              */
-            annotation: string;
+            annotation: string | null;
             /**
              * Archived
              * @description Whether this item has been archived and is no longer active.
@@ -1808,16 +2211,15 @@ export interface components {
              * Export Record Data
              * @description The export record data associated with this archived history. Used to recover the history.
              */
-            export_record_data?: components["schemas"]["ExportRecordData"];
+            export_record_data?: components["schemas"]["ExportRecordData"] | null;
             /**
              * Genome Build
              * @description TODO
              * @default ?
              */
-            genome_build?: string;
+            genome_build?: string | null;
             /**
-             * ID
-             * @description The encoded ID of this entity.
+             * History ID
              * @example 0123456789ABCDEF
              */
             id: string;
@@ -1829,7 +2231,7 @@ export interface components {
             /**
              * Model class
              * @description The name of the database model class.
-             * @default History
+             * @constant
              * @enum {string}
              */
             model_class: "History";
@@ -1842,7 +2244,7 @@ export interface components {
              * Preferred Object Store ID
              * @description The ID of the object store that should be used to store new datasets in this history.
              */
-            preferred_object_store_id?: string;
+            preferred_object_store_id?: string | null;
             /**
              * Published
              * @description Whether this resource is currently publicly available to all users.
@@ -1862,7 +2264,7 @@ export interface components {
              * Slug
              * @description Part of the URL to uniquely identify this History by link in a readable way.
              */
-            slug?: string;
+            slug?: string | null;
             /**
              * State
              * @description The current state of the History based on the states of the datasets it contains.
@@ -1898,25 +2300,26 @@ export interface components {
             /**
              * User ID
              * @description The encoded ID of the user that owns this History.
-             * @example 0123456789ABCDEF
              */
-            user_id: string;
+            user_id?: string | null;
+            /**
+             * Username
+             * @description Owner of the history
+             */
+            username?: string | null;
             /**
              * Username and slug
              * @description The relative URL in the form of /u/{username}/h/{slug}
              */
-            username_and_slug?: string;
+            username_and_slug?: string | null;
         };
-        /**
-         * ArchivedHistorySummary
-         * @description History summary information.
-         */
+        /** ArchivedHistorySummary */
         ArchivedHistorySummary: {
             /**
              * Annotation
              * @description An annotation to provide details or to help understand the purpose and usage of this item.
              */
-            annotation: string;
+            annotation: string | null;
             /**
              * Archived
              * @description Whether this item has been archived and is no longer active.
@@ -1936,17 +2339,16 @@ export interface components {
              * Export Record Data
              * @description The export record data associated with this archived history. Used to recover the history.
              */
-            export_record_data?: components["schemas"]["ExportRecordData"];
+            export_record_data?: components["schemas"]["ExportRecordData"] | null;
             /**
-             * ID
-             * @description The encoded ID of this entity.
+             * History ID
              * @example 0123456789ABCDEF
              */
             id: string;
             /**
              * Model class
              * @description The name of the database model class.
-             * @default History
+             * @constant
              * @enum {string}
              */
             model_class: "History";
@@ -1959,7 +2361,7 @@ export interface components {
              * Preferred Object Store ID
              * @description The ID of the object store that should be used to store new datasets in this history.
              */
-            preferred_object_store_id?: string;
+            preferred_object_store_id?: string | null;
             /**
              * Published
              * @description Whether this resource is currently publicly available to all users.
@@ -1984,10 +2386,7 @@ export interface components {
              */
             url: string;
         };
-        /**
-         * AsyncFile
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** AsyncFile */
         AsyncFile: {
             /**
              * Storage Request Id
@@ -1996,10 +2395,7 @@ export interface components {
             storage_request_id: string;
             task: components["schemas"]["AsyncTaskResultSummary"];
         };
-        /**
-         * AsyncTaskResultSummary
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** AsyncTaskResultSummary */
         AsyncTaskResultSummary: {
             /**
              * ID
@@ -2012,14 +2408,32 @@ export interface components {
              */
             ignored: boolean;
             /** Name of task being done derived from Celery AsyncResult */
-            name?: string;
+            name?: string | null;
             /** Queue of task being done derived from Celery AsyncResult */
-            queue?: string;
+            queue?: string | null;
+        };
+        /** Authorizations */
+        Authorizations: {
+            /**
+             * Bearer Auth Issuers
+             * @description If authorizations contain `BearerAuth` this is an optional list of issuers that may authorize access to this object. The caller must provide a token from one of these issuers. If this is empty or missing it assumed the caller knows which token to send via other means. It is strongly recommended that the caller validate that it is appropriate to send the requested token to the DRS server to mitigate attacks by malicious DRS servers requesting credentials they should not have.
+             */
+            bearer_auth_issuers?: string[] | null;
+            /**
+             * Passport Auth Issuers
+             * @description If authorizations contain `PassportAuth` this is a required list of visa issuers (as found in a visa's `iss` claim) that may authorize access to this object. The caller must only provide passports that contain visas from this list. It is strongly recommended that the caller validate that it is appropriate to send the requested passport/visa to the DRS server to mitigate attacks by malicious DRS servers requesting credentials they should not have.
+             */
+            passport_auth_issuers?: string[] | null;
+            /**
+             * Supported Types
+             * @description An Optional list of support authorization types. More than one can be supported and tried in sequence. Defaults to `None` if empty or missing.
+             */
+            supported_types?: components["schemas"]["SupportedType"][] | null;
         };
         /** BadgeDict */
         BadgeDict: {
             /** Message */
-            message: string;
+            message: string | null;
             /**
              * Source
              * @enum {string}
@@ -2040,10 +2454,7 @@ export interface components {
                   )
                 | ("cloud" | "quota" | "no_quota" | "restricted");
         };
-        /**
-         * BasicRoleModel
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** BasicRoleModel */
         BasicRoleModel: {
             /**
              * ID
@@ -2086,25 +2497,23 @@ export interface components {
         /** Body_fetch_form_api_tools_fetch_post */
         Body_fetch_form_api_tools_fetch_post: {
             /** Files */
-            files?: string[];
+            files?: string[] | null;
             /** History Id */
             history_id: Record<string, never>;
             /** Targets */
             targets: Record<string, never>;
         };
-        /**
-         * BroadcastNotificationContent
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** BroadcastNotificationContent */
         BroadcastNotificationContent: {
             /**
              * Action links
              * @description The optional action links (buttons) to be displayed in the notification.
              */
-            action_links?: components["schemas"]["ActionLink"][];
+            action_links?: components["schemas"]["ActionLink"][] | null;
             /**
              * Category
              * @default broadcast
+             * @constant
              * @enum {string}
              */
             category?: "broadcast";
@@ -2127,6 +2536,7 @@ export interface components {
             /**
              * Category
              * @default broadcast
+             * @constant
              * @enum {string}
              */
             category?: "broadcast";
@@ -2137,16 +2547,14 @@ export interface components {
             content: components["schemas"]["BroadcastNotificationContent"];
             /**
              * Expiration time
-             * Format: date-time
              * @description The time when the notification should expire. By default it will expire after 6 months. Expired notifications will be permanently deleted.
              */
-            expiration_time?: string;
+            expiration_time?: string | null;
             /**
              * Publication time
-             * Format: date-time
              * @description The time when the notification should be published. Notifications can be created and then scheduled to be published at a later time.
              */
-            publication_time?: string;
+            publication_time?: string | null;
             /**
              * Source
              * @description The source of the notification. Represents the agent that created the notification. E.g. 'galaxy' or 'admin'.
@@ -2171,6 +2579,7 @@ export interface components {
             /**
              * Category
              * @default broadcast
+             * @constant
              * @enum {string}
              */
             category?: "broadcast";
@@ -2183,10 +2592,9 @@ export interface components {
             create_time: string;
             /**
              * Expiration time
-             * Format: date-time
              * @description The time when the notification will expire. If not set, the notification will never expire. Expired notifications will be permanently deleted.
              */
-            expiration_time?: string;
+            expiration_time?: string | null;
             /**
              * ID
              * @description The encoded ID of the notification.
@@ -2216,102 +2624,85 @@ export interface components {
              */
             variant: components["schemas"]["NotificationVariant"];
         };
-        /**
-         * BrowsableFilesSourcePlugin
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** BrowsableFilesSourcePlugin */
         BrowsableFilesSourcePlugin: {
             /**
              * Browsable
+             * @constant
              * @enum {boolean}
              */
             browsable: true;
             /**
              * Documentation
              * @description Documentation or extended description for this plugin.
-             * @example Galaxy's library import directory
              */
             doc: string;
             /**
              * ID
              * @description The `FilesSource` plugin identifier
-             * @example _import
              */
             id: string;
             /**
              * Label
              * @description The display label for this plugin.
-             * @example Library Import Directory
              */
             label: string;
             /**
              * Requires groups
              * @description Only users belonging to the groups specified here can access this files source.
              */
-            requires_groups?: string;
+            requires_groups?: string | null;
             /**
              * Requires roles
              * @description Only users with the roles specified here can access this files source.
              */
-            requires_roles?: string;
+            requires_roles?: string | null;
             /**
              * Type
              * @description The type of the plugin.
-             * @example gximport
              */
             type: string;
             /**
              * URI root
              * @description The URI root used by this type of plugin.
-             * @example gximport://
              */
             uri_root: string;
             /**
              * Writeable
              * @description Whether this files source plugin allows write access.
-             * @example false
              */
             writable: boolean;
+            [key: string]: unknown | undefined;
         };
-        /**
-         * BulkOperationItemError
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** BulkOperationItemError */
         BulkOperationItemError: {
             /** Error */
             error: string;
             item: components["schemas"]["EncodedHistoryContentItem"];
         };
-        /**
-         * ChangeDatatypeOperationParams
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** ChangeDatatypeOperationParams */
         ChangeDatatypeOperationParams: {
             /** Datatype */
             datatype: string;
             /**
              * Type
+             * @constant
              * @enum {string}
              */
             type: "change_datatype";
         };
-        /**
-         * ChangeDbkeyOperationParams
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** ChangeDbkeyOperationParams */
         ChangeDbkeyOperationParams: {
             /** Dbkey */
             dbkey: string;
             /**
              * Type
+             * @constant
              * @enum {string}
              */
             type: "change_dbkey";
         };
-        /**
-         * CheckForUpdatesResponse
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** CheckForUpdatesResponse */
         CheckForUpdatesResponse: {
             /**
              * Message
@@ -2336,15 +2727,11 @@ export interface components {
              * Type
              * @description The digest method used to create the checksum.
              * The value (e.g. `sha-256`) SHOULD be listed as `Hash Name String` in the https://www.iana.org/assignments/named-information/named-information.xhtml#hash-alg[IANA Named Information Hash Algorithm Registry]. Other values MAY be used, as long as implementors are aware of the issues discussed in https://tools.ietf.org/html/rfc6920#section-9.4[RFC6920].
-             * GA4GH may provide more explicit guidance for use of non-IANA-registered algorithms in the future. Until then, if implementors do choose such an algorithm (e.g. because it's implemented by their storage provider), they SHOULD use an existing standard `type` value such as `md5`, `etag`, `crc32c`, `trunc512`, or `sha1`.
-             * @example sha-256
+             * GA4GH may provide more explicit guidance for use of non-IANA-registered algorithms in the future. Until then, if implementers do choose such an algorithm (e.g. because it's implemented by their storage provider), they SHOULD use an existing standard `type` value such as `md5`, `etag`, `crc32c`, `trunc512`, or `sha1`.
              */
             type: string;
         };
-        /**
-         * CleanableItemsSummary
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** CleanableItemsSummary */
         CleanableItemsSummary: {
             /**
              * Total Items
@@ -2357,18 +2744,12 @@ export interface components {
              */
             total_size: number;
         };
-        /**
-         * CleanupStorageItemsRequest
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** CleanupStorageItemsRequest */
         CleanupStorageItemsRequest: {
             /** Item Ids */
             item_ids: string[];
         };
-        /**
-         * CloudDatasets
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** CloudDatasets */
         CloudDatasets: {
             /**
              * Authentication ID
@@ -2385,7 +2766,7 @@ export interface components {
              * Objects
              * @description A list of dataset IDs belonging to the specified history that should be sent to the given bucket. If not provided, Galaxy sends all the datasets belonging the specified history.
              */
-            dataset_ids?: string[];
+            dataset_ids?: string[] | null;
             /**
              * History ID
              * @description The ID of history from which the object should be downloaded
@@ -2397,12 +2778,9 @@ export interface components {
              * @description A boolean value. If set to 'True', and an object with same name of the dataset to be sent already exist in the bucket, Galaxy replaces the existing object with the dataset to be sent. If set to 'False', Galaxy appends datetime to the dataset name to prevent overwriting an existing object.
              * @default false
              */
-            overwrite_existing?: boolean;
+            overwrite_existing?: boolean | null;
         };
-        /**
-         * CloudDatasetsResponse
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** CloudDatasetsResponse */
         CloudDatasetsResponse: {
             /**
              * Bucket
@@ -2420,10 +2798,7 @@ export interface components {
              */
             sent_dataset_labels: string[];
         };
-        /**
-         * CloudObjects
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** CloudObjects */
         CloudObjects: {
             /**
              * Authentication ID
@@ -2446,39 +2821,35 @@ export interface components {
              * Input arguments
              * @description A summary of the input arguments, which is optional and will default to {}.
              */
-            input_args?: components["schemas"]["InputArguments"];
+            input_args?: components["schemas"]["InputArguments"] | null;
             /**
              * Objects
              * @description A list of the names of objects to be fetched.
              */
             objects: string[];
         };
-        /**
-         * CollectionElementIdentifier
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** CollectionElementIdentifier */
         CollectionElementIdentifier: {
             /**
              * Collection Type
              * @description The type of the collection, can be `list`, `paired`, or define subcollections using `:` as separator like `list:paired` or `list:list`.
              */
-            collection_type?: string;
+            collection_type?: string | null;
             /**
              * Element Identifiers
              * @description List of elements that should be in the new sub-collection.
              */
-            element_identifiers?: components["schemas"]["CollectionElementIdentifier"][];
+            element_identifiers?: components["schemas"]["CollectionElementIdentifier"][] | null;
             /**
              * ID
              * @description The encoded ID of the element.
-             * @example 0123456789ABCDEF
              */
-            id?: string;
+            id?: string | null;
             /**
              * Name
              * @description The name of the element.
              */
-            name?: string;
+            name?: string | null;
             /**
              * Source
              * @description The source of the element.
@@ -2488,21 +2859,17 @@ export interface components {
              * Tags
              * @description The list of tags associated with the element.
              */
-            tags?: string[];
+            tags?: string[] | null;
         };
         /**
          * ColletionSourceType
-         * @description An enumeration.
          * @enum {string}
          */
         ColletionSourceType: "hda" | "ldda" | "hdca" | "new_collection";
-        /**
-         * CompositeDataElement
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** CompositeDataElement */
         CompositeDataElement: {
             /** Md5 */
-            MD5?: string;
+            MD5?: string | null;
             /**
              * Auto Decompress
              * @description Decompress compressed data before sniffing?
@@ -2510,10 +2877,10 @@ export interface components {
              */
             auto_decompress?: boolean;
             /** Collection Type */
-            collection_type?: string;
+            collection_type?: string | null;
             composite: components["schemas"]["CompositeItems"];
             /** Created From Basename */
-            created_from_basename?: string;
+            created_from_basename?: string | null;
             /**
              * Dbkey
              * @default ?
@@ -2524,17 +2891,19 @@ export interface components {
              * @default false
              */
             deferred?: boolean;
-            elements_from?: components["schemas"]["ElementsFromType"];
+            /** Description */
+            description?: string | null;
+            elements_from?: components["schemas"]["ElementsFromType"] | null;
             /**
              * Ext
              * @default auto
              */
             ext?: string;
-            extra_files?: components["schemas"]["ExtraFiles"];
+            extra_files?: components["schemas"]["ExtraFiles"] | null;
             /** Info */
-            info?: string;
+            info?: string | null;
             /** Name */
-            name?: string;
+            name?: string | number | number | boolean | null;
             /**
              * Space To Tab
              * @default false
@@ -2542,11 +2911,12 @@ export interface components {
             space_to_tab?: boolean;
             /**
              * Src
+             * @constant
              * @enum {string}
              */
             src: "composite";
             /** Tags */
-            tags?: string[];
+            tags?: string[] | null;
             /**
              * To Posix Lines
              * @default false
@@ -2559,7 +2929,7 @@ export interface components {
              * Description
              * @description Summary description of the purpouse of this file
              */
-            description?: string;
+            description: string | null;
             /**
              * Is binary
              * @description Whether this file is a binary file
@@ -2569,7 +2939,7 @@ export interface components {
              * MIME type
              * @description The MIME type of this file
              */
-            mimetype?: string;
+            mimetype: string | null;
             /**
              * Name
              * @description The name of this composite file
@@ -2580,14 +2950,11 @@ export interface components {
             /** Spaces to tabulation */
             space_to_tab: boolean;
             /** Substitute name with metadata */
-            substitute_name_with_metadata?: string;
+            substitute_name_with_metadata: string | null;
             /** To posix lines */
             to_posix_lines: boolean;
         };
-        /**
-         * CompositeItems
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** CompositeItems */
         CompositeItems: {
             /** Elements */
             elements: (
@@ -2599,35 +2966,62 @@ export interface components {
                 | components["schemas"]["FtpImportElement"]
             )[];
         };
-        /**
-         * ComputeDatasetHashPayload
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** ComputeDatasetHashPayload */
         ComputeDatasetHashPayload: {
             /**
              * Extra Files Path
              * @description If set, extra files path to compute a hash for.
              */
-            extra_files_path?: string;
+            extra_files_path?: string | null;
             /**
              * @description Hash function name to use to compute dataset hashes.
              * @default MD5
              */
-            hash_function?: components["schemas"]["HashFunctionNameEnum"];
+            hash_function?: components["schemas"]["HashFunctionNameEnum"] | null;
         };
         /** ConcreteObjectStoreModel */
         ConcreteObjectStoreModel: {
             /** Badges */
             badges: components["schemas"]["BadgeDict"][];
             /** Description */
-            description?: string;
+            description?: string | null;
+            /** Device */
+            device?: string | null;
             /** Name */
-            name?: string;
+            name?: string | null;
             /** Object Store Id */
-            object_store_id?: string;
+            object_store_id?: string | null;
             /** Private */
             private: boolean;
             quota: components["schemas"]["QuotaModel"];
+        };
+        /** ConcreteObjectStoreQuotaSourceDetails */
+        ConcreteObjectStoreQuotaSourceDetails: {
+            /**
+             * Enabled
+             * @description Whether the object store tracks quota on the data (independent of Galaxy's configuration)
+             */
+            enabled: boolean;
+            /**
+             * Source
+             * @description The quota source label corresponding to the object store the dataset is stored in (or would be stored in)
+             */
+            source: string | null;
+        };
+        /** ConnectAction */
+        ConnectAction: {
+            /**
+             * Action Type
+             * @constant
+             * @enum {string}
+             */
+            action_type: "connect";
+            /** Input */
+            input: components["schemas"]["InputReferenceByOrderIndex"] | components["schemas"]["InputReferenceByLabel"];
+            /** Output */
+            output:
+                | components["schemas"]["OutputReferenceByOrderIndex"]
+                | components["schemas"]["OutputReferenceByLabel"];
         };
         /** ContentsObject */
         ContentsObject: {
@@ -2635,21 +3029,20 @@ export interface components {
              * Contents
              * @description If this ContentsObject describes a nested bundle and the caller specified "?expand=true" on the request, then this contents array must be present and describe the objects within the nested bundle.
              */
-            contents?: components["schemas"]["ContentsObject"][];
+            contents?: components["schemas"]["ContentsObject"][] | null;
             /**
              * Drs Uri
              * @description A list of full DRS identifier URI paths that may be used to obtain the object. These URIs may be external to this DRS instance.
-             * @example drs://drs.example.org/314159
              */
-            drs_uri?: string[];
+            drs_uri?: string[] | null;
             /**
              * Id
              * @description A DRS identifier of a `DrsObject` (either a single blob or a nested bundle). If this ContentsObject is an object within a nested bundle, then the id is optional. Otherwise, the id is required.
              */
-            id?: string;
+            id?: string | null;
             /**
              * Name
-             * @description A name declared by the bundle author that must be used when materialising this object, overriding any name directly associated with the object itself. The name must be unique with the containing bundle. This string is made up of uppercase and lowercase letters, decimal digits, hyphen, period, and underscore [A-Za-z0-9.-_]. See http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap03.html#tag_03_282[portable filenames].
+             * @description A name declared by the bundle author that must be used when materialising this object, overriding any name directly associated with the object itself. The name must be unique within the containing bundle. This string is made up of uppercase and lowercase letters, decimal digits, hyphen, period, and underscore [A-Za-z0-9.-_]. See http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap03.html#tag_03_282[portable filenames].
              */
             name: string;
         };
@@ -2663,15 +3056,11 @@ export interface components {
         ConvertedDatasetsMap: {
             [key: string]: string | undefined;
         };
-        /**
-         * CreateEntryPayload
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** CreateEntryPayload */
         CreateEntryPayload: {
             /**
              * Name
              * @description The name of the entry to create.
-             * @example my_new_entry
              */
             name: string;
             /**
@@ -2680,27 +3069,21 @@ export interface components {
              */
             target: string;
         };
-        /**
-         * CreateHistoryContentFromStore
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** CreateHistoryContentFromStore */
         CreateHistoryContentFromStore: {
-            model_store_format?: components["schemas"]["ModelStoreFormat"];
+            model_store_format?: components["schemas"]["ModelStoreFormat"] | null;
             /** Store Content Uri */
-            store_content_uri?: string;
+            store_content_uri?: string | null;
             /** Store Dict */
-            store_dict?: Record<string, never>;
+            store_dict?: Record<string, never> | null;
         };
-        /**
-         * CreateHistoryContentPayload
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** CreateHistoryContentPayload */
         CreateHistoryContentPayload: {
             /**
              * Collection Type
              * @description The type of the collection, can be `list`, `paired`, or define subcollections using `:` as separator like `list:paired` or `list:list`.
              */
-            collection_type?: string;
+            collection_type?: string | null;
             /**
              * Content
              * @description Depending on the `source` it can be:
@@ -2709,139 +3092,155 @@ export interface components {
              * - The encoded id from the HDA
              * - The encoded id from the HDCA
              */
-            content?: string | string;
+            content?: string | null;
             /**
              * Copy Elements
              * @description If the source is a collection, whether to copy child HDAs into the target history as well. Prior to the galaxy release 23.1 this defaulted to false.
              * @default true
              */
-            copy_elements?: boolean;
+            copy_elements?: boolean | null;
             /**
              * DBKey
              * @description TODO
              */
-            dbkey?: string;
+            dbkey?: string | null;
             /**
              * Element Identifiers
              * @description List of elements that should be in the new collection.
              */
-            element_identifiers?: components["schemas"]["CollectionElementIdentifier"][];
+            element_identifiers?: components["schemas"]["CollectionElementIdentifier"][] | null;
             /**
              * Folder Id
              * @description The ID of the library folder that will contain the collection. Required if `instance_type=library`.
-             * @example 0123456789ABCDEF
              */
-            folder_id?: string;
+            folder_id?: string | null;
             /**
              * Hide Source Items
              * @description Whether to mark the original HDAs as hidden.
              * @default false
              */
-            hide_source_items?: boolean;
+            hide_source_items?: boolean | null;
             /**
              * History Id
              * @description The ID of the history that will contain the collection. Required if `instance_type=history`.
-             * @example 0123456789ABCDEF
              */
-            history_id?: string;
+            history_id?: string | null;
             /**
              * Instance Type
              * @description The type of the instance, either `history` (default) or `library`.
              * @default history
-             * @enum {string}
              */
-            instance_type?: "history" | "library";
+            instance_type?: ("history" | "library") | null;
             /**
              * Name
              * @description The name of the new collection.
              */
-            name?: string;
+            name?: string | null;
             /**
              * Source
              * @description The source of the content. Can be other history element to be copied or library elements.
              */
-            source?: components["schemas"]["HistoryContentSource"];
+            source?: components["schemas"]["HistoryContentSource"] | null;
             /**
              * Type
              * @description The type of content to be created in the history.
              * @default dataset
              */
-            type?: components["schemas"]["HistoryContentType"];
+            type?: components["schemas"]["HistoryContentType"] | null;
+            [key: string]: unknown | undefined;
         };
-        /**
-         * CreateHistoryFromStore
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** CreateHistoryFromStore */
         CreateHistoryFromStore: {
-            model_store_format?: components["schemas"]["ModelStoreFormat"];
+            model_store_format?: components["schemas"]["ModelStoreFormat"] | null;
             /** Store Content Uri */
-            store_content_uri?: string;
+            store_content_uri?: string | null;
             /** Store Dict */
-            store_dict?: Record<string, never>;
+            store_dict?: Record<string, never> | null;
         };
-        /**
-         * CreateLibrariesFromStore
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** CreateInvocationsFromStorePayload */
+        CreateInvocationsFromStorePayload: {
+            /**
+             * History ID
+             * @description The ID of the history associated with the invocations.
+             * @example 0123456789ABCDEF
+             */
+            history_id: string;
+            /**
+             * Legacy Job State
+             * @deprecated
+             * @description Populate the invocation step state with the job state instead of the invocation step state.
+             *         This will also produce one step per job in mapping jobs to mimic the older behavior with respect to collections.
+             *         Partially scheduled steps may provide incomplete information and the listed steps outputs
+             *         are not the mapped over step outputs but the individual job outputs.
+             * @default false
+             */
+            legacy_job_state?: boolean;
+            model_store_format?: components["schemas"]["ModelStoreFormat"] | null;
+            /**
+             * Include step details
+             * @description Include details for individual invocation steps and populate a steps attribute in the resulting dictionary
+             * @default false
+             */
+            step_details?: boolean;
+            /** Store Content Uri */
+            store_content_uri?: string | null;
+            /** Store Dict */
+            store_dict?: Record<string, never> | null;
+            /**
+             * View
+             * @description The name of the view used to serialize this item. This will return a predefined set of attributes of the item.
+             */
+            view?: components["schemas"]["InvocationSerializationView"] | null;
+        };
+        /** CreateLibrariesFromStore */
         CreateLibrariesFromStore: {
-            model_store_format?: components["schemas"]["ModelStoreFormat"];
+            model_store_format?: components["schemas"]["ModelStoreFormat"] | null;
             /** Store Content Uri */
-            store_content_uri?: string;
+            store_content_uri?: string | null;
             /** Store Dict */
-            store_dict?: Record<string, never>;
+            store_dict?: Record<string, never> | null;
         };
-        /**
-         * CreateLibraryFilePayload
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** CreateLibraryFilePayload */
         CreateLibraryFilePayload: {
             /**
              * From HDA ID
              * @description The ID of an accessible HDA to copy into the library.
-             * @example 0123456789ABCDEF
              */
-            from_hda_id?: string;
+            from_hda_id?: string | null;
             /**
              * From HDCA ID
              * @description The ID of an accessible HDCA to copy into the library. Nested collections are not allowed, you must flatten the collection first.
-             * @example 0123456789ABCDEF
              */
-            from_hdca_id?: string;
+            from_hdca_id?: string | null;
             /**
              * LDDA Message
              * @description The new message attribute of the LDDA created.
              * @default
              */
-            ldda_message?: string;
+            ldda_message?: string | null;
         };
-        /**
-         * CreateLibraryFolderPayload
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** CreateLibraryFolderPayload */
         CreateLibraryFolderPayload: {
             /**
              * Description
              * @description A detailed description of the library folder.
              * @default
              */
-            description?: string;
+            description?: string | null;
             /**
              * Name
              * @description The name of the library folder.
              */
             name: string;
         };
-        /**
-         * CreateLibraryPayload
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** CreateLibraryPayload */
         CreateLibraryPayload: {
             /**
              * Description
              * @description A detailed description of the Library.
              * @default
              */
-            description?: string;
+            description?: string | null;
             /**
              * Name
              * @description The name of the Library.
@@ -2852,92 +3251,75 @@ export interface components {
              * @description A short text describing the contents of the Library.
              * @default
              */
-            synopsis?: string;
+            synopsis?: string | null;
         };
         /** CreateMetricsPayload */
         CreateMetricsPayload: {
             /**
              * List of metrics to be recorded.
              * @default []
-             * @example [
-             *   {
-             *     "args": "{\"test\":\"value\"}",
-             *     "level": 0,
-             *     "namespace": "test-source",
-             *     "time": "2021-01-23T18:25:43.511Z"
-             *   }
-             * ]
              */
             metrics?: components["schemas"]["Metric"][];
         };
-        /**
-         * CreateNewCollectionPayload
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** CreateNewCollectionPayload */
         CreateNewCollectionPayload: {
             /**
              * Collection Type
              * @description The type of the collection, can be `list`, `paired`, or define subcollections using `:` as separator like `list:paired` or `list:list`.
              */
-            collection_type?: string;
+            collection_type?: string | null;
             /**
              * Copy Elements
              * @description Whether to create a copy of the source HDAs for the new collection.
              * @default true
              */
-            copy_elements?: boolean;
+            copy_elements?: boolean | null;
             /**
              * Element Identifiers
              * @description List of elements that should be in the new collection.
              */
-            element_identifiers?: components["schemas"]["CollectionElementIdentifier"][];
+            element_identifiers?: components["schemas"]["CollectionElementIdentifier"][] | null;
             /**
              * Folder Id
              * @description The ID of the library folder that will contain the collection. Required if `instance_type=library`.
-             * @example 0123456789ABCDEF
              */
-            folder_id?: string;
+            folder_id?: string | null;
             /**
              * Hide Source Items
              * @description Whether to mark the original HDAs as hidden.
              * @default false
              */
-            hide_source_items?: boolean;
+            hide_source_items?: boolean | null;
             /**
              * History Id
              * @description The ID of the history that will contain the collection. Required if `instance_type=history`.
-             * @example 0123456789ABCDEF
              */
-            history_id?: string;
+            history_id?: string | null;
             /**
              * Instance Type
              * @description The type of the instance, either `history` (default) or `library`.
              * @default history
-             * @enum {string}
              */
-            instance_type?: "history" | "library";
+            instance_type?: ("history" | "library") | null;
             /**
              * Name
              * @description The name of the new collection.
              */
-            name?: string;
+            name?: string | null;
         };
-        /**
-         * CreatePagePayload
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** CreatePagePayload */
         CreatePagePayload: {
             /**
              * Annotation
              * @description Annotation that will be attached to the page.
              */
-            annotation?: string;
+            annotation?: string | null;
             /**
              * Content
-             * @description Raw text contents of the first page revision (type dependent on content_format).
+             * @description Raw text contents of the last page revision (type dependent on content_format).
              * @default
              */
-            content?: string;
+            content?: string | null;
             /**
              * Content format
              * @description Either `markdown` or `html`.
@@ -2947,9 +3329,8 @@ export interface components {
             /**
              * Workflow invocation ID
              * @description Encoded ID used by workflow generated reports.
-             * @example 0123456789ABCDEF
              */
-            invocation_id?: string;
+            invocation_id?: string | null;
             /**
              * Identifier
              * @description The title slug for the page URL, must be unique.
@@ -2960,11 +3341,9 @@ export interface components {
              * @description The name of the page.
              */
             title: string;
+            [key: string]: unknown | undefined;
         };
-        /**
-         * CreateQuotaParams
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** CreateQuotaParams */
         CreateQuotaParams: {
             /**
              * Amount
@@ -2987,13 +3366,13 @@ export interface components {
              * @description A list of group IDs or names to associate with this quota.
              * @default []
              */
-            in_groups?: string[];
+            in_groups?: string[] | null;
             /**
              * Users
              * @description A list of user IDs or user emails to associate with this quota.
              * @default []
              */
-            in_users?: string[];
+            in_users?: string[] | null;
             /**
              * Name
              * @description The name of the quota. This must be unique within a Galaxy instance.
@@ -3009,12 +3388,9 @@ export interface components {
              * Quota Source Label
              * @description If set, quota source label to apply this quota operation to. Otherwise, the default quota is used.
              */
-            quota_source_label?: string;
+            quota_source_label?: string | null;
         };
-        /**
-         * CreateQuotaResult
-         * @description Contains basic information about a Quota
-         */
+        /** CreateQuotaResult */
         CreateQuotaResult: {
             /**
              * ID
@@ -3030,7 +3406,7 @@ export interface components {
             /**
              * Model class
              * @description The name of the database model class.
-             * @default Quota
+             * @constant
              * @enum {string}
              */
             model_class: "Quota";
@@ -3043,7 +3419,7 @@ export interface components {
              * Quota Source Label
              * @description Quota source label
              */
-            quota_source_label?: string;
+            quota_source_label?: string | null;
             /**
              * URL
              * @deprecated
@@ -3051,33 +3427,25 @@ export interface components {
              */
             url: string;
         };
-        /**
-         * CreatedEntryResponse
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** CreatedEntryResponse */
         CreatedEntryResponse: {
             /**
              * External link
              * @description An optional external link to the created entry if available.
              */
-            external_link?: string;
+            external_link?: string | null;
             /**
              * Name
              * @description The name of the created entry.
-             * @example my_new_entry
              */
             name: string;
             /**
              * URI
              * @description The URI of the created entry.
-             * @example gxfiles://my_new_entry
              */
             uri: string;
         };
-        /**
-         * CreatedUserModel
-         * @description User in a transaction context.
-         */
+        /** CreatedUserModel */
         CreatedUserModel: {
             /**
              * Active
@@ -3100,15 +3468,12 @@ export interface components {
              * @example 0123456789ABCDEF
              */
             id: string;
-            /**
-             * Last password change
-             * Format: date-time
-             */
-            last_password_change?: string;
+            /** Last password change */
+            last_password_change: string | null;
             /**
              * Model class
              * @description The name of the database model class.
-             * @default User
+             * @constant
              * @enum {string}
              */
             model_class: "User";
@@ -3121,7 +3486,7 @@ export interface components {
              * Preferred Object Store ID
              * @description The ID of the object store that should be used to store new datasets in this history.
              */
-            preferred_object_store_id?: string;
+            preferred_object_store_id?: string | null;
             /**
              * Total disk usage
              * @description Size of all non-purged, unique datasets of the user in bytes.
@@ -3133,10 +3498,7 @@ export interface components {
              */
             username: string;
         };
-        /**
-         * CustomBuildCreationPayload
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** CustomBuildCreationPayload */
         CustomBuildCreationPayload: {
             /**
              * Length type
@@ -3156,26 +3518,21 @@ export interface components {
         };
         /**
          * CustomBuildLenType
-         * @description An enumeration.
          * @enum {string}
          */
         CustomBuildLenType: "file" | "fasta" | "text";
-        /**
-         * CustomBuildModel
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** CustomBuildModel */
         CustomBuildModel: {
             /**
              * Count
              * @description The number of chromosomes/contigs.
              */
-            count?: string;
+            count?: string | null;
             /**
              * Fasta
              * @description The primary id of the fasta file from a history.
-             * @example 0123456789ABCDEF
              */
-            fasta?: string;
+            fasta?: string | null;
             /**
              * ID
              * @description The ID of the custom build.
@@ -3190,24 +3547,17 @@ export interface components {
             /**
              * Line count
              * @description The primary id of a linecount dataset.
-             * @example 0123456789ABCDEF
              */
-            linecount?: string;
+            linecount?: string | null;
             /**
              * Name
              * @description The name of the custom build.
              */
             name: string;
         };
-        /**
-         * CustomBuildsCollection
-         * @description The custom builds associated with the user.
-         */
+        /** CustomBuildsCollection */
         CustomBuildsCollection: components["schemas"]["CustomBuildModel"][];
-        /**
-         * CustomBuildsMetadataResponse
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** CustomBuildsMetadataResponse */
         CustomBuildsMetadataResponse: {
             /**
              * Fasta HDAs
@@ -3222,14 +3572,153 @@ export interface components {
              */
             installed_builds: components["schemas"]["LabelValuePair"][];
         };
-        /**
-         * CustomHistoryItem
-         * @description Can contain any serializable property of the item.
-         *
-         * Allows arbitrary custom keys to be specified in the serialization
-         * parameters without a particular view (predefined set of keys).
-         */
-        CustomHistoryItem: Record<string, never>;
+        /** CustomHistoryView */
+        CustomHistoryView: {
+            /**
+             * Annotation
+             * @description An annotation to provide details or to help understand the purpose and usage of this item.
+             */
+            annotation?: string | null;
+            /**
+             * Archived
+             * @description Whether this item has been archived and is no longer active.
+             */
+            archived?: boolean | null;
+            /**
+             * Contents Active
+             * @description Contains the number of active, deleted or hidden items in a History.
+             */
+            contents_active?: components["schemas"]["HistoryActiveContentCounts"] | null;
+            /**
+             * Contents States
+             * @description A dictionary keyed to possible dataset states and valued with the number of datasets in this history that have those states.
+             */
+            contents_states?: {
+                [key: string]: number | undefined;
+            } | null;
+            /**
+             * Contents URL
+             * @description The relative URL to access the contents of this History.
+             */
+            contents_url?: string | null;
+            /**
+             * Count
+             * @description The number of items in the history.
+             */
+            count?: number | null;
+            /**
+             * Create Time
+             * @description The time and date this item was created.
+             */
+            create_time?: string | null;
+            /**
+             * Deleted
+             * @description Whether this item is marked as deleted.
+             */
+            deleted?: boolean | null;
+            /**
+             * Genome Build
+             * @description TODO
+             */
+            genome_build?: string | null;
+            /**
+             * History ID
+             * @example 0123456789ABCDEF
+             */
+            id?: string;
+            /**
+             * Importable
+             * @description Whether this History can be imported by other users with a shared link.
+             */
+            importable?: boolean | null;
+            /**
+             * Model class
+             * @description The name of the database model class.
+             * @constant
+             */
+            model_class?: "History";
+            /**
+             * Name
+             * @description The name of the history.
+             */
+            name?: string | null;
+            /**
+             * Nice Size
+             * @description The total size of the contents of this history in a human-readable format.
+             */
+            nice_size?: string | null;
+            /**
+             * Preferred Object Store ID
+             * @description The ID of the object store that should be used to store new datasets in this history.
+             */
+            preferred_object_store_id?: string | null;
+            /**
+             * Published
+             * @description Whether this resource is currently publicly available to all users.
+             */
+            published?: boolean | null;
+            /**
+             * Purged
+             * @description Whether this item has been permanently removed.
+             */
+            purged?: boolean | null;
+            /**
+             * Size
+             * @description The total size of the contents of this history in bytes.
+             */
+            size?: number | null;
+            /**
+             * Slug
+             * @description Part of the URL to uniquely identify this History by link in a readable way.
+             */
+            slug?: string | null;
+            /**
+             * State
+             * @description The current state of the History based on the states of the datasets it contains.
+             */
+            state?: components["schemas"]["DatasetState"] | null;
+            /**
+             * State Counts
+             * @description A dictionary keyed to possible dataset states and valued with the number of datasets in this history that have those states.
+             */
+            state_details?: {
+                [key: string]: number | undefined;
+            } | null;
+            /**
+             * State IDs
+             * @description A dictionary keyed to possible dataset states and valued with lists containing the ids of each HDA in that state.
+             */
+            state_ids?: {
+                [key: string]: string[] | undefined;
+            } | null;
+            tags?: components["schemas"]["TagCollection"] | null;
+            /**
+             * Update Time
+             * @description The last time and date this item was updated.
+             */
+            update_time?: string | null;
+            /**
+             * URL
+             * @deprecated
+             * @description The relative URL to access this item.
+             */
+            url?: string | null;
+            /**
+             * User ID
+             * @description The encoded ID of the user that owns this History.
+             */
+            user_id?: string | null;
+            /**
+             * Username
+             * @description Owner of the history
+             */
+            username?: string | null;
+            /**
+             * Username and slug
+             * @description The relative URL in the form of /u/{username}/h/{slug}
+             */
+            username_and_slug?: string | null;
+        };
         /**
          * DCESummary
          * @description Dataset Collection Element summary information.
@@ -3251,15 +3740,14 @@ export interface components {
              */
             element_type: components["schemas"]["DCEType"];
             /**
-             * ID
-             * @description The encoded ID of this entity.
+             * Dataset Collection Element ID
              * @example 0123456789ABCDEF
              */
             id: string;
             /**
              * Model class
              * @description The name of the database model class.
-             * @default DatasetCollectionElement
+             * @constant
              * @enum {string}
              */
             model_class: "DatasetCollectionElement";
@@ -3288,16 +3776,13 @@ export interface components {
              * @description The type of the collection, can be `list`, `paired`, or define subcollections using `:` as separator like `list:paired` or `list:list`.
              */
             collection_type: string;
-            /**
-             * Contents URL
-             * @description The relative URL to access the contents of this History.
-             */
-            contents_url?: string;
+            /** Contents Url */
+            contents_url?: string | null;
             /**
              * Element Count
              * @description The number of elements contained in the dataset collection. It may be None or undefined if the collection could not be populated.
              */
-            element_count?: number;
+            element_count?: number | null;
             /**
              * Elements
              * @description The summary information of each of the elements inside the dataset collection.
@@ -3305,15 +3790,14 @@ export interface components {
              */
             elements?: components["schemas"]["DCESummary"][];
             /**
-             * ID
-             * @description The encoded ID of this entity.
+             * Dataset Collection ID
              * @example 0123456789ABCDEF
              */
             id: string;
             /**
              * Model class
              * @description The name of the database model class.
-             * @default DatasetCollection
+             * @constant
              * @enum {string}
              */
             model_class: "DatasetCollection";
@@ -3323,10 +3807,7 @@ export interface components {
              */
             populated?: boolean;
         };
-        /**
-         * DataElementsFromTarget
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** DataElementsFromTarget */
         DataElementsFromTarget: {
             /**
              * Auto Decompress
@@ -3341,19 +3822,16 @@ export interface components {
                 | components["schemas"]["LibraryDestination"];
             elements_from: components["schemas"]["ElementsFromType"];
             /** Ftp Path */
-            ftp_path?: string;
+            ftp_path?: string | null;
             /** Path */
-            path?: string;
+            path?: string | null;
             /** Server Dir */
-            server_dir?: string;
+            server_dir?: string | null;
             src: components["schemas"]["ItemsFromSrc"];
             /** Url */
-            url?: string;
+            url?: string | null;
         };
-        /**
-         * DataElementsTarget
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** DataElementsTarget */
         DataElementsTarget: {
             /**
              * Auto Decompress
@@ -3381,9 +3859,11 @@ export interface components {
             )[];
         };
         /**
-         * DatasetAssociationRoles
-         * @description Base model definition with common configuration used by all derived models.
+         * DataItemSourceType
+         * @enum {string}
          */
+        DataItemSourceType: "hda" | "ldda" | "hdca" | "dce" | "dc";
+        /** DatasetAssociationRoles */
         DatasetAssociationRoles: {
             /**
              * Access Roles
@@ -3404,10 +3884,7 @@ export interface components {
              */
             modify_item_roles?: string[][];
         };
-        /**
-         * DatasetCollectionAttributesResult
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** DatasetCollectionAttributesResult */
         DatasetCollectionAttributesResult: {
             /**
              * Dbkey
@@ -3415,19 +3892,18 @@ export interface components {
              */
             dbkey: string;
             /** Dbkeys */
-            dbkeys?: string[];
+            dbkeys: string[] | null;
             /**
              * Extension
              * @description The dataset file extension.
-             * @example txt
              */
             extension: string;
             /** Extensions */
-            extensions?: string[];
+            extensions: string[] | null;
             /**
              * Model class
              * @description The name of the database model class.
-             * @default HistoryDatasetCollectionAssociation
+             * @constant
              * @enum {string}
              */
             model_class: "HistoryDatasetCollectionAssociation";
@@ -3440,7 +3916,6 @@ export interface components {
         DatasetCollectionContentElements: components["schemas"]["DCESummary"][];
         /**
          * DatasetCollectionPopulatedState
-         * @description An enumeration.
          * @enum {string}
          */
         DatasetCollectionPopulatedState: "new" | "ok" | "failed";
@@ -3450,15 +3925,9 @@ export interface components {
          * @enum {string}
          */
         DatasetContentType: "meta" | "attr" | "stats" | "data";
-        /**
-         * DatasetErrorMessage
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** DatasetErrorMessage */
         DatasetErrorMessage: {
-            /**
-             * Dataset
-             * @description The encoded ID of the dataset and its source.
-             */
+            /** @description The encoded ID of the dataset and its source. */
             dataset: components["schemas"]["EncodedDatasetSourceId"];
             /**
              * Error Message
@@ -3467,15 +3936,47 @@ export interface components {
             error_message: string;
         };
         /**
+         * DatasetExtraFiles
+         * @description A list of extra files associated with a dataset.
+         */
+        DatasetExtraFiles: components["schemas"]["ExtraFileEntry"][];
+        /** DatasetHash */
+        DatasetHash: {
+            /**
+             * Extra Files Path
+             * @description The path to the extra files used to generate the hash.
+             */
+            extra_files_path?: string | null;
+            /**
+             * Hash Function
+             * @description The hash function used to generate the hash.
+             */
+            hash_function: components["schemas"]["HashFunctionNames"];
+            /**
+             * Hash Value
+             * @description The hash value.
+             */
+            hash_value: string;
+            /**
+             * ID
+             * @description Encoded ID of the dataset hash.
+             * @example 0123456789ABCDEF
+             */
+            id: string;
+            /**
+             * Model class
+             * @description The name of the database model class.
+             * @constant
+             * @enum {string}
+             */
+            model_class: "DatasetHash";
+        };
+        /**
          * DatasetInheritanceChain
-         * @description Base model definition with common configuration used by all derived models.
          * @default []
          */
         DatasetInheritanceChain: components["schemas"]["DatasetInheritanceChainEntry"][];
-        /**
-         * DatasetInheritanceChainEntry
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** DatasetInheritanceChainEntry */
         DatasetInheritanceChainEntry: {
             /**
              * Dep
@@ -3506,14 +4007,34 @@ export interface components {
              */
             manage?: string[];
         };
-        /**
-         * DatasetSourceId
-         * @description Base model definition with common configuration used by all derived models.
-         */
-        DatasetSourceId: {
+        /** DatasetSource */
+        DatasetSource: {
+            /**
+             * Extra Files Path
+             * @description The path to the extra files.
+             */
+            extra_files_path?: string | null;
             /**
              * ID
-             * @description The encoded ID of this entity.
+             * @description Encoded ID of the dataset source.
+             * @example 0123456789ABCDEF
+             */
+            id: string;
+            /**
+             * Source URI
+             * @description The URI of the dataset source.
+             */
+            source_uri: string;
+            /**
+             * Transform
+             * @description The transformations applied to the dataset source.
+             */
+            transform?: Record<string, never>[] | null;
+        };
+        /** DatasetSourceId */
+        DatasetSourceId: {
+            /**
+             * Id
              * @example 0123456789ABCDEF
              */
             id: string;
@@ -3525,13 +4046,11 @@ export interface components {
         };
         /**
          * DatasetSourceType
-         * @description An enumeration.
          * @enum {string}
          */
         DatasetSourceType: "hda" | "ldda";
         /**
          * DatasetState
-         * @description An enumeration.
          * @enum {string}
          */
         DatasetState:
@@ -3547,16 +4066,13 @@ export interface components {
             | "failed_metadata"
             | "deferred"
             | "discarded";
-        /**
-         * DatasetStorageDetails
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** DatasetStorageDetails */
         DatasetStorageDetails: {
             /**
              * Badges
-             * @description A mapping of object store labels to badges describing object store properties.
+             * @description A list of badges describing object store properties for concrete object store dataset is stored in.
              */
-            badges: Record<string, never>[];
+            badges: components["schemas"]["BadgeDict"][];
             /**
              * Dataset State
              * @description The model state of the supplied dataset instance.
@@ -3566,7 +4082,7 @@ export interface components {
              * Description
              * @description A description of how this dataset is stored.
              */
-            description?: string;
+            description: string | null;
             /**
              * Hashes
              * @description The file contents hashes associated with the supplied dataset instance.
@@ -3576,22 +4092,24 @@ export interface components {
              * Name
              * @description The display name of the destination ObjectStore for this dataset.
              */
-            name?: string;
+            name: string | null;
             /**
              * Object Store Id
              * @description The identifier of the destination ObjectStore for this dataset.
              */
-            object_store_id?: string;
+            object_store_id: string | null;
             /**
              * Percent Used
              * @description The percentage indicating how full the store is.
              */
-            percent_used?: number;
+            percent_used: number | null;
+            /** @description Information about quota sources around dataset storage. */
+            quota: components["schemas"]["ConcreteObjectStoreQuotaSourceDetails"];
             /**
-             * Quota
-             * @description Information about quota sources around dataset storage.
+             * Relocatable
+             * @description Indicator of whether the objectstore for this dataset can be switched by this user.
              */
-            quota: Record<string, never>;
+            relocatable: boolean;
             /**
              * Shareable
              * @description Is this dataset shareable.
@@ -3603,24 +4121,19 @@ export interface components {
              */
             sources: Record<string, never>[];
         };
-        /**
-         * DatasetSummary
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** DatasetSummary */
         DatasetSummary: {
             /**
              * Create Time
-             * Format: date-time
              * @description The time and date this item was created.
              */
-            create_time?: string;
+            create_time: string | null;
             /** Deleted */
             deleted: boolean;
             /** File Size */
             file_size: number;
             /**
-             * ID
-             * @description The encoded ID of this entity.
+             * Id
              * @example 0123456789ABCDEF
              */
             id: string;
@@ -3637,10 +4150,9 @@ export interface components {
             total_size: number;
             /**
              * Update Time
-             * Format: date-time
              * @description The last time and date this item was updated.
              */
-            update_time?: string;
+            update_time: string | null;
             /**
              * UUID
              * Format: uuid4
@@ -3648,21 +4160,15 @@ export interface components {
              */
             uuid: string;
         };
-        /**
-         * DatasetSummaryList
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** DatasetSummaryList */
         DatasetSummaryList: components["schemas"]["DatasetSummary"][];
-        /**
-         * DatasetTextContentDetails
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** DatasetTextContentDetails */
         DatasetTextContentDetails: {
             /**
              * Item Data
              * @description First chunk of text content (maximum 1MB) of the dataset.
              */
-            item_data?: string;
+            item_data: string | null;
             /**
              * Item Url
              * @description URL to access this dataset.
@@ -3676,7 +4182,6 @@ export interface components {
         };
         /**
          * DatasetValidatedState
-         * @description An enumeration.
          * @enum {string}
          */
         DatasetValidatedState: "unknown" | "invalid" | "ok";
@@ -3685,19 +4190,16 @@ export interface components {
             /**
              * Source
              * @description Source type for conversion
-             * @example bam
              */
             source: string;
             /**
              * Target
              * @description Target type for conversion
-             * @example bai
              */
             target: string;
             /**
              * Tool identifier
              * @description The converter tool identifier
-             * @example CONVERTER_Bam_Bai_0
              */
             tool_id: string;
         };
@@ -3712,19 +4214,17 @@ export interface components {
              * Composite files
              * @description A collection of files composing this data type
              */
-            composite_files?: components["schemas"]["CompositeFileInfo"][];
+            composite_files?: components["schemas"]["CompositeFileInfo"][] | null;
             /**
              * Description
              * @description A summary description for this data type
              */
-            description?: string;
+            description: string | null;
             /**
              * Description URL
-             * Format: uri
              * @description The URL to a detailed description for this datatype
-             * @example https://wiki.galaxyproject.org/Learn/Datatypes#Bed
              */
-            description_url?: string;
+            description_url: string | null;
             /**
              * Display in upload
              * @description If True, the associated file extension will be displayed in the `File Format` select list in the `Upload File from your computer` tool in the `Get Data` tool section of the tool panel
@@ -3734,33 +4234,29 @@ export interface components {
             /**
              * Extension
              * @description The data type’s Dataset file extension
-             * @example bed
              */
             extension: string;
             /**
              * Upload warning
              * @description End-user information regarding potential pitfalls with this upload type.
              */
-            upload_warning?: string;
+            upload_warning?: string | null;
         };
         /** DatatypeEDAMDetails */
         DatatypeEDAMDetails: {
             /**
              * Definition
              * @description The EDAM definition
-             * @example Entry (gene) format of the NCBI database.
              */
-            definition?: string;
+            definition: string | null;
             /**
              * Label
              * @description The EDAM label
-             * @example NCBI gene report format
              */
-            label?: string;
+            label: string | null;
             /**
              * Prefix IRI
              * @description The EDAM prefixed Resource Identifier
-             * @example format_1782
              */
             prefix_IRI: string;
         };
@@ -3805,15 +4301,12 @@ export interface components {
                 [key: string]: string | undefined;
             };
         };
-        /**
-         * DefaultQuota
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** DefaultQuota */
         DefaultQuota: {
             /**
              * Model class
              * @description The name of the database model class.
-             * @default DefaultQuotaAssociation
+             * @constant
              * @enum {string}
              */
             model_class: "DefaultQuotaAssociation";
@@ -3827,20 +4320,15 @@ export interface components {
         };
         /**
          * DefaultQuotaTypes
-         * @description An enumeration.
          * @enum {string}
          */
         DefaultQuotaTypes: "unregistered" | "registered";
         /**
          * DefaultQuotaValues
-         * @description An enumeration.
          * @enum {string}
          */
         DefaultQuotaValues: "unregistered" | "registered" | "no";
-        /**
-         * DeleteDatasetBatchPayload
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** DeleteDatasetBatchPayload */
         DeleteDatasetBatchPayload: {
             /**
              * Datasets
@@ -3852,28 +4340,36 @@ export interface components {
              * @description Whether to permanently delete from disk the specified datasets. *Warning*: this is a destructive operation.
              * @default false
              */
-            purge?: boolean;
+            purge?: boolean | null;
         };
-        /**
-         * DeleteDatasetBatchResult
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** DeleteDatasetBatchResult */
         DeleteDatasetBatchResult: {
             /**
              * Errors
              * @description A list of dataset IDs and the corresponding error message if something went wrong while processing the dataset.
              */
-            errors?: components["schemas"]["DatasetErrorMessage"][];
+            errors?: components["schemas"]["DatasetErrorMessage"][] | null;
             /**
              * Success Count
              * @description The number of datasets successfully processed.
              */
             success_count: number;
         };
-        /**
-         * DeleteHistoryContentPayload
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** DeleteHistoriesPayload */
+        DeleteHistoriesPayload: {
+            /**
+             * IDs
+             * @description List of history IDs to be deleted.
+             */
+            ids: string[];
+            /**
+             * Purge
+             * @description Whether to definitely remove this history from disk.
+             * @default false
+             */
+            purge?: boolean;
+        };
+        /** DeleteHistoryContentPayload */
         DeleteHistoryContentPayload: {
             /**
              * Purge
@@ -3916,7 +4412,7 @@ export interface components {
              * Purged
              * @description True if the item was successfully removed from disk.
              */
-            purged?: boolean;
+            purged?: boolean | null;
         };
         /** DeleteHistoryPayload */
         DeleteHistoryPayload: {
@@ -3927,10 +4423,15 @@ export interface components {
              */
             purge?: boolean;
         };
-        /**
-         * DeleteLibraryPayload
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** DeleteJobPayload */
+        DeleteJobPayload: {
+            /**
+             * Job message
+             * @description Stop message
+             */
+            message?: string | null;
+        };
+        /** DeleteLibraryPayload */
         DeleteLibraryPayload: {
             /**
              * Undelete
@@ -3938,10 +4439,7 @@ export interface components {
              */
             undelete: boolean;
         };
-        /**
-         * DeleteQuotaPayload
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** DeleteQuotaPayload */
         DeleteQuotaPayload: {
             /**
              * Purge
@@ -3950,10 +4448,7 @@ export interface components {
              */
             purge?: boolean;
         };
-        /**
-         * DeletedCustomBuild
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** DeletedCustomBuild */
         DeletedCustomBuild: {
             /**
              * Deletion message
@@ -3961,10 +4456,7 @@ export interface components {
              */
             message: string;
         };
-        /**
-         * DetailedUserModel
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** DetailedUserModel */
         DetailedUserModel: {
             /**
              * Deleted
@@ -4001,7 +4493,7 @@ export interface components {
              * Preferred Object Store ID
              * @description The ID of the object store that should be used to store new datasets in this history.
              */
-            preferred_object_store_id?: string;
+            preferred_object_store_id?: string | null;
             /**
              * Purged
              * @description User is purged
@@ -4038,6 +4530,21 @@ export interface components {
              */
             username: string;
         };
+        /** DisconnectAction */
+        DisconnectAction: {
+            /**
+             * Action Type
+             * @constant
+             * @enum {string}
+             */
+            action_type: "disconnect";
+            /** Input */
+            input: components["schemas"]["InputReferenceByOrderIndex"] | components["schemas"]["InputReferenceByLabel"];
+            /** Output */
+            output:
+                | components["schemas"]["OutputReferenceByOrderIndex"]
+                | components["schemas"]["OutputReferenceByLabel"];
+        };
         /**
          * DisplayApp
          * @description Basic linked information about an application that can display certain datatypes.
@@ -4067,20 +4574,134 @@ export interface components {
             /** Version */
             version: string;
         };
+        /** DrsObject */
+        DrsObject: {
+            /**
+             * Access Methods
+             * @description The list of access methods that can be used to fetch the `DrsObject`.
+             * Required for single blobs; optional for bundles.
+             */
+            access_methods?: components["schemas"]["AccessMethod"][] | null;
+            /**
+             * Aliases
+             * @description A list of strings that can be used to find other metadata about this `DrsObject` from external metadata sources. These aliases can be used to represent secondary accession numbers or external GUIDs.
+             */
+            aliases?: string[] | null;
+            /**
+             * Checksums
+             * @description The checksum of the `DrsObject`. At least one checksum must be provided.
+             * For blobs, the checksum is computed over the bytes in the blob.
+             * For bundles, the checksum is computed over a sorted concatenation of the checksums of its top-level contained objects (not recursive, names not included). The list of checksums is sorted alphabetically (hex-code) before concatenation and a further checksum is performed on the concatenated checksum value.
+             * For example, if a bundle contains blobs with the following checksums:
+             * md5(blob1) = 72794b6d
+             * md5(blob2) = 5e089d29
+             * Then the checksum of the bundle is:
+             * md5( concat( sort( md5(blob1), md5(blob2) ) ) )
+             * = md5( concat( sort( 72794b6d, 5e089d29 ) ) )
+             * = md5( concat( 5e089d29, 72794b6d ) )
+             * = md5( 5e089d2972794b6d )
+             * = f7a29a04
+             */
+            checksums: components["schemas"]["Checksum"][];
+            /**
+             * Contents
+             * @description If not set, this `DrsObject` is a single blob.
+             * If set, this `DrsObject` is a bundle containing the listed `ContentsObject` s (some of which may be further nested).
+             */
+            contents?: components["schemas"]["ContentsObject"][] | null;
+            /**
+             * Created Time
+             * Format: date-time
+             * @description Timestamp of content creation in RFC3339.
+             * (This is the creation time of the underlying content, not of the JSON object.)
+             */
+            created_time: string;
+            /**
+             * Description
+             * @description A human readable description of the `DrsObject`.
+             */
+            description?: string | null;
+            /**
+             * Id
+             * @description An identifier unique to this `DrsObject`
+             */
+            id: string;
+            /**
+             * Mime Type
+             * @description A string providing the mime-type of the `DrsObject`.
+             */
+            mime_type?: string | null;
+            /**
+             * Name
+             * @description A string that can be used to name a `DrsObject`.
+             * This string is made up of uppercase and lowercase letters, decimal digits, hyphen, period, and underscore [A-Za-z0-9.-_]. See http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap03.html#tag_03_282[portable filenames].
+             */
+            name?: string | null;
+            /**
+             * Self Uri
+             * @description A drs:// hostname-based URI, as defined in the DRS documentation, that tells clients how to access this object.
+             * The intent of this field is to make DRS objects self-contained, and therefore easier for clients to store and pass around.  For example, if you arrive at this DRS JSON by resolving a compact identifier-based DRS URI, the `self_uri` presents you with a hostname and properly encoded DRS ID for use in subsequent `access` endpoint calls.
+             */
+            self_uri: string;
+            /**
+             * Size
+             * @description For blobs, the blob size in bytes.
+             * For bundles, the cumulative size, in bytes, of items in the `contents` field.
+             */
+            size: number;
+            /**
+             * Updated Time
+             * @description Timestamp of content update in RFC3339, identical to `created_time` in systems that do not support updates. (This is the update time of the underlying content, not of the JSON object.)
+             */
+            updated_time?: string | null;
+            /**
+             * Version
+             * @description A string representing a version.
+             * (Some systems may use checksum, a RFC3339 timestamp, or an incrementing version number.)
+             */
+            version?: string | null;
+        };
         /**
          * ElementsFromType
-         * @description An enumeration.
          * @enum {string}
          */
         ElementsFromType: "archive" | "bagit" | "bagit_archive" | "directory";
-        /**
-         * EncodedDatasetSourceId
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** EncodedDataItemSourceId */
+        EncodedDataItemSourceId: {
+            /**
+             * Id
+             * @example 0123456789ABCDEF
+             */
+            id: string;
+            /**
+             * Source
+             * @description The source of this dataset, either `hda`, `ldda`, `hdca`, `dce` or `dc` depending of its origin.
+             */
+            src: components["schemas"]["DataItemSourceType"];
+        };
+        /** EncodedDatasetJobInfo */
+        EncodedDatasetJobInfo: {
+            /**
+             * Id
+             * @example 0123456789ABCDEF
+             */
+            id: string;
+            /**
+             * Source
+             * @description The source of this dataset, either `hda`, `ldda`, `hdca`, `dce` or `dc` depending of its origin.
+             */
+            src: components["schemas"]["DataItemSourceType"];
+            /**
+             * UUID
+             * @deprecated
+             * @description Universal unique identifier for this dataset.
+             */
+            uuid?: string | null;
+        };
+        /** EncodedDatasetSourceId */
         EncodedDatasetSourceId: {
             /**
-             * ID
-             * @description The encoded ID of this entity.
+             * Id
              * @example 0123456789ABCDEF
              */
             id: string;
@@ -4090,10 +4711,22 @@ export interface components {
              */
             src: components["schemas"]["DatasetSourceType"];
         };
-        /**
-         * EncodedHistoryContentItem
-         * @description Identifies a dataset or collection contained in a History.
-         */
+        /** EncodedHdcaSourceId */
+        EncodedHdcaSourceId: {
+            /**
+             * Id
+             * @example 0123456789ABCDEF
+             */
+            id: string;
+            /**
+             * Source
+             * @description The source of this dataset, which in the case of the model can only be `hdca`.
+             * @constant
+             * @enum {string}
+             */
+            src: "hdca";
+        };
+        /** EncodedHistoryContentItem */
         EncodedHistoryContentItem: {
             /**
              * Content Type
@@ -4101,58 +4734,185 @@ export interface components {
              */
             history_content_type: components["schemas"]["HistoryContentType"];
             /**
-             * ID
-             * @description The encoded ID of this entity.
+             * Id
              * @example 0123456789ABCDEF
              */
             id: string;
         };
-        /**
-         * ExportHistoryArchivePayload
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** EncodedJobDetails */
+        EncodedJobDetails: {
+            /**
+             * Command Line
+             * @description The command line produced by the job. Users can see this value if allowed in the configuration, administrator can always see this value.
+             */
+            command_line?: string | null;
+            /**
+             * Command Version
+             * @description Tool version indicated during job execution.
+             */
+            command_version?: string | null;
+            /**
+             * Copied from Job-ID
+             * @description Reference to cached job if job execution was cached.
+             */
+            copied_from_job_id?: string | null;
+            /**
+             * Create Time
+             * Format: date-time
+             * @description The time and date this item was created.
+             */
+            create_time: string;
+            /**
+             * Exit Code
+             * @description The exit code returned by the tool. Can be unset if the job is not completed yet.
+             */
+            exit_code?: number | null;
+            /**
+             * External ID
+             * @description The job id used by the external job runner (Condor, Pulsar, etc.). Only administrator can see this value.
+             */
+            external_id?: string | null;
+            /**
+             * Galaxy Version
+             * @description The (major) version of Galaxy used to create this job.
+             */
+            galaxy_version?: string | null;
+            /**
+             * Job Handler
+             * @description The job handler process assigned to handle this job. Only administrator can see this value.
+             */
+            handler?: string | null;
+            /**
+             * History ID
+             * @description The encoded ID of the history associated with this item.
+             */
+            history_id?: string | null;
+            /**
+             * Job ID
+             * @example 0123456789ABCDEF
+             */
+            id: string;
+            /**
+             * Inputs
+             * @description Dictionary mapping all the tool inputs (by name) to the corresponding data references.
+             * @default {}
+             */
+            inputs?: {
+                [key: string]: components["schemas"]["EncodedDatasetJobInfo"] | undefined;
+            };
+            /**
+             * Job Runner Name
+             * @description Name of the job runner plugin that handles this job. Only administrator can see this value.
+             */
+            job_runner_name?: string | null;
+            /**
+             * Model class
+             * @description The name of the database model class.
+             * @constant
+             * @enum {string}
+             */
+            model_class: "Job";
+            /**
+             * Output collections
+             * @default {}
+             */
+            output_collections?: {
+                [key: string]: components["schemas"]["EncodedHdcaSourceId"] | undefined;
+            };
+            /**
+             * Outputs
+             * @description Dictionary mapping all the tool outputs (by name) to the corresponding data references.
+             * @default {}
+             */
+            outputs?: {
+                [key: string]: components["schemas"]["EncodedDatasetJobInfo"] | undefined;
+            };
+            /**
+             * Parameters
+             * @description Object containing all the parameters of the tool associated with this job. The specific parameters depend on the tool itself.
+             */
+            params: Record<string, never>;
+            /**
+             * State
+             * @description Current state of the job.
+             */
+            state: components["schemas"]["JobState"];
+            /**
+             * Tool ID
+             * @description Identifier of the tool that generated this job.
+             */
+            tool_id: string;
+            /**
+             * Update Time
+             * Format: date-time
+             * @description The last time and date this item was updated.
+             */
+            update_time: string;
+            /**
+             * User Email
+             * @description The email of the user that owns this job. Only the owner of the job and administrators can see this value.
+             */
+            user_email?: string | null;
+        };
+        /** EncodedJobParameterHistoryItem */
+        EncodedJobParameterHistoryItem: {
+            /** Hid */
+            hid?: number | null;
+            /**
+             * Id
+             * @example 0123456789ABCDEF
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Source
+             * @description The source of this dataset, either `hda`, `ldda`, `hdca`, `dce` or `dc` depending of its origin.
+             */
+            src: components["schemas"]["DataItemSourceType"];
+        };
+        /** ExportHistoryArchivePayload */
         ExportHistoryArchivePayload: {
             /**
              * Directory URI
              * @description A writable directory destination where the history will be exported using the `galaxy.files` URI infrastructure.
              */
-            directory_uri?: string;
+            directory_uri?: string | null;
             /**
              * File Name
              * @description The name of the file containing the exported history.
              */
-            file_name?: string;
+            file_name?: string | null;
+            /**
+             * Force Rebuild
+             * @description Whether to force a rebuild of the history archive.
+             */
+            force?: boolean | null;
             /**
              * GZip
              * @description Whether to export as gzip archive.
              * @default true
              */
-            gzip?: boolean;
+            gzip?: boolean | null;
             /**
              * Include Deleted
              * @description Whether to include deleted datasets in the exported archive.
              * @default false
              */
-            include_deleted?: boolean;
+            include_deleted?: boolean | null;
             /**
              * Include Hidden
              * @description Whether to include hidden datasets in the exported archive.
              * @default false
              */
-            include_hidden?: boolean;
+            include_hidden?: boolean | null;
         };
-        /**
-         * ExportObjectMetadata
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** ExportObjectMetadata */
         ExportObjectMetadata: {
             request_data: components["schemas"]["ExportObjectRequestMetadata"];
-            result_data?: components["schemas"]["ExportObjectResultMetadata"];
+            result_data?: components["schemas"]["ExportObjectResultMetadata"] | null;
         };
-        /**
-         * ExportObjectRequestMetadata
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** ExportObjectRequestMetadata */
         ExportObjectRequestMetadata: {
             /**
              * Object Id
@@ -4164,19 +4924,13 @@ export interface components {
             payload:
                 | components["schemas"]["WriteStoreToPayload"]
                 | components["schemas"]["ShortTermStoreExportPayload"];
-            /**
-             * User Id
-             * @example 0123456789ABCDEF
-             */
-            user_id?: string;
+            /** User Id */
+            user_id?: string | null;
         };
-        /**
-         * ExportObjectResultMetadata
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** ExportObjectResultMetadata */
         ExportObjectResultMetadata: {
             /** Error */
-            error?: string;
+            error?: string | null;
             /** Success */
             success: boolean;
         };
@@ -4220,30 +4974,64 @@ export interface components {
              */
             target_uri: string;
         };
-        /**
-         * ExportTaskListResponse
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** ExportTaskListResponse */
         ExportTaskListResponse: components["schemas"]["ObjectExportTaskResponse"][];
-        /**
-         * ExtraFiles
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** ExtraFileEntry */
+        ExtraFileEntry: {
+            /** @description The class of this entry, either File or Directory. */
+            class: components["schemas"]["ExtraFilesEntryClass"];
+            /**
+             * Path
+             * @description Relative path to the file or directory.
+             */
+            path: string;
+        };
+        /** ExtraFiles */
         ExtraFiles: {
             /**
              * Fuzzy Root
              * @description Prevent Galaxy from checking for a single file in a directory and re-interpreting the archive
              * @default true
              */
-            fuzzy_root?: boolean;
+            fuzzy_root?: boolean | null;
             /** Items From */
-            items_from?: string;
+            items_from?: string | null;
             src: components["schemas"]["Src"];
         };
         /**
-         * FavoriteObject
-         * @description Base model definition with common configuration used by all derived models.
+         * ExtraFilesEntryClass
+         * @enum {string}
          */
+        ExtraFilesEntryClass: "Directory" | "File";
+        /** ExtractInputAction */
+        ExtractInputAction: {
+            /**
+             * Action Type
+             * @constant
+             * @enum {string}
+             */
+            action_type: "extract_input";
+            /** Input */
+            input: components["schemas"]["InputReferenceByOrderIndex"] | components["schemas"]["InputReferenceByLabel"];
+            /** Label */
+            label?: string | null;
+            position?: components["schemas"]["Position"] | null;
+        };
+        /** ExtractUntypedParameter */
+        ExtractUntypedParameter: {
+            /**
+             * Action Type
+             * @constant
+             * @enum {string}
+             */
+            action_type: "extract_untyped_parameter";
+            /** Label */
+            label?: string | null;
+            /** Name */
+            name: string;
+            position?: components["schemas"]["Position"] | null;
+        };
+        /** FavoriteObject */
         FavoriteObject: {
             /**
              * Object ID
@@ -4253,14 +5041,11 @@ export interface components {
         };
         /**
          * FavoriteObjectType
-         * @description An enumeration.
+         * @constant
          * @enum {string}
          */
         FavoriteObjectType: "tools";
-        /**
-         * FavoriteObjectsSummary
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** FavoriteObjectsSummary */
         FavoriteObjectsSummary: {
             /**
              * Favorite tools
@@ -4268,14 +5053,10 @@ export interface components {
              */
             tools: string[];
         };
-        /**
-         * FetchDataPayload
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** FetchDataPayload */
         FetchDataPayload: {
             /**
-             * History ID
-             * @description The encoded ID of the history associated with this item.
+             * History Id
              * @example 0123456789ABCDEF
              */
             history_id: string;
@@ -4287,14 +5068,12 @@ export interface components {
                 | components["schemas"]["HdcaDataItemsFromTarget"]
                 | components["schemas"]["FtpImportTarget"]
             )[];
+            [key: string]: unknown | undefined;
         };
-        /**
-         * FileDataElement
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** FileDataElement */
         FileDataElement: {
             /** Md5 */
-            MD5?: string;
+            MD5?: string | null;
             /**
              * Auto Decompress
              * @description Decompress compressed data before sniffing?
@@ -4302,9 +5081,9 @@ export interface components {
              */
             auto_decompress?: boolean;
             /** Collection Type */
-            collection_type?: string;
+            collection_type?: string | null;
             /** Created From Basename */
-            created_from_basename?: string;
+            created_from_basename?: string | null;
             /**
              * Dbkey
              * @default ?
@@ -4315,17 +5094,19 @@ export interface components {
              * @default false
              */
             deferred?: boolean;
-            elements_from?: components["schemas"]["ElementsFromType"];
+            /** Description */
+            description?: string | null;
+            elements_from?: components["schemas"]["ElementsFromType"] | null;
             /**
              * Ext
              * @default auto
              */
             ext?: string;
-            extra_files?: components["schemas"]["ExtraFiles"];
+            extra_files?: components["schemas"]["ExtraFiles"] | null;
             /** Info */
-            info?: string;
+            info?: string | null;
             /** Name */
-            name?: string;
+            name?: string | number | number | boolean | null;
             /**
              * Space To Tab
              * @default false
@@ -4333,21 +5114,28 @@ export interface components {
             space_to_tab?: boolean;
             /**
              * Src
+             * @constant
              * @enum {string}
              */
             src: "files";
             /** Tags */
-            tags?: string[];
+            tags?: string[] | null;
             /**
              * To Posix Lines
              * @default false
              */
             to_posix_lines?: boolean;
         };
-        /**
-         * FileLibraryFolderItem
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** FileDefaultsAction */
+        FileDefaultsAction: {
+            /**
+             * Action Type
+             * @constant
+             * @enum {string}
+             */
+            action_type: "fill_defaults";
+        };
+        /** FileLibraryFolderItem */
         FileLibraryFolderItem: {
             /** Can Manage */
             can_manage: boolean;
@@ -4383,7 +5171,7 @@ export interface components {
              */
             ldda_id: string;
             /** Message */
-            message?: string;
+            message?: string | null;
             /** Name */
             name: string;
             /** Raw Size */
@@ -4396,6 +5184,7 @@ export interface components {
             tags: components["schemas"]["TagCollection"];
             /**
              * Type
+             * @constant
              * @enum {string}
              */
             type: "file";
@@ -4406,10 +5195,7 @@ export interface components {
              */
             update_time: string;
         };
-        /**
-         * FilesSourcePlugin
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** FilesSourcePlugin */
         FilesSourcePlugin: {
             /**
              * Browsable
@@ -4419,68 +5205,59 @@ export interface components {
             /**
              * Documentation
              * @description Documentation or extended description for this plugin.
-             * @example Galaxy's library import directory
              */
             doc: string;
             /**
              * ID
              * @description The `FilesSource` plugin identifier
-             * @example _import
              */
             id: string;
             /**
              * Label
              * @description The display label for this plugin.
-             * @example Library Import Directory
              */
             label: string;
             /**
              * Requires groups
              * @description Only users belonging to the groups specified here can access this files source.
              */
-            requires_groups?: string;
+            requires_groups?: string | null;
             /**
              * Requires roles
              * @description Only users with the roles specified here can access this files source.
              */
-            requires_roles?: string;
+            requires_roles?: string | null;
             /**
              * Type
              * @description The type of the plugin.
-             * @example gximport
              */
             type: string;
             /**
              * Writeable
              * @description Whether this files source plugin allows write access.
-             * @example false
              */
             writable: boolean;
         };
         /**
          * FilesSourcePluginList
-         * @description Base model definition with common configuration used by all derived models.
          * @default []
-         * @example [
-         *   {
-         *     "browsable": true,
-         *     "doc": "Galaxy's library import directory",
-         *     "id": "_import",
-         *     "label": "Library Import Directory",
-         *     "type": "gximport",
-         *     "uri_root": "gximport://",
-         *     "writable": false
-         *   }
-         * ]
          */
         FilesSourcePluginList: (
             | components["schemas"]["BrowsableFilesSourcePlugin"]
             | components["schemas"]["FilesSourcePlugin"]
         )[];
-        /**
-         * FolderLibraryFolderItem
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** FillStepDefaultsAction */
+        FillStepDefaultsAction: {
+            /**
+             * Action Type
+             * @constant
+             * @enum {string}
+             */
+            action_type: "fill_step_defaults";
+            /** Step */
+            step: components["schemas"]["StepReferenceByOrderIndex"] | components["schemas"]["StepReferenceByLabel"];
+        };
+        /** FolderLibraryFolderItem */
         FolderLibraryFolderItem: {
             /** Can Manage */
             can_manage: boolean;
@@ -4499,7 +5276,7 @@ export interface components {
              * @description A detailed description of the library folder.
              * @default
              */
-            description?: string;
+            description?: string | null;
             /**
              * Id
              * @example 0123456789ABCDEF
@@ -4509,6 +5286,7 @@ export interface components {
             name: string;
             /**
              * Type
+             * @constant
              * @enum {string}
              */
             type: "folder";
@@ -4519,13 +5297,10 @@ export interface components {
              */
             update_time: string;
         };
-        /**
-         * FtpImportElement
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** FtpImportElement */
         FtpImportElement: {
             /** Md5 */
-            MD5?: string;
+            MD5?: string | null;
             /**
              * Auto Decompress
              * @description Decompress compressed data before sniffing?
@@ -4533,9 +5308,9 @@ export interface components {
              */
             auto_decompress?: boolean;
             /** Collection Type */
-            collection_type?: string;
+            collection_type?: string | null;
             /** Created From Basename */
-            created_from_basename?: string;
+            created_from_basename?: string | null;
             /**
              * Dbkey
              * @default ?
@@ -4546,19 +5321,21 @@ export interface components {
              * @default false
              */
             deferred?: boolean;
-            elements_from?: components["schemas"]["ElementsFromType"];
+            /** Description */
+            description?: string | null;
+            elements_from?: components["schemas"]["ElementsFromType"] | null;
             /**
              * Ext
              * @default auto
              */
             ext?: string;
-            extra_files?: components["schemas"]["ExtraFiles"];
+            extra_files?: components["schemas"]["ExtraFiles"] | null;
             /** Ftp Path */
             ftp_path: string;
             /** Info */
-            info?: string;
+            info?: string | null;
             /** Name */
-            name?: string;
+            name?: string | number | number | boolean | null;
             /**
              * Space To Tab
              * @default false
@@ -4566,21 +5343,19 @@ export interface components {
             space_to_tab?: boolean;
             /**
              * Src
+             * @constant
              * @enum {string}
              */
             src: "ftp_import";
             /** Tags */
-            tags?: string[];
+            tags?: string[] | null;
             /**
              * To Posix Lines
              * @default false
              */
             to_posix_lines?: boolean;
         };
-        /**
-         * FtpImportTarget
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** FtpImportTarget */
         FtpImportTarget: {
             /**
              * Auto Decompress
@@ -4589,21 +5364,45 @@ export interface components {
              */
             auto_decompress?: boolean;
             /** Collection Type */
-            collection_type?: string;
+            collection_type?: string | null;
             destination: components["schemas"]["HdcaDestination"];
-            elements_from?: components["schemas"]["ElementsFromType"];
+            elements_from?: components["schemas"]["ElementsFromType"] | null;
             /** Ftp Path */
             ftp_path: string;
             /** Name */
-            name?: string;
+            name?: string | null;
             /**
              * Src
+             * @constant
              * @enum {string}
              */
             src: "ftp_import";
             /** Tags */
-            tags?: string[];
+            tags?: string[] | null;
         };
+        /**
+         * GroupCreatePayload
+         * @description Payload schema for creating a group.
+         */
+        GroupCreatePayload: {
+            /** name of the group */
+            name: string;
+            /**
+             * role IDs
+             * @default []
+             */
+            role_ids?: string[];
+            /**
+             * user IDs
+             * @default []
+             */
+            user_ids?: string[];
+        };
+        /**
+         * GroupListResponse
+         * @description Response schema for listing groups.
+         */
+        GroupListResponse: components["schemas"]["GroupResponse"][];
         /**
          * GroupModel
          * @description User group model
@@ -4618,7 +5417,7 @@ export interface components {
             /**
              * Model class
              * @description The name of the database model class.
-             * @default Group
+             * @constant
              * @enum {string}
              */
             model_class: "Group";
@@ -4628,10 +5427,7 @@ export interface components {
              */
             name: string;
         };
-        /**
-         * GroupQuota
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** GroupQuota */
         GroupQuota: {
             /**
              * Group
@@ -4641,20 +5437,40 @@ export interface components {
             /**
              * Model class
              * @description The name of the database model class.
-             * @default GroupQuotaAssociation
+             * @constant
              * @enum {string}
              */
             model_class: "GroupQuotaAssociation";
         };
         /**
-         * GroupRoleListResponse
-         * @description Base model definition with common configuration used by all derived models.
+         * GroupResponse
+         * @description Response schema for a group.
          */
+        GroupResponse: {
+            /**
+             * group ID
+             * @example 0123456789ABCDEF
+             */
+            id: string;
+            /**
+             * Model class
+             * @description The name of the database model class.
+             * @constant
+             * @enum {string}
+             */
+            model_class: "Group";
+            /** name of the group */
+            name: string;
+            /** URL for the roles of the group */
+            roles_url?: string | null;
+            /** URL for the group */
+            url: string;
+            /** URL for the users of the group */
+            users_url?: string | null;
+        };
+        /** GroupRoleListResponse */
         GroupRoleListResponse: components["schemas"]["GroupRoleResponse"][];
-        /**
-         * GroupRoleResponse
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** GroupRoleResponse */
         GroupRoleResponse: {
             /**
              * ID
@@ -4674,15 +5490,9 @@ export interface components {
              */
             url: string;
         };
-        /**
-         * GroupUserListResponse
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** GroupUserListResponse */
         GroupUserListResponse: components["schemas"]["GroupUserResponse"][];
-        /**
-         * GroupUserResponse
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** GroupUserResponse */
         GroupUserResponse: {
             /**
              * Email
@@ -4690,8 +5500,7 @@ export interface components {
              */
             email: string;
             /**
-             * ID
-             * @description Encoded ID of the user
+             * Id
              * @example 0123456789ABCDEF
              */
             id: string;
@@ -4701,6 +5510,254 @@ export interface components {
              * @description The relative URL to access this item.
              */
             url: string;
+        };
+        /** HDABasicInfo */
+        HDABasicInfo: {
+            /**
+             * Id
+             * @example 0123456789ABCDEF
+             */
+            id: string;
+            /** Name */
+            name: string;
+        };
+        /** HDACustom */
+        HDACustom: {
+            /**
+             * Accessible
+             * @description Whether this item is accessible to the current user due to permissions.
+             */
+            accessible?: boolean | null;
+            /**
+             * Annotation
+             * @description An annotation to provide details or to help understand the purpose and usage of this item.
+             */
+            annotation?: string | null;
+            /**
+             * API Type
+             * @deprecated
+             * @description TODO
+             */
+            api_type?: "file" | null;
+            /** Copied From Ldda Id */
+            copied_from_ldda_id?: string | null;
+            /**
+             * Create Time
+             * @description The time and date this item was created.
+             */
+            create_time?: string | null;
+            /**
+             * Created from basename
+             * @description The basename of the output that produced this dataset.
+             */
+            created_from_basename?: string | null;
+            /**
+             * Creating Job ID
+             * @description The encoded ID of the job that created this dataset.
+             */
+            creating_job?: string | null;
+            /**
+             * Data Type
+             * @description The fully qualified name of the class implementing the data type of this dataset.
+             */
+            data_type?: string | null;
+            /**
+             * Dataset ID
+             * @description The encoded ID of the dataset associated with this item.
+             * @example 0123456789ABCDEF
+             */
+            dataset_id?: string;
+            /**
+             * Deleted
+             * @description Whether this item is marked as deleted.
+             */
+            deleted?: boolean | null;
+            /**
+             * Display Applications
+             * @description Contains new-style display app urls.
+             */
+            display_apps?: components["schemas"]["DisplayApp"][] | null;
+            /**
+             * Legacy Display Applications
+             * @description Contains old-style display app urls.
+             */
+            display_types?: components["schemas"]["DisplayApp"][] | null;
+            /**
+             * Download URL
+             * @description The URL to download this item from the server.
+             */
+            download_url?: string | null;
+            /**
+             * DRS ID
+             * @description The DRS ID of the dataset.
+             */
+            drs_id?: string | null;
+            /**
+             * Extension
+             * @description The extension of the dataset.
+             */
+            extension?: string | null;
+            /**
+             * File extension
+             * @description The extension of the file.
+             */
+            file_ext?: string | null;
+            /**
+             * File Name
+             * @description The full path to the dataset file.
+             */
+            file_name?: string | null;
+            /**
+             * File Size
+             * @description The file size in bytes.
+             */
+            file_size?: number | null;
+            /**
+             * Genome Build
+             * @description TODO
+             */
+            genome_build?: string | null;
+            /**
+             * Hashes
+             * @description The list of hashes associated with this dataset.
+             */
+            hashes?: components["schemas"]["DatasetHash"][] | null;
+            /**
+             * HDA or LDDA
+             * @description Whether this dataset belongs to a history (HDA) or a library (LDDA).
+             */
+            hda_ldda?: components["schemas"]["DatasetSourceType"] | null;
+            /**
+             * HID
+             * @description The index position of this item in the History.
+             */
+            hid?: number | null;
+            /**
+             * History Content Type
+             * @description This is always `dataset` for datasets.
+             */
+            history_content_type?: "dataset" | null;
+            /**
+             * History ID
+             * @example 0123456789ABCDEF
+             */
+            history_id?: string;
+            /**
+             * Id
+             * @example 0123456789ABCDEF
+             */
+            id?: string;
+            /**
+             * Metadata Files
+             * @description Collection of metadata files associated with this dataset.
+             */
+            meta_files?: components["schemas"]["MetadataFile"][] | null;
+            /**
+             * Metadata
+             * @description The metadata associated with this dataset.
+             */
+            metadata?: Record<string, never> | null;
+            /**
+             * Miscellaneous Blurb
+             * @description TODO
+             */
+            misc_blurb?: string | null;
+            /**
+             * Miscellaneous Information
+             * @description TODO
+             */
+            misc_info?: string | null;
+            /**
+             * Model class
+             * @description The name of the database model class.
+             * @constant
+             */
+            model_class?: "HistoryDatasetAssociation";
+            /**
+             * Name
+             * @description The name of the item.
+             */
+            name?: string | null;
+            /**
+             * Peek
+             * @description A few lines of contents from the start of the file.
+             */
+            peek?: string | null;
+            /**
+             * Permissions
+             * @description Role-based access and manage control permissions for the dataset.
+             */
+            permissions?: components["schemas"]["DatasetPermissions"] | null;
+            /**
+             * Purged
+             * @description Whether this dataset has been removed from disk.
+             */
+            purged?: boolean | null;
+            /**
+             * Rerunnable
+             * @description Whether the job creating this dataset can be run again.
+             */
+            rerunnable?: boolean | null;
+            /**
+             * Resubmitted
+             * @description Whether the job creating this dataset has been resubmitted.
+             */
+            resubmitted?: boolean | null;
+            /**
+             * Sources
+             * @description The list of sources associated with this dataset.
+             */
+            sources?: components["schemas"]["DatasetSource"][] | null;
+            /**
+             * State
+             * @description The current state of this dataset.
+             */
+            state?: components["schemas"]["DatasetState"] | null;
+            tags?: components["schemas"]["TagCollection"] | null;
+            /**
+             * Type
+             * @description This is always `file` for datasets.
+             */
+            type?: "file" | null;
+            /**
+             * Type - ID
+             * @description The type and the encoded ID of this item. Used for caching.
+             */
+            type_id?: string | null;
+            /**
+             * Update Time
+             * @description The last time and date this item was updated.
+             */
+            update_time?: string | null;
+            /**
+             * URL
+             * @deprecated
+             * @description The relative URL to access this item.
+             */
+            url?: string | null;
+            /** Uuid */
+            uuid?: string | null;
+            /**
+             * Validated State
+             * @description The state of the datatype validation for this dataset.
+             */
+            validated_state?: components["schemas"]["DatasetValidatedState"] | null;
+            /**
+             * Validated State Message
+             * @description The message with details about the datatype validation result for this dataset.
+             */
+            validated_state_message?: string | null;
+            /**
+             * Visible
+             * @description Whether this item is visible or hidden to the user by default.
+             */
+            visible?: boolean | null;
+            /**
+             * Visualizations
+             * @description The collection of visualizations that can be applied to this dataset.
+             */
+            visualizations?: components["schemas"]["Visualization"][] | null;
+            [key: string]: unknown | undefined;
         };
         /**
          * HDADetailed
@@ -4716,25 +5773,28 @@ export interface components {
              * Annotation
              * @description An annotation to provide details or to help understand the purpose and usage of this item.
              */
-            annotation: string;
+            annotation: string | null;
             /**
              * API Type
+             * @deprecated
              * @description TODO
              * @default file
+             * @constant
              * @enum {string}
              */
             api_type?: "file";
+            /** Copied From Ldda Id */
+            copied_from_ldda_id?: string | null;
             /**
              * Create Time
-             * Format: date-time
              * @description The time and date this item was created.
              */
-            create_time?: string;
+            create_time: string | null;
             /**
              * Created from basename
              * @description The basename of the output that produced this dataset.
              */
-            created_from_basename?: string;
+            created_from_basename?: string | null;
             /**
              * Creating Job ID
              * @description The encoded ID of the job that created this dataset.
@@ -4743,7 +5803,6 @@ export interface components {
             /**
              * Data Type
              * @description The fully qualified name of the class implementing the data type of this dataset.
-             * @example galaxy.datatypes.data.Text
              */
             data_type: string;
             /**
@@ -4773,11 +5832,15 @@ export interface components {
              */
             download_url: string;
             /**
+             * DRS ID
+             * @description The DRS ID of the dataset.
+             */
+            drs_id: string;
+            /**
              * Extension
              * @description The extension of the dataset.
-             * @example txt
              */
-            extension: string;
+            extension: string | null;
             /**
              * File extension
              * @description The extension of the file.
@@ -4787,7 +5850,7 @@ export interface components {
              * File Name
              * @description The full path to the dataset file.
              */
-            file_name?: string;
+            file_name?: string | null;
             /**
              * File Size
              * @description The file size in bytes.
@@ -4798,7 +5861,12 @@ export interface components {
              * @description TODO
              * @default ?
              */
-            genome_build?: string;
+            genome_build?: string | null;
+            /**
+             * Hashes
+             * @description The list of hashes associated with this dataset.
+             */
+            hashes: components["schemas"]["DatasetHash"][];
             /**
              * HDA or LDDA
              * @description Whether this dataset belongs to a history (HDA) or a library (LDDA).
@@ -4813,18 +5881,17 @@ export interface components {
             /**
              * History Content Type
              * @description This is always `dataset` for datasets.
+             * @constant
              * @enum {string}
              */
             history_content_type: "dataset";
             /**
              * History ID
-             * @description The encoded ID of the history associated with this item.
              * @example 0123456789ABCDEF
              */
             history_id: string;
             /**
-             * ID
-             * @description The encoded ID of this entity.
+             * Id
              * @example 0123456789ABCDEF
              */
             id: string;
@@ -4837,32 +5904,21 @@ export interface components {
              * Metadata
              * @description The metadata associated with this dataset.
              */
-            metadata?: Record<string, never>;
-            /**
-             * Metadata Data Lines
-             * @description TODO
-             * @default 0
-             */
-            metadata_data_lines?: number;
-            /**
-             * Metadata DBKey
-             * @description TODO
-             * @default ?
-             */
-            metadata_dbkey?: string;
+            metadata?: Record<string, never> | null;
             /**
              * Miscellaneous Blurb
              * @description TODO
              */
-            misc_blurb?: string;
+            misc_blurb?: string | null;
             /**
              * Miscellaneous Information
              * @description TODO
              */
-            misc_info?: string;
+            misc_info?: string | null;
             /**
              * Model class
              * @description The name of the database model class.
+             * @constant
              * @enum {string}
              */
             model_class: "HistoryDatasetAssociation";
@@ -4870,12 +5926,12 @@ export interface components {
              * Name
              * @description The name of the item.
              */
-            name?: string;
+            name: string | null;
             /**
              * Peek
              * @description A few lines of contents from the start of the file.
              */
-            peek?: string;
+            peek?: string | null;
             /**
              * Permissions
              * @description Role-based access and manage control permissions for the dataset.
@@ -4897,6 +5953,11 @@ export interface components {
              */
             resubmitted: boolean;
             /**
+             * Sources
+             * @description The list of sources associated with this dataset.
+             */
+            sources: components["schemas"]["DatasetSource"][];
+            /**
              * State
              * @description The current state of this dataset.
              */
@@ -4906,21 +5967,20 @@ export interface components {
              * Type
              * @description This is always `file` for datasets.
              * @default file
+             * @constant
              * @enum {string}
              */
             type?: "file";
             /**
              * Type - ID
              * @description The type and the encoded ID of this item. Used for caching.
-             * @example dataset-616e371b2cc6c62e
              */
-            type_id?: string;
+            type_id?: string | null;
             /**
              * Update Time
-             * Format: date-time
              * @description The last time and date this item was updated.
              */
-            update_time?: string;
+            update_time: string | null;
             /**
              * URL
              * @deprecated
@@ -4942,23 +6002,20 @@ export interface components {
              * Validated State Message
              * @description The message with details about the datatype validation result for this dataset.
              */
-            validated_state_message: string;
+            validated_state_message?: string | null;
             /**
              * Visible
              * @description Whether this item is visible or hidden to the user by default.
              */
             visible: boolean;
-            /**
-             * Visualizations
-             * @description The collection of visualizations that can be applied to this dataset.
-             */
-            visualizations: components["schemas"]["Visualization"][];
         };
         /**
          * HDAObject
          * @description History Dataset Association Object
          */
         HDAObject: {
+            /** Copied From Ldda Id */
+            copied_from_ldda_id?: string | null;
             /**
              * HDA or LDDA
              * @description Whether this dataset belongs to a history (HDA) or a library (LDDA).
@@ -4967,20 +6024,18 @@ export interface components {
             hda_ldda?: components["schemas"]["DatasetSourceType"];
             /**
              * History ID
-             * @description The encoded ID of the history associated with this item.
              * @example 0123456789ABCDEF
              */
             history_id: string;
             /**
-             * ID
-             * @description The encoded ID of this entity.
+             * History Dataset Association ID
              * @example 0123456789ABCDEF
              */
             id: string;
             /**
              * Model class
              * @description The name of the database model class.
-             * @default HistoryDatasetAssociation
+             * @constant
              * @enum {string}
              */
             model_class: "HistoryDatasetAssociation";
@@ -4991,18 +6046,20 @@ export interface components {
             state: components["schemas"]["DatasetState"];
             /** Tags */
             tags: string[];
+            [key: string]: unknown | undefined;
         };
         /**
          * HDASummary
          * @description History Dataset Association summary information.
          */
         HDASummary: {
+            /** Copied From Ldda Id */
+            copied_from_ldda_id?: string | null;
             /**
              * Create Time
-             * Format: date-time
              * @description The time and date this item was created.
              */
-            create_time?: string;
+            create_time: string | null;
             /**
              * Dataset ID
              * @description The encoded ID of the dataset associated with this item.
@@ -5017,9 +6074,14 @@ export interface components {
             /**
              * Extension
              * @description The extension of the dataset.
-             * @example txt
              */
-            extension: string;
+            extension: string | null;
+            /**
+             * Genome Build
+             * @description TODO
+             * @default ?
+             */
+            genome_build?: string | null;
             /**
              * HID
              * @description The index position of this item in the History.
@@ -5028,18 +6090,17 @@ export interface components {
             /**
              * History Content Type
              * @description This is always `dataset` for datasets.
+             * @constant
              * @enum {string}
              */
             history_content_type: "dataset";
             /**
              * History ID
-             * @description The encoded ID of the history associated with this item.
              * @example 0123456789ABCDEF
              */
             history_id: string;
             /**
-             * ID
-             * @description The encoded ID of this entity.
+             * Id
              * @example 0123456789ABCDEF
              */
             id: string;
@@ -5047,7 +6108,7 @@ export interface components {
              * Name
              * @description The name of the item.
              */
-            name?: string;
+            name: string | null;
             /**
              * Purged
              * @description Whether this dataset has been removed from disk.
@@ -5067,15 +6128,13 @@ export interface components {
             /**
              * Type - ID
              * @description The type and the encoded ID of this item. Used for caching.
-             * @example dataset-616e371b2cc6c62e
              */
-            type_id?: string;
+            type_id?: string | null;
             /**
              * Update Time
-             * Format: date-time
              * @description The last time and date this item was updated.
              */
-            update_time?: string;
+            update_time: string | null;
             /**
              * URL
              * @deprecated
@@ -5094,8 +6153,7 @@ export interface components {
          */
         HDCADetailed: {
             /**
-             * Collection ID
-             * @description The encoded ID of the dataset collection associated with this HDCA.
+             * Dataset Collection ID
              * @example 0123456789ABCDEF
              */
             collection_id: string;
@@ -5111,10 +6169,9 @@ export interface components {
             contents_url: string;
             /**
              * Create Time
-             * Format: date-time
              * @description The time and date this item was created.
              */
-            create_time?: string;
+            create_time: string | null;
             /**
              * Deleted
              * @description Whether this item is marked as deleted.
@@ -5124,7 +6181,7 @@ export interface components {
              * Element Count
              * @description The number of elements contained in the dataset collection. It may be None or undefined if the collection could not be populated.
              */
-            element_count?: number;
+            element_count?: number | null;
             /**
              * Elements
              * @description The summary information of each of the elements inside the dataset collection.
@@ -5144,41 +6201,44 @@ export interface components {
             /**
              * History Content Type
              * @description This is always `dataset_collection` for dataset collections.
+             * @constant
              * @enum {string}
              */
             history_content_type: "dataset_collection";
             /**
              * History ID
-             * @description The encoded ID of the history associated with this item.
              * @example 0123456789ABCDEF
              */
             history_id: string;
             /**
-             * ID
-             * @description The encoded ID of this entity.
+             * Id
              * @example 0123456789ABCDEF
              */
             id: string;
             /**
+             * Implicit Collection Jobs Id
+             * @description Encoded ID for the ICJ object describing the collection of jobs corresponding to this collection
+             */
+            implicit_collection_jobs_id?: string | null;
+            /**
              * Job Source ID
              * @description The encoded ID of the Job that produced this dataset collection. Used to track the state of the job.
-             * @example 0123456789ABCDEF
              */
-            job_source_id?: string;
+            job_source_id?: string | null;
             /**
              * Job Source Type
              * @description The type of job (model class) that produced this dataset collection. Used to track the state of the job.
              */
-            job_source_type?: components["schemas"]["JobSourceType"];
+            job_source_type?: components["schemas"]["JobSourceType"] | null;
             /**
              * Job State Summary
              * @description Overview of the job states working inside the dataset collection.
              */
-            job_state_summary?: components["schemas"]["HDCJobStateSummary"];
+            job_state_summary?: components["schemas"]["HDCJobStateSummary"] | null;
             /**
              * Model class
              * @description The name of the database model class.
-             * @default HistoryDatasetCollectionAssociation
+             * @constant
              * @enum {string}
              */
             model_class: "HistoryDatasetCollectionAssociation";
@@ -5186,12 +6246,12 @@ export interface components {
              * Name
              * @description The name of the item.
              */
-            name?: string;
+            name: string | null;
             /**
              * Populated
              * @description Whether the dataset collection elements (and any subcollections elements) were successfully populated.
              */
-            populated: boolean;
+            populated?: boolean;
             /**
              * Populated State
              * @description Indicates the general state of the elements in the dataset collection:- 'new': new dataset collection, unpopulated elements.- 'ok': collection elements populated (HDAs may or may not have errors).- 'failed': some problem populating, won't be populated.
@@ -5201,27 +6261,26 @@ export interface components {
              * Populated State Message
              * @description Optional message with further information in case the population of the dataset collection failed.
              */
-            populated_state_message?: string;
+            populated_state_message?: string | null;
             tags: components["schemas"]["TagCollection"];
             /**
              * Type
              * @description This is always `collection` for dataset collections.
              * @default collection
+             * @constant
              * @enum {string}
              */
             type?: "collection";
             /**
              * Type - ID
              * @description The type and the encoded ID of this item. Used for caching.
-             * @example dataset-616e371b2cc6c62e
              */
-            type_id?: string;
+            type_id?: string | null;
             /**
              * Update Time
-             * Format: date-time
              * @description The last time and date this item was updated.
              */
-            update_time?: string;
+            update_time: string | null;
             /**
              * URL
              * @deprecated
@@ -5240,8 +6299,7 @@ export interface components {
          */
         HDCASummary: {
             /**
-             * Collection ID
-             * @description The encoded ID of the dataset collection associated with this HDCA.
+             * Dataset Collection ID
              * @example 0123456789ABCDEF
              */
             collection_id: string;
@@ -5257,10 +6315,9 @@ export interface components {
             contents_url: string;
             /**
              * Create Time
-             * Format: date-time
              * @description The time and date this item was created.
              */
-            create_time?: string;
+            create_time: string | null;
             /**
              * Deleted
              * @description Whether this item is marked as deleted.
@@ -5270,7 +6327,7 @@ export interface components {
              * Element Count
              * @description The number of elements contained in the dataset collection. It may be None or undefined if the collection could not be populated.
              */
-            element_count?: number;
+            element_count?: number | null;
             /**
              * HID
              * @description The index position of this item in the History.
@@ -5279,41 +6336,39 @@ export interface components {
             /**
              * History Content Type
              * @description This is always `dataset_collection` for dataset collections.
+             * @constant
              * @enum {string}
              */
             history_content_type: "dataset_collection";
             /**
              * History ID
-             * @description The encoded ID of the history associated with this item.
              * @example 0123456789ABCDEF
              */
             history_id: string;
             /**
-             * ID
-             * @description The encoded ID of this entity.
+             * Id
              * @example 0123456789ABCDEF
              */
             id: string;
             /**
              * Job Source ID
              * @description The encoded ID of the Job that produced this dataset collection. Used to track the state of the job.
-             * @example 0123456789ABCDEF
              */
-            job_source_id?: string;
+            job_source_id?: string | null;
             /**
              * Job Source Type
              * @description The type of job (model class) that produced this dataset collection. Used to track the state of the job.
              */
-            job_source_type?: components["schemas"]["JobSourceType"];
+            job_source_type?: components["schemas"]["JobSourceType"] | null;
             /**
              * Job State Summary
              * @description Overview of the job states working inside the dataset collection.
              */
-            job_state_summary?: components["schemas"]["HDCJobStateSummary"];
+            job_state_summary?: components["schemas"]["HDCJobStateSummary"] | null;
             /**
              * Model class
              * @description The name of the database model class.
-             * @default HistoryDatasetCollectionAssociation
+             * @constant
              * @enum {string}
              */
             model_class: "HistoryDatasetCollectionAssociation";
@@ -5321,7 +6376,7 @@ export interface components {
              * Name
              * @description The name of the item.
              */
-            name?: string;
+            name: string | null;
             /**
              * Populated State
              * @description Indicates the general state of the elements in the dataset collection:- 'new': new dataset collection, unpopulated elements.- 'ok': collection elements populated (HDAs may or may not have errors).- 'failed': some problem populating, won't be populated.
@@ -5331,27 +6386,26 @@ export interface components {
              * Populated State Message
              * @description Optional message with further information in case the population of the dataset collection failed.
              */
-            populated_state_message?: string;
+            populated_state_message?: string | null;
             tags: components["schemas"]["TagCollection"];
             /**
              * Type
              * @description This is always `collection` for dataset collections.
              * @default collection
+             * @constant
              * @enum {string}
              */
             type?: "collection";
             /**
              * Type - ID
              * @description The type and the encoded ID of this item. Used for caching.
-             * @example dataset-616e371b2cc6c62e
              */
-            type_id?: string;
+            type_id?: string | null;
             /**
              * Update Time
-             * Format: date-time
              * @description The last time and date this item was updated.
              */
-            update_time?: string;
+            update_time: string | null;
             /**
              * URL
              * @deprecated
@@ -5466,20 +6520,21 @@ export interface components {
          */
         HashFunctionNameEnum: "MD5" | "SHA-1" | "SHA-256" | "SHA-512";
         /**
-         * HdaDestination
-         * @description Base model definition with common configuration used by all derived models.
+         * HashFunctionNames
+         * @description Hash function names that can be used to generate checksums for datasets.
+         * @enum {string}
          */
+        HashFunctionNames: "MD5" | "SHA-1" | "SHA-256" | "SHA-512";
+        /** HdaDestination */
         HdaDestination: {
             /**
              * Type
+             * @constant
              * @enum {string}
              */
             type: "hdas";
         };
-        /**
-         * HdcaDataItemsFromTarget
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** HdcaDataItemsFromTarget */
         HdcaDataItemsFromTarget: {
             /**
              * Auto Decompress
@@ -5488,27 +6543,24 @@ export interface components {
              */
             auto_decompress?: boolean;
             /** Collection Type */
-            collection_type?: string;
+            collection_type?: string | null;
             destination: components["schemas"]["HdcaDestination"];
             elements_from: components["schemas"]["ElementsFromType"];
             /** Ftp Path */
-            ftp_path?: string;
+            ftp_path?: string | null;
             /** Name */
-            name?: string;
+            name?: string | null;
             /** Path */
-            path?: string;
+            path?: string | null;
             /** Server Dir */
-            server_dir?: string;
+            server_dir?: string | null;
             src: components["schemas"]["ItemsFromSrc"];
             /** Tags */
-            tags?: string[];
+            tags?: string[] | null;
             /** Url */
-            url?: string;
+            url?: string | null;
         };
-        /**
-         * HdcaDataItemsTarget
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** HdcaDataItemsTarget */
         HdcaDataItemsTarget: {
             /**
              * Auto Decompress
@@ -5517,7 +6569,7 @@ export interface components {
              */
             auto_decompress?: boolean;
             /** Collection Type */
-            collection_type?: string;
+            collection_type?: string | null;
             destination: components["schemas"]["HdcaDestination"];
             /** Elements */
             elements: (
@@ -5533,49 +6585,313 @@ export interface components {
                 | components["schemas"]["NestedElement"]
             )[];
             /** Name */
-            name?: string;
+            name?: string | null;
             /** Tags */
-            tags?: string[];
+            tags?: string[] | null;
         };
-        /**
-         * HdcaDestination
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** HdcaDestination */
         HdcaDestination: {
             /**
              * Type
+             * @constant
              * @enum {string}
              */
             type: "hdca";
         };
         /**
-         * HistoryContentBulkOperationPayload
-         * @description Base model definition with common configuration used by all derived models.
+         * HelpForumCategory
+         * @description Model for a category in the help forum.
          */
+        HelpForumCategory: {
+            [key: string]: unknown | undefined;
+        };
+        /**
+         * HelpForumGroup
+         * @description Model for a group in the help forum.
+         */
+        HelpForumGroup: {
+            [key: string]: unknown | undefined;
+        };
+        /**
+         * HelpForumGroupedSearchResult
+         * @description Model for a grouped search result.
+         */
+        HelpForumGroupedSearchResult: {
+            [key: string]: unknown | undefined;
+        };
+        /**
+         * HelpForumPost
+         * @description Model for a post in the help forum.
+         */
+        HelpForumPost: {
+            /**
+             * Avatar Template
+             * @description The avatar template of the user.
+             */
+            avatar_template: string;
+            /**
+             * Blurb
+             * @description The blurb of the post.
+             */
+            blurb: string;
+            /**
+             * Created At
+             * @description The creation date of the post.
+             */
+            created_at: string;
+            /**
+             * Id
+             * @description The ID of the post.
+             */
+            id: number;
+            /**
+             * Like Count
+             * @description The number of likes of the post.
+             */
+            like_count: number;
+            /**
+             * Name
+             * @description The name of the post.
+             */
+            name: string;
+            /**
+             * Post Number
+             * @description The post number of the post.
+             */
+            post_number: number;
+            /**
+             * Topic Id
+             * @description The ID of the topic of the post.
+             */
+            topic_id: number;
+            /**
+             * Username
+             * @description The username of the post author.
+             */
+            username: string;
+            [key: string]: unknown | undefined;
+        };
+        /**
+         * HelpForumSearchResponse
+         * @description Response model for the help search API endpoint.
+         *
+         * This model is based on the Discourse API response for the search endpoint.
+         */
+        HelpForumSearchResponse: {
+            /**
+             * Categories
+             * @description The list of categories returned by the search.
+             */
+            categories?: components["schemas"]["HelpForumCategory"][] | null;
+            /** @description The grouped search result. */
+            grouped_search_result?: components["schemas"]["HelpForumGroupedSearchResult"] | null;
+            /**
+             * Groups
+             * @description The list of groups returned by the search.
+             */
+            groups?: components["schemas"]["HelpForumGroup"][] | null;
+            /**
+             * Posts
+             * @description The list of posts returned by the search.
+             */
+            posts?: components["schemas"]["HelpForumPost"][];
+            /**
+             * Tags
+             * @description The list of tags returned by the search.
+             */
+            tags?: components["schemas"]["HelpForumTag"][] | null;
+            /**
+             * Topics
+             * @description The list of topics returned by the search.
+             */
+            topics?: components["schemas"]["HelpForumTopic"][];
+            /**
+             * Users
+             * @description The list of users returned by the search.
+             */
+            users?: components["schemas"]["HelpForumUser"][] | null;
+        };
+        /**
+         * HelpForumTag
+         * @description Model for a tag in the help forum.
+         */
+        HelpForumTag: {
+            [key: string]: unknown | undefined;
+        };
+        /**
+         * HelpForumTopic
+         * @description Model for a topic in the help forum compatible with Discourse API.
+         */
+        HelpForumTopic: {
+            /**
+             * Archetype
+             * @description The archetype of the topic.
+             */
+            archetype: Record<string, never>;
+            /**
+             * Archived
+             * @description Whether the topic is archived.
+             */
+            archived: boolean;
+            /**
+             * Bookmarked
+             * @description Whether the topic is bookmarked.
+             */
+            bookmarked?: boolean | null;
+            /**
+             * Bumped
+             * @description Whether the topic was bumped.
+             */
+            bumped: boolean;
+            /**
+             * Bumped At
+             * @description The date of the last bump of the topic.
+             */
+            bumped_at: string;
+            /**
+             * Category Id
+             * @description The ID of the category of the topic.
+             */
+            category_id: number;
+            /**
+             * Closed
+             * @description Whether the topic is closed.
+             */
+            closed: boolean;
+            /**
+             * Created At
+             * @description The creation date of the topic.
+             */
+            created_at: string;
+            /**
+             * Fancy Title
+             * @description The fancy title of the topic.
+             */
+            fancy_title: string;
+            /**
+             * Has Accepted Answer
+             * @description Whether the topic has an accepted answer.
+             */
+            has_accepted_answer: boolean;
+            /**
+             * Highest Post Number
+             * @description The highest post number in the topic.
+             */
+            highest_post_number: number;
+            /**
+             * Id
+             * @description The ID of the topic.
+             */
+            id: number;
+            /**
+             * Last Posted At
+             * @description The date of the last post in the topic.
+             */
+            last_posted_at: string;
+            /**
+             * Liked
+             * @description Whether the topic is liked.
+             */
+            liked?: boolean | null;
+            /**
+             * Pinned
+             * @description Whether the topic is pinned.
+             */
+            pinned: boolean;
+            /**
+             * Posts Count
+             * @description The number of posts in the topic.
+             */
+            posts_count: number;
+            /**
+             * Reply Count
+             * @description The number of replies in the topic.
+             */
+            reply_count: number;
+            /**
+             * Slug
+             * @description The slug of the topic.
+             */
+            slug: string;
+            /**
+             * Tags
+             * @description The tags of the topic.
+             */
+            tags: string[];
+            /**
+             * Tags Descriptions
+             * @description The descriptions of the tags of the topic.
+             */
+            tags_descriptions?: Record<string, never> | null;
+            /**
+             * Title
+             * @description The title of the topic.
+             */
+            title: string;
+            /**
+             * Unpinned
+             * @description Whether the topic is unpinned.
+             */
+            unpinned?: boolean | null;
+            /**
+             * Unseen
+             * @description Whether the topic is unseen.
+             */
+            unseen: boolean;
+            /**
+             * Visible
+             * @description Whether the topic is visible.
+             */
+            visible: boolean;
+        };
+        /**
+         * HelpForumUser
+         * @description Model for a user in the help forum.
+         */
+        HelpForumUser: {
+            [key: string]: unknown | undefined;
+        };
+        /**
+         * HistoryActiveContentCounts
+         * @description Contains the number of active, deleted or hidden items in a History.
+         */
+        HistoryActiveContentCounts: {
+            /**
+             * Active
+             * @description Number of active datasets.
+             */
+            active: number;
+            /**
+             * Deleted
+             * @description Number of deleted datasets.
+             */
+            deleted: number;
+            /**
+             * Hidden
+             * @description Number of hidden datasets.
+             */
+            hidden: number;
+        };
+        /** HistoryContentBulkOperationPayload */
         HistoryContentBulkOperationPayload: {
             /** Items */
-            items?: components["schemas"]["HistoryContentItem"][];
+            items?: components["schemas"]["HistoryContentItem"][] | null;
             operation: components["schemas"]["HistoryContentItemOperation"];
             /** Params */
             params?:
                 | components["schemas"]["ChangeDatatypeOperationParams"]
                 | components["schemas"]["ChangeDbkeyOperationParams"]
-                | components["schemas"]["TagOperationParams"];
+                | components["schemas"]["TagOperationParams"]
+                | null;
         };
-        /**
-         * HistoryContentBulkOperationResult
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** HistoryContentBulkOperationResult */
         HistoryContentBulkOperationResult: {
             /** Errors */
             errors: components["schemas"]["BulkOperationItemError"][];
             /** Success Count */
             success_count: number;
         };
-        /**
-         * HistoryContentItem
-         * @description Identifies a dataset or collection contained in a History.
-         */
+        /** HistoryContentItem */
         HistoryContentItem: {
             /**
              * Content Type
@@ -5583,15 +6899,13 @@ export interface components {
              */
             history_content_type: components["schemas"]["HistoryContentType"];
             /**
-             * ID
-             * @description The encoded ID of this entity.
+             * Id
              * @example 0123456789ABCDEF
              */
             id: string;
         };
         /**
          * HistoryContentItemOperation
-         * @description An enumeration.
          * @enum {string}
          */
         HistoryContentItemOperation:
@@ -5606,14 +6920,10 @@ export interface components {
             | "remove_tags";
         /**
          * HistoryContentSource
-         * @description An enumeration.
          * @enum {string}
          */
         HistoryContentSource: "hda" | "hdca" | "library" | "library_folder" | "new_collection";
-        /**
-         * HistoryContentStats
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** HistoryContentStats */
         HistoryContentStats: {
             /**
              * Total Matches
@@ -5633,11 +6943,11 @@ export interface components {
          * Can contain different views and kinds of items.
          */
         HistoryContentsResult: (
+            | components["schemas"]["HDACustom"]
             | components["schemas"]["HDADetailed"]
             | components["schemas"]["HDASummary"]
             | components["schemas"]["HDCADetailed"]
             | components["schemas"]["HDCASummary"]
-            | components["schemas"]["CustomHistoryItem"]
         )[];
         /**
          * HistoryContentsWithStatsResult
@@ -5649,11 +6959,11 @@ export interface components {
              * @description The items matching the search query. Only the items fitting in the current page limit will be returned.
              */
             contents: (
+                | components["schemas"]["HDACustom"]
                 | components["schemas"]["HDADetailed"]
                 | components["schemas"]["HDASummary"]
                 | components["schemas"]["HDCADetailed"]
                 | components["schemas"]["HDCASummary"]
-                | components["schemas"]["CustomHistoryItem"]
             )[];
             /**
              * Stats
@@ -5670,7 +6980,7 @@ export interface components {
              * Annotation
              * @description An annotation to provide details or to help understand the purpose and usage of this item.
              */
-            annotation: string;
+            annotation: string | null;
             /**
              * Archived
              * @description Whether this item has been archived and is no longer active.
@@ -5702,10 +7012,9 @@ export interface components {
              * @description TODO
              * @default ?
              */
-            genome_build?: string;
+            genome_build?: string | null;
             /**
-             * ID
-             * @description The encoded ID of this entity.
+             * History ID
              * @example 0123456789ABCDEF
              */
             id: string;
@@ -5717,7 +7026,7 @@ export interface components {
             /**
              * Model class
              * @description The name of the database model class.
-             * @default History
+             * @constant
              * @enum {string}
              */
             model_class: "History";
@@ -5730,7 +7039,7 @@ export interface components {
              * Preferred Object Store ID
              * @description The ID of the object store that should be used to store new datasets in this history.
              */
-            preferred_object_store_id?: string;
+            preferred_object_store_id?: string | null;
             /**
              * Published
              * @description Whether this resource is currently publicly available to all users.
@@ -5750,7 +7059,7 @@ export interface components {
              * Slug
              * @description Part of the URL to uniquely identify this History by link in a readable way.
              */
-            slug?: string;
+            slug?: string | null;
             /**
              * State
              * @description The current state of the History based on the states of the datasets it contains.
@@ -5786,14 +7095,18 @@ export interface components {
             /**
              * User ID
              * @description The encoded ID of the user that owns this History.
-             * @example 0123456789ABCDEF
              */
-            user_id: string;
+            user_id?: string | null;
+            /**
+             * Username
+             * @description Owner of the history
+             */
+            username?: string | null;
             /**
              * Username and slug
              * @description The relative URL in the form of /u/{username}/h/{slug}
              */
-            username_and_slug?: string;
+            username_and_slug?: string | null;
         };
         /**
          * HistorySummary
@@ -5804,7 +7117,7 @@ export interface components {
              * Annotation
              * @description An annotation to provide details or to help understand the purpose and usage of this item.
              */
-            annotation: string;
+            annotation: string | null;
             /**
              * Archived
              * @description Whether this item has been archived and is no longer active.
@@ -5821,15 +7134,14 @@ export interface components {
              */
             deleted: boolean;
             /**
-             * ID
-             * @description The encoded ID of this entity.
+             * History ID
              * @example 0123456789ABCDEF
              */
             id: string;
             /**
              * Model class
              * @description The name of the database model class.
-             * @default History
+             * @constant
              * @enum {string}
              */
             model_class: "History";
@@ -5842,7 +7154,7 @@ export interface components {
              * Preferred Object Store ID
              * @description The ID of the object store that should be used to store new datasets in this history.
              */
-            preferred_object_store_id?: string;
+            preferred_object_store_id?: string | null;
             /**
              * Published
              * @description Whether this resource is currently publicly available to all users.
@@ -5873,15 +7185,13 @@ export interface components {
          */
         Hyperlink: {
             /**
-             * HRef
-             * Format: uri
-             * @description Specifies the linked document, resource, or location.
+             * Href
+             * @description The URL of the linked document.
              */
             href: string;
             /**
              * Target
              * @description Specifies where to open the linked document.
-             * @example _blank
              */
             target: string;
             /**
@@ -5890,21 +7200,17 @@ export interface components {
              */
             text: string;
         };
-        /**
-         * ImplicitCollectionJobsStateSummary
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** ImplicitCollectionJobsStateSummary */
         ImplicitCollectionJobsStateSummary: {
             /**
-             * ID
-             * @description The encoded ID of this entity.
+             * Id
              * @example 0123456789ABCDEF
              */
             id: string;
             /**
              * Model class
              * @description The name of the database model class.
-             * @default ImplicitCollectionJobs
+             * @constant
              * @enum {string}
              */
             model: "ImplicitCollectionJobs";
@@ -5929,14 +7235,10 @@ export interface components {
                 | components["schemas"]["ImportToolDataBundleDatasetSource"]
                 | components["schemas"]["ImportToolDataBundleUriSource"];
         };
-        /**
-         * ImportToolDataBundleDatasetSource
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** ImportToolDataBundleDatasetSource */
         ImportToolDataBundleDatasetSource: {
             /**
-             * ID
-             * @description The encoded ID of this entity.
+             * Id
              * @example 0123456789ABCDEF
              */
             id: string;
@@ -5947,14 +7249,12 @@ export interface components {
              */
             src: "hda" | "ldda";
         };
-        /**
-         * ImportToolDataBundleUriSource
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** ImportToolDataBundleUriSource */
         ImportToolDataBundleUriSource: {
             /**
              * src
              * @description Indicates that the tool data should be resolved by a URI.
+             * @constant
              * @enum {string}
              */
             src: "uri";
@@ -5964,60 +7264,219 @@ export interface components {
              */
             uri: string;
         };
-        /**
-         * InputArguments
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** InputArguments */
         InputArguments: {
             /**
              * Database Key
              * @description Sets the database key of the objects being fetched to Galaxy.
              * @default ?
              */
-            dbkey?: string;
+            dbkey?: string | null;
             /**
              * File Type
              * @description Sets the Galaxy datatype (e.g., `bam`) for the objects being fetched to Galaxy. See the following link for a complete list of Galaxy data types: https://galaxyproject.org/learn/datatypes/.
              * @default auto
              */
-            file_type?: string;
+            file_type?: string | null;
             /**
              * Spaces to tabs
              * @description A boolean value ('true' or 'false') that sets if spaces should be converted to tab in the objects being fetched to Galaxy. Applicable only if `to_posix_lines` is True
              * @default false
              */
-            space_to_tab?: boolean;
+            space_to_tab?: boolean | null;
             /**
              * POSIX line endings
              * @description A boolean value ('true' or 'false'); if 'Yes', converts universal line endings to POSIX line endings. Set to 'False' if you upload a gzip, bz2 or zip archive containing a binary file.
              * @default Yes
              */
-            to_posix_lines?: "Yes" | boolean;
+            to_posix_lines?: "Yes" | boolean | null;
         };
-        /**
-         * InstalledRepositoryToolShedStatus
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** InputDataCollectionStep */
+        InputDataCollectionStep: {
+            /**
+             * Annotation
+             * @description An annotation to provide details or to help understand the purpose and usage of this item.
+             */
+            annotation: string | null;
+            /**
+             * ID
+             * @description The identifier of the step. It matches the index order of the step inside the workflow.
+             */
+            id: number;
+            /**
+             * Input Steps
+             * @description A dictionary containing information about the inputs connected to this workflow step.
+             */
+            input_steps: {
+                [key: string]: components["schemas"]["InputStep"] | undefined;
+            };
+            /**
+             * Tool ID
+             * @description The unique name of the tool associated with this step.
+             */
+            tool_id?: string | null;
+            /**
+             * Tool Inputs
+             * @description TODO
+             */
+            tool_inputs?: Record<string, never>;
+            /**
+             * Tool Version
+             * @description The version of the tool associated with this step.
+             */
+            tool_version?: string | null;
+            /**
+             * Type
+             * @constant
+             * @enum {string}
+             */
+            type: "data_collection_input";
+            /** When */
+            when: string | null;
+        };
+        /** InputDataStep */
+        InputDataStep: {
+            /**
+             * Annotation
+             * @description An annotation to provide details or to help understand the purpose and usage of this item.
+             */
+            annotation: string | null;
+            /**
+             * ID
+             * @description The identifier of the step. It matches the index order of the step inside the workflow.
+             */
+            id: number;
+            /**
+             * Input Steps
+             * @description A dictionary containing information about the inputs connected to this workflow step.
+             */
+            input_steps: {
+                [key: string]: components["schemas"]["InputStep"] | undefined;
+            };
+            /**
+             * Tool ID
+             * @description The unique name of the tool associated with this step.
+             */
+            tool_id?: string | null;
+            /**
+             * Tool Inputs
+             * @description TODO
+             */
+            tool_inputs?: Record<string, never>;
+            /**
+             * Tool Version
+             * @description The version of the tool associated with this step.
+             */
+            tool_version?: string | null;
+            /**
+             * Type
+             * @constant
+             * @enum {string}
+             */
+            type: "data_input";
+            /** When */
+            when: string | null;
+        };
+        /** InputParameterStep */
+        InputParameterStep: {
+            /**
+             * Annotation
+             * @description An annotation to provide details or to help understand the purpose and usage of this item.
+             */
+            annotation: string | null;
+            /**
+             * ID
+             * @description The identifier of the step. It matches the index order of the step inside the workflow.
+             */
+            id: number;
+            /**
+             * Input Steps
+             * @description A dictionary containing information about the inputs connected to this workflow step.
+             */
+            input_steps: {
+                [key: string]: components["schemas"]["InputStep"] | undefined;
+            };
+            /**
+             * Tool ID
+             * @description The unique name of the tool associated with this step.
+             */
+            tool_id?: string | null;
+            /**
+             * Tool Inputs
+             * @description TODO
+             */
+            tool_inputs?: Record<string, never>;
+            /**
+             * Tool Version
+             * @description The version of the tool associated with this step.
+             */
+            tool_version?: string | null;
+            /**
+             * Type
+             * @constant
+             * @enum {string}
+             */
+            type: "parameter_input";
+            /** When */
+            when: string | null;
+        };
+        /** InputReferenceByLabel */
+        InputReferenceByLabel: {
+            /**
+             * Input Name
+             * @description The input name as defined by the workflow module corresponding to the step being referenced. For Galaxy tool steps these inputs should be normalized using '|' (e.g. 'cond|repeat_0|input').
+             */
+            input_name: string;
+            /**
+             * Label
+             * @description The unique label of the step being referenced.
+             */
+            label: string;
+        };
+        /** InputReferenceByOrderIndex */
+        InputReferenceByOrderIndex: {
+            /**
+             * Input Name
+             * @description The input name as defined by the workflow module corresponding to the step being referenced. For Galaxy tool steps these inputs should be normalized using '|' (e.g. 'cond|repeat_0|input').
+             */
+            input_name: string;
+            /**
+             * Order Index
+             * @description The order_index of the step being referenced. The order indices of a workflow start at 0.
+             */
+            order_index: number;
+        };
+        /** InputStep */
+        InputStep: {
+            /**
+             * Source Step
+             * @description The identifier of the workflow step connected to this particular input.
+             */
+            source_step: number;
+            /**
+             * Step Output
+             * @description The name of the output generated by the source step.
+             */
+            step_output: string;
+        };
+        /** InstalledRepositoryToolShedStatus */
         InstalledRepositoryToolShedStatus: {
             /**
              * Latest installed revision
              * @description Most recent version available on the tool shed
              */
-            latest_installable_revision?: string;
+            latest_installable_revision: string | null;
             /**
              * Repository deprecated
              * @description Repository has been depreciated on the tool shed
              */
-            repository_deprecated?: string;
+            repository_deprecated: string | null;
             /** Revision Update */
             revision_update: string;
             /** Revision Upgrade */
-            revision_upgrade?: string;
+            revision_upgrade?: string | null;
         };
-        /**
-         * InstalledToolShedRepository
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** InstalledToolShedRepository */
         InstalledToolShedRepository: {
             /**
              * Changeset revision
@@ -6028,7 +7487,7 @@ export interface components {
              * Changeset revision number
              * @description The linearized 0-based index of the changeset on the tool shed (0, 1, 2,...)
              */
-            ctx_rev?: string;
+            ctx_rev: string | null;
             /** Deleted */
             deleted: boolean;
             /** Dist To Shed */
@@ -6052,7 +7511,7 @@ export interface components {
             /**
              * Model class
              * @description The name of the database model class.
-             * @default ToolShedRepository
+             * @constant
              * @enum {string}
              */
             model_class: "ToolShedRepository";
@@ -6074,14 +7533,795 @@ export interface components {
              */
             tool_shed: string;
             /** Latest updated status from the tool shed */
-            tool_shed_status?: components["schemas"]["InstalledRepositoryToolShedStatus"];
+            tool_shed_status: components["schemas"]["InstalledRepositoryToolShedStatus"] | null;
             /** Uninstalled */
             uninstalled: boolean;
         };
+        /** InvocationCancellationHistoryDeletedResponse */
+        InvocationCancellationHistoryDeletedResponse: {
+            /**
+             * History ID
+             * @description History ID of history that was deleted.
+             * @example 0123456789ABCDEF
+             */
+            history_id: string;
+            /**
+             * Reason
+             * @constant
+             * @enum {string}
+             */
+            reason: "history_deleted";
+        };
+        /** InvocationCancellationReviewFailedResponse */
+        InvocationCancellationReviewFailedResponse: {
+            /**
+             * Reason
+             * @constant
+             * @enum {string}
+             */
+            reason: "cancelled_on_review";
+            /**
+             * Workflow Step Id
+             * @description Workflow step id of paused step that did not pass review.
+             */
+            workflow_step_id: number;
+        };
+        /** InvocationCancellationUserRequestResponse */
+        InvocationCancellationUserRequestResponse: {
+            /**
+             * Reason
+             * @constant
+             * @enum {string}
+             */
+            reason: "user_request";
+        };
+        /** InvocationEvaluationWarningWorkflowOutputNotFoundResponse */
+        InvocationEvaluationWarningWorkflowOutputNotFoundResponse: {
+            /**
+             * Output Name
+             * @description Output that was designated as workflow output but that has not been found
+             */
+            output_name: string;
+            /**
+             * Reason
+             * @constant
+             * @enum {string}
+             */
+            reason: "workflow_output_not_found";
+            /** Workflow step id of step that caused a warning. */
+            workflow_step_id: number;
+        };
+        /** InvocationFailureCollectionFailedResponse */
+        InvocationFailureCollectionFailedResponse: {
+            /**
+             * Dependent Workflow Step Id
+             * @description Workflow step id of step that caused failure.
+             */
+            dependent_workflow_step_id: number;
+            /**
+             * HistoryDatasetCollectionAssociation ID
+             * @description HistoryDatasetCollectionAssociation ID that relates to failure.
+             * @example 0123456789ABCDEF
+             */
+            hdca_id: string;
+            /**
+             * Reason
+             * @constant
+             * @enum {string}
+             */
+            reason: "collection_failed";
+            /**
+             * Workflow Step Id
+             * @description Workflow step id of step that failed.
+             */
+            workflow_step_id: number;
+        };
+        /** InvocationFailureDatasetFailedResponse */
+        InvocationFailureDatasetFailedResponse: {
+            /**
+             * Dependent Workflow Step Id
+             * @description Workflow step id of step that caused failure.
+             */
+            dependent_workflow_step_id?: number | null;
+            /**
+             * HistoryDatasetAssociation ID
+             * @description HistoryDatasetAssociation ID that relates to failure.
+             * @example 0123456789ABCDEF
+             */
+            hda_id: string;
+            /**
+             * Reason
+             * @constant
+             * @enum {string}
+             */
+            reason: "dataset_failed";
+            /**
+             * Workflow Step Id
+             * @description Workflow step id of step that failed.
+             */
+            workflow_step_id: number;
+        };
+        /** InvocationFailureExpressionEvaluationFailedResponse */
+        InvocationFailureExpressionEvaluationFailedResponse: {
+            /**
+             * Details
+             * @description May contain details to help troubleshoot this problem.
+             */
+            details?: string | null;
+            /**
+             * Reason
+             * @constant
+             * @enum {string}
+             */
+            reason: "expression_evaluation_failed";
+            /**
+             * Workflow Step Id
+             * @description Workflow step id of step that failed.
+             */
+            workflow_step_id: number;
+        };
+        /** InvocationFailureJobFailedResponse */
+        InvocationFailureJobFailedResponse: {
+            /**
+             * Dependent Workflow Step Id
+             * @description Workflow step id of step that caused failure.
+             */
+            dependent_workflow_step_id: number;
+            /**
+             * Job ID
+             * @description Job ID that relates to failure.
+             * @example 0123456789ABCDEF
+             */
+            job_id: string;
+            /**
+             * Reason
+             * @constant
+             * @enum {string}
+             */
+            reason: "job_failed";
+            /**
+             * Workflow Step Id
+             * @description Workflow step id of step that failed.
+             */
+            workflow_step_id: number;
+        };
+        /** InvocationFailureOutputNotFoundResponse */
+        InvocationFailureOutputNotFoundResponse: {
+            /**
+             * Dependent Workflow Step Id
+             * @description Workflow step id of step that caused failure.
+             */
+            dependent_workflow_step_id: number;
+            /** Tool or module output name that was referenced but not produced */
+            output_name: string;
+            /**
+             * Reason
+             * @constant
+             * @enum {string}
+             */
+            reason: "output_not_found";
+            /**
+             * Workflow Step Id
+             * @description Workflow step id of step that failed.
+             */
+            workflow_step_id: number;
+        };
+        /** InvocationFailureWhenNotBooleanResponse */
+        InvocationFailureWhenNotBooleanResponse: {
+            /**
+             * Details
+             * @description Contains details to help troubleshoot this problem.
+             */
+            details: string;
+            /**
+             * Reason
+             * @constant
+             * @enum {string}
+             */
+            reason: "when_not_boolean";
+            /**
+             * Workflow Step Id
+             * @description Workflow step id of step that failed.
+             */
+            workflow_step_id: number;
+        };
+        /** InvocationInput */
+        InvocationInput: {
+            /**
+             * ID
+             * @description The encoded ID of the dataset/dataset collection.
+             */
+            id?: string | null;
+            /**
+             * Label
+             * @description Label of the workflow step associated with the input dataset/dataset collection.
+             */
+            label?: string | null;
+            /**
+             * Source
+             * @description Source type of the input dataset/dataset collection.
+             */
+            src: "hda" | "hdca";
+            /**
+             * Workflow step ID
+             * @description The encoded ID of the workflow step associated with the dataset/dataset collection.
+             * @example 0123456789ABCDEF
+             */
+            workflow_step_id: string;
+        };
+        /** InvocationInputParameter */
+        InvocationInputParameter: {
+            /**
+             * Label
+             * @description Label of the workflow step associated with the input parameter.
+             */
+            label: string;
+            /**
+             * Parameter value
+             * @description Value of the input parameter.
+             */
+            parameter_value: Record<string, never>;
+            /**
+             * Workflow step ID
+             * @description The encoded ID of the workflow step associated with the input parameter.
+             * @example 0123456789ABCDEF
+             */
+            workflow_step_id: string;
+        };
+        /** InvocationJobsResponse */
+        InvocationJobsResponse: {
+            /**
+             * ID
+             * @description The encoded ID of the workflow invocation.
+             * @example 0123456789ABCDEF
+             */
+            id: string;
+            /**
+             * Model
+             * @constant
+             * @enum {string}
+             */
+            model: "WorkflowInvocation";
+            /**
+             * Populated state
+             * @description The absolute state of all the jobs related to the Invocation.
+             */
+            populated_state: components["schemas"]["JobState"];
+            /**
+             * States
+             * @description The states of all the jobs related to the Invocation.
+             */
+            states: {
+                [key: string]: number | undefined;
+            };
+        };
+        /** InvocationOutput */
+        InvocationOutput: {
+            /**
+             * ID
+             * @description The encoded ID of the dataset/dataset collection.
+             */
+            id?: string | null;
+            /**
+             * Source
+             * @description Source model of the output dataset.
+             * @constant
+             * @enum {string}
+             */
+            src: "hda";
+            /**
+             * Workflow step ID
+             * @description The encoded ID of the workflow step associated with the dataset/dataset collection.
+             * @example 0123456789ABCDEF
+             */
+            workflow_step_id: string;
+        };
+        /** InvocationOutputCollection */
+        InvocationOutputCollection: {
+            /**
+             * ID
+             * @description The encoded ID of the dataset/dataset collection.
+             */
+            id?: string | null;
+            /**
+             * Source
+             * @description Source model of the output dataset collection.
+             * @constant
+             * @enum {string}
+             */
+            src: "hdca";
+            /**
+             * Workflow step ID
+             * @description The encoded ID of the workflow step associated with the dataset/dataset collection.
+             * @example 0123456789ABCDEF
+             */
+            workflow_step_id: string;
+        };
         /**
-         * ItemTagsPayload
-         * @description Base model definition with common configuration used by all derived models.
+         * InvocationReport
+         * @description Report describing workflow invocation
          */
+        InvocationReport: {
+            /**
+             * Errors
+             * @description Errors associated with the invocation.
+             */
+            errors?: Record<string, never> | null;
+            /**
+             * Galaxy Version
+             * @description The version of Galaxy this object was generated with.
+             */
+            generate_time?: string | null;
+            /**
+             * Galaxy Version
+             * @description The version of Galaxy this object was generated with.
+             */
+            generate_version?: string | null;
+            /**
+             * Histories
+             * @description Histories associated with the invocation.
+             */
+            histories?: Record<string, never> | null;
+            /**
+             * History dataset collections
+             * @description History dataset collections associated with the invocation.
+             */
+            history_dataset_collections?: Record<string, never> | null;
+            /**
+             * History datasets
+             * @description History datasets associated with the invocation.
+             */
+            history_datasets?: Record<string, never> | null;
+            /**
+             * Workflow ID
+             * @description The workflow this invocation has been triggered for.
+             * @example 0123456789ABCDEF
+             */
+            id: string;
+            /**
+             * Markdown
+             * @description Raw galaxy-flavored markdown contents of the report.
+             */
+            invocation_markdown?: string | null;
+            /**
+             * Invocations
+             * @description Other invocations associated with the invocation.
+             */
+            invocations?: Record<string, never> | null;
+            /**
+             * Jobs
+             * @description Jobs associated with the invocation.
+             */
+            jobs?: Record<string, never> | null;
+            /**
+             * Markdown
+             * @description Raw galaxy-flavored markdown contents of the report.
+             */
+            markdown?: string | null;
+            /**
+             * Model class
+             * @description The name of the database model class.
+             * @constant
+             * @enum {string}
+             */
+            model_class: "Report";
+            /**
+             * Render format
+             * @description Format of the invocation report.
+             * @default markdown
+             * @constant
+             * @enum {string}
+             */
+            render_format?: "markdown";
+            /**
+             * Title
+             * @description The name of the report.
+             */
+            title: string;
+            /**
+             * Username
+             * @description The name of the user who owns this report.
+             */
+            username: string;
+            /**
+             * Workflows
+             * @description Workflows associated with the invocation.
+             */
+            workflows?: Record<string, never> | null;
+        };
+        /**
+         * InvocationSerializationView
+         * @enum {string}
+         */
+        InvocationSerializationView: "element" | "collection";
+        /**
+         * InvocationSortByEnum
+         * @enum {string}
+         */
+        InvocationSortByEnum: "create_time" | "update_time" | "None";
+        /**
+         * InvocationState
+         * @enum {string}
+         */
+        InvocationState: "new" | "ready" | "scheduled" | "cancelled" | "cancelling" | "failed";
+        /**
+         * InvocationStep
+         * @description Information about workflow invocation step
+         */
+        InvocationStep: {
+            /**
+             * Action
+             * @description Whether to take action on the invocation step.
+             */
+            action: boolean | null;
+            /**
+             * Invocation Step ID
+             * @example 0123456789ABCDEF
+             */
+            id: string;
+            /** Job Id */
+            job_id: string | null;
+            /**
+             * Jobs
+             * @description Jobs associated with the workflow invocation step.
+             * @default []
+             */
+            jobs?: components["schemas"]["JobBaseModel"][];
+            /**
+             * Model class
+             * @description The name of the database model class.
+             * @constant
+             * @enum {string}
+             */
+            model_class: "WorkflowInvocationStep";
+            /**
+             * Order index
+             * @description The index of the workflow step in the workflow.
+             */
+            order_index: number;
+            /**
+             * Output collections
+             * @description The dataset collection outputs of the workflow invocation step.
+             * @default {}
+             */
+            output_collections?: {
+                [key: string]: components["schemas"]["InvocationStepCollectionOutput"] | undefined;
+            };
+            /**
+             * Outputs
+             * @description The outputs of the workflow invocation step.
+             * @default {}
+             */
+            outputs?: {
+                [key: string]: components["schemas"]["InvocationStepOutput"] | undefined;
+            };
+            /**
+             * State of the invocation step
+             * @description Describes where in the scheduling process the workflow invocation step is.
+             */
+            state?: components["schemas"]["InvocationStepState"] | components["schemas"]["JobState"] | null;
+            /** Subworkflow Invocation Id */
+            subworkflow_invocation_id: string | null;
+            /**
+             * Update Time
+             * @description The last time and date this item was updated.
+             */
+            update_time: string | null;
+            /**
+             * Workflow step ID
+             * @description The encoded ID of the workflow step associated with this workflow invocation step.
+             * @example 0123456789ABCDEF
+             */
+            workflow_step_id: string;
+            /**
+             * Step label
+             * @description The label of the workflow step
+             */
+            workflow_step_label?: string | null;
+            /**
+             * UUID
+             * @description Universal unique identifier of the workflow step.
+             */
+            workflow_step_uuid?: string | null;
+        };
+        /** InvocationStepCollectionOutput */
+        InvocationStepCollectionOutput: {
+            /**
+             * Dataset Collection ID
+             * @description Dataset Collection ID of the workflow step output.
+             * @example 0123456789ABCDEF
+             */
+            id: string;
+            /**
+             * src
+             * @description The source model of the output.
+             * @default hdca
+             * @constant
+             * @enum {string}
+             */
+            src?: "hdca";
+        };
+        /** InvocationStepJobsResponseCollectionJobsModel */
+        InvocationStepJobsResponseCollectionJobsModel: {
+            /**
+             * ID
+             * @description The encoded ID of the workflow invocation.
+             * @example 0123456789ABCDEF
+             */
+            id: string;
+            /**
+             * Model
+             * @constant
+             * @enum {string}
+             */
+            model: "ImplicitCollectionJobs";
+            /**
+             * Populated state
+             * @description The absolute state of all the jobs related to the Invocation.
+             */
+            populated_state: components["schemas"]["JobState"];
+            /**
+             * States
+             * @description The states of all the jobs related to the Invocation.
+             */
+            states: {
+                [key: string]: number | undefined;
+            };
+        };
+        /** InvocationStepJobsResponseJobModel */
+        InvocationStepJobsResponseJobModel: {
+            /**
+             * ID
+             * @description The encoded ID of the workflow invocation.
+             * @example 0123456789ABCDEF
+             */
+            id: string;
+            /**
+             * Model
+             * @constant
+             * @enum {string}
+             */
+            model: "Job";
+            /**
+             * Populated state
+             * @description The absolute state of all the jobs related to the Invocation.
+             */
+            populated_state: components["schemas"]["JobState"];
+            /**
+             * States
+             * @description The states of all the jobs related to the Invocation.
+             */
+            states: {
+                [key: string]: number | undefined;
+            };
+        };
+        /** InvocationStepJobsResponseStepModel */
+        InvocationStepJobsResponseStepModel: {
+            /**
+             * ID
+             * @description The encoded ID of the workflow invocation.
+             * @example 0123456789ABCDEF
+             */
+            id: string;
+            /**
+             * Model
+             * @constant
+             * @enum {string}
+             */
+            model: "WorkflowInvocationStep";
+            /**
+             * Populated state
+             * @description The absolute state of all the jobs related to the Invocation.
+             */
+            populated_state: components["schemas"]["JobState"];
+            /**
+             * States
+             * @description The states of all the jobs related to the Invocation.
+             */
+            states: {
+                [key: string]: number | undefined;
+            };
+        };
+        /** InvocationStepOutput */
+        InvocationStepOutput: {
+            /**
+             * Dataset ID
+             * @description Dataset ID of the workflow step output.
+             * @example 0123456789ABCDEF
+             */
+            id: string;
+            /**
+             * src
+             * @description The source model of the output.
+             * @default hda
+             * @constant
+             * @enum {string}
+             */
+            src?: "hda";
+            /**
+             * UUID
+             * @description Universal unique identifier of the workflow step output dataset.
+             */
+            uuid?: string | null;
+        };
+        /**
+         * InvocationStepState
+         * @enum {string}
+         */
+        InvocationStepState: "new" | "ready" | "scheduled";
+        /** InvocationUnexpectedFailureResponse */
+        InvocationUnexpectedFailureResponse: {
+            /**
+             * Details
+             * @description May contains details to help troubleshoot this problem.
+             */
+            details?: string | null;
+            /**
+             * Reason
+             * @constant
+             * @enum {string}
+             */
+            reason: "unexpected_failure";
+            /**
+             * Workflow Step Id
+             * @description Workflow step id of step that failed.
+             */
+            workflow_step_id?: number | null;
+        };
+        /** InvocationUpdatePayload */
+        InvocationUpdatePayload: {
+            /**
+             * Action
+             * @description Whether to take action on the invocation step.
+             */
+            action: boolean;
+        };
+        /** InvokeWorkflowPayload */
+        InvokeWorkflowPayload: {
+            /**
+             * Allow tool state corrections
+             * @description Indicates if tool state corrections are allowed for workflow invocation.
+             * @default false
+             */
+            allow_tool_state_corrections?: boolean | null;
+            /**
+             * Batch
+             * @description Indicates if the workflow is invoked as a batch.
+             * @default false
+             */
+            batch?: boolean | null;
+            /**
+             * Dataset Map
+             * @description TODO
+             * @default {}
+             */
+            ds_map?: {
+                [key: string]: Record<string, never> | undefined;
+            } | null;
+            /**
+             * Effective Outputs
+             * @description TODO
+             */
+            effective_outputs?: Record<string, never> | null;
+            /**
+             * History
+             * @description The encoded history id - passed exactly like this 'hist_id=...' -  into which to import. Or the name of the new history into which to import.
+             */
+            history?: string | null;
+            /**
+             * History ID
+             * @description The encoded history id into which to import.
+             */
+            history_id?: string | null;
+            /**
+             * Inputs
+             * @description TODO
+             */
+            inputs?: Record<string, never> | null;
+            /**
+             * Inputs By
+             * @description How inputs maps to inputs (datasets/collections) to workflows steps.
+             */
+            inputs_by?: string | null;
+            /**
+             * Is instance
+             * @description True when fetching by Workflow ID, False when fetching by StoredWorkflow ID
+             * @default false
+             */
+            instance?: boolean | null;
+            /**
+             * Legacy
+             * @description Indicating if to use legacy workflow invocation.
+             * @default false
+             */
+            legacy?: boolean | null;
+            /**
+             * New History Name
+             * @description The name of the new history into which to import.
+             */
+            new_history_name?: string | null;
+            /**
+             * No Add to History
+             * @description Indicates if the workflow invocation should not be added to the history.
+             * @default false
+             */
+            no_add_to_history?: boolean | null;
+            /**
+             * Parameters
+             * @description The raw parameters for the workflow invocation.
+             * @default {}
+             */
+            parameters?: Record<string, never> | null;
+            /**
+             * Parameters Normalized
+             * @description Indicates if parameters are already normalized for workflow invocation.
+             * @default false
+             */
+            parameters_normalized?: boolean | null;
+            /**
+             * Preferred Intermediate Object Store ID
+             * @description The ID of the ? object store that should be used to store ? datasets in this history.
+             */
+            preferred_intermediate_object_store_id?: string | null;
+            /**
+             * Preferred Object Store ID
+             * @description The ID of the object store that should be used to store new datasets in this history.
+             */
+            preferred_object_store_id?: string | null;
+            /**
+             * Preferred Outputs Object Store ID
+             * @description The ID of the object store that should be used to store ? datasets in this history.
+             */
+            preferred_outputs_object_store_id?: string | null;
+            /**
+             * Replacement Parameters
+             * @description TODO
+             * @default {}
+             */
+            replacement_params?: Record<string, never> | null;
+            /**
+             * Require Exact Tool Versions
+             * @description If true, exact tool versions are required for workflow invocation.
+             * @default true
+             */
+            require_exact_tool_versions?: boolean | null;
+            /**
+             * Resource Parameters
+             * @description TODO
+             * @default {}
+             */
+            resource_params?: Record<string, never> | null;
+            /**
+             * Scheduler
+             * @description Scheduler to use for workflow invocation.
+             */
+            scheduler?: string | null;
+            /**
+             * Step Parameters
+             * @description TODO
+             */
+            step_parameters?: Record<string, never> | null;
+            /**
+             * Use cached job
+             * @description Indicated whether to use a cached job for workflow invocation.
+             * @default false
+             */
+            use_cached_job?: boolean | null;
+        };
+        /**
+         * ItemTagsCreatePayload
+         * @description Payload schema for creating an item tag.
+         */
+        ItemTagsCreatePayload: {
+            /** value of the item tag */
+            value?: string | null;
+        };
+        /**
+         * ItemTagsListResponse
+         * @description Response schema for listing item tags.
+         */
+        ItemTagsListResponse: components["schemas"]["ItemTagsResponse"][];
+        /** ItemTagsPayload */
         ItemTagsPayload: {
             /**
              * Item class
@@ -6098,23 +8338,132 @@ export interface components {
              * Item tags
              * @description The list of tags that will replace the current tags associated with the item.
              */
-            item_tags?: components["schemas"]["TagCollection"];
+            item_tags?: components["schemas"]["TagCollection"] | null;
+        };
+        /**
+         * ItemTagsResponse
+         * @description Response schema for showing an item tag.
+         */
+        ItemTagsResponse: {
+            /**
+             * item tag ID
+             * @example 0123456789ABCDEF
+             */
+            id: string;
+            /** model class */
+            model_class: string;
+            /** name of the item tag */
+            user_tname: string;
+            /** value of the item tag */
+            user_value?: string | null;
         };
         /**
          * ItemsFromSrc
-         * @description An enumeration.
          * @enum {string}
          */
         ItemsFromSrc: "url" | "files" | "path" | "ftp_import" | "server_dir";
-        /**
-         * JobExportHistoryArchiveListResponse
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** JobBaseModel */
+        JobBaseModel: {
+            /**
+             * Create Time
+             * Format: date-time
+             * @description The time and date this item was created.
+             */
+            create_time: string;
+            /**
+             * Exit Code
+             * @description The exit code returned by the tool. Can be unset if the job is not completed yet.
+             */
+            exit_code?: number | null;
+            /**
+             * Galaxy Version
+             * @description The (major) version of Galaxy used to create this job.
+             */
+            galaxy_version?: string | null;
+            /**
+             * History ID
+             * @description The encoded ID of the history associated with this item.
+             */
+            history_id?: string | null;
+            /**
+             * Job ID
+             * @example 0123456789ABCDEF
+             */
+            id: string;
+            /**
+             * Model class
+             * @description The name of the database model class.
+             * @constant
+             * @enum {string}
+             */
+            model_class: "Job";
+            /**
+             * State
+             * @description Current state of the job.
+             */
+            state: components["schemas"]["JobState"];
+            /**
+             * Tool ID
+             * @description Identifier of the tool that generated this job.
+             */
+            tool_id: string;
+            /**
+             * Update Time
+             * Format: date-time
+             * @description The last time and date this item was updated.
+             */
+            update_time: string;
+        };
+        /** JobDestinationParams */
+        JobDestinationParams: {
+            /**
+             * Handler
+             * @description Name of the process that handled the job.
+             */
+            Handler?: string | null;
+            /**
+             * Runner
+             * @description Job runner class
+             */
+            Runner?: string | null;
+            /**
+             * Runner Job ID
+             * @description ID assigned to submitted job by external job running system
+             */
+            "Runner Job ID"?: string | null;
+            [key: string]: unknown | undefined;
+        };
+        /** JobDisplayParametersSummary */
+        JobDisplayParametersSummary: {
+            /**
+             * Has parameter errors
+             * @description The job has parameter errors
+             */
+            has_parameter_errors: boolean;
+            /**
+             * Outputs
+             * @description Dictionary mapping all the tool outputs (by name) with the corresponding dataset information in a nested format.
+             */
+            outputs: {
+                [key: string]: components["schemas"]["JobOutput"][] | undefined;
+            };
+            /**
+             * Parameters
+             * @description The parameters of the job in a nested format.
+             */
+            parameters: components["schemas"]["JobParameter"][];
+        };
+        /** JobErrorSummary */
+        JobErrorSummary: {
+            /**
+             * Error messages
+             * @description The error messages for the specified job.
+             */
+            messages: string[][];
+        };
+        /** JobExportHistoryArchiveListResponse */
         JobExportHistoryArchiveListResponse: components["schemas"]["JobExportHistoryArchiveModel"][];
-        /**
-         * JobExportHistoryArchiveModel
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** JobExportHistoryArchiveModel */
         JobExportHistoryArchiveModel: {
             /**
              * Download URL
@@ -6168,15 +8517,11 @@ export interface components {
         JobIdResponse: {
             /**
              * Job ID
-             * @description The encoded database ID of the job that is currently processing a particular request.
              * @example 0123456789ABCDEF
              */
             job_id: string;
         };
-        /**
-         * JobImportHistoryResponse
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** JobImportHistoryResponse */
         JobImportHistoryResponse: {
             /**
              * Create Time
@@ -6188,22 +8533,19 @@ export interface components {
              * Exit Code
              * @description The exit code returned by the tool. Can be unset if the job is not completed yet.
              */
-            exit_code?: number;
+            exit_code?: number | null;
             /**
              * Galaxy Version
              * @description The (major) version of Galaxy used to create this job.
-             * @example 21.05
              */
-            galaxy_version: string;
+            galaxy_version?: string | null;
             /**
              * History ID
              * @description The encoded ID of the history associated with this item.
-             * @example 0123456789ABCDEF
              */
-            history_id?: string;
+            history_id?: string | null;
             /**
-             * ID
-             * @description The encoded ID of this entity.
+             * Job ID
              * @example 0123456789ABCDEF
              */
             id: string;
@@ -6215,7 +8557,7 @@ export interface components {
             /**
              * Model class
              * @description The name of the database model class.
-             * @default Job
+             * @constant
              * @enum {string}
              */
             model_class: "Job";
@@ -6238,16 +8580,40 @@ export interface components {
         };
         /**
          * JobIndexSortByEnum
-         * @description An enumeration.
          * @enum {string}
          */
         JobIndexSortByEnum: "create_time" | "update_time";
         /**
          * JobIndexViewEnum
-         * @description An enumeration.
          * @enum {string}
          */
         JobIndexViewEnum: "collection" | "admin_job_list";
+        /** JobInputAssociation */
+        JobInputAssociation: {
+            /**
+             * dataset
+             * @description Reference to the associated item.
+             */
+            dataset: components["schemas"]["EncodedDataItemSourceId"];
+            /**
+             * name
+             * @description Name of the job input parameter.
+             */
+            name: string;
+        };
+        /** JobInputSummary */
+        JobInputSummary: {
+            /**
+             * Duplicate inputs
+             * @description Job has duplicate inputs.
+             */
+            has_duplicate_inputs: boolean;
+            /**
+             * Empty inputs
+             * @description Job has empty inputs.
+             */
+            has_empty_inputs: boolean;
+        };
         /** JobLock */
         JobLock: {
             /**
@@ -6257,6 +8623,104 @@ export interface components {
             active: boolean;
         };
         /**
+         * JobMetric
+         * @example {
+         *   "name": "start_epoch",
+         *   "plugin": "core",
+         *   "raw_value": "1614261340.0000000",
+         *   "title": "Job Start Time",
+         *   "value": "2021-02-25 14:55:40"
+         * }
+         */
+        JobMetric: {
+            /**
+             * Name
+             * @description The name of the metric variable.
+             */
+            name: string;
+            /**
+             * Plugin
+             * @description The instrumenter plugin that generated this metric.
+             */
+            plugin: string;
+            /**
+             * Raw Value
+             * @description The raw value of the metric as a string.
+             */
+            raw_value: string;
+            /**
+             * Title
+             * @description A descriptive title for this metric.
+             */
+            title: string;
+            /**
+             * Value
+             * @description The textual representation of the metric value.
+             */
+            value: string;
+        };
+        /**
+         * JobMetricCollection
+         * @description Represents a collection of metrics associated with a Job.
+         * @default []
+         */
+        JobMetricCollection: components["schemas"]["JobMetric"][];
+        /** JobOutput */
+        JobOutput: {
+            /**
+             * Output label
+             * @description The output label
+             */
+            label: Record<string, never>;
+            /**
+             * Dataset
+             * @description The associated dataset.
+             */
+            value: components["schemas"]["EncodedDataItemSourceId"];
+        };
+        /** JobOutputAssociation */
+        JobOutputAssociation: {
+            /**
+             * dataset
+             * @description Reference to the associated item.
+             */
+            dataset: components["schemas"]["EncodedDataItemSourceId"];
+            /**
+             * name
+             * @description Name of the job output parameter.
+             */
+            name: string;
+        };
+        /** JobParameter */
+        JobParameter: {
+            /**
+             * Depth
+             * @description The depth of the job parameter.
+             */
+            depth: number;
+            /**
+             * Notes
+             * @description Notes associated with the job parameter.
+             */
+            notes?: string | null;
+            /**
+             * Text
+             * @description Text associated with the job parameter.
+             */
+            text: string;
+            /**
+             * Value
+             * @description The values of the job parameter
+             */
+            value?:
+                | components["schemas"]["EncodedJobParameterHistoryItem"][]
+                | number
+                | number
+                | boolean
+                | string
+                | null;
+        };
+        /**
          * JobSourceType
          * @description Available types of job sources (model classes) that produce dataset collections.
          * @enum {string}
@@ -6264,7 +8728,6 @@ export interface components {
         JobSourceType: "Job" | "ImplicitCollectionJobs" | "WorkflowInvocation";
         /**
          * JobState
-         * @description An enumeration.
          * @enum {string}
          */
         JobState:
@@ -6283,21 +8746,17 @@ export interface components {
             | "stop"
             | "stopped"
             | "skipped";
-        /**
-         * JobStateSummary
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** JobStateSummary */
         JobStateSummary: {
             /**
-             * ID
-             * @description The encoded ID of this entity.
+             * Id
              * @example 0123456789ABCDEF
              */
             id: string;
             /**
              * Model class
              * @description The name of the database model class.
-             * @default Job
+             * @constant
              * @enum {string}
              */
             model: "Job";
@@ -6316,6 +8775,86 @@ export interface components {
             };
         };
         /**
+         * JobSummary
+         * @description Basic information about a job.
+         */
+        JobSummary: {
+            /**
+             * Command Line
+             * @description The command line produced by the job. Users can see this value if allowed in the configuration, administrator can always see this value.
+             */
+            command_line?: string | null;
+            /**
+             * Create Time
+             * Format: date-time
+             * @description The time and date this item was created.
+             */
+            create_time: string;
+            /**
+             * Exit Code
+             * @description The exit code returned by the tool. Can be unset if the job is not completed yet.
+             */
+            exit_code?: number | null;
+            /**
+             * External ID
+             * @description The job id used by the external job runner (Condor, Pulsar, etc.). Only administrator can see this value.
+             */
+            external_id?: string | null;
+            /**
+             * Galaxy Version
+             * @description The (major) version of Galaxy used to create this job.
+             */
+            galaxy_version?: string | null;
+            /**
+             * Job Handler
+             * @description The job handler process assigned to handle this job. Only administrator can see this value.
+             */
+            handler?: string | null;
+            /**
+             * History ID
+             * @description The encoded ID of the history associated with this item.
+             */
+            history_id?: string | null;
+            /**
+             * Job ID
+             * @example 0123456789ABCDEF
+             */
+            id: string;
+            /**
+             * Job Runner Name
+             * @description Name of the job runner plugin that handles this job. Only administrator can see this value.
+             */
+            job_runner_name?: string | null;
+            /**
+             * Model class
+             * @description The name of the database model class.
+             * @constant
+             * @enum {string}
+             */
+            model_class: "Job";
+            /**
+             * State
+             * @description Current state of the job.
+             */
+            state: components["schemas"]["JobState"];
+            /**
+             * Tool ID
+             * @description Identifier of the tool that generated this job.
+             */
+            tool_id: string;
+            /**
+             * Update Time
+             * Format: date-time
+             * @description The last time and date this item was updated.
+             */
+            update_time: string;
+            /**
+             * User Email
+             * @description The email of the user that owns this job. Only the owner of the job and administrators can see this value.
+             */
+            user_email?: string | null;
+        };
+        /**
          * LabelValuePair
          * @description Generic Label/Value pair model.
          */
@@ -6331,40 +8870,34 @@ export interface components {
              */
             value: string;
         };
-        /**
-         * LegacyLibraryPermissionsPayload
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** LegacyLibraryPermissionsPayload */
         LegacyLibraryPermissionsPayload: {
             /**
              * Access IDs
              * @description A list of role encoded IDs defining roles that should have access permission on the library.
              * @default []
              */
-            LIBRARY_ACCESS_in?: string[] | string;
+            LIBRARY_ACCESS_in?: string[] | string | null;
             /**
              * Manage IDs
              * @description A list of role encoded IDs defining roles that should have manage permission on the library.
              * @default []
              */
-            LIBRARY_ADD_in?: string[] | string;
+            LIBRARY_ADD_in?: string[] | string | null;
             /**
              * Modify IDs
              * @description A list of role encoded IDs defining roles that should have modify permission on the library.
              * @default []
              */
-            LIBRARY_MANAGE_in?: string[] | string;
+            LIBRARY_MANAGE_in?: string[] | string | null;
             /**
              * Add IDs
              * @description A list of role encoded IDs defining roles that should be able to add items to the library.
              * @default []
              */
-            LIBRARY_MODIFY_in?: string[] | string;
+            LIBRARY_MODIFY_in?: string[] | string | null;
         };
-        /**
-         * LibraryAvailablePermissions
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** LibraryAvailablePermissions */
         LibraryAvailablePermissions: {
             /**
              * Page
@@ -6387,10 +8920,7 @@ export interface components {
              */
             total: number;
         };
-        /**
-         * LibraryCurrentPermissions
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** LibraryCurrentPermissions */
         LibraryCurrentPermissions: {
             /**
              * Access Role List
@@ -6413,16 +8943,13 @@ export interface components {
              */
             modify_library_role_list: string[][];
         };
-        /**
-         * LibraryDestination
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** LibraryDestination */
         LibraryDestination: {
             /**
              * Description
              * @description Description for library to create
              */
-            description?: string;
+            description?: string | null;
             /**
              * Name
              * @description Must specify a library name
@@ -6432,17 +8959,15 @@ export interface components {
              * Synopsis
              * @description Description for library to create
              */
-            synopsis?: string;
+            synopsis?: string | null;
             /**
              * Type
+             * @constant
              * @enum {string}
              */
             type: "library";
         };
-        /**
-         * LibraryFolderContentsIndexResult
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** LibraryFolderContentsIndexResult */
         LibraryFolderContentsIndexResult: {
             /** Folder Contents */
             folder_contents: (
@@ -6451,10 +8976,7 @@ export interface components {
             )[];
             metadata: components["schemas"]["LibraryFolderMetadata"];
         };
-        /**
-         * LibraryFolderCurrentPermissions
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** LibraryFolderCurrentPermissions */
         LibraryFolderCurrentPermissions: {
             /**
              * Add Role List
@@ -6472,10 +8994,7 @@ export interface components {
              */
             modify_folder_role_list: string[][];
         };
-        /**
-         * LibraryFolderDestination
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** LibraryFolderDestination */
         LibraryFolderDestination: {
             /**
              * Library Folder Id
@@ -6484,14 +9003,12 @@ export interface components {
             library_folder_id: string;
             /**
              * Type
+             * @constant
              * @enum {string}
              */
             type: "library_folder";
         };
-        /**
-         * LibraryFolderDetails
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** LibraryFolderDetails */
         LibraryFolderDetails: {
             /**
              * Deleted
@@ -6503,13 +9020,13 @@ export interface components {
              * @description A detailed description of the library folder.
              * @default
              */
-            description?: string;
+            description?: string | null;
             /**
              * Genome Build
              * @description TODO
              * @default ?
              */
-            genome_build?: string;
+            genome_build?: string | null;
             /**
              * ID
              * @description Encoded ID of the library folder.
@@ -6530,7 +9047,7 @@ export interface components {
             /**
              * Model class
              * @description The name of the database model class.
-             * @default LibraryFolder
+             * @constant
              * @enum {string}
              */
             model_class: "LibraryFolder";
@@ -6542,9 +9059,8 @@ export interface components {
             /**
              * Parent Folder ID
              * @description Encoded ID of the parent folder. Empty if it's the root folder.
-             * @example 0123456789ABCDEF
              */
-            parent_id?: string;
+            parent_id?: string | null;
             /**
              * Parent Library ID
              * @description Encoded ID of the Library this folder belongs to.
@@ -6558,10 +9074,7 @@ export interface components {
              */
             update_time: string;
         };
-        /**
-         * LibraryFolderMetadata
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** LibraryFolderMetadata */
         LibraryFolderMetadata: {
             /** Can Add Library Item */
             can_add_library_item: boolean;
@@ -6572,7 +9085,7 @@ export interface components {
             /** Folder Name */
             folder_name: string;
             /** Full Path */
-            full_path: string[][];
+            full_path: unknown[][];
             /**
              * Parent Library Id
              * @example 0123456789ABCDEF
@@ -6583,43 +9096,37 @@ export interface components {
         };
         /**
          * LibraryFolderPermissionAction
-         * @description An enumeration.
+         * @constant
          * @enum {string}
          */
         LibraryFolderPermissionAction: "set_permissions";
-        /**
-         * LibraryFolderPermissionsPayload
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** LibraryFolderPermissionsPayload */
         LibraryFolderPermissionsPayload: {
             /**
              * Action
              * @description Indicates what action should be performed on the library folder.
              */
-            action?: components["schemas"]["LibraryFolderPermissionAction"];
+            action?: components["schemas"]["LibraryFolderPermissionAction"] | null;
             /**
              * Add IDs
              * @description A list of role encoded IDs defining roles that should be able to add items to the library.
              * @default []
              */
-            "add_ids[]"?: string[] | string;
+            "add_ids[]"?: string[] | string | null;
             /**
              * Manage IDs
              * @description A list of role encoded IDs defining roles that should have manage permission on the library.
              * @default []
              */
-            "manage_ids[]"?: string[] | string;
+            "manage_ids[]"?: string[] | string | null;
             /**
              * Modify IDs
              * @description A list of role encoded IDs defining roles that should have modify permission on the library.
              * @default []
              */
-            "modify_ids[]"?: string[] | string;
+            "modify_ids[]"?: string[] | string | null;
         };
-        /**
-         * LibraryLegacySummary
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** LibraryLegacySummary */
         LibraryLegacySummary: {
             /**
              * Create Time
@@ -6637,7 +9144,7 @@ export interface components {
              * @description A detailed description of the Library.
              * @default
              */
-            description?: string;
+            description?: string | null;
             /**
              * ID
              * @description Encoded ID of the Library.
@@ -6647,7 +9154,7 @@ export interface components {
             /**
              * Model class
              * @description The name of the database model class.
-             * @default Library
+             * @constant
              * @enum {string}
              */
             model_class: "Library";
@@ -6666,59 +9173,51 @@ export interface components {
              * Description
              * @description A short text describing the contents of the Library.
              */
-            synopsis?: string;
+            synopsis?: string | null;
         };
         /**
          * LibraryPermissionAction
-         * @description An enumeration.
          * @enum {string}
          */
         LibraryPermissionAction: "set_permissions" | "remove_restrictions";
         /**
          * LibraryPermissionScope
-         * @description An enumeration.
          * @enum {string}
          */
         LibraryPermissionScope: "current" | "available";
-        /**
-         * LibraryPermissionsPayload
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** LibraryPermissionsPayload */
         LibraryPermissionsPayload: {
             /**
              * Access IDs
              * @description A list of role encoded IDs defining roles that should have access permission on the library.
              * @default []
              */
-            "access_ids[]"?: string[] | string;
+            "access_ids[]"?: string[] | string | null;
             /**
              * Action
              * @description Indicates what action should be performed on the Library.
              */
-            action: components["schemas"]["LibraryPermissionAction"];
+            action?: components["schemas"]["LibraryPermissionAction"] | null;
             /**
              * Add IDs
              * @description A list of role encoded IDs defining roles that should be able to add items to the library.
              * @default []
              */
-            "add_ids[]"?: string[] | string;
+            "add_ids[]"?: string[] | string | null;
             /**
              * Manage IDs
              * @description A list of role encoded IDs defining roles that should have manage permission on the library.
              * @default []
              */
-            "manage_ids[]"?: string[] | string;
+            "manage_ids[]"?: string[] | string | null;
             /**
              * Modify IDs
              * @description A list of role encoded IDs defining roles that should have modify permission on the library.
              * @default []
              */
-            "modify_ids[]"?: string[] | string;
+            "modify_ids[]"?: string[] | string | null;
         };
-        /**
-         * LibrarySummary
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** LibrarySummary */
         LibrarySummary: {
             /**
              * Can User Add
@@ -6744,7 +9243,6 @@ export interface components {
             /**
              * Create Time Pretty
              * @description Nice time representation of the creation date.
-             * @example 2 months ago
              */
             create_time_pretty: string;
             /**
@@ -6757,7 +9255,7 @@ export interface components {
              * @description A detailed description of the Library.
              * @default
              */
-            description?: string;
+            description?: string | null;
             /**
              * ID
              * @description Encoded ID of the Library.
@@ -6767,7 +9265,7 @@ export interface components {
             /**
              * Model class
              * @description The name of the database model class.
-             * @default Library
+             * @constant
              * @enum {string}
              */
             model_class: "Library";
@@ -6791,11 +9289,10 @@ export interface components {
              * Description
              * @description A short text describing the contents of the Library.
              */
-            synopsis?: string;
+            synopsis?: string | null;
         };
         /**
          * LibrarySummaryList
-         * @description Base model definition with common configuration used by all derived models.
          * @default []
          */
         LibrarySummaryList: components["schemas"]["LibrarySummary"][];
@@ -6805,31 +9302,26 @@ export interface components {
              * Details URL
              * Format: uri
              * @description URL to the SPDX json details for this license
-             * @example http://spdx.org/licenses/Apache-2.0.json
              */
             detailsUrl: string;
             /**
              * Deprecated License
              * @description True if the entire license is deprecated
-             * @example false
              */
             isDeprecatedLicenseId: boolean;
             /**
              * OSI approved
              * @description Indicates if the [OSI](https://opensource.org/) has approved the license
-             * @example true
              */
             isOsiApproved: boolean;
             /**
              * Identifier
              * @description SPDX Identifier
-             * @example Apache-2.0
              */
             licenseId: string;
             /**
              * Name
              * @description Full name of the license
-             * @example Apache License 2.0
              */
             name: string;
             /**
@@ -6840,7 +9332,6 @@ export interface components {
             /**
              * Reference
              * @description Reference to the HTML format for the license file
-             * @example ./Apache-2.0.html
              */
             reference: string;
             /**
@@ -6856,14 +9347,12 @@ export interface components {
             /**
              * SPDX URL
              * Format: uri
-             * @example https://spdx.org/licenses/Apache-2.0.html
              */
             spdxUrl: string;
             /**
              * URL
              * Format: uri
              * @description License URL
-             * @example http://www.apache.org/licenses/LICENSE-2.0
              */
             url: string;
         };
@@ -6873,7 +9362,7 @@ export interface components {
          */
         LimitedUserModel: {
             /** Email */
-            email?: string;
+            email?: string | null;
             /**
              * ID
              * @description Encoded ID of the user
@@ -6881,7 +9370,7 @@ export interface components {
              */
             id: string;
             /** Username */
-            username?: string;
+            username?: string | null;
         };
         /** Link */
         Link: {
@@ -6891,13 +9380,11 @@ export interface components {
         /**
          * ListJstreeResponse
          * @deprecated
-         * @description List of files in Jstree format.
          * @default []
          */
         ListJstreeResponse: Record<string, never>[];
         /**
          * ListUriResponse
-         * @description List of directories and files.
          * @default []
          */
         ListUriResponse: (components["schemas"]["RemoteFile"] | components["schemas"]["RemoteDirectory"])[];
@@ -6906,13 +9393,11 @@ export interface components {
          * @description These notification categories cannot be opt-out by the user.
          *
          * The user will always receive notifications from these categories.
+         * @constant
          * @enum {string}
          */
         MandatoryNotificationCategory: "broadcast";
-        /**
-         * MaterializeDatasetInstanceAPIRequest
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** MaterializeDatasetInstanceAPIRequest */
         MaterializeDatasetInstanceAPIRequest: {
             /**
              * Content
@@ -6929,14 +9414,12 @@ export interface components {
              */
             source: components["schemas"]["DatasetSourceType"];
         };
-        /**
-         * MessageNotificationContent
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** MessageNotificationContent */
         MessageNotificationContent: {
             /**
              * Category
              * @default message
+             * @constant
              * @enum {string}
              */
             category?: "message";
@@ -6987,99 +9470,8 @@ export interface components {
             /**
              * Timestamp
              * @description The timestamp in ISO format.
-             * @example 2021-01-23T18:25:43.511Z
              */
             time: string;
-        };
-        /** Model */
-        Model: {
-            /**
-             * Access Methods
-             * @description The list of access methods that can be used to fetch the `DrsObject`.
-             * Required for single blobs; optional for bundles.
-             */
-            access_methods?: components["schemas"]["AccessMethod"][];
-            /**
-             * Aliases
-             * @description A list of strings that can be used to find other metadata about this `DrsObject` from external metadata sources. These aliases can be used to represent secondary accession numbers or external GUIDs.
-             */
-            aliases?: string[];
-            /**
-             * Checksums
-             * @description The checksum of the `DrsObject`. At least one checksum must be provided.
-             * For blobs, the checksum is computed over the bytes in the blob.
-             * For bundles, the checksum is computed over a sorted concatenation of the checksums of its top-level contained objects (not recursive, names not included). The list of checksums is sorted alphabetically (hex-code) before concatenation and a further checksum is performed on the concatenated checksum value.
-             * For example, if a bundle contains blobs with the following checksums:
-             * md5(blob1) = 72794b6d
-             * md5(blob2) = 5e089d29
-             * Then the checksum of the bundle is:
-             * md5( concat( sort( md5(blob1), md5(blob2) ) ) )
-             * = md5( concat( sort( 72794b6d, 5e089d29 ) ) )
-             * = md5( concat( 5e089d29, 72794b6d ) )
-             * = md5( 5e089d2972794b6d )
-             * = f7a29a04
-             */
-            checksums: components["schemas"]["Checksum"][];
-            /**
-             * Contents
-             * @description If not set, this `DrsObject` is a single blob.
-             * If set, this `DrsObject` is a bundle containing the listed `ContentsObject` s (some of which may be further nested).
-             */
-            contents?: components["schemas"]["ContentsObject"][];
-            /**
-             * Created Time
-             * Format: date-time
-             * @description Timestamp of content creation in RFC3339.
-             * (This is the creation time of the underlying content, not of the JSON object.)
-             */
-            created_time: string;
-            /**
-             * Description
-             * @description A human readable description of the `DrsObject`.
-             */
-            description?: string;
-            /**
-             * Id
-             * @description An identifier unique to this `DrsObject`
-             */
-            id: string;
-            /**
-             * Mime Type
-             * @description A string providing the mime-type of the `DrsObject`.
-             * @example application/json
-             */
-            mime_type?: string;
-            /**
-             * Name
-             * @description A string that can be used to name a `DrsObject`.
-             * This string is made up of uppercase and lowercase letters, decimal digits, hyphen, period, and underscore [A-Za-z0-9.-_]. See http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap03.html#tag_03_282[portable filenames].
-             */
-            name?: string;
-            /**
-             * Self Uri
-             * @description A drs:// hostname-based URI, as defined in the DRS documentation, that tells clients how to access this object.
-             * The intent of this field is to make DRS objects self-contained, and therefore easier for clients to store and pass around.  For example, if you arrive at this DRS JSON by resolving a compact identifier-based DRS URI, the `self_uri` presents you with a hostname and properly encoded DRS ID for use in subsequent `access` endpoint calls.
-             * @example drs://drs.example.org/314159
-             */
-            self_uri: string;
-            /**
-             * Size
-             * @description For blobs, the blob size in bytes.
-             * For bundles, the cumulative size, in bytes, of items in the `contents` field.
-             */
-            size: number;
-            /**
-             * Updated Time
-             * Format: date-time
-             * @description Timestamp of content update in RFC3339, identical to `created_time` in systems that do not support updates. (This is the update time of the underlying content, not of the JSON object.)
-             */
-            updated_time?: string;
-            /**
-             * Version
-             * @description A string representing a version.
-             * (Some systems may use checksum, a RFC3339 timestamp, or an incrementing version number.)
-             */
-            version?: string;
         };
         /**
          * ModelStoreFormat
@@ -7087,13 +9479,10 @@ export interface components {
          * @enum {string}
          */
         ModelStoreFormat: "tgz" | "tar" | "tar.gz" | "bag.zip" | "bag.tar" | "bag.tgz" | "rocrate.zip" | "bco.json";
-        /**
-         * NestedElement
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** NestedElement */
         NestedElement: {
             /** Md5 */
-            MD5?: string;
+            MD5?: string | null;
             /**
              * Auto Decompress
              * @description Decompress compressed data before sniffing?
@@ -7101,9 +9490,9 @@ export interface components {
              */
             auto_decompress?: boolean;
             /** Collection Type */
-            collection_type?: string;
+            collection_type?: string | null;
             /** Created From Basename */
-            created_from_basename?: string;
+            created_from_basename?: string | null;
             /**
              * Dbkey
              * @default ?
@@ -7114,6 +9503,8 @@ export interface components {
              * @default false
              */
             deferred?: boolean;
+            /** Description */
+            description?: string | null;
             /** Elements */
             elements: (
                 | (
@@ -7127,38 +9518,36 @@ export interface components {
                   )
                 | components["schemas"]["NestedElement"]
             )[];
-            elements_from?: components["schemas"]["ElementsFromType"];
+            elements_from?: components["schemas"]["ElementsFromType"] | null;
             /**
              * Ext
              * @default auto
              */
             ext?: string;
-            extra_files?: components["schemas"]["ExtraFiles"];
+            extra_files?: components["schemas"]["ExtraFiles"] | null;
             /** Info */
-            info?: string;
+            info?: string | null;
             /** Name */
-            name?: string;
+            name?: string | number | number | boolean | null;
             /**
              * Space To Tab
              * @default false
              */
             space_to_tab?: boolean;
             /** Tags */
-            tags?: string[];
+            tags?: string[] | null;
             /**
              * To Posix Lines
              * @default false
              */
             to_posix_lines?: boolean;
         };
-        /**
-         * NewSharedItemNotificationContent
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** NewSharedItemNotificationContent */
         NewSharedItemNotificationContent: {
             /**
              * Category
              * @default new_shared_item
+             * @constant
              * @enum {string}
              */
             category?: "new_shared_item";
@@ -7193,29 +9582,27 @@ export interface components {
              * Content
              * @description The content of the broadcast notification. Broadcast notifications are displayed prominently to all users and can contain action links to redirect the user to a specific page.
              */
-            content?: components["schemas"]["BroadcastNotificationContent"];
+            content?: components["schemas"]["BroadcastNotificationContent"] | null;
             /**
              * Expiration time
-             * Format: date-time
              * @description The time when the notification should expire. By default it will expire after 6 months. Expired notifications will be permanently deleted.
              */
-            expiration_time?: string;
+            expiration_time?: string | null;
             /**
              * Publication time
-             * Format: date-time
              * @description The time when the notification should be published. Notifications can be created and then scheduled to be published at a later time.
              */
-            publication_time?: string;
+            publication_time?: string | null;
             /**
              * Source
              * @description The source of the notification. Represents the agent that created the notification.
              */
-            source?: string;
+            source?: string | null;
             /**
              * Variant
              * @description The variant of the notification. Used to express the importance of the notification.
              */
-            variant?: components["schemas"]["NotificationVariant"];
+            variant?: components["schemas"]["NotificationVariant"] | null;
         };
         /**
          * NotificationCategorySettings
@@ -7226,6 +9613,7 @@ export interface components {
              * Channels
              * @description The channels that the user wants to receive notifications from for this category.
              * @default {
+             *   "email": true,
              *   "push": true
              * }
              */
@@ -7242,6 +9630,12 @@ export interface components {
          * @description The settings for each channel of a notification category.
          */
         NotificationChannelSettings: {
+            /**
+             * Email
+             * @description Whether the user wants to receive email notifications for this category. This setting will be ignored unless the server supports asynchronous tasks.
+             * @default true
+             */
+            email?: boolean;
             /**
              * Push
              * @description Whether the user wants to receive push notifications in the browser for this category.
@@ -7271,16 +9665,14 @@ export interface components {
                 | components["schemas"]["BroadcastNotificationContent"];
             /**
              * Expiration time
-             * Format: date-time
              * @description The time when the notification should expire. By default it will expire after 6 months. Expired notifications will be permanently deleted.
              */
-            expiration_time?: string;
+            expiration_time?: string | null;
             /**
              * Publication time
-             * Format: date-time
              * @description The time when the notification should be published. Notifications can be created and then scheduled to be published at a later time.
              */
-            publication_time?: string;
+            publication_time?: string | null;
             /**
              * Source
              * @description The source of the notification. Represents the agent that created the notification. E.g. 'galaxy' or 'admin'.
@@ -7292,10 +9684,7 @@ export interface components {
              */
             variant: components["schemas"]["NotificationVariant"];
         };
-        /**
-         * NotificationCreateRequest
-         * @description Contains the recipients and the notification to create.
-         */
+        /** NotificationCreateRequest */
         NotificationCreateRequest: {
             /**
              * Notification
@@ -7306,12 +9695,9 @@ export interface components {
              * Recipients
              * @description The recipients of the notification. Can be a combination of users, groups and roles.
              */
-            recipients: components["schemas"]["NotificationRecipients"];
+            recipients: components["schemas"]["NotificationRecipientsRequest"];
         };
-        /**
-         * NotificationCreatedResponse
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** NotificationCreatedResponse */
         NotificationCreatedResponse: {
             /**
              * Notification
@@ -7324,11 +9710,8 @@ export interface components {
              */
             total_notifications_sent: number;
         };
-        /**
-         * NotificationRecipients
-         * @description The recipients of a notification. Can be a combination of users, groups and roles.
-         */
-        NotificationRecipients: {
+        /** NotificationRecipientsRequest */
+        NotificationRecipientsRequest: {
             /**
              * Group IDs
              * @description The list of encoded group IDs of the groups that should receive the notification.
@@ -7376,10 +9759,9 @@ export interface components {
             create_time: string;
             /**
              * Expiration time
-             * Format: date-time
              * @description The time when the notification will expire. If not set, the notification will never expire. Expired notifications will be permanently deleted.
              */
-            expiration_time?: string;
+            expiration_time?: string | null;
             /**
              * ID
              * @description The encoded ID of the notification.
@@ -7436,10 +9818,7 @@ export interface components {
          * @enum {string}
          */
         NotificationVariant: "info" | "warning" | "urgent";
-        /**
-         * NotificationsBatchRequest
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** NotificationsBatchRequest */
         NotificationsBatchRequest: {
             /**
              * Notification IDs
@@ -7458,10 +9837,7 @@ export interface components {
              */
             updated_count: number;
         };
-        /**
-         * ObjectExportTaskResponse
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** ObjectExportTaskResponse */
         ObjectExportTaskResponse: {
             /**
              * Create Time
@@ -7469,7 +9845,7 @@ export interface components {
              * @description The time and date this item was created.
              */
             create_time: string;
-            export_metadata?: components["schemas"]["ExportObjectMetadata"];
+            export_metadata?: components["schemas"]["ExportObjectMetadata"] | null;
             /**
              * ID
              * @description The encoded database ID of the export request.
@@ -7498,39 +9874,47 @@ export interface components {
              */
             up_to_date: boolean;
         };
-        /** Organization */
-        Organization: {
+        /** OutputReferenceByLabel */
+        OutputReferenceByLabel: {
             /**
-             * Name
-             * @description Name of the organization responsible for the service
-             * @example My organization
+             * Label
+             * @description The unique label of the step being referenced.
              */
-            name: string;
+            label: string;
             /**
-             * Url
-             * Format: uri
-             * @description URL of the website of the organization (RFC 3986 format)
-             * @example https://example.com
+             * Output Name
+             * @description The output name as defined by the workflow module corresponding to the step being referenced. The default is 'output', corresponding to the output defined by input step types.
+             * @default output
              */
-            url: string;
+            output_name?: string | null;
+        };
+        /** OutputReferenceByOrderIndex */
+        OutputReferenceByOrderIndex: {
+            /**
+             * Order Index
+             * @description The order_index of the step being referenced. The order indices of a workflow start at 0.
+             */
+            order_index: number;
+            /**
+             * Output Name
+             * @description The output name as defined by the workflow module corresponding to the step being referenced. The default is 'output', corresponding to the output defined by input step types.
+             * @default output
+             */
+            output_name?: string | null;
         };
         /**
          * PageContentFormat
-         * @description An enumeration.
          * @enum {string}
          */
         PageContentFormat: "markdown" | "html";
-        /**
-         * PageDetails
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** PageDetails */
         PageDetails: {
             /**
              * Content
-             * @description Raw text contents of the first page revision (type dependent on content_format).
+             * @description Raw text contents of the last page revision (type dependent on content_format).
              * @default
              */
-            content?: string;
+            content?: string | null;
             /**
              * Content format
              * @description Either `markdown` or `html`.
@@ -7542,7 +9926,7 @@ export interface components {
              * Format: date-time
              * @description The time and date this item was created.
              */
-            create_time?: string;
+            create_time: string;
             /**
              * Deleted
              * @description Whether this Page has been deleted.
@@ -7554,15 +9938,15 @@ export interface components {
              */
             email_hash: string;
             /**
-             * Generate Date
-             * @description The date this page was generated.
+             * Galaxy Version
+             * @description The version of Galaxy this object was generated with.
              */
-            generate_time?: string;
+            generate_time?: string | null;
             /**
              * Galaxy Version
-             * @description The version of Galaxy this page was generated with.
+             * @description The version of Galaxy this object was generated with.
              */
-            generate_version?: string;
+            generate_version?: string | null;
             /**
              * ID
              * @description Encoded ID of the Page.
@@ -7583,7 +9967,7 @@ export interface components {
             /**
              * Model class
              * @description The name of the database model class.
-             * @default Page
+             * @constant
              * @enum {string}
              */
             model_class: "Page";
@@ -7613,24 +9997,22 @@ export interface components {
              * Format: date-time
              * @description The last time and date this item was updated.
              */
-            update_time?: string;
+            update_time: string;
             /**
              * Username
              * @description The name of the user owning this Page.
              */
             username: string;
+            [key: string]: unknown | undefined;
         };
-        /**
-         * PageSummary
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** PageSummary */
         PageSummary: {
             /**
              * Create Time
              * Format: date-time
              * @description The time and date this item was created.
              */
-            create_time?: string;
+            create_time: string;
             /**
              * Deleted
              * @description Whether this Page has been deleted.
@@ -7661,7 +10043,7 @@ export interface components {
             /**
              * Model class
              * @description The name of the database model class.
-             * @default Page
+             * @constant
              * @enum {string}
              */
             model_class: "Page";
@@ -7691,7 +10073,7 @@ export interface components {
              * Format: date-time
              * @description The last time and date this item was updated.
              */
-            update_time?: string;
+            update_time: string;
             /**
              * Username
              * @description The name of the user owning this Page.
@@ -7700,17 +10082,13 @@ export interface components {
         };
         /**
          * PageSummaryList
-         * @description Base model definition with common configuration used by all derived models.
          * @default []
          */
         PageSummaryList: components["schemas"]["PageSummary"][];
-        /**
-         * PastedDataElement
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** PastedDataElement */
         PastedDataElement: {
             /** Md5 */
-            MD5?: string;
+            MD5?: string | null;
             /**
              * Auto Decompress
              * @description Decompress compressed data before sniffing?
@@ -7718,9 +10096,9 @@ export interface components {
              */
             auto_decompress?: boolean;
             /** Collection Type */
-            collection_type?: string;
+            collection_type?: string | null;
             /** Created From Basename */
-            created_from_basename?: string;
+            created_from_basename?: string | null;
             /**
              * Dbkey
              * @default ?
@@ -7731,22 +10109,24 @@ export interface components {
              * @default false
              */
             deferred?: boolean;
-            elements_from?: components["schemas"]["ElementsFromType"];
+            /** Description */
+            description?: string | null;
+            elements_from?: components["schemas"]["ElementsFromType"] | null;
             /**
              * Ext
              * @default auto
              */
             ext?: string;
-            extra_files?: components["schemas"]["ExtraFiles"];
+            extra_files?: components["schemas"]["ExtraFiles"] | null;
             /** Info */
-            info?: string;
+            info?: string | null;
             /** Name */
-            name?: string;
+            name?: string | number | number | boolean | null;
             /**
              * Paste Content
              * @description Content to upload
              */
-            paste_content: string;
+            paste_content: string | number | number | boolean;
             /**
              * Space To Tab
              * @default false
@@ -7754,24 +10134,22 @@ export interface components {
             space_to_tab?: boolean;
             /**
              * Src
+             * @constant
              * @enum {string}
              */
             src: "pasted";
             /** Tags */
-            tags?: string[];
+            tags?: string[] | null;
             /**
              * To Posix Lines
              * @default false
              */
             to_posix_lines?: boolean;
         };
-        /**
-         * PathDataElement
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** PathDataElement */
         PathDataElement: {
             /** Md5 */
-            MD5?: string;
+            MD5?: string | null;
             /**
              * Auto Decompress
              * @description Decompress compressed data before sniffing?
@@ -7779,9 +10157,9 @@ export interface components {
              */
             auto_decompress?: boolean;
             /** Collection Type */
-            collection_type?: string;
+            collection_type?: string | null;
             /** Created From Basename */
-            created_from_basename?: string;
+            created_from_basename?: string | null;
             /**
              * Dbkey
              * @default ?
@@ -7792,19 +10170,21 @@ export interface components {
              * @default false
              */
             deferred?: boolean;
-            elements_from?: components["schemas"]["ElementsFromType"];
+            /** Description */
+            description?: string | null;
+            elements_from?: components["schemas"]["ElementsFromType"] | null;
             /**
              * Ext
              * @default auto
              */
             ext?: string;
-            extra_files?: components["schemas"]["ExtraFiles"];
+            extra_files?: components["schemas"]["ExtraFiles"] | null;
             /** Info */
-            info?: string;
+            info?: string | null;
             /** Link Data Only */
-            link_data_only?: boolean;
+            link_data_only?: boolean | null;
             /** Name */
-            name?: string;
+            name?: string | number | number | boolean | null;
             /** Path */
             path: string;
             /**
@@ -7814,16 +10194,108 @@ export interface components {
             space_to_tab?: boolean;
             /**
              * Src
+             * @constant
              * @enum {string}
              */
             src: "path";
             /** Tags */
-            tags?: string[];
+            tags?: string[] | null;
             /**
              * To Posix Lines
              * @default false
              */
             to_posix_lines?: boolean;
+        };
+        /** PauseStep */
+        PauseStep: {
+            /**
+             * Annotation
+             * @description An annotation to provide details or to help understand the purpose and usage of this item.
+             */
+            annotation: string | null;
+            /**
+             * ID
+             * @description The identifier of the step. It matches the index order of the step inside the workflow.
+             */
+            id: number;
+            /**
+             * Input Steps
+             * @description A dictionary containing information about the inputs connected to this workflow step.
+             */
+            input_steps: {
+                [key: string]: components["schemas"]["InputStep"] | undefined;
+            };
+            /**
+             * Tool ID
+             * @description The unique name of the tool associated with this step.
+             */
+            tool_id?: string | null;
+            /**
+             * Tool Inputs
+             * @description TODO
+             */
+            tool_inputs?: Record<string, never>;
+            /**
+             * Tool Version
+             * @description The version of the tool associated with this step.
+             */
+            tool_version?: string | null;
+            /**
+             * Type
+             * @constant
+             * @enum {string}
+             */
+            type: "pause";
+            /** When */
+            when: string | null;
+        };
+        /** Person */
+        Person: {
+            /** Address */
+            address?: string | null;
+            /** Alternate Name */
+            alternateName?: string | null;
+            /**
+             * Class
+             * @default Person
+             */
+            class?: string;
+            /** Email */
+            email?: string | null;
+            /** Family Name */
+            familyName?: string | null;
+            /** Fax Number */
+            faxNumber?: string | null;
+            /** Given Name */
+            givenName?: string | null;
+            /**
+             * Honorific Prefix
+             * @description Honorific Prefix (e.g. Dr/Mrs/Mr)
+             */
+            honorificPrefix?: string | null;
+            /**
+             * Honorific Suffix
+             * @description Honorific Suffix (e.g. M.D.)
+             */
+            honorificSuffix?: string | null;
+            /**
+             * Identifier
+             * @description Identifier (typically an orcid.org ID)
+             */
+            identifier?: string | null;
+            /** Image URL */
+            image?: string | null;
+            /** Job Title */
+            jobTitle?: string | null;
+            /**
+             * Name
+             * @description The name of the creator.
+             */
+            name?: string | null;
+            /** Telephone */
+            telephone?: string | null;
+            /** URL */
+            url?: string | null;
         };
         /**
          * PersonalNotificationCategory
@@ -7838,10 +10310,14 @@ export interface components {
          * @enum {string}
          */
         PluginKind: "rfs" | "drs" | "rdm" | "stock";
-        /**
-         * PrepareStoreDownloadPayload
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** Position */
+        Position: {
+            /** Left */
+            left: number;
+            /** Top */
+            top: number;
+        };
+        /** PrepareStoreDownloadPayload */
         PrepareStoreDownloadPayload: {
             /**
              * Bco Merge History Metadata
@@ -7855,26 +10331,26 @@ export interface components {
              */
             bco_override_algorithmic_error?: {
                 [key: string]: string | undefined;
-            };
+            } | null;
             /**
              * Bco Override Empirical Error
              * @description Override empirical error for 'error domain' when generating BioCompute object.
              */
             bco_override_empirical_error?: {
                 [key: string]: string | undefined;
-            };
+            } | null;
             /**
              * Bco Override Environment Variables
              * @description Override environment variables for 'execution_domain' when generating BioCompute object.
              */
             bco_override_environment_variables?: {
                 [key: string]: string | undefined;
-            };
+            } | null;
             /**
              * Bco Override Xref
              * @description Override xref for 'description domain' when generating BioCompute object.
              */
-            bco_override_xref?: components["schemas"]["XrefItem"][];
+            bco_override_xref?: components["schemas"]["XrefItem"][] | null;
             /**
              * Include deleted
              * @description Include file contents for deleted datasets (if include_files is True).
@@ -7899,10 +10375,7 @@ export interface components {
              */
             model_store_format?: components["schemas"]["ModelStoreFormat"];
         };
-        /**
-         * QuotaDetails
-         * @description Base model containing common fields for Quotas.
-         */
+        /** QuotaDetails */
         QuotaDetails: {
             /**
              * Bytes
@@ -7940,7 +10413,7 @@ export interface components {
             /**
              * Model class
              * @description The name of the database model class.
-             * @default Quota
+             * @constant
              * @enum {string}
              */
             model_class: "Quota";
@@ -7959,7 +10432,7 @@ export interface components {
              * Quota Source Label
              * @description Quota source label
              */
-            quota_source_label?: string;
+            quota_source_label?: string | null;
             /**
              * Users
              * @description A list of specific users associated with this quota.
@@ -7972,11 +10445,10 @@ export interface components {
             /** Enabled */
             enabled: boolean;
             /** Source */
-            source?: string;
+            source?: string | null;
         };
         /**
          * QuotaOperation
-         * @description An enumeration.
          * @enum {string}
          */
         QuotaOperation: "=" | "+" | "-";
@@ -7994,7 +10466,7 @@ export interface components {
             /**
              * Model class
              * @description The name of the database model class.
-             * @default Quota
+             * @constant
              * @enum {string}
              */
             model_class: "Quota";
@@ -8007,7 +10479,7 @@ export interface components {
              * Quota Source Label
              * @description Quota source label
              */
-            quota_source_label?: string;
+            quota_source_label?: string | null;
             /**
              * URL
              * @deprecated
@@ -8017,26 +10489,163 @@ export interface components {
         };
         /**
          * QuotaSummaryList
-         * @description Base model definition with common configuration used by all derived models.
          * @default []
          */
         QuotaSummaryList: components["schemas"]["QuotaSummary"][];
+        /** RefactorActionExecution */
+        RefactorActionExecution: {
+            /** Action */
+            action:
+                | components["schemas"]["AddInputAction"]
+                | components["schemas"]["AddStepAction"]
+                | components["schemas"]["ConnectAction"]
+                | components["schemas"]["DisconnectAction"]
+                | components["schemas"]["ExtractInputAction"]
+                | components["schemas"]["ExtractUntypedParameter"]
+                | components["schemas"]["FileDefaultsAction"]
+                | components["schemas"]["FillStepDefaultsAction"]
+                | components["schemas"]["UpdateAnnotationAction"]
+                | components["schemas"]["UpdateCreatorAction"]
+                | components["schemas"]["UpdateNameAction"]
+                | components["schemas"]["UpdateLicenseAction"]
+                | components["schemas"]["UpdateOutputLabelAction"]
+                | components["schemas"]["UpdateReportAction"]
+                | components["schemas"]["UpdateStepLabelAction"]
+                | components["schemas"]["UpdateStepPositionAction"]
+                | components["schemas"]["UpgradeSubworkflowAction"]
+                | components["schemas"]["UpgradeToolAction"]
+                | components["schemas"]["UpgradeAllStepsAction"]
+                | components["schemas"]["RemoveUnlabeledWorkflowOutputs"];
+            /** Messages */
+            messages: components["schemas"]["RefactorActionExecutionMessage"][];
+        };
+        /** RefactorActionExecutionMessage */
+        RefactorActionExecutionMessage: {
+            /**
+             * From Order Index
+             * @description For dropped connections these optional attributes refer to the output
+             * side of the connection that was dropped.
+             */
+            from_order_index?: number | null;
+            /**
+             * From Step Label
+             * @description For dropped connections these optional attributes refer to the output
+             * side of the connection that was dropped.
+             */
+            from_step_label?: string | null;
+            /**
+             * Input Name
+             * @description If this message is about an input to a step,
+             * this field describes the target input name. $The input name as defined by the workflow module corresponding to the step being referenced. For Galaxy tool steps these inputs should be normalized using '|' (e.g. 'cond|repeat_0|input').
+             */
+            input_name?: string | null;
+            /** Message */
+            message: string;
+            message_type: components["schemas"]["RefactorActionExecutionMessageTypeEnum"];
+            /**
+             * Order Index
+             * @description Reference to the step the message refers to. $
+             *
+             * Messages don't have to be bound to a step, but if they are they will
+             * have a step_label and order_index included in the execution message.
+             * These are the label and order_index before applying the refactoring,
+             * the result of applying the action may change one or both of these.
+             * If connections are dropped this step reference will refer to the
+             * step with the previously connected input.
+             */
+            order_index?: number | null;
+            /**
+             * Output Label
+             * @description If the message_type is workflow_output_drop_forced, this is the output label dropped.
+             */
+            output_label?: string | null;
+            /**
+             * Output Name
+             * @description If this message is about an output to a step,
+             * this field describes the target output name. The output name as defined by the workflow module corresponding to the step being referenced.
+             */
+            output_name?: string | null;
+            /**
+             * Step Label
+             * @description Reference to the step the message refers to. $
+             *
+             * Messages don't have to be bound to a step, but if they are they will
+             * have a step_label and order_index included in the execution message.
+             * These are the label and order_index before applying the refactoring,
+             * the result of applying the action may change one or both of these.
+             * If connections are dropped this step reference will refer to the
+             * step with the previously connected input.
+             */
+            step_label?: string | null;
+        };
+        /**
+         * RefactorActionExecutionMessageTypeEnum
+         * @enum {string}
+         */
+        RefactorActionExecutionMessageTypeEnum:
+            | "tool_version_change"
+            | "tool_state_adjustment"
+            | "connection_drop_forced"
+            | "workflow_output_drop_forced";
+        /** RefactorRequest */
+        RefactorRequest: {
+            /** Actions */
+            actions: (
+                | components["schemas"]["AddInputAction"]
+                | components["schemas"]["AddStepAction"]
+                | components["schemas"]["ConnectAction"]
+                | components["schemas"]["DisconnectAction"]
+                | components["schemas"]["ExtractInputAction"]
+                | components["schemas"]["ExtractUntypedParameter"]
+                | components["schemas"]["FileDefaultsAction"]
+                | components["schemas"]["FillStepDefaultsAction"]
+                | components["schemas"]["UpdateAnnotationAction"]
+                | components["schemas"]["UpdateCreatorAction"]
+                | components["schemas"]["UpdateNameAction"]
+                | components["schemas"]["UpdateLicenseAction"]
+                | components["schemas"]["UpdateOutputLabelAction"]
+                | components["schemas"]["UpdateReportAction"]
+                | components["schemas"]["UpdateStepLabelAction"]
+                | components["schemas"]["UpdateStepPositionAction"]
+                | components["schemas"]["UpgradeSubworkflowAction"]
+                | components["schemas"]["UpgradeToolAction"]
+                | components["schemas"]["UpgradeAllStepsAction"]
+                | components["schemas"]["RemoveUnlabeledWorkflowOutputs"]
+            )[];
+            /**
+             * Dry Run
+             * @default false
+             */
+            dry_run?: boolean;
+            /**
+             * Style
+             * @default export
+             */
+            style?: string;
+        };
+        /** RefactorResponse */
+        RefactorResponse: {
+            /** Action Executions */
+            action_executions: components["schemas"]["RefactorActionExecution"][];
+            /** Dry Run */
+            dry_run: boolean;
+            /** Workflow */
+            workflow: string;
+        };
         /** ReloadFeedback */
         ReloadFeedback: {
             /** Failed */
-            failed: string[];
+            failed: (string | null)[];
             /** Message */
             message: string;
             /** Reloaded */
-            reloaded: string[];
+            reloaded: (string | null)[];
         };
-        /**
-         * RemoteDirectory
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** RemoteDirectory */
         RemoteDirectory: {
             /**
              * Class
+             * @constant
              * @enum {string}
              */
             class: "Directory";
@@ -8056,13 +10665,11 @@ export interface components {
              */
             uri: string;
         };
-        /**
-         * RemoteFile
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** RemoteFile */
         RemoteFile: {
             /**
              * Class
+             * @constant
              * @enum {string}
              */
             class: "File";
@@ -8094,26 +10701,54 @@ export interface components {
         };
         /**
          * RemoteFilesDisableMode
-         * @description An enumeration.
          * @enum {string}
          */
         RemoteFilesDisableMode: "folders" | "files";
         /**
          * RemoteFilesFormat
-         * @description An enumeration.
          * @enum {string}
          */
         RemoteFilesFormat: "flat" | "jstree" | "uri";
-        /**
-         * RemoteUserCreationPayload
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** RemoteUserCreationPayload */
         RemoteUserCreationPayload: {
             /**
              * Email
              * @description Email of the user
              */
             remote_user_email: string;
+        };
+        /** RemoveUnlabeledWorkflowOutputs */
+        RemoveUnlabeledWorkflowOutputs: {
+            /**
+             * Action Type
+             * @constant
+             * @enum {string}
+             */
+            action_type: "remove_unlabeled_workflow_outputs";
+        };
+        /** Report */
+        Report: {
+            /** Markdown */
+            markdown: string;
+        };
+        /** ReportJobErrorPayload */
+        ReportJobErrorPayload: {
+            /**
+             * History Dataset Association ID
+             * @description The History Dataset Association ID related to the error.
+             * @example 0123456789ABCDEF
+             */
+            dataset_id: string;
+            /**
+             * Email
+             * @description Email address for communication with the user. Only required for anonymous users.
+             */
+            email?: string | null;
+            /**
+             * Message
+             * @description The optional message sent with the error report.
+             */
+            message?: string | null;
         };
         /**
          * RequestDataType
@@ -8135,10 +10770,7 @@ export interface components {
          * @enum {string}
          */
         Requirement: "logged_in" | "new_history" | "admin";
-        /**
-         * RoleDefinitionModel
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** RoleDefinitionModel */
         RoleDefinitionModel: {
             /**
              * Description
@@ -8149,7 +10781,7 @@ export interface components {
              * Group IDs
              * @default []
              */
-            group_ids?: string[];
+            group_ids?: string[] | null;
             /**
              * Name
              * @description Name of the role
@@ -8159,23 +10791,14 @@ export interface components {
              * User IDs
              * @default []
              */
-            user_ids?: string[];
+            user_ids?: string[] | null;
         };
-        /**
-         * RoleListResponse
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** RoleListResponse */
         RoleListResponse: components["schemas"]["RoleModelResponse"][];
-        /**
-         * RoleModelResponse
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** RoleModelResponse */
         RoleModelResponse: {
-            /**
-             * Description
-             * @description Description of the role
-             */
-            description?: string;
+            /** Description */
+            description: string | null;
             /**
              * ID
              * @description Encoded ID of the role
@@ -8185,7 +10808,7 @@ export interface components {
             /**
              * Model class
              * @description The name of the database model class.
-             * @default Role
+             * @constant
              * @enum {string}
              */
             model_class: "Role";
@@ -8206,13 +10829,33 @@ export interface components {
              */
             url: string;
         };
-        /**
-         * ServerDirElement
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** RootModel[Dict[str, int]] */
+        RootModel_Dict_str__int__: {
+            [key: string]: number | undefined;
+        };
+        /** SearchJobsPayload */
+        SearchJobsPayload: {
+            /**
+             * Inputs
+             * @description The inputs of the job.
+             */
+            inputs: Record<string, never>;
+            /**
+             * State
+             * @description Current state of the job.
+             */
+            state?: components["schemas"]["JobState"] | null;
+            /**
+             * Tool ID
+             * @description The tool ID related to the job.
+             */
+            tool_id: string;
+            [key: string]: unknown | undefined;
+        };
+        /** ServerDirElement */
         ServerDirElement: {
             /** Md5 */
-            MD5?: string;
+            MD5?: string | null;
             /**
              * Auto Decompress
              * @description Decompress compressed data before sniffing?
@@ -8220,9 +10863,9 @@ export interface components {
              */
             auto_decompress?: boolean;
             /** Collection Type */
-            collection_type?: string;
+            collection_type?: string | null;
             /** Created From Basename */
-            created_from_basename?: string;
+            created_from_basename?: string | null;
             /**
              * Dbkey
              * @default ?
@@ -8233,19 +10876,21 @@ export interface components {
              * @default false
              */
             deferred?: boolean;
-            elements_from?: components["schemas"]["ElementsFromType"];
+            /** Description */
+            description?: string | null;
+            elements_from?: components["schemas"]["ElementsFromType"] | null;
             /**
              * Ext
              * @default auto
              */
             ext?: string;
-            extra_files?: components["schemas"]["ExtraFiles"];
+            extra_files?: components["schemas"]["ExtraFiles"] | null;
             /** Info */
-            info?: string;
+            info?: string | null;
             /** Link Data Only */
-            link_data_only?: boolean;
+            link_data_only?: boolean | null;
             /** Name */
-            name?: string;
+            name?: string | number | number | boolean | null;
             /** Server Dir */
             server_dir: string;
             /**
@@ -8255,11 +10900,12 @@ export interface components {
             space_to_tab?: boolean;
             /**
              * Src
+             * @constant
              * @enum {string}
              */
             src: "server_dir";
             /** Tags */
-            tags?: string[];
+            tags?: string[] | null;
             /**
              * To Posix Lines
              * @default false
@@ -8270,66 +10916,50 @@ export interface components {
         Service: {
             /**
              * Contacturl
-             * Format: uri
              * @description URL of the contact for the provider of this service, e.g. a link to a contact form (RFC 3986 format), or an email (RFC 2368 format).
-             * @example mailto:support@example.com
              */
-            contactUrl?: string;
+            contactUrl?: string | null;
             /**
              * Createdat
-             * Format: date-time
              * @description Timestamp describing when the service was first deployed and available (RFC 3339 format)
-             * @example 2019-06-04T12:58:19Z
              */
-            createdAt?: string;
+            createdAt?: string | null;
             /**
              * Description
              * @description Description of the service. Should be human readable and provide information about the service.
-             * @example This service provides...
              */
-            description?: string;
+            description?: string | null;
             /**
              * Documentationurl
-             * Format: uri
              * @description URL of the documentation of this service (RFC 3986 format). This should help someone learn how to use your service, including any specifics required to access data, e.g. authentication.
-             * @example https://docs.myservice.example.com
              */
-            documentationUrl?: string;
+            documentationUrl?: string | null;
             /**
              * Environment
              * @description Environment the service is running in. Use this to distinguish between production, development and testing/staging deployments. Suggested values are prod, test, dev, staging. However this is advised and not enforced.
-             * @example test
              */
-            environment?: string;
+            environment?: string | null;
             /**
              * Id
              * @description Unique ID of this service. Reverse domain name notation is recommended, though not required. The identifier should attempt to be globally unique so it can be used in downstream aggregator services e.g. Service Registry.
-             * @example org.ga4gh.myservice
              */
             id: string;
             /**
              * Name
              * @description Name of this service. Should be human readable.
-             * @example My project
              */
             name: string;
-            /**
-             * Organization
-             * @description Organization providing the service
-             */
-            organization: components["schemas"]["Organization"];
+            /** @description Organization providing the service */
+            organization: components["schemas"]["galaxy__schema__drs__Organization"];
             type: components["schemas"]["ServiceType"];
             /**
              * Updatedat
-             * Format: date-time
              * @description Timestamp describing when the service was last updated (RFC 3339 format)
-             * @example 2019-06-04T12:58:19Z
              */
-            updatedAt?: string;
+            updatedAt?: string | null;
             /**
              * Version
              * @description Version of the service being described. Semantic versioning is recommended, but other identifiers, such as dates or commit hashes, are also allowed. The version should be changed whenever the service is updated.
-             * @example 1.0.0
              */
             version: string;
         };
@@ -8338,26 +10968,20 @@ export interface components {
             /**
              * Artifact
              * @description Name of the API or GA4GH specification implemented. Official GA4GH types should be assigned as part of standards approval process. Custom artifacts are supported.
-             * @example beacon
              */
             artifact: string;
             /**
              * Group
              * @description Namespace in reverse domain name format. Use `org.ga4gh` for implementations compliant with official GA4GH specifications. For services with custom APIs not standardized by GA4GH, or implementations diverging from official GA4GH specifications, use a different namespace (e.g. your organization's reverse domain name).
-             * @example org.ga4gh
              */
             group: string;
             /**
              * Version
              * @description Version of the API or specification. GA4GH specifications use semantic versioning.
-             * @example 1.0.0
              */
             version: string;
         };
-        /**
-         * SetSlugPayload
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** SetSlugPayload */
         SetSlugPayload: {
             /**
              * New Slug
@@ -8365,48 +10989,40 @@ export interface components {
              */
             new_slug: string;
         };
-        /**
-         * ShareWithExtra
-         * @description Base model definition with common configuration used by all derived models.
-         */
-        ShareWithExtra: {
+        /** ShareHistoryExtra */
+        ShareHistoryExtra: {
+            /**
+             * Accessible Count
+             * @description The number of datasets in the history that are public or accessible by all the target users.
+             * @default 0
+             */
+            accessible_count?: number;
+            /**
+             * Can Change
+             * @description A collection of datasets that are not accessible by one or more of the target users and that can be made accessible for others by the user sharing the history.
+             * @default []
+             */
+            can_change?: components["schemas"]["HDABasicInfo"][];
             /**
              * Can Share
              * @description Indicates whether the resource can be directly shared or requires further actions.
              * @default false
              */
             can_share?: boolean;
-        };
-        /**
-         * ShareWithPayload
-         * @description Base model definition with common configuration used by all derived models.
-         */
-        ShareWithPayload: {
             /**
-             * Share Option
-             * @description User choice for sharing resources which its contents may be restricted:
-             *  - None: The user did not choose anything yet or no option is needed.
-             *  - make_public: The contents of the resource will be made publicly accessible.
-             *  - make_accessible_to_shared: This will automatically create a new `sharing role` allowing protected contents to be accessed only by the desired users.
-             *  - no_changes: This won't change the current permissions for the contents. The user which this resource will be shared may not be able to access all its contents.
+             * Cannot Change
+             * @description A collection of datasets that are not accessible by one or more of the target users and that cannot be made accessible for others by the user sharing the history.
+             * @default []
              */
-            share_option?: components["schemas"]["SharingOptions"];
-            /**
-             * User Identifiers
-             * @description A collection of encoded IDs (or email addresses) of users that this resource will be shared with.
-             */
-            user_ids: (string | string)[];
+            cannot_change?: components["schemas"]["HDABasicInfo"][];
         };
-        /**
-         * ShareWithStatus
-         * @description Base model definition with common configuration used by all derived models.
-         */
-        ShareWithStatus: {
+        /** ShareHistoryWithStatus */
+        ShareHistoryWithStatus: {
             /**
              * Encoded Email
              * @description Encoded owner email.
              */
-            email_hash?: string;
+            email_hash?: string | null;
             /**
              * Errors
              * @description Collection of messages indicating that the resource was not shared with some (or all users) due to an error.
@@ -8417,7 +11033,7 @@ export interface components {
              * Extra
              * @description Optional extra information about this shareable resource that may be of interest. The contents of this field depend on the particular resource.
              */
-            extra?: components["schemas"]["ShareWithExtra"];
+            extra: components["schemas"]["ShareHistoryExtra"];
             /**
              * ID
              * @description The encoded ID of the resource to be shared.
@@ -8443,12 +11059,94 @@ export interface components {
              * Username
              * @description The owner's username.
              */
-            username?: string;
+            username?: string | null;
             /**
              * Username and slug
              * @description The relative URL in the form of /u/{username}/{resource_single_char}/{slug}
              */
-            username_and_slug?: string;
+            username_and_slug?: string | null;
+            /**
+             * Users shared with
+             * @description The list of encoded ids for users the resource has been shared.
+             * @default []
+             */
+            users_shared_with?: components["schemas"]["UserEmail"][];
+        };
+        /** ShareWithExtra */
+        ShareWithExtra: {
+            /**
+             * Can Share
+             * @description Indicates whether the resource can be directly shared or requires further actions.
+             * @default false
+             */
+            can_share?: boolean;
+        };
+        /** ShareWithPayload */
+        ShareWithPayload: {
+            /**
+             * Share Option
+             * @description User choice for sharing resources which its contents may be restricted:
+             *  - None: The user did not choose anything yet or no option is needed.
+             *  - make_public: The contents of the resource will be made publicly accessible.
+             *  - make_accessible_to_shared: This will automatically create a new `sharing role` allowing protected contents to be accessed only by the desired users.
+             *  - no_changes: This won't change the current permissions for the contents. The user which this resource will be shared may not be able to access all its contents.
+             */
+            share_option?: components["schemas"]["SharingOptions"] | null;
+            /**
+             * User Identifiers
+             * @description A collection of encoded IDs (or email addresses) of users that this resource will be shared with.
+             */
+            user_ids: (string | string)[];
+        };
+        /** ShareWithStatus */
+        ShareWithStatus: {
+            /**
+             * Encoded Email
+             * @description Encoded owner email.
+             */
+            email_hash?: string | null;
+            /**
+             * Errors
+             * @description Collection of messages indicating that the resource was not shared with some (or all users) due to an error.
+             * @default []
+             */
+            errors?: string[];
+            /**
+             * Extra
+             * @description Optional extra information about this shareable resource that may be of interest. The contents of this field depend on the particular resource.
+             */
+            extra?: components["schemas"]["ShareWithExtra"] | null;
+            /**
+             * ID
+             * @description The encoded ID of the resource to be shared.
+             * @example 0123456789ABCDEF
+             */
+            id: string;
+            /**
+             * Importable
+             * @description Whether this resource can be published using a link.
+             */
+            importable: boolean;
+            /**
+             * Published
+             * @description Whether this resource is currently published.
+             */
+            published: boolean;
+            /**
+             * Title
+             * @description The title or name of the resource.
+             */
+            title: string;
+            /**
+             * Username
+             * @description The owner's username.
+             */
+            username?: string | null;
+            /**
+             * Username and slug
+             * @description The relative URL in the form of /u/{username}/{resource_single_char}/{slug}
+             */
+            username_and_slug?: string | null;
             /**
              * Users shared with
              * @description The list of encoded ids for users the resource has been shared.
@@ -8462,16 +11160,13 @@ export interface components {
          * @enum {string}
          */
         SharingOptions: "make_public" | "make_accessible_to_shared" | "no_changes";
-        /**
-         * SharingStatus
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** SharingStatus */
         SharingStatus: {
             /**
              * Encoded Email
              * @description Encoded owner email.
              */
-            email_hash?: string;
+            email_hash?: string | null;
             /**
              * ID
              * @description The encoded ID of the resource to be shared.
@@ -8497,12 +11192,12 @@ export interface components {
              * Username
              * @description The owner's username.
              */
-            username?: string;
+            username?: string | null;
             /**
              * Username and slug
              * @description The relative URL in the form of /u/{username}/{resource_single_char}/{slug}
              */
-            username_and_slug?: string;
+            username_and_slug?: string | null;
             /**
              * Users shared with
              * @description The list of encoded ids for users the resource has been shared.
@@ -8510,13 +11205,10 @@ export interface components {
              */
             users_shared_with?: components["schemas"]["UserEmail"][];
         };
-        /**
-         * ShortTermStoreExportPayload
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** ShortTermStoreExportPayload */
         ShortTermStoreExportPayload: {
             /** Duration */
-            duration?: number | number;
+            duration?: number | number | null;
             /**
              * Include deleted
              * @description Include file contents for deleted datasets (if include_files is True).
@@ -8546,16 +11238,188 @@ export interface components {
              */
             short_term_storage_request_id: string;
         };
+        /** ShowFullJobResponse */
+        ShowFullJobResponse: {
+            /**
+             * Command Line
+             * @description The command line produced by the job. Users can see this value if allowed in the configuration, administrator can always see this value.
+             */
+            command_line?: string | null;
+            /**
+             * Command Version
+             * @description Tool version indicated during job execution.
+             */
+            command_version?: string | null;
+            /**
+             * Copied from Job-ID
+             * @description Reference to cached job if job execution was cached.
+             */
+            copied_from_job_id?: string | null;
+            /**
+             * Create Time
+             * Format: date-time
+             * @description The time and date this item was created.
+             */
+            create_time: string;
+            /**
+             * Job dependencies
+             * @description The dependencies of the job.
+             */
+            dependencies?: Record<string, never>[] | null;
+            /**
+             * Exit Code
+             * @description The exit code returned by the tool. Can be unset if the job is not completed yet.
+             */
+            exit_code?: number | null;
+            /**
+             * External ID
+             * @description The job id used by the external job runner (Condor, Pulsar, etc.). Only administrator can see this value.
+             */
+            external_id?: string | null;
+            /**
+             * Galaxy Version
+             * @description The (major) version of Galaxy used to create this job.
+             */
+            galaxy_version?: string | null;
+            /**
+             * Job Handler
+             * @description The job handler process assigned to handle this job. Only administrator can see this value.
+             */
+            handler?: string | null;
+            /**
+             * History ID
+             * @description The encoded ID of the history associated with this item.
+             */
+            history_id?: string | null;
+            /**
+             * Job ID
+             * @example 0123456789ABCDEF
+             */
+            id: string;
+            /**
+             * Inputs
+             * @description Dictionary mapping all the tool inputs (by name) to the corresponding data references.
+             * @default {}
+             */
+            inputs?: {
+                [key: string]: components["schemas"]["EncodedDatasetJobInfo"] | undefined;
+            };
+            /**
+             * Job Messages
+             * @description List with additional information and possible reasons for a failed job.
+             */
+            job_messages?: Record<string, never>[] | null;
+            /**
+             * Job Metrics
+             * @description Collections of metrics provided by `JobInstrumenter` plugins on a particular job. Only administrators can see these metrics.
+             */
+            job_metrics?: components["schemas"]["JobMetricCollection"] | null;
+            /**
+             * Job Runner Name
+             * @description Name of the job runner plugin that handles this job. Only administrator can see this value.
+             */
+            job_runner_name?: string | null;
+            /**
+             * Job Standard Error
+             * @description The captured standard error of the job execution.
+             */
+            job_stderr?: string | null;
+            /**
+             * Job Standard Output
+             * @description The captured standard output of the job execution.
+             */
+            job_stdout?: string | null;
+            /**
+             * Model class
+             * @description The name of the database model class.
+             * @constant
+             * @enum {string}
+             */
+            model_class: "Job";
+            /**
+             * Output collections
+             * @default {}
+             */
+            output_collections?: {
+                [key: string]: components["schemas"]["EncodedHdcaSourceId"] | undefined;
+            };
+            /**
+             * Outputs
+             * @description Dictionary mapping all the tool outputs (by name) to the corresponding data references.
+             * @default {}
+             */
+            outputs?: {
+                [key: string]: components["schemas"]["EncodedDatasetJobInfo"] | undefined;
+            };
+            /**
+             * Parameters
+             * @description Object containing all the parameters of the tool associated with this job. The specific parameters depend on the tool itself.
+             */
+            params: Record<string, never>;
+            /**
+             * State
+             * @description Current state of the job.
+             */
+            state: components["schemas"]["JobState"];
+            /**
+             * Standard Error
+             * @description Combined tool and job standard error streams.
+             */
+            stderr?: string | null;
+            /**
+             * Standard Output
+             * @description Combined tool and job standard output streams.
+             */
+            stdout?: string | null;
+            /**
+             * Tool ID
+             * @description Identifier of the tool that generated this job.
+             */
+            tool_id: string;
+            /**
+             * Tool Standard Error
+             * @description The captured standard error of the tool executed by the job.
+             */
+            tool_stderr?: string | null;
+            /**
+             * Tool Standard Output
+             * @description The captured standard output of the tool executed by the job.
+             */
+            tool_stdout?: string | null;
+            /**
+             * Update Time
+             * Format: date-time
+             * @description The last time and date this item was updated.
+             */
+            update_time: string;
+            /**
+             * User Email
+             * @description The email of the user that owns this job. Only the owner of the job and administrators can see this value.
+             */
+            user_email?: string | null;
+        };
         /**
          * Src
-         * @description An enumeration.
          * @enum {string}
          */
         Src: "url" | "pasted" | "files" | "path" | "composite" | "ftp_import" | "server_dir";
-        /**
-         * StorageItemCleanupError
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** StepReferenceByLabel */
+        StepReferenceByLabel: {
+            /**
+             * Label
+             * @description The unique label of the step being referenced.
+             */
+            label: string;
+        };
+        /** StepReferenceByOrderIndex */
+        StepReferenceByOrderIndex: {
+            /**
+             * Order Index
+             * @description The order_index of the step being referenced. The order indices of a workflow start at 0.
+             */
+            order_index: number;
+        };
+        /** StorageItemCleanupError */
         StorageItemCleanupError: {
             /** Error */
             error: string;
@@ -8565,10 +11429,7 @@ export interface components {
              */
             item_id: string;
         };
-        /**
-         * StorageItemsCleanupResult
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** StorageItemsCleanupResult */
         StorageItemsCleanupResult: {
             /** Errors */
             errors: components["schemas"]["StorageItemCleanupError"][];
@@ -8579,10 +11440,7 @@ export interface components {
             /** Total Item Count */
             total_item_count: number;
         };
-        /**
-         * StoreExportPayload
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** StoreExportPayload */
         StoreExportPayload: {
             /**
              * Include deleted
@@ -8608,10 +11466,7 @@ export interface components {
              */
             model_store_format?: components["schemas"]["ModelStoreFormat"];
         };
-        /**
-         * StoredItem
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** StoredItem */
         StoredItem: {
             /**
              * Id
@@ -8637,10 +11492,202 @@ export interface components {
          * @enum {string}
          */
         StoredItemOrderBy: "name-asc" | "name-dsc" | "size-asc" | "size-dsc" | "update_time-asc" | "update_time-dsc";
-        /**
-         * SuitableConverter
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** StoredWorkflowDetailed */
+        StoredWorkflowDetailed: {
+            /**
+             * Annotation
+             * @description An annotation to provide details or to help understand the purpose and usage of this item.
+             */
+            annotation: string | null;
+            /**
+             * Annotations
+             * @description An list of annotations to provide details or to help understand the purpose and usage of this workflow.
+             */
+            annotations?: string[] | null;
+            /**
+             * Create Time
+             * Format: date-time
+             * @description The time and date this item was created.
+             */
+            create_time: string;
+            /**
+             * Creator
+             * @description Additional information about the creator (or multiple creators) of this workflow.
+             */
+            creator?:
+                | (components["schemas"]["Person"] | components["schemas"]["galaxy__schema__schema__Organization"])[]
+                | null;
+            /**
+             * Deleted
+             * @description Whether this item is marked as deleted.
+             */
+            deleted: boolean;
+            /**
+             * Email Hash
+             * @description The hash of the email of the creator of this workflow
+             */
+            email_hash: string | null;
+            /**
+             * Hidden
+             * @description TODO
+             */
+            hidden: boolean;
+            /**
+             * Id
+             * @example 0123456789ABCDEF
+             */
+            id: string;
+            /**
+             * Importable
+             * @description Indicates if the workflow is importable by the current user.
+             */
+            importable: boolean | null;
+            /**
+             * Inputs
+             * @description A dictionary containing information about all the inputs of the workflow.
+             * @default {}
+             */
+            inputs?: {
+                [key: string]: components["schemas"]["WorkflowInput"] | undefined;
+            };
+            /**
+             * Latest workflow UUID
+             * @description TODO
+             */
+            latest_workflow_uuid?: string | null;
+            /**
+             * License
+             * @description SPDX Identifier of the license associated with this workflow.
+             */
+            license?: string | null;
+            /**
+             * Model class
+             * @description The name of the database model class.
+             * @constant
+             * @enum {string}
+             */
+            model_class: "StoredWorkflow";
+            /**
+             * Name
+             * @description The name of the history.
+             */
+            name: string;
+            /**
+             * Number of Steps
+             * @description The number of steps that make up this workflow.
+             */
+            number_of_steps?: number | null;
+            /**
+             * Owner
+             * @description The name of the user who owns this workflow.
+             */
+            owner: string;
+            /**
+             * Published
+             * @description Whether this workflow is currently publicly available to all users.
+             */
+            published: boolean;
+            /**
+             * Show in Tool Panel
+             * @description Whether to display this workflow in the Tools Panel.
+             */
+            show_in_tool_panel?: boolean | null;
+            /**
+             * Slug
+             * @description The slug of the workflow.
+             */
+            slug: string | null;
+            /**
+             * Source Metadata
+             * @description The source metadata of the workflow.
+             */
+            source_metadata: Record<string, never> | null;
+            /**
+             * Steps
+             * @description A dictionary with information about all the steps of the workflow.
+             * @default {}
+             */
+            steps?: {
+                [key: string]:
+                    | (
+                          | components["schemas"]["InputDataStep"]
+                          | components["schemas"]["InputDataCollectionStep"]
+                          | components["schemas"]["InputParameterStep"]
+                          | components["schemas"]["PauseStep"]
+                          | components["schemas"]["ToolStep"]
+                          | components["schemas"]["SubworkflowStep"]
+                      )
+                    | undefined;
+            };
+            tags: components["schemas"]["TagCollection"];
+            /**
+             * Update Time
+             * Format: date-time
+             * @description The last time and date this item was updated.
+             */
+            update_time: string;
+            /**
+             * URL
+             * @deprecated
+             * @description The relative URL to access this item.
+             */
+            url: string;
+            /**
+             * Version
+             * @description The version of the workflow represented by an incremental number.
+             */
+            version: number;
+        };
+        /** SubworkflowStep */
+        SubworkflowStep: {
+            /**
+             * Annotation
+             * @description An annotation to provide details or to help understand the purpose and usage of this item.
+             */
+            annotation: string | null;
+            /**
+             * ID
+             * @description The identifier of the step. It matches the index order of the step inside the workflow.
+             */
+            id: number;
+            /**
+             * Input Steps
+             * @description A dictionary containing information about the inputs connected to this workflow step.
+             */
+            input_steps: {
+                [key: string]: components["schemas"]["InputStep"] | undefined;
+            };
+            /**
+             * Tool ID
+             * @description The unique name of the tool associated with this step.
+             */
+            tool_id?: string | null;
+            /**
+             * Tool Inputs
+             * @description TODO
+             */
+            tool_inputs?: Record<string, never>;
+            /**
+             * Tool Version
+             * @description The version of the tool associated with this step.
+             */
+            tool_version?: string | null;
+            /**
+             * Type
+             * @constant
+             * @enum {string}
+             */
+            type: "subworkflow";
+            /** When */
+            when: string | null;
+            /**
+             * Workflow ID
+             * @description The encoded ID of the workflow that will be run on this step.
+             * @example 0123456789ABCDEF
+             */
+            workflow_id: string;
+        };
+        /** SuitableConverter */
         SuitableConverter: {
             /**
              * Name
@@ -8669,19 +11716,16 @@ export interface components {
          */
         SuitableConverters: components["schemas"]["SuitableConverter"][];
         /**
+         * SupportedType
+         * @enum {string}
+         */
+        SupportedType: "None" | "BasicAuth" | "BearerAuth" | "PassportAuth";
+        /**
          * TagCollection
-         * @description The collection of tags associated with an item.
-         * @example [
-         *   "COVID-19",
-         *   "#myFancyTag",
-         *   "covid19.galaxyproject.org"
-         * ]
+         * @description Represents the collection of tags associated with an item.
          */
         TagCollection: string[];
-        /**
-         * TagOperationParams
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** TagOperationParams */
         TagOperationParams: {
             /** Tags */
             tags: string[];
@@ -8690,8 +11734,7 @@ export interface components {
         };
         /**
          * TaggableItemClass
-         * @description An enumeration.
-         * @enum {unknown}
+         * @enum {string}
          */
         TaggableItemClass:
             | "History"
@@ -8712,12 +11755,6 @@ export interface components {
             /**
              * Columns
              * @description A list of column names
-             * @example [
-             *   "value",
-             *   "dbkey",
-             *   "name",
-             *   "path"
-             * ]
              */
             columns: string[];
             /**
@@ -8728,13 +11765,11 @@ export interface components {
             /**
              * Model class
              * @description The name of class modelling this tool data
-             * @example TabularToolDataTable
              */
             model_class: string;
             /**
              * Name
              * @description The name of this tool data entry
-             * @example all_fasta
              */
             name: string;
         };
@@ -8743,13 +11778,11 @@ export interface components {
             /**
              * Model class
              * @description The name of class modelling this tool data
-             * @example TabularToolDataTable
              */
             model_class: string;
             /**
              * Name
              * @description The name of this tool data entry
-             * @example all_fasta
              */
             name: string;
         };
@@ -8769,9 +11802,6 @@ export interface components {
             /**
              * Files
              * @description A dictionary of file names and their size in bytes
-             * @example {
-             *   "file.txt": 136
-             * }
              */
             files: {
                 [key: string]: number | undefined;
@@ -8779,13 +11809,11 @@ export interface components {
             /**
              * Fingerprint
              * @description SHA1 Hash
-             * @example 22b45237a85c2b3f474bf66888c534387ffe0ced
              */
             fingerprint: string;
             /**
              * Model class
              * @description The name of class modelling this tool data field
-             * @example TabularToolDataField
              */
             model_class: string;
             /**
@@ -8799,9 +11827,51 @@ export interface components {
             /**
              * Values
              * @description A `\t` (TAB) separated list of column __contents__. You must specify a value for each of the columns of the data table.
-             * @example value	dbkey	name	path
              */
             values: string;
+        };
+        /** ToolStep */
+        ToolStep: {
+            /**
+             * Annotation
+             * @description An annotation to provide details or to help understand the purpose and usage of this item.
+             */
+            annotation: string | null;
+            /**
+             * ID
+             * @description The identifier of the step. It matches the index order of the step inside the workflow.
+             */
+            id: number;
+            /**
+             * Input Steps
+             * @description A dictionary containing information about the inputs connected to this workflow step.
+             */
+            input_steps: {
+                [key: string]: components["schemas"]["InputStep"] | undefined;
+            };
+            /**
+             * Tool ID
+             * @description The unique name of the tool associated with this step.
+             */
+            tool_id?: string | null;
+            /**
+             * Tool Inputs
+             * @description TODO
+             */
+            tool_inputs?: Record<string, never>;
+            /**
+             * Tool Version
+             * @description The version of the tool associated with this step.
+             */
+            tool_version?: string | null;
+            /**
+             * Type
+             * @constant
+             * @enum {string}
+             */
+            type: "tool";
+            /** When */
+            when: string | null;
         };
         /** Tour */
         Tour: {
@@ -8862,7 +11932,7 @@ export interface components {
              * Default title
              * @description Default title for each step
              */
-            title_default?: string;
+            title_default?: string | null;
         };
         /**
          * TourList
@@ -8875,44 +11945,57 @@ export interface components {
              * Content
              * @description Text shown to the user
              */
-            content?: string;
+            content?: string | null;
             /**
              * Element
              * @description CSS selector for the element to be described/clicked
              */
-            element?: string;
+            element?: string | null;
             /**
              * Placement
              * @description Placement of the text box relative to the selected element
              */
-            placement?: string;
+            placement?: string | null;
             /**
              * Post-click
              * @description Elements that receive a click() event after the step is shown
              */
-            postclick?: boolean | string[];
+            postclick?: boolean | string[] | null;
             /**
              * Pre-click
              * @description Elements that receive a click() event before the step is shown
              */
-            preclick?: boolean | string[];
+            preclick?: boolean | string[] | null;
             /**
              * Text-insert
              * @description Text to insert if element is a text box (e.g. tool search or upload)
              */
-            textinsert?: string;
+            textinsert?: string | null;
             /**
              * Title
              * @description Title displayed in the header of the step container
              */
-            title?: string;
+            title?: string | null;
         };
-        /**
-         * Type
-         * @description An enumeration.
-         * @enum {unknown}
-         */
-        Type: "s3" | "gs" | "ftp" | "gsiftp" | "globus" | "htsget" | "https" | "file";
+        /** UndeleteHistoriesPayload */
+        UndeleteHistoriesPayload: {
+            /**
+             * IDs
+             * @description List of history IDs to be undeleted.
+             */
+            ids: string[];
+        };
+        /** UpdateAnnotationAction */
+        UpdateAnnotationAction: {
+            /**
+             * Action Type
+             * @constant
+             * @enum {string}
+             */
+            action_type: "update_annotation";
+            /** Annotation */
+            annotation: string;
+        };
         /**
          * UpdateCollectionAttributePayload
          * @description Contains attributes that can be updated for all elements in a dataset collection.
@@ -8935,11 +12018,22 @@ export interface components {
              */
             history_content_type: components["schemas"]["HistoryContentType"];
             /**
-             * ID
-             * @description The encoded ID of this entity.
+             * Id
              * @example 0123456789ABCDEF
              */
             id: string;
+            [key: string]: unknown | undefined;
+        };
+        /** UpdateCreatorAction */
+        UpdateCreatorAction: {
+            /**
+             * Action Type
+             * @constant
+             * @enum {string}
+             */
+            action_type: "update_creator";
+            /** Creator */
+            creator?: Record<string, never>;
         };
         /**
          * UpdateHistoryContentsBatchPayload
@@ -8960,6 +12054,7 @@ export interface components {
              * @description A list of content items to update with the changes.
              */
             items: components["schemas"]["UpdateContentItem"][];
+            [key: string]: unknown | undefined;
         };
         /**
          * UpdateHistoryContentsPayload
@@ -8974,100 +12069,137 @@ export interface components {
              * Annotation
              * @description A user-defined annotation for this item.
              */
-            annotation?: string;
+            annotation?: string | null;
             /**
              * Deleted
              * @description Whether this item is marked as deleted.
              */
-            deleted?: boolean;
+            deleted?: boolean | null;
             /**
              * Name
              * @description The new name of the item.
              */
-            name?: string;
+            name?: string | null;
             /**
              * Tags
              * @description A list of tags to add to this item.
              */
-            tags?: components["schemas"]["TagCollection"];
+            tags?: components["schemas"]["TagCollection"] | null;
             /**
              * Visible
              * @description Whether this item is visible in the history.
              */
-            visible?: boolean;
+            visible?: boolean | null;
+            [key: string]: unknown | undefined;
         };
-        /**
-         * UpdateLibraryFolderPayload
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** UpdateLibraryFolderPayload */
         UpdateLibraryFolderPayload: {
             /**
              * Description
              * @description The new description of the library folder.
              */
-            description?: string;
+            description?: string | null;
             /**
              * Name
              * @description The new name of the library folder.
              */
-            name?: string;
+            name?: string | null;
         };
-        /**
-         * UpdateLibraryPayload
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** UpdateLibraryPayload */
         UpdateLibraryPayload: {
             /**
              * Description
              * @description A detailed description of the Library. Leave unset to keep the existing.
              */
-            description?: string;
+            description?: string | null;
             /**
              * Name
              * @description The new name of the Library. Leave unset to keep the existing.
              */
-            name?: string;
+            name?: string | null;
             /**
              * Synopsis
              * @description A short text describing the contents of the Library. Leave unset to keep the existing.
              */
-            synopsis?: string;
+            synopsis?: string | null;
         };
-        /**
-         * UpdateQuotaParams
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** UpdateLicenseAction */
+        UpdateLicenseAction: {
+            /**
+             * Action Type
+             * @constant
+             * @enum {string}
+             */
+            action_type: "update_license";
+            /** License */
+            license: string;
+        };
+        /** UpdateNameAction */
+        UpdateNameAction: {
+            /**
+             * Action Type
+             * @constant
+             * @enum {string}
+             */
+            action_type: "update_name";
+            /** Name */
+            name: string;
+        };
+        /** UpdateObjectStoreIdPayload */
+        UpdateObjectStoreIdPayload: {
+            /**
+             * Object Store Id
+             * @description Object store ID to update to, it must be an object store with the same device ID as the target dataset currently.
+             */
+            object_store_id: string;
+        };
+        /** UpdateOutputLabelAction */
+        UpdateOutputLabelAction: {
+            /**
+             * Action Type
+             * @constant
+             * @enum {string}
+             */
+            action_type: "update_output_label";
+            /** Output */
+            output:
+                | components["schemas"]["OutputReferenceByOrderIndex"]
+                | components["schemas"]["OutputReferenceByLabel"];
+            /** Output Label */
+            output_label: string;
+        };
+        /** UpdateQuotaParams */
         UpdateQuotaParams: {
             /**
              * Amount
              * @description Quota size (E.g. ``10000MB``, ``99 gb``, ``0.2T``, ``unlimited``)
              */
-            amount?: string;
+            amount?: string | null;
             /**
              * Default
              * @description Whether or not this is a default quota. Valid values are ``no``, ``unregistered``, ``registered``. Calling this method with ``default="no"`` on a non-default quota will throw an error. Not passing this parameter is equivalent to passing ``no``.
              */
-            default?: components["schemas"]["DefaultQuotaValues"];
+            default?: components["schemas"]["DefaultQuotaValues"] | null;
             /**
              * Description
              * @description Detailed text description for this Quota.
              */
-            description?: string;
+            description?: string | null;
             /**
              * Groups
              * @description A list of group IDs or names to associate with this quota.
              */
-            in_groups?: string[];
+            in_groups?: string[] | null;
             /**
              * Users
              * @description A list of user IDs or user emails to associate with this quota.
              */
-            in_users?: string[];
+            in_users?: string[] | null;
             /**
              * Name
              * @description The new name of the quota. This must be unique within a Galaxy instance.
              */
-            name?: string;
+            name?: string | null;
             /**
              * Operation
              * @description One of (``+``, ``-``, ``=``). If you wish to change this value, you must also provide the ``amount``, otherwise it will not take effect.
@@ -9075,25 +12207,53 @@ export interface components {
              */
             operation?: components["schemas"]["QuotaOperation"];
         };
+        /** UpdateReportAction */
+        UpdateReportAction: {
+            /**
+             * Action Type
+             * @constant
+             * @enum {string}
+             */
+            action_type: "update_report";
+            report: components["schemas"]["Report"];
+        };
+        /** UpdateStepLabelAction */
+        UpdateStepLabelAction: {
+            /**
+             * Action Type
+             * @constant
+             * @enum {string}
+             */
+            action_type: "update_step_label";
+            /**
+             * Label
+             * @description The unique label of the step being referenced.
+             */
+            label: string;
+            /**
+             * Step
+             * @description The target step for this action.
+             */
+            step: components["schemas"]["StepReferenceByOrderIndex"] | components["schemas"]["StepReferenceByLabel"];
+        };
+        /** UpdateStepPositionAction */
+        UpdateStepPositionAction: {
+            /**
+             * Action Type
+             * @constant
+             * @enum {string}
+             */
+            action_type: "update_step_position";
+            position_shift: components["schemas"]["Position"];
+            /**
+             * Step
+             * @description The target step for this action.
+             */
+            step: components["schemas"]["StepReferenceByOrderIndex"] | components["schemas"]["StepReferenceByLabel"];
+        };
         /**
          * UpdateUserNotificationPreferencesRequest
          * @description Contains the new notification preferences of a user.
-         * @example {
-         *   "preferences": {
-         *     "message": {
-         *       "channels": {
-         *         "push": true
-         *       },
-         *       "enabled": true
-         *     },
-         *     "new_shared_item": {
-         *       "channels": {
-         *         "push": true
-         *       },
-         *       "enabled": true
-         *     }
-         *   }
-         * }
          */
         UpdateUserNotificationPreferencesRequest: {
             /**
@@ -9104,13 +12264,51 @@ export interface components {
                 [key: string]: components["schemas"]["NotificationCategorySettings"] | undefined;
             };
         };
-        /**
-         * UrlDataElement
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** UpgradeAllStepsAction */
+        UpgradeAllStepsAction: {
+            /**
+             * Action Type
+             * @constant
+             * @enum {string}
+             */
+            action_type: "upgrade_all_steps";
+        };
+        /** UpgradeSubworkflowAction */
+        UpgradeSubworkflowAction: {
+            /**
+             * Action Type
+             * @constant
+             * @enum {string}
+             */
+            action_type: "upgrade_subworkflow";
+            /** Content Id */
+            content_id?: string | null;
+            /**
+             * Step
+             * @description The target step for this action.
+             */
+            step: components["schemas"]["StepReferenceByOrderIndex"] | components["schemas"]["StepReferenceByLabel"];
+        };
+        /** UpgradeToolAction */
+        UpgradeToolAction: {
+            /**
+             * Action Type
+             * @constant
+             * @enum {string}
+             */
+            action_type: "upgrade_tool";
+            /**
+             * Step
+             * @description The target step for this action.
+             */
+            step: components["schemas"]["StepReferenceByOrderIndex"] | components["schemas"]["StepReferenceByLabel"];
+            /** Tool Version */
+            tool_version?: string | null;
+        };
+        /** UrlDataElement */
         UrlDataElement: {
             /** Md5 */
-            MD5?: string;
+            MD5?: string | null;
             /**
              * Auto Decompress
              * @description Decompress compressed data before sniffing?
@@ -9118,9 +12316,9 @@ export interface components {
              */
             auto_decompress?: boolean;
             /** Collection Type */
-            collection_type?: string;
+            collection_type?: string | null;
             /** Created From Basename */
-            created_from_basename?: string;
+            created_from_basename?: string | null;
             /**
              * Dbkey
              * @default ?
@@ -9131,17 +12329,19 @@ export interface components {
              * @default false
              */
             deferred?: boolean;
-            elements_from?: components["schemas"]["ElementsFromType"];
+            /** Description */
+            description?: string | null;
+            elements_from?: components["schemas"]["ElementsFromType"] | null;
             /**
              * Ext
              * @default auto
              */
             ext?: string;
-            extra_files?: components["schemas"]["ExtraFiles"];
+            extra_files?: components["schemas"]["ExtraFiles"] | null;
             /** Info */
-            info?: string;
+            info?: string | null;
             /** Name */
-            name?: string;
+            name?: string | number | number | boolean | null;
             /**
              * Space To Tab
              * @default false
@@ -9149,11 +12349,12 @@ export interface components {
             space_to_tab?: boolean;
             /**
              * Src
+             * @constant
              * @enum {string}
              */
             src: "url";
             /** Tags */
-            tags?: string[];
+            tags?: string[] | null;
             /**
              * To Posix Lines
              * @default false
@@ -9165,10 +12366,7 @@ export interface components {
              */
             url: string;
         };
-        /**
-         * UserBeaconSetting
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** UserBeaconSetting */
         UserBeaconSetting: {
             /**
              * Enabled
@@ -9176,10 +12374,7 @@ export interface components {
              */
             enabled: boolean;
         };
-        /**
-         * UserCreationPayload
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** UserCreationPayload */
         UserCreationPayload: {
             /**
              * Email
@@ -9197,10 +12392,7 @@ export interface components {
              */
             username: string;
         };
-        /**
-         * UserDeletionPayload
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** UserDeletionPayload */
         UserDeletionPayload: {
             /**
              * Purge user
@@ -9208,10 +12400,7 @@ export interface components {
              */
             purge: boolean;
         };
-        /**
-         * UserEmail
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** UserEmail */
         UserEmail: {
             /**
              * Email
@@ -9251,15 +12440,12 @@ export interface components {
              * @example 0123456789ABCDEF
              */
             id: string;
-            /**
-             * Last password change
-             * Format: date-time
-             */
-            last_password_change?: string;
+            /** Last password change */
+            last_password_change: string | null;
             /**
              * Model class
              * @description The name of the database model class.
-             * @default User
+             * @constant
              * @enum {string}
              */
             model_class: "User";
@@ -9277,22 +12463,6 @@ export interface components {
         /**
          * UserNotificationPreferences
          * @description Contains the full notification preferences of a user.
-         * @example {
-         *   "preferences": {
-         *     "message": {
-         *       "channels": {
-         *         "push": true
-         *       },
-         *       "enabled": true
-         *     },
-         *     "new_shared_item": {
-         *       "channels": {
-         *         "push": true
-         *       },
-         *       "enabled": true
-         *     }
-         *   }
-         * }
          */
         UserNotificationPreferences: {
             /**
@@ -9334,10 +12504,9 @@ export interface components {
             deleted: boolean;
             /**
              * Expiration time
-             * Format: date-time
              * @description The time when the notification will expire. If not set, the notification will never expire. Expired notifications will be permanently deleted.
              */
-            expiration_time?: string;
+            expiration_time?: string | null;
             /**
              * ID
              * @description The encoded ID of the notification.
@@ -9352,10 +12521,9 @@ export interface components {
             publication_time: string;
             /**
              * Seen time
-             * Format: date-time
              * @description The time when the notification was seen by the user. If not set, the notification was not seen yet.
              */
-            seen_time?: string;
+            seen_time?: string | null;
             /**
              * Source
              * @description The source of the notification. Represents the agent that created the notification. E.g. 'galaxy' or 'admin'.
@@ -9382,12 +12550,12 @@ export interface components {
              * Deleted
              * @description Whether the notification should be marked as deleted by the user. If not set, the notification will not be changed.
              */
-            deleted?: boolean;
+            deleted?: boolean | null;
             /**
              * Seen
              * @description Whether the notification should be marked as seen by the user. If not set, the notification will not be changed.
              */
-            seen?: boolean;
+            seen?: boolean | null;
         };
         /**
          * UserNotificationsBatchUpdateRequest
@@ -9405,15 +12573,19 @@ export interface components {
              */
             notification_ids: string[];
         };
-        /**
-         * UserQuota
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** UserObjectstoreUsage */
+        UserObjectstoreUsage: {
+            /** Object Store Id */
+            object_store_id: string;
+            /** Total Disk Usage */
+            total_disk_usage: number;
+        };
+        /** UserQuota */
         UserQuota: {
             /**
              * Model class
              * @description The name of the database model class.
-             * @default UserQuotaAssociation
+             * @constant
              * @enum {string}
              */
             model_class: "UserQuotaAssociation";
@@ -9426,51 +12598,44 @@ export interface components {
         /** UserQuotaUsage */
         UserQuotaUsage: {
             /** Quota */
-            quota?: string;
+            quota?: string | null;
             /** Quota Bytes */
-            quota_bytes?: number;
+            quota_bytes?: number | null;
             /** Quota Percent */
-            quota_percent?: number;
+            quota_percent?: number | null;
             /** Quota Source Label */
-            quota_source_label?: string;
+            quota_source_label?: string | null;
             /** Total Disk Usage */
             total_disk_usage: number;
         };
         /** ValidationError */
         ValidationError: {
             /** Location */
-            loc: string[];
+            loc: (string | number)[];
             /** Message */
             msg: string;
             /** Error Type */
             type: string;
         };
-        /**
-         * Visualization
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** Visualization */
         Visualization: Record<string, never>;
-        /**
-         * VisualizationSummary
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** VisualizationSummary */
         VisualizationSummary: {
             /**
              * Annotation
              * @description The annotation of this Visualization.
              */
-            annotation?: string;
+            annotation?: string | null;
             /**
              * Create Time
-             * Format: date-time
              * @description The time and date this item was created.
              */
-            create_time?: string;
+            create_time: string | null;
             /**
              * DbKey
              * @description The database key of the visualization.
              */
-            dbkey?: string;
+            dbkey?: string | null;
             /**
              * Deleted
              * @description Whether this Visualization has been deleted.
@@ -9496,7 +12661,7 @@ export interface components {
              * Tags
              * @description A list of tags to add to this item.
              */
-            tags: components["schemas"]["TagCollection"];
+            tags: components["schemas"]["TagCollection"] | null;
             /**
              * Title
              * @description The name of the visualization.
@@ -9509,37 +12674,209 @@ export interface components {
             type: string;
             /**
              * Update Time
-             * Format: date-time
              * @description The last time and date this item was updated.
              */
-            update_time?: string;
+            update_time: string | null;
             /**
              * Username
              * @description The name of the user owning this Visualization.
              */
             username: string;
+            [key: string]: unknown | undefined;
         };
         /**
          * VisualizationSummaryList
-         * @description Base model definition with common configuration used by all derived models.
          * @default []
          */
         VisualizationSummaryList: components["schemas"]["VisualizationSummary"][];
-        /**
-         * WorkflowInvocationStateSummary
-         * @description Base model definition with common configuration used by all derived models.
-         */
-        WorkflowInvocationStateSummary: {
+        /** WorkflowInput */
+        WorkflowInput: {
+            /**
+             * Label
+             * @description Label of the input.
+             */
+            label: string | null;
+            /**
+             * UUID
+             * @description Universal unique identifier of the input.
+             */
+            uuid: string | null;
+            /**
+             * Value
+             * @description TODO
+             */
+            value: Record<string, never> | null;
+        };
+        /** WorkflowInvocationCollectionView */
+        WorkflowInvocationCollectionView: {
+            /**
+             * Create Time
+             * Format: date-time
+             * @description The time and date this item was created.
+             */
+            create_time: string;
+            /**
+             * History ID
+             * @description The encoded ID of the history associated with the invocation.
+             * @example 0123456789ABCDEF
+             */
+            history_id: string;
             /**
              * ID
-             * @description The encoded ID of this entity.
+             * @description The encoded ID of the workflow invocation.
              * @example 0123456789ABCDEF
              */
             id: string;
             /**
              * Model class
              * @description The name of the database model class.
-             * @default WorkflowInvocation
+             * @constant
+             * @enum {string}
+             */
+            model_class: "WorkflowInvocation";
+            /**
+             * Invocation state
+             * @description State of workflow invocation.
+             */
+            state: components["schemas"]["InvocationState"];
+            /**
+             * Update Time
+             * Format: date-time
+             * @description The last time and date this item was updated.
+             */
+            update_time: string;
+            /**
+             * UUID
+             * @description Universal unique identifier of the workflow invocation.
+             */
+            uuid?: string | string | null;
+            /**
+             * Workflow ID
+             * @description The encoded Workflow ID associated with the invocation.
+             * @example 0123456789ABCDEF
+             */
+            workflow_id: string;
+        };
+        /** WorkflowInvocationElementView */
+        WorkflowInvocationElementView: {
+            /**
+             * Create Time
+             * Format: date-time
+             * @description The time and date this item was created.
+             */
+            create_time: string;
+            /**
+             * History ID
+             * @description The encoded ID of the history associated with the invocation.
+             * @example 0123456789ABCDEF
+             */
+            history_id: string;
+            /**
+             * ID
+             * @description The encoded ID of the workflow invocation.
+             * @example 0123456789ABCDEF
+             */
+            id: string;
+            /**
+             * Input step parameters
+             * @description Input step parameters of the workflow invocation.
+             */
+            input_step_parameters: {
+                [key: string]: components["schemas"]["InvocationInputParameter"] | undefined;
+            };
+            /**
+             * Inputs
+             * @description Input datasets/dataset collections of the workflow invocation.
+             */
+            inputs: {
+                [key: string]: components["schemas"]["InvocationInput"] | undefined;
+            };
+            /**
+             * Messages
+             * @description A list of messages about why the invocation did not succeed.
+             */
+            messages: (
+                | components["schemas"]["InvocationCancellationReviewFailedResponse"]
+                | components["schemas"]["InvocationCancellationHistoryDeletedResponse"]
+                | components["schemas"]["InvocationCancellationUserRequestResponse"]
+                | components["schemas"]["InvocationFailureDatasetFailedResponse"]
+                | components["schemas"]["InvocationFailureCollectionFailedResponse"]
+                | components["schemas"]["InvocationFailureJobFailedResponse"]
+                | components["schemas"]["InvocationFailureOutputNotFoundResponse"]
+                | components["schemas"]["InvocationFailureExpressionEvaluationFailedResponse"]
+                | components["schemas"]["InvocationFailureWhenNotBooleanResponse"]
+                | components["schemas"]["InvocationUnexpectedFailureResponse"]
+                | components["schemas"]["InvocationEvaluationWarningWorkflowOutputNotFoundResponse"]
+            )[];
+            /**
+             * Model class
+             * @description The name of the database model class.
+             * @constant
+             * @enum {string}
+             */
+            model_class: "WorkflowInvocation";
+            /**
+             * Output collections
+             * @description Output dataset collections of the workflow invocation.
+             */
+            output_collections: {
+                [key: string]: components["schemas"]["InvocationOutputCollection"] | undefined;
+            };
+            /**
+             * Output values
+             * @description Output values of the workflow invocation.
+             */
+            output_values: Record<string, never>;
+            /**
+             * Outputs
+             * @description Output datasets of the workflow invocation.
+             */
+            outputs: {
+                [key: string]: components["schemas"]["InvocationOutput"] | undefined;
+            };
+            /**
+             * Invocation state
+             * @description State of workflow invocation.
+             */
+            state: components["schemas"]["InvocationState"];
+            /**
+             * Steps
+             * @description Steps of the workflow invocation.
+             */
+            steps: components["schemas"]["InvocationStep"][];
+            /**
+             * Update Time
+             * Format: date-time
+             * @description The last time and date this item was updated.
+             */
+            update_time: string;
+            /**
+             * UUID
+             * @description Universal unique identifier of the workflow invocation.
+             */
+            uuid?: string | string | null;
+            /**
+             * Workflow ID
+             * @description The encoded Workflow ID associated with the invocation.
+             * @example 0123456789ABCDEF
+             */
+            workflow_id: string;
+        };
+        /** WorkflowInvocationResponse */
+        WorkflowInvocationResponse:
+            | components["schemas"]["WorkflowInvocationElementView"]
+            | components["schemas"]["WorkflowInvocationCollectionView"];
+        /** WorkflowInvocationStateSummary */
+        WorkflowInvocationStateSummary: {
+            /**
+             * Id
+             * @example 0123456789ABCDEF
+             */
+            id: string;
+            /**
+             * Model class
+             * @description The name of the database model class.
+             * @constant
              * @enum {string}
              */
             model: "WorkflowInvocation";
@@ -9557,10 +12894,7 @@ export interface components {
                 [key: string]: number | undefined;
             };
         };
-        /**
-         * WriteInvocationStoreToPayload
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** WriteInvocationStoreToPayload */
         WriteInvocationStoreToPayload: {
             /**
              * Bco Merge History Metadata
@@ -9574,26 +12908,26 @@ export interface components {
              */
             bco_override_algorithmic_error?: {
                 [key: string]: string | undefined;
-            };
+            } | null;
             /**
              * Bco Override Empirical Error
              * @description Override empirical error for 'error domain' when generating BioCompute object.
              */
             bco_override_empirical_error?: {
                 [key: string]: string | undefined;
-            };
+            } | null;
             /**
              * Bco Override Environment Variables
              * @description Override environment variables for 'execution_domain' when generating BioCompute object.
              */
             bco_override_environment_variables?: {
                 [key: string]: string | undefined;
-            };
+            } | null;
             /**
              * Bco Override Xref
              * @description Override xref for 'description domain' when generating BioCompute object.
              */
-            bco_override_xref?: components["schemas"]["XrefItem"][];
+            bco_override_xref?: components["schemas"]["XrefItem"][] | null;
             /**
              * Include deleted
              * @description Include file contents for deleted datasets (if include_files is True).
@@ -9623,10 +12957,7 @@ export interface components {
              */
             target_uri: string;
         };
-        /**
-         * WriteStoreToPayload
-         * @description Base model definition with common configuration used by all derived models.
-         */
+        /** WriteStoreToPayload */
         WriteStoreToPayload: {
             /**
              * Include deleted
@@ -9673,19 +13004,59 @@ export interface components {
             /**
              * Name
              * @description Name of external reference
-             * @example [
-             *   "PubChem-compound"
-             * ]
              */
             name: string;
             /**
              * Namespace
              * @description External resource vendor prefix
-             * @example [
-             *   "pubchem.compound"
-             * ]
              */
             namespace: string;
+        };
+        /** Organization */
+        galaxy__schema__drs__Organization: {
+            /**
+             * Name
+             * @description Name of the organization responsible for the service
+             */
+            name: string;
+            /**
+             * Url
+             * Format: uri
+             * @description URL of the website of the organization (RFC 3986 format)
+             */
+            url: string;
+        };
+        /** Organization */
+        galaxy__schema__schema__Organization: {
+            /** Address */
+            address?: string | null;
+            /** Alternate Name */
+            alternateName?: string | null;
+            /**
+             * Class
+             * @default Organization
+             */
+            class?: string;
+            /** Email */
+            email?: string | null;
+            /** Fax Number */
+            faxNumber?: string | null;
+            /**
+             * Identifier
+             * @description Identifier (typically an orcid.org ID)
+             */
+            identifier?: string | null;
+            /** Image URL */
+            image?: string | null;
+            /**
+             * Name
+             * @description The name of the creator.
+             */
+            name?: string | null;
+            /** Telephone */
+            telephone?: string | null;
+            /** URL */
+            url?: string | null;
         };
     };
     responses: never;
@@ -9709,20 +13080,6 @@ export interface operations {
             };
         };
     };
-    index_api_cloud_storage_get: {
-        /**
-         * Lists cloud-based buckets (e.g., S3 bucket, Azure blob) user has defined. Is not yet implemented
-         * @deprecated
-         */
-        responses: {
-            /** @description Successful Response */
-            200: {
-                content: {
-                    "application/json": Record<string, never>;
-                };
-            };
-        };
-    };
     get_api_cloud_storage_get_post: {
         /**
          * Gets given objects from a given cloud-based bucket to a Galaxy history.
@@ -9731,7 +13088,7 @@ export interface operations {
         parameters?: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         requestBody: {
@@ -9762,7 +13119,7 @@ export interface operations {
         parameters?: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         requestBody: {
@@ -9798,12 +13155,12 @@ export interface operations {
             /** @description View to be passed to the serializer */
             /** @description Comma-separated list of keys to be passed to the serializer */
             query?: {
-                view?: string;
-                keys?: string;
+                view?: string | null;
+                keys?: string | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         responses: {
@@ -9829,7 +13186,7 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description Encoded id to be decoded */
             path: {
@@ -9861,7 +13218,7 @@ export interface operations {
         parameters?: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         responses: {
@@ -9881,6 +13238,38 @@ export interface operations {
             };
         };
     };
+    encode_id_api_configuration_encode__decoded_id__get: {
+        /**
+         * Encode a given id
+         * @description Decode a given id.
+         */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description Decoded id to be encoded */
+            path: {
+                decoded_id: number;
+            };
+        };
+        responses: {
+            /** @description Encoded id */
+            200: {
+                content: {
+                    "application/json": {
+                        [key: string]: string | undefined;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     tool_lineages_api_configuration_tool_lineages_get: {
         /**
          * Return tool lineages for tools that have them
@@ -9889,7 +13278,7 @@ export interface operations {
         parameters?: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         responses: {
@@ -9917,7 +13306,7 @@ export interface operations {
         parameters?: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         responses: {
@@ -9940,9 +13329,9 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The encoded identifier of the dataset collection element. */
+            /** @description The encoded ID of the dataset collection element. */
             path: {
                 dce_id: string;
             };
@@ -9967,7 +13356,7 @@ export interface operations {
         parameters?: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         requestBody: {
@@ -9998,14 +13387,14 @@ export interface operations {
             /** @description The number of content elements that will be skipped before returning. */
             query?: {
                 instance_type?: "history" | "library";
-                limit?: number;
-                offset?: number;
+                limit?: number | null;
+                offset?: number | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The encoded identifier of the dataset collection. */
+            /** @description The ID of the `HDCA`. */
             /** @description Parent collection ID describing what collection the contents belongs to. */
             path: {
                 hdca_id: string;
@@ -10031,14 +13420,16 @@ export interface operations {
         /** Returns detailed information about the given collection. */
         parameters: {
             /** @description The type of collection instance. Either `history` (default) or `library`. */
+            /** @description The view of collection instance to return. */
             query?: {
                 instance_type?: "history" | "library";
+                view?: string;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The encoded identifier of the dataset collection. */
+            /** @description The ID of the `HDCA`. */
             path: {
                 id: string;
             };
@@ -10047,7 +13438,7 @@ export interface operations {
             /** @description Successful Response */
             200: {
                 content: {
-                    "application/json": components["schemas"]["HDCADetailed"];
+                    "application/json": components["schemas"]["HDCADetailed"] | components["schemas"]["HDCASummary"];
                 };
             };
             /** @description Validation Error */
@@ -10067,9 +13458,9 @@ export interface operations {
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The encoded identifier of the dataset collection. */
+            /** @description The ID of the `HDCA`. */
             path: {
                 id: string;
             };
@@ -10094,9 +13485,9 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The ID of the dataset collection to copy. */
+            /** @description The ID of the `HDCA`. */
             path: {
                 id: string;
             };
@@ -10130,9 +13521,9 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The ID of the `HDCA` contained in the history. */
+            /** @description The ID of the `HDCA`. */
             path: {
                 id: string;
             };
@@ -10158,9 +13549,9 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The ID of the `HDCA` contained in the history. */
+            /** @description The ID of the `HDCA`. */
             path: {
                 id: string;
             };
@@ -10191,9 +13582,9 @@ export interface operations {
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The encoded identifier of the dataset collection. */
+            /** @description The ID of the `HDCA`. */
             path: {
                 id: string;
             };
@@ -10219,30 +13610,24 @@ export interface operations {
             /** @description Optional identifier of a History. Use it to restrict the search within a particular History. */
             /** @description View to be passed to the serializer */
             /** @description Comma-separated list of keys to be passed to the serializer */
-            /**
-             * @description Generally a property name to filter by followed by an (often optional) hyphen and operator string.
-             * @example create_time-gt
-             */
-            /**
-             * @description The value to filter by.
-             * @example 2015-01-29
-             */
+            /** @description Generally a property name to filter by followed by an (often optional) hyphen and operator string. */
+            /** @description The value to filter by. */
             /** @description Starts at the beginning skip the first ( offset - 1 ) items and begin returning at the Nth item */
             /** @description The maximum number of items to return. */
             /** @description String containing one of the valid ordering attributes followed (optionally) by '-asc' or '-dsc' for ascending and descending order respectively. Orders can be stacked as a comma-separated list of values. */
             query?: {
-                history_id?: string;
-                view?: string;
-                keys?: string;
-                q?: string[];
-                qv?: string[];
-                offset?: number;
-                limit?: number;
-                order?: string;
+                history_id?: string | null;
+                view?: string | null;
+                keys?: string | null;
+                q?: string[] | null;
+                qv?: string[] | null;
+                offset?: number | null;
+                limit?: number | null;
+                order?: string | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         responses: {
@@ -10250,11 +13635,11 @@ export interface operations {
             200: {
                 content: {
                     "application/json": (
+                        | components["schemas"]["HDACustom"]
                         | components["schemas"]["HDADetailed"]
                         | components["schemas"]["HDASummary"]
                         | components["schemas"]["HDCADetailed"]
                         | components["schemas"]["HDCASummary"]
-                        | components["schemas"]["CustomHistoryItem"]
                     )[];
                 };
             };
@@ -10276,7 +13661,7 @@ export interface operations {
         parameters?: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         requestBody: {
@@ -10313,15 +13698,15 @@ export interface operations {
             /** @description Comma-separated list of keys to be passed to the serializer */
             query?: {
                 hda_ldda?: components["schemas"]["DatasetSourceType"];
-                data_type?: components["schemas"]["RequestDataType"];
-                view?: string;
-                keys?: string;
+                data_type?: components["schemas"]["RequestDataType"] | null;
+                view?: string | null;
+                keys?: string | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The encoded database identifier of the dataset. */
+            /** @description The ID of the History Dataset. */
             path: {
                 dataset_id: string;
             };
@@ -10341,14 +13726,124 @@ export interface operations {
             };
         };
     };
+    datasets__update_dataset: {
+        /**
+         * Updates the values for the history dataset (HDA) item with the given ``ID``.
+         * @description Updates the values for the history content item with the given ``ID``.
+         */
+        parameters: {
+            /** @description View to be passed to the serializer */
+            /** @description Comma-separated list of keys to be passed to the serializer */
+            query?: {
+                view?: string | null;
+                keys?: string | null;
+            };
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The ID of the item (`HDA`/`HDCA`) */
+            path: {
+                dataset_id: string;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateHistoryContentsPayload"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json":
+                        | components["schemas"]["HDACustom"]
+                        | components["schemas"]["HDADetailed"]
+                        | components["schemas"]["HDASummary"]
+                        | components["schemas"]["HDCADetailed"]
+                        | components["schemas"]["HDCASummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    datasets__delete: {
+        /**
+         * Delete the history dataset content with the given ``ID``.
+         * @description Delete the history content with the given ``ID`` and path specified type.
+         *
+         * **Note**: Currently does not stop any active jobs for which this dataset is an output.
+         */
+        parameters: {
+            /**
+             * @deprecated
+             * @description Whether to remove from disk the target HDA or child HDAs of the target HDCA.
+             */
+            /**
+             * @deprecated
+             * @description When deleting a dataset collection, whether to also delete containing datasets.
+             */
+            /**
+             * @deprecated
+             * @description Whether to stop the creating job if all outputs of the job have been deleted.
+             */
+            /** @description View to be passed to the serializer */
+            /** @description Comma-separated list of keys to be passed to the serializer */
+            query?: {
+                purge?: boolean | null;
+                recursive?: boolean | null;
+                stop_job?: boolean | null;
+                view?: string | null;
+                keys?: string | null;
+            };
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The ID of the item (`HDA`/`HDCA`) */
+            path: {
+                dataset_id: string;
+            };
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["DeleteHistoryContentPayload"];
+            };
+        };
+        responses: {
+            /** @description Request has been executed. */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["DeleteHistoryContentResult"];
+                };
+            };
+            /** @description Request accepted, processing will finish later. */
+            202: {
+                content: {
+                    "application/json": components["schemas"]["DeleteHistoryContentResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_structured_content_api_datasets__dataset_id__content__content_type__get: {
         /** Retrieve information about the content of a dataset. */
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The encoded database identifier of the dataset. */
+            /** @description The ID of the History Dataset. */
             path: {
                 dataset_id: string;
                 content_type: components["schemas"]["DatasetContentType"];
@@ -10377,9 +13872,9 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The encoded database identifier of the dataset. */
+            /** @description The ID of the History Dataset. */
             path: {
                 dataset_id: string;
             };
@@ -10412,14 +13907,14 @@ export interface operations {
             /** @description View to be passed to the serializer */
             /** @description Comma-separated list of keys to be passed to the serializer */
             query?: {
-                view?: string;
-                keys?: string;
+                view?: string | null;
+                keys?: string | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The encoded database identifier of the dataset. */
+            /** @description The ID of the History Dataset. */
             /** @description File extension of the new format to convert this dataset to. */
             path: {
                 dataset_id: string;
@@ -10430,7 +13925,37 @@ export interface operations {
             /** @description Successful Response */
             200: {
                 content: {
-                    "application/json": components["schemas"]["HDADetailed"] | components["schemas"]["HDASummary"];
+                    "application/json":
+                        | components["schemas"]["HDACustom"]
+                        | components["schemas"]["HDADetailed"]
+                        | components["schemas"]["HDASummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    extra_files_api_datasets__dataset_id__extra_files_get: {
+        /** Get the list of extra files/directories associated with a dataset. */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The encoded database identifier of the dataset. */
+            path: {
+                dataset_id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["DatasetExtraFiles"];
                 };
             };
             /** @description Validation Error */
@@ -10446,9 +13971,9 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The encoded database identifier of the dataset. */
+            /** @description The ID of the History Dataset. */
             path: {
                 dataset_id: string;
             };
@@ -10477,9 +14002,9 @@ export interface operations {
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The encoded database identifier of the dataset. */
+            /** @description The ID of the History Dataset. */
             path: {
                 dataset_id: string;
             };
@@ -10513,9 +14038,9 @@ export interface operations {
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The encoded database identifier of the dataset. */
+            /** @description The ID of the History Dataset. */
             path: {
                 dataset_id: string;
             };
@@ -10535,6 +14060,109 @@ export interface operations {
             };
         };
     };
+    get_metrics_api_datasets__dataset_id__metrics_get: {
+        /**
+         * Return job metrics for specified job.
+         * @deprecated
+         */
+        parameters: {
+            /** @description Whether this dataset belongs to a history (HDA) or a library (LDDA). */
+            query?: {
+                hda_ldda?: components["schemas"]["DatasetSourceType"];
+            };
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The ID of the dataset */
+            path: {
+                dataset_id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": (components["schemas"]["JobMetric"] | null)[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    datasets__update_object_store_id: {
+        /** Update an object store ID for a dataset you own. */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The ID of the History Dataset. */
+            path: {
+                dataset_id: string;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateObjectStoreIdPayload"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resolve_parameters_display_api_datasets__dataset_id__parameters_display_get: {
+        /**
+         * Resolve parameters as a list for nested display.
+         * @deprecated
+         * @description Resolve parameters as a list for nested display.
+         * This API endpoint is unstable and tied heavily to Galaxy's JS client code,
+         * this endpoint will change frequently.
+         */
+        parameters: {
+            /** @description Whether this dataset belongs to a history (HDA) or a library (LDDA). */
+            query?: {
+                hda_ldda?: components["schemas"]["DatasetSourceType"];
+            };
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The ID of the dataset */
+            path: {
+                dataset_id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["JobDisplayParametersSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     update_permissions_api_datasets__dataset_id__permissions_put: {
         /**
          * Set permissions of the given history dataset to the given role ids.
@@ -10543,23 +14171,15 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The encoded database identifier of the dataset. */
+            /** @description The ID of the History Dataset. */
             path: {
                 dataset_id: string;
             };
         };
         requestBody: {
             content: {
-                /**
-                 * @example {
-                 *   "access_ids[]": [],
-                 *   "action": "set_permissions",
-                 *   "manage_ids[]": [],
-                 *   "modify_ids[]": []
-                 * }
-                 */
                 "application/json": Record<string, never>;
             };
         };
@@ -10587,9 +14207,9 @@ export interface operations {
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The encoded database identifier of the dataset. */
+            /** @description The ID of the History Dataset. */
             path: {
                 dataset_id: string;
             };
@@ -10623,17 +14243,17 @@ export interface operations {
             /** @description If offset is set, this recommends 'how large' the next chunk should be. This is not respected or interpreted uniformly and should be interpreted as a very loose recommendation. Different datatypes interpret 'largeness' differently - for bam datasets this is a number of lines whereas for tabular datatypes this is interpreted as a number of bytes. */
             query?: {
                 preview?: boolean;
-                filename?: string;
-                to_ext?: string;
+                filename?: string | null;
+                to_ext?: string | null;
                 raw?: boolean;
-                offset?: number;
-                ck_size?: number;
+                offset?: number | null;
+                ck_size?: number | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The encoded database identifier of the dataset. */
+            /** @description The ID of the History Dataset. */
             path: {
                 history_content_id: string;
             };
@@ -10663,17 +14283,17 @@ export interface operations {
             /** @description If offset is set, this recommends 'how large' the next chunk should be. This is not respected or interpreted uniformly and should be interpreted as a very loose recommendation. Different datatypes interpret 'largeness' differently - for bam datasets this is a number of lines whereas for tabular datatypes this is interpreted as a number of bytes. */
             query?: {
                 preview?: boolean;
-                filename?: string;
-                to_ext?: string;
+                filename?: string | null;
+                to_ext?: string | null;
                 raw?: boolean;
-                offset?: number;
-                ck_size?: number;
+                offset?: number | null;
+                ck_size?: number | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The encoded database identifier of the dataset. */
+            /** @description The ID of the History Dataset. */
             path: {
                 history_content_id: string;
             };
@@ -10702,9 +14322,9 @@ export interface operations {
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The encoded database identifier of the dataset. */
+            /** @description The ID of the History Dataset. */
             path: {
                 history_content_id: string;
             };
@@ -10729,9 +14349,9 @@ export interface operations {
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The encoded database identifier of the dataset. */
+            /** @description The ID of the History Dataset. */
             path: {
                 history_content_id: string;
             };
@@ -10760,8 +14380,8 @@ export interface operations {
             /** @description Whether to return only the datatype's extension rather than the datatype's details */
             /** @description Whether to return only datatypes which can be uploaded */
             query?: {
-                extension_only?: boolean;
-                upload_only?: boolean;
+                extension_only?: boolean | null;
+                upload_only?: boolean | null;
             };
         };
         responses: {
@@ -10894,8 +14514,8 @@ export interface operations {
             /** @description Whether to return only the datatype's extension rather than the datatype's details */
             /** @description Whether to return only datatypes which can be uploaded */
             query?: {
-                extension_only?: boolean;
-                upload_only?: boolean;
+                extension_only?: boolean | null;
+                upload_only?: boolean | null;
             };
         };
         responses: {
@@ -10935,14 +14555,14 @@ export interface operations {
         parameters?: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         requestBody?: {
             content: {
                 "application/json": {
                     [key: string]: string[] | undefined;
-                };
+                } | null;
             };
         };
         responses: {
@@ -10965,7 +14585,7 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The ID of the group */
             path: {
@@ -11008,14 +14628,14 @@ export interface operations {
             query?: {
                 limit?: number;
                 offset?: number;
-                search_text?: string;
-                include_deleted?: boolean;
+                search_text?: string | null;
+                include_deleted?: boolean | null;
                 order_by?: "name" | "description" | "type" | "size" | "update_time";
-                sort_desc?: boolean;
+                sort_desc?: boolean | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The encoded identifier of the library folder. */
             path: {
@@ -11042,7 +14662,7 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The encoded identifier of the library folder. */
             path: {
@@ -11077,7 +14697,7 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The encoded identifier of the library folder. */
             path: {
@@ -11107,7 +14727,7 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The encoded identifier of the library folder. */
             path: {
@@ -11142,7 +14762,7 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The encoded identifier of the library folder. */
             path: {
@@ -11177,11 +14797,11 @@ export interface operations {
         parameters: {
             /** @description Whether to restore a deleted library folder. */
             query?: {
-                undelete?: boolean;
+                undelete?: boolean | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The encoded identifier of the library folder. */
             path: {
@@ -11211,7 +14831,7 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The encoded identifier of the library folder. */
             path: {
@@ -11250,14 +14870,14 @@ export interface operations {
             /** @description The maximum number of permissions per page when paginating. */
             /** @description Optional search text to retrieve only the roles matching this query. */
             query?: {
-                scope?: components["schemas"]["LibraryPermissionScope"];
+                scope?: components["schemas"]["LibraryPermissionScope"] | null;
                 page?: number;
                 page_limit?: number;
-                q?: string;
+                q?: string | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The encoded identifier of the library folder. */
             path: {
@@ -11289,11 +14909,11 @@ export interface operations {
         parameters: {
             /** @description Indicates what action should be performed on the Library. Currently only `set_permissions` is supported. */
             query?: {
-                action?: components["schemas"]["LibraryFolderPermissionAction"];
+                action?: components["schemas"]["LibraryFolderPermissionAction"] | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The encoded identifier of the library folder. */
             path: {
@@ -11320,6 +14940,58 @@ export interface operations {
             };
         };
     };
+    delete_api_forms__id__delete: {
+        /** Delete */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            path: {
+                id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    undelete_api_forms__id__undelete_post: {
+        /** Undelete */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            path: {
+                id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     index_api_ftp_files_get: {
         /**
          * Displays remote files available to the user. Please use /api/remote_files instead.
@@ -11329,19 +15001,19 @@ export interface operations {
         parameters?: {
             /** @description The source to load datasets from. Possible values: ftpdir, userdir, importdir */
             /** @description The requested format of returned data. Either `flat` to simply list all the files, `jstree` to get a tree representation of the files, or the default `uri` to list files and directories by their URI. */
-            /** @description Wether to recursively lists all sub-directories. This will be `True` by default depending on the `target`. */
+            /** @description Whether to recursively lists all sub-directories. This will be `True` by default depending on the `target`. */
             /** @description (This only applies when `format` is `jstree`) The value can be either `folders` or `files` and it will disable the corresponding nodes of the tree. */
             /** @description Whether the query is made with the intention of writing to the source. If set to True, only entries that can be written to will be returned. */
             query?: {
                 target?: string;
-                format?: components["schemas"]["RemoteFilesFormat"];
-                recursive?: boolean;
-                disable?: components["schemas"]["RemoteFilesDisableMode"];
-                writeable?: boolean;
+                format?: components["schemas"]["RemoteFilesFormat"] | null;
+                recursive?: boolean | null;
+                disable?: components["schemas"]["RemoteFilesDisableMode"] | null;
+                writeable?: boolean | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         responses: {
@@ -11370,7 +15042,7 @@ export interface operations {
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         responses: {
@@ -11407,7 +15079,7 @@ export interface operations {
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description Genome ID */
             path: {
@@ -11437,6 +15109,10 @@ export interface operations {
             query?: {
                 type?: string;
                 format?: string;
+            };
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
             };
             /** @description Genome ID */
             path: {
@@ -11475,7 +15151,7 @@ export interface operations {
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description Genome ID */
             path: {
@@ -11497,14 +15173,174 @@ export interface operations {
             };
         };
     };
-    index_api_groups__group_id__roles_get: {
+    index_api_groups_get: {
+        /** Displays a collection (list) of groups. */
+        parameters?: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["GroupListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_api_groups_post: {
+        /** Creates a new group. */
+        parameters?: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroupCreatePayload"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["GroupListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    show_group_api_groups__group_id__get: {
+        /** Displays information about a group. */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            path: {
+                group_id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["GroupResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_api_groups__group_id__put: {
+        /** Modifies a group. */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            path: {
+                group_id: string;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroupCreatePayload"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["GroupResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_api_groups__group_id__delete: {
+        /** Delete */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            path: {
+                group_id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    purge_api_groups__group_id__purge_post: {
+        /** Purge */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            path: {
+                group_id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    group_roles_api_groups__group_id__roles_get: {
         /** Displays a collection (list) of groups. */
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The ID of the group */
+            /** @description The ID of the group. */
             path: {
                 group_id: string;
             };
@@ -11529,10 +15365,10 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The ID of the group */
-            /** @description The ID of the role */
+            /** @description The ID of the group. */
+            /** @description The ID of the role. */
             path: {
                 group_id: string;
                 role_id: string;
@@ -11558,10 +15394,10 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The ID of the group */
-            /** @description The ID of the role */
+            /** @description The ID of the group. */
+            /** @description The ID of the role. */
             path: {
                 group_id: string;
                 role_id: string;
@@ -11587,10 +15423,10 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The ID of the group */
-            /** @description The ID of the role */
+            /** @description The ID of the group. */
+            /** @description The ID of the role. */
             path: {
                 group_id: string;
                 role_id: string;
@@ -11611,6 +15447,32 @@ export interface operations {
             };
         };
     };
+    undelete_api_groups__group_id__undelete_post: {
+        /** Undelete */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            path: {
+                group_id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     group_user_api_groups__group_id__user__user_id__get: {
         /**
          * Displays information about a group user.
@@ -11619,10 +15481,10 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The ID of the group */
-            /** @description The ID of the user */
+            /** @description The ID of the group. */
+            /** @description The ID of the user. */
             path: {
                 group_id: string;
                 user_id: string;
@@ -11652,10 +15514,10 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The ID of the group */
-            /** @description The ID of the user */
+            /** @description The ID of the group. */
+            /** @description The ID of the user. */
             path: {
                 group_id: string;
                 user_id: string;
@@ -11685,10 +15547,10 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The ID of the group */
-            /** @description The ID of the user */
+            /** @description The ID of the group. */
+            /** @description The ID of the user. */
             path: {
                 group_id: string;
                 user_id: string;
@@ -11709,7 +15571,7 @@ export interface operations {
             };
         };
     };
-    index_api_groups__group_id__users_get: {
+    group_users_api_groups__group_id__users_get: {
         /**
          * Displays a collection (list) of groups.
          * @description GET /api/groups/{encoded_group_id}/users
@@ -11718,9 +15580,9 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The ID of the group */
+            /** @description The ID of the group. */
             path: {
                 group_id: string;
             };
@@ -11748,10 +15610,10 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The ID of the group */
-            /** @description The ID of the user */
+            /** @description The ID of the group. */
+            /** @description The ID of the user. */
             path: {
                 group_id: string;
                 user_id: string;
@@ -11781,10 +15643,10 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The ID of the group */
-            /** @description The ID of the user */
+            /** @description The ID of the group. */
+            /** @description The ID of the user. */
             path: {
                 group_id: string;
                 user_id: string;
@@ -11814,10 +15676,10 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The ID of the group */
-            /** @description The ID of the user */
+            /** @description The ID of the group. */
+            /** @description The ID of the user. */
             path: {
                 group_id: string;
                 user_id: string;
@@ -11838,41 +15700,110 @@ export interface operations {
             };
         };
     };
+    search_forum_api_help_forum_search_get: {
+        /**
+         * Search the Galaxy Help forum.
+         * @description Search the Galaxy Help forum using the Discourse API.
+         *
+         * **Note**: This endpoint is for **INTERNAL USE ONLY** and is not part of the public Galaxy API.
+         */
+        parameters: {
+            /** @description Search query to use for searching the Galaxy Help forum. */
+            query: {
+                query: string;
+            };
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["HelpForumSearchResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     index_api_histories_get: {
-        /** Returns histories for the current user. */
+        /** Returns histories available to the current user. */
         parameters?: {
+            /** @description The maximum number of items to return. */
+            /** @description Starts at the beginning skip the first ( offset - 1 ) items and begin returning at the Nth item */
+            /** @description Whether to include archived histories. */
+            /** @description Sort index by this specified attribute */
+            /** @description Sort in descending order? */
+            /**
+             * @description A mix of free text and GitHub-style tags used to filter the index operation.
+             *
+             * ## Query Structure
+             *
+             * GitHub-style filter tags (not be confused with Galaxy tags) are tags of the form
+             * `<tag_name>:<text_no_spaces>` or `<tag_name>:'<text with potential spaces>'`. The tag name
+             * *generally* (but not exclusively) corresponds to the name of an attribute on the model
+             * being indexed (i.e. a column in the database).
+             *
+             * If the tag is quoted, the attribute will be filtered exactly. If the tag is unquoted,
+             * generally a partial match will be used to filter the query (i.e. in terms of the implementation
+             * this means the database operation `ILIKE` will typically be used).
+             *
+             * Once the tagged filters are extracted from the search query, the remaining text is just
+             * used to search various documented attributes of the object.
+             *
+             * ## GitHub-style Tags Available
+             *
+             * `name`
+             * : The history's name.
+             *
+             * `annotation`
+             * : The history's annotation. (The tag `a` can be used a short hand alias for this tag to filter on this attribute.)
+             *
+             * `tag`
+             * : The history's tags. (The tag `t` can be used a short hand alias for this tag to filter on this attribute.)
+             *
+             * ## Free Text
+             *
+             * Free text search terms will be searched against the following attributes of the
+             * Historys: `title`, `description`, `slug`, `tag`.
+             */
             /** @description Whether all histories from other users in this Galaxy should be included. Only admins are allowed to query all histories. */
             /**
              * @deprecated
              * @description Whether to return only deleted items.
              */
-            /**
-             * @description Generally a property name to filter by followed by an (often optional) hyphen and operator string.
-             * @example create_time-gt
-             */
-            /**
-             * @description The value to filter by.
-             * @example 2015-01-29
-             */
-            /** @description Starts at the beginning skip the first ( offset - 1 ) items and begin returning at the Nth item */
-            /** @description The maximum number of items to return. */
+            /** @description Generally a property name to filter by followed by an (often optional) hyphen and operator string. */
+            /** @description The value to filter by. */
             /** @description String containing one of the valid ordering attributes followed (optionally) by '-asc' or '-dsc' for ascending and descending order respectively. Orders can be stacked as a comma-separated list of values. */
             /** @description View to be passed to the serializer */
             /** @description Comma-separated list of keys to be passed to the serializer */
             query?: {
-                all?: boolean;
-                deleted?: boolean;
-                q?: string[];
-                qv?: string[];
-                offset?: number;
-                limit?: number;
-                order?: string;
-                view?: string;
-                keys?: string;
+                limit?: number | null;
+                offset?: number | null;
+                show_own?: boolean;
+                show_published?: boolean;
+                show_shared?: boolean;
+                show_archived?: boolean | null;
+                sort_by?: "create_time" | "name" | "update_time" | "username";
+                sort_desc?: boolean;
+                search?: string | null;
+                all?: boolean | null;
+                deleted?: boolean | null;
+                q?: string[] | null;
+                qv?: string[] | null;
+                order?: string | null;
+                view?: string | null;
+                keys?: string | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         responses: {
@@ -11880,9 +15811,9 @@ export interface operations {
             200: {
                 content: {
                     "application/json": (
-                        | components["schemas"]["HistorySummary"]
+                        | components["schemas"]["CustomHistoryView"]
                         | components["schemas"]["HistoryDetailed"]
-                        | Record<string, never>
+                        | components["schemas"]["HistorySummary"]
                     )[];
                 };
             };
@@ -11903,12 +15834,12 @@ export interface operations {
             /** @description View to be passed to the serializer */
             /** @description Comma-separated list of keys to be passed to the serializer */
             query?: {
-                view?: string;
-                keys?: string;
+                view?: string | null;
+                keys?: string | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         requestBody?: {
@@ -11922,9 +15853,9 @@ export interface operations {
                 content: {
                     "application/json":
                         | components["schemas"]["JobImportHistoryResponse"]
-                        | components["schemas"]["HistorySummary"]
+                        | components["schemas"]["CustomHistoryView"]
                         | components["schemas"]["HistoryDetailed"]
-                        | Record<string, never>;
+                        | components["schemas"]["HistorySummary"];
                 };
             };
             /** @description Validation Error */
@@ -11945,29 +15876,23 @@ export interface operations {
         parameters?: {
             /** @description View to be passed to the serializer */
             /** @description Comma-separated list of keys to be passed to the serializer */
-            /**
-             * @description Generally a property name to filter by followed by an (often optional) hyphen and operator string.
-             * @example create_time-gt
-             */
-            /**
-             * @description The value to filter by.
-             * @example 2015-01-29
-             */
+            /** @description Generally a property name to filter by followed by an (often optional) hyphen and operator string. */
+            /** @description The value to filter by. */
             /** @description Starts at the beginning skip the first ( offset - 1 ) items and begin returning at the Nth item */
             /** @description The maximum number of items to return. */
             /** @description String containing one of the valid ordering attributes followed (optionally) by '-asc' or '-dsc' for ascending and descending order respectively. Orders can be stacked as a comma-separated list of values. */
             query?: {
-                view?: string;
-                keys?: string;
-                q?: string[];
-                qv?: string[];
-                offset?: number;
-                limit?: number;
-                order?: string;
+                view?: string | null;
+                keys?: string | null;
+                q?: string[] | null;
+                qv?: string[] | null;
+                offset?: number | null;
+                limit?: number | null;
+                order?: string | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         responses: {
@@ -11989,12 +15914,89 @@ export interface operations {
             };
         };
     };
+    batch_delete_api_histories_batch_delete_put: {
+        /** Marks several histories with the given IDs as deleted. */
+        parameters?: {
+            /** @description View to be passed to the serializer */
+            /** @description Comma-separated list of keys to be passed to the serializer */
+            query?: {
+                purge?: boolean;
+                view?: string | null;
+                keys?: string | null;
+            };
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeleteHistoriesPayload"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": (
+                        | components["schemas"]["CustomHistoryView"]
+                        | components["schemas"]["HistoryDetailed"]
+                        | components["schemas"]["HistorySummary"]
+                    )[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    batch_undelete_api_histories_batch_undelete_put: {
+        /** Marks several histories with the given IDs as undeleted. */
+        parameters?: {
+            /** @description View to be passed to the serializer */
+            /** @description Comma-separated list of keys to be passed to the serializer */
+            query?: {
+                view?: string | null;
+                keys?: string | null;
+            };
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UndeleteHistoriesPayload"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": (
+                        | components["schemas"]["CustomHistoryView"]
+                        | components["schemas"]["HistoryDetailed"]
+                        | components["schemas"]["HistorySummary"]
+                    )[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     count_api_histories_count_get: {
         /** Returns number of histories for the current user. */
         parameters?: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         responses: {
@@ -12016,32 +16018,26 @@ export interface operations {
         /** Returns deleted histories for the current user. */
         parameters?: {
             /** @description Whether all histories from other users in this Galaxy should be included. Only admins are allowed to query all histories. */
-            /**
-             * @description Generally a property name to filter by followed by an (often optional) hyphen and operator string.
-             * @example create_time-gt
-             */
-            /**
-             * @description The value to filter by.
-             * @example 2015-01-29
-             */
+            /** @description Generally a property name to filter by followed by an (often optional) hyphen and operator string. */
+            /** @description The value to filter by. */
             /** @description Starts at the beginning skip the first ( offset - 1 ) items and begin returning at the Nth item */
             /** @description The maximum number of items to return. */
             /** @description String containing one of the valid ordering attributes followed (optionally) by '-asc' or '-dsc' for ascending and descending order respectively. Orders can be stacked as a comma-separated list of values. */
             /** @description View to be passed to the serializer */
             /** @description Comma-separated list of keys to be passed to the serializer */
             query?: {
-                all?: boolean;
-                q?: string[];
-                qv?: string[];
-                offset?: number;
-                limit?: number;
-                order?: string;
-                view?: string;
-                keys?: string;
+                all?: boolean | null;
+                q?: string[] | null;
+                qv?: string[] | null;
+                offset?: number | null;
+                limit?: number | null;
+                order?: string | null;
+                view?: string | null;
+                keys?: string | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         responses: {
@@ -12049,9 +16045,9 @@ export interface operations {
             200: {
                 content: {
                     "application/json": (
-                        | components["schemas"]["HistorySummary"]
+                        | components["schemas"]["CustomHistoryView"]
                         | components["schemas"]["HistoryDetailed"]
-                        | Record<string, never>
+                        | components["schemas"]["HistorySummary"]
                     )[];
                 };
             };
@@ -12069,12 +16065,12 @@ export interface operations {
             /** @description View to be passed to the serializer */
             /** @description Comma-separated list of keys to be passed to the serializer */
             query?: {
-                view?: string;
-                keys?: string;
+                view?: string | null;
+                keys?: string | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The encoded database identifier of the History. */
             path: {
@@ -12086,9 +16082,9 @@ export interface operations {
             200: {
                 content: {
                     "application/json":
-                        | components["schemas"]["HistorySummary"]
+                        | components["schemas"]["CustomHistoryView"]
                         | components["schemas"]["HistoryDetailed"]
-                        | Record<string, never>;
+                        | components["schemas"]["HistorySummary"];
                 };
             };
             /** @description Validation Error */
@@ -12105,12 +16101,12 @@ export interface operations {
             /** @description View to be passed to the serializer */
             /** @description Comma-separated list of keys to be passed to the serializer */
             query?: {
-                view?: string;
-                keys?: string;
+                view?: string | null;
+                keys?: string | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         requestBody: {
@@ -12123,9 +16119,9 @@ export interface operations {
             200: {
                 content: {
                     "application/json":
-                        | components["schemas"]["HistorySummary"]
+                        | components["schemas"]["CustomHistoryView"]
                         | components["schemas"]["HistoryDetailed"]
-                        | Record<string, never>;
+                        | components["schemas"]["HistorySummary"];
                 };
             };
             /** @description Validation Error */
@@ -12141,7 +16137,7 @@ export interface operations {
         parameters?: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         requestBody: {
@@ -12170,12 +16166,12 @@ export interface operations {
             /** @description View to be passed to the serializer */
             /** @description Comma-separated list of keys to be passed to the serializer */
             query?: {
-                view?: string;
-                keys?: string;
+                view?: string | null;
+                keys?: string | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         responses: {
@@ -12183,9 +16179,9 @@ export interface operations {
             200: {
                 content: {
                     "application/json":
-                        | components["schemas"]["HistorySummary"]
+                        | components["schemas"]["CustomHistoryView"]
                         | components["schemas"]["HistoryDetailed"]
-                        | Record<string, never>;
+                        | components["schemas"]["HistorySummary"];
                 };
             };
             /** @description Validation Error */
@@ -12199,31 +16195,25 @@ export interface operations {
     published_api_histories_published_get: {
         /** Return all histories that are published. */
         parameters?: {
-            /**
-             * @description Generally a property name to filter by followed by an (often optional) hyphen and operator string.
-             * @example create_time-gt
-             */
-            /**
-             * @description The value to filter by.
-             * @example 2015-01-29
-             */
+            /** @description Generally a property name to filter by followed by an (often optional) hyphen and operator string. */
+            /** @description The value to filter by. */
             /** @description Starts at the beginning skip the first ( offset - 1 ) items and begin returning at the Nth item */
             /** @description The maximum number of items to return. */
             /** @description String containing one of the valid ordering attributes followed (optionally) by '-asc' or '-dsc' for ascending and descending order respectively. Orders can be stacked as a comma-separated list of values. */
             /** @description View to be passed to the serializer */
             /** @description Comma-separated list of keys to be passed to the serializer */
             query?: {
-                q?: string[];
-                qv?: string[];
-                offset?: number;
-                limit?: number;
-                order?: string;
-                view?: string;
-                keys?: string;
+                q?: string[] | null;
+                qv?: string[] | null;
+                offset?: number | null;
+                limit?: number | null;
+                order?: string | null;
+                view?: string | null;
+                keys?: string | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         responses: {
@@ -12231,9 +16221,9 @@ export interface operations {
             200: {
                 content: {
                     "application/json": (
-                        | components["schemas"]["HistorySummary"]
+                        | components["schemas"]["CustomHistoryView"]
                         | components["schemas"]["HistoryDetailed"]
-                        | Record<string, never>
+                        | components["schemas"]["HistorySummary"]
                     )[];
                 };
             };
@@ -12248,31 +16238,25 @@ export interface operations {
     shared_with_me_api_histories_shared_with_me_get: {
         /** Return all histories that are shared with the current user. */
         parameters?: {
-            /**
-             * @description Generally a property name to filter by followed by an (often optional) hyphen and operator string.
-             * @example create_time-gt
-             */
-            /**
-             * @description The value to filter by.
-             * @example 2015-01-29
-             */
+            /** @description Generally a property name to filter by followed by an (often optional) hyphen and operator string. */
+            /** @description The value to filter by. */
             /** @description Starts at the beginning skip the first ( offset - 1 ) items and begin returning at the Nth item */
             /** @description The maximum number of items to return. */
             /** @description String containing one of the valid ordering attributes followed (optionally) by '-asc' or '-dsc' for ascending and descending order respectively. Orders can be stacked as a comma-separated list of values. */
             /** @description View to be passed to the serializer */
             /** @description Comma-separated list of keys to be passed to the serializer */
             query?: {
-                q?: string[];
-                qv?: string[];
-                offset?: number;
-                limit?: number;
-                order?: string;
-                view?: string;
-                keys?: string;
+                q?: string[] | null;
+                qv?: string[] | null;
+                offset?: number | null;
+                limit?: number | null;
+                order?: string | null;
+                view?: string | null;
+                keys?: string | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         responses: {
@@ -12280,9 +16264,9 @@ export interface operations {
             200: {
                 content: {
                     "application/json": (
-                        | components["schemas"]["HistorySummary"]
+                        | components["schemas"]["CustomHistoryView"]
                         | components["schemas"]["HistoryDetailed"]
-                        | Record<string, never>
+                        | components["schemas"]["HistorySummary"]
                     )[];
                 };
             };
@@ -12300,12 +16284,12 @@ export interface operations {
             /** @description View to be passed to the serializer */
             /** @description Comma-separated list of keys to be passed to the serializer */
             query?: {
-                view?: string;
-                keys?: string;
+                view?: string | null;
+                keys?: string | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The encoded database identifier of the History. */
             path: {
@@ -12317,9 +16301,9 @@ export interface operations {
             200: {
                 content: {
                     "application/json":
-                        | components["schemas"]["HistorySummary"]
+                        | components["schemas"]["CustomHistoryView"]
                         | components["schemas"]["HistoryDetailed"]
-                        | Record<string, never>;
+                        | components["schemas"]["HistorySummary"];
                 };
             };
             /** @description Validation Error */
@@ -12336,12 +16320,12 @@ export interface operations {
             /** @description View to be passed to the serializer */
             /** @description Comma-separated list of keys to be passed to the serializer */
             query?: {
-                view?: string;
-                keys?: string;
+                view?: string | null;
+                keys?: string | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The encoded database identifier of the History. */
             path: {
@@ -12358,9 +16342,9 @@ export interface operations {
             200: {
                 content: {
                     "application/json":
-                        | components["schemas"]["HistorySummary"]
+                        | components["schemas"]["CustomHistoryView"]
                         | components["schemas"]["HistoryDetailed"]
-                        | Record<string, never>;
+                        | components["schemas"]["HistorySummary"];
                 };
             };
             /** @description Validation Error */
@@ -12378,12 +16362,12 @@ export interface operations {
             /** @description Comma-separated list of keys to be passed to the serializer */
             query?: {
                 purge?: boolean;
-                view?: string;
-                keys?: string;
+                view?: string | null;
+                keys?: string | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The encoded database identifier of the History. */
             path: {
@@ -12392,7 +16376,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["DeleteHistoryPayload"];
+                "application/json": components["schemas"]["DeleteHistoryPayload"] | null;
             };
         };
         responses: {
@@ -12400,9 +16384,9 @@ export interface operations {
             200: {
                 content: {
                     "application/json":
-                        | components["schemas"]["HistorySummary"]
+                        | components["schemas"]["CustomHistoryView"]
                         | components["schemas"]["HistoryDetailed"]
-                        | Record<string, never>;
+                        | components["schemas"]["HistorySummary"];
                 };
             };
             /** @description Validation Error */
@@ -12434,7 +16418,7 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The encoded database identifier of the History. */
             path: {
@@ -12443,7 +16427,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["ArchiveHistoryRequestPayload"];
+                "application/json": components["schemas"]["ArchiveHistoryRequestPayload"] | null;
             };
         };
         responses: {
@@ -12478,11 +16462,11 @@ export interface operations {
         parameters: {
             /** @description If true, the history will be un-archived even if it has an associated archive export record and was purged. */
             query?: {
-                force?: boolean;
+                force?: boolean | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The encoded database identifier of the History. */
             path: {
@@ -12494,9 +16478,9 @@ export interface operations {
             200: {
                 content: {
                     "application/json":
-                        | components["schemas"]["HistorySummary"]
+                        | components["schemas"]["CustomHistoryView"]
                         | components["schemas"]["HistoryDetailed"]
-                        | Record<string, never>;
+                        | components["schemas"]["HistorySummary"];
                 };
             };
             /** @description Validation Error */
@@ -12512,7 +16496,7 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The encoded database identifier of the History. */
             path: {
@@ -12545,10 +16529,7 @@ export interface operations {
          * **Note**: Anonymous users are allowed to get their current history contents.
          */
         parameters: {
-            /**
-             * @description Only `dev` value is allowed. Set it to use the latest version of this endpoint. **All parameters marked as `deprecated` will be ignored when this parameter is set.**
-             * @example dev
-             */
+            /** @description Only `dev` value is allowed. Set it to use the latest version of this endpoint. **All parameters marked as `deprecated` will be ignored when this parameter is set.** */
             /**
              * @deprecated
              * @description Legacy name for the `dataset_details` parameter.
@@ -12572,38 +16553,32 @@ export interface operations {
             /** @description Whether to return only shareable or not shareable datasets. Leave unset for both. */
             /** @description View to be passed to the serializer */
             /** @description Comma-separated list of keys to be passed to the serializer */
-            /**
-             * @description Generally a property name to filter by followed by an (often optional) hyphen and operator string.
-             * @example create_time-gt
-             */
-            /**
-             * @description The value to filter by.
-             * @example 2015-01-29
-             */
+            /** @description Generally a property name to filter by followed by an (often optional) hyphen and operator string. */
+            /** @description The value to filter by. */
             /** @description Starts at the beginning skip the first ( offset - 1 ) items and begin returning at the Nth item */
             /** @description The maximum number of items to return. */
             /** @description String containing one of the valid ordering attributes followed (optionally) by '-asc' or '-dsc' for ascending and descending order respectively. Orders can be stacked as a comma-separated list of values. */
             query?: {
-                v?: string;
-                details?: string;
-                ids?: string;
-                types?: string[];
-                deleted?: boolean;
-                visible?: boolean;
-                shareable?: boolean;
-                view?: string;
-                keys?: string;
-                q?: string[];
-                qv?: string[];
-                offset?: number;
-                limit?: number;
-                order?: string;
+                v?: string | null;
+                details?: string | null;
+                ids?: string | null;
+                types?: string[] | null;
+                deleted?: boolean | null;
+                visible?: boolean | null;
+                shareable?: boolean | null;
+                view?: string | null;
+                keys?: string | null;
+                q?: string[] | null;
+                qv?: string[] | null;
+                offset?: number | null;
+                limit?: number | null;
+                order?: string | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The ID of the History. */
+            /** @description The encoded database identifier of the History. */
             path: {
                 history_id: string;
             };
@@ -12636,14 +16611,14 @@ export interface operations {
             /** @description View to be passed to the serializer */
             /** @description Comma-separated list of keys to be passed to the serializer */
             query?: {
-                view?: string;
-                keys?: string;
+                view?: string | null;
+                keys?: string | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The ID of the History. */
+            /** @description The encoded database identifier of the History. */
             path: {
                 history_id: string;
             };
@@ -12675,22 +16650,19 @@ export interface operations {
          * @description Create a new `HDA` or `HDCA` in the given History.
          */
         parameters: {
-            /**
-             * @description The type of the target history element.
-             * @example dataset
-             */
+            /** @description The type of the target history element. */
             /** @description View to be passed to the serializer */
             /** @description Comma-separated list of keys to be passed to the serializer */
             query?: {
-                type?: components["schemas"]["HistoryContentType"];
-                view?: string;
-                keys?: string;
+                type?: components["schemas"]["HistoryContentType"] | null;
+                view?: string | null;
+                keys?: string | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The ID of the History. */
+            /** @description The encoded database identifier of the History. */
             path: {
                 history_id: string;
             };
@@ -12705,17 +16677,17 @@ export interface operations {
             200: {
                 content: {
                     "application/json":
+                        | components["schemas"]["HDACustom"]
                         | components["schemas"]["HDADetailed"]
                         | components["schemas"]["HDASummary"]
                         | components["schemas"]["HDCADetailed"]
                         | components["schemas"]["HDCASummary"]
-                        | components["schemas"]["CustomHistoryItem"]
                         | (
+                              | components["schemas"]["HDACustom"]
                               | components["schemas"]["HDADetailed"]
                               | components["schemas"]["HDASummary"]
                               | components["schemas"]["HDCADetailed"]
                               | components["schemas"]["HDCASummary"]
-                              | components["schemas"]["CustomHistoryItem"]
                           )[];
                 };
             };
@@ -12737,31 +16709,25 @@ export interface operations {
         parameters: {
             /** @description The name that the Archive will have (defaults to history name). */
             /** @description Whether to return the archive and file paths only (as JSON) and not an actual archive file. */
-            /**
-             * @description Generally a property name to filter by followed by an (often optional) hyphen and operator string.
-             * @example create_time-gt
-             */
-            /**
-             * @description The value to filter by.
-             * @example 2015-01-29
-             */
+            /** @description Generally a property name to filter by followed by an (often optional) hyphen and operator string. */
+            /** @description The value to filter by. */
             /** @description Starts at the beginning skip the first ( offset - 1 ) items and begin returning at the Nth item */
             /** @description The maximum number of items to return. */
             /** @description String containing one of the valid ordering attributes followed (optionally) by '-asc' or '-dsc' for ascending and descending order respectively. Orders can be stacked as a comma-separated list of values. */
             query?: {
-                filename?: string;
-                dry_run?: boolean;
-                q?: string[];
-                qv?: string[];
-                offset?: number;
-                limit?: number;
-                order?: string;
+                filename?: string | null;
+                dry_run?: boolean | null;
+                q?: string[] | null;
+                qv?: string[] | null;
+                offset?: number | null;
+                limit?: number | null;
+                order?: string | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The ID of the History. */
+            /** @description The encoded database identifier of the History. */
             path: {
                 history_id: string;
             };
@@ -12790,30 +16756,24 @@ export interface operations {
          */
         parameters: {
             /** @description Whether to return the archive and file paths only (as JSON) and not an actual archive file. */
-            /**
-             * @description Generally a property name to filter by followed by an (often optional) hyphen and operator string.
-             * @example create_time-gt
-             */
-            /**
-             * @description The value to filter by.
-             * @example 2015-01-29
-             */
+            /** @description Generally a property name to filter by followed by an (often optional) hyphen and operator string. */
+            /** @description The value to filter by. */
             /** @description Starts at the beginning skip the first ( offset - 1 ) items and begin returning at the Nth item */
             /** @description The maximum number of items to return. */
             /** @description String containing one of the valid ordering attributes followed (optionally) by '-asc' or '-dsc' for ascending and descending order respectively. Orders can be stacked as a comma-separated list of values. */
             query?: {
-                dry_run?: boolean;
-                q?: string[];
-                qv?: string[];
-                offset?: number;
-                limit?: number;
-                order?: string;
+                dry_run?: boolean | null;
+                q?: string[] | null;
+                qv?: string[] | null;
+                offset?: number | null;
+                limit?: number | null;
+                order?: string | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The ID of the History. */
+            /** @description The encoded database identifier of the History. */
             /** @description The name that the Archive will have (defaults to history name). */
             /**
              * @deprecated
@@ -12848,23 +16808,17 @@ export interface operations {
          * The items to be processed can be explicitly set or determined by a dynamic query.
          */
         parameters: {
-            /**
-             * @description Generally a property name to filter by followed by an (often optional) hyphen and operator string.
-             * @example create_time-gt
-             */
-            /**
-             * @description The value to filter by.
-             * @example 2015-01-29
-             */
+            /** @description Generally a property name to filter by followed by an (often optional) hyphen and operator string. */
+            /** @description The value to filter by. */
             query?: {
-                q?: string[];
-                qv?: string[];
+                q?: string[] | null;
+                qv?: string[] | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The ID of the History. */
+            /** @description The encoded database identifier of the History. */
             path: {
                 history_id: string;
             };
@@ -12898,13 +16852,13 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
+            /** @description The ID of the `HDCA`. */
             /** @description The encoded database identifier of the History. */
-            /** @description The ID of the `HDCA` contained in the history. */
             path: {
-                history_id: string;
                 id: string;
+                history_id: string | null;
             };
         };
         responses: {
@@ -12923,10 +16877,10 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The ID of the History. */
-            /** @description The ID of the item (`HDA`/`HDCA`) contained in the history. */
+            /** @description The encoded database identifier of the History. */
+            /** @description The ID of the item (`HDA`/`HDCA`) */
             path: {
                 history_id: string;
                 id: string;
@@ -12955,10 +16909,10 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The ID of the History. */
-            /** @description The ID of the item (`HDA`/`HDCA`) contained in the history. */
+            /** @description The encoded database identifier of the History. */
+            /** @description The ID of the item (`HDA`/`HDCA`) */
             path: {
                 history_id: string;
                 dataset_id: string;
@@ -12966,14 +16920,6 @@ export interface operations {
         };
         requestBody: {
             content: {
-                /**
-                 * @example {
-                 *   "access_ids[]": [],
-                 *   "action": "set_permissions",
-                 *   "manage_ids[]": [],
-                 *   "modify_ids[]": []
-                 * }
-                 */
                 "application/json": Record<string, never>;
             };
         };
@@ -13006,21 +16952,20 @@ export interface operations {
             /** @description If offset is set, this recommends 'how large' the next chunk should be. This is not respected or interpreted uniformly and should be interpreted as a very loose recommendation. Different datatypes interpret 'largeness' differently - for bam datasets this is a number of lines whereas for tabular datatypes this is interpreted as a number of bytes. */
             query?: {
                 preview?: boolean;
-                filename?: string;
-                to_ext?: string;
+                filename?: string | null;
+                to_ext?: string | null;
                 raw?: boolean;
-                offset?: number;
-                ck_size?: number;
+                offset?: number | null;
+                ck_size?: number | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The encoded database identifier of the History. */
-            /** @description The encoded database identifier of the dataset. */
+            /** @description The ID of the History Dataset. */
             path: {
-                history_id: string;
                 history_content_id: string;
+                history_id: string | null;
             };
         };
         responses: {
@@ -13048,21 +16993,20 @@ export interface operations {
             /** @description If offset is set, this recommends 'how large' the next chunk should be. This is not respected or interpreted uniformly and should be interpreted as a very loose recommendation. Different datatypes interpret 'largeness' differently - for bam datasets this is a number of lines whereas for tabular datatypes this is interpreted as a number of bytes. */
             query?: {
                 preview?: boolean;
-                filename?: string;
-                to_ext?: string;
+                filename?: string | null;
+                to_ext?: string | null;
                 raw?: boolean;
-                offset?: number;
-                ck_size?: number;
+                offset?: number | null;
+                ck_size?: number | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The encoded database identifier of the History. */
-            /** @description The encoded database identifier of the dataset. */
+            /** @description The ID of the History Dataset. */
             path: {
-                history_id: string;
                 history_content_id: string;
+                history_id: string | null;
             };
         };
         responses: {
@@ -13080,15 +17024,15 @@ export interface operations {
             };
         };
     };
-    extra_files_api_histories__history_id__contents__history_content_id__extra_files_get: {
-        /** Generate list of extra files. */
+    extra_files_history_api_histories__history_id__contents__history_content_id__extra_files_get: {
+        /** Get the list of extra files/directories associated with a dataset. */
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The encoded database identifier of the History. */
-            /** @description The encoded database identifier of the dataset. */
+            /** @description The ID of the History Dataset. */
             path: {
                 history_id: string;
                 history_content_id: string;
@@ -13098,7 +17042,7 @@ export interface operations {
             /** @description Successful Response */
             200: {
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["DatasetExtraFiles"];
                 };
             };
             /** @description Validation Error */
@@ -13118,10 +17062,10 @@ export interface operations {
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The encoded database identifier of the History. */
-            /** @description The encoded database identifier of the dataset. */
+            /** @description The ID of the History Dataset. */
             path: {
                 history_id: string;
                 history_content_id: string;
@@ -13130,6 +17074,155 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             200: never;
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    index_api_histories__history_id__contents__history_content_id__tags_get: {
+        /** Show tags based on history_content_id */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            path: {
+                history_content_id: string;
+                history_id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["ItemTagsListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    show_api_histories__history_id__contents__history_content_id__tags__tag_name__get: {
+        /** Show tag based on history_content_id */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            path: {
+                history_content_id: string;
+                tag_name: string;
+                history_id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["ItemTagsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_api_histories__history_id__contents__history_content_id__tags__tag_name__put: {
+        /** Update tag based on history_content_id */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            path: {
+                history_content_id: string;
+                tag_name: string;
+                history_id: string;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ItemTagsCreatePayload"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["ItemTagsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_api_histories__history_id__contents__history_content_id__tags__tag_name__post: {
+        /** Create tag based on history_content_id */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            path: {
+                history_content_id: string;
+                tag_name: string;
+                history_id: string;
+            };
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ItemTagsCreatePayload"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["ItemTagsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_api_histories__history_id__contents__history_content_id__tags__tag_name__delete: {
+        /** Delete tag based on history_content_id */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            path: {
+                history_content_id: string;
+                tag_name: string;
+                history_id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": boolean;
+                };
+            };
             /** @description Validation Error */
             422: {
                 content: {
@@ -13147,28 +17240,25 @@ export interface operations {
          * **Note**: Anonymous users are allowed to get their current history contents.
          */
         parameters: {
-            /**
-             * @description The type of the target history element.
-             * @example dataset
-             */
+            /** @description The type of the target history element. */
             /** @description This value can be used to broadly restrict the magnitude of the number of elements returned via the API for large collections. The number of actual elements returned may be "a bit" more than this number or "a lot" less - varying on the depth of nesting, balance of nesting at each level, and size of target collection. The consumer of this API should not expect a stable number or pre-calculable number of elements to be produced given this parameter - the only promise is that this API will not respond with an order of magnitude more elements estimated with this value. The UI uses this parameter to fetch a "balanced" concept of the "start" of large collections at every depth of the collection. */
             /** @description View to be passed to the serializer */
             /** @description Comma-separated list of keys to be passed to the serializer */
             query?: {
                 type?: components["schemas"]["HistoryContentType"];
-                fuzzy_count?: number;
-                view?: string;
-                keys?: string;
+                fuzzy_count?: number | null;
+                view?: string | null;
+                keys?: string | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The ID of the History. */
-            /** @description The ID of the item (`HDA`/`HDCA`) contained in the history. */
+            /** @description The ID of the item (`HDA`/`HDCA`) */
+            /** @description The encoded database identifier of the History. */
             path: {
-                history_id: string;
                 id: string;
+                history_id: string;
             };
         };
         responses: {
@@ -13176,11 +17266,11 @@ export interface operations {
             200: {
                 content: {
                     "application/json":
+                        | components["schemas"]["HDACustom"]
                         | components["schemas"]["HDADetailed"]
                         | components["schemas"]["HDASummary"]
                         | components["schemas"]["HDCADetailed"]
-                        | components["schemas"]["HDCASummary"]
-                        | components["schemas"]["CustomHistoryItem"];
+                        | components["schemas"]["HDCASummary"];
                 };
             };
             /** @description Validation Error */
@@ -13198,23 +17288,20 @@ export interface operations {
          * @description Updates the values for the history content item with the given ``ID``.
          */
         parameters: {
-            /**
-             * @description The type of the target history element.
-             * @example dataset
-             */
+            /** @description The type of the target history element. */
             /** @description View to be passed to the serializer */
             /** @description Comma-separated list of keys to be passed to the serializer */
             query?: {
                 type?: components["schemas"]["HistoryContentType"];
-                view?: string;
-                keys?: string;
+                view?: string | null;
+                keys?: string | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The ID of the History. */
-            /** @description The ID of the item (`HDA`/`HDCA`) contained in the history. */
+            /** @description The encoded database identifier of the History. */
+            /** @description The ID of the item (`HDA`/`HDCA`) */
             path: {
                 history_id: string;
                 id: string;
@@ -13230,11 +17317,11 @@ export interface operations {
             200: {
                 content: {
                     "application/json":
+                        | components["schemas"]["HDACustom"]
                         | components["schemas"]["HDADetailed"]
                         | components["schemas"]["HDASummary"]
                         | components["schemas"]["HDCADetailed"]
-                        | components["schemas"]["HDCASummary"]
-                        | components["schemas"]["CustomHistoryItem"];
+                        | components["schemas"]["HDCASummary"];
                 };
             };
             /** @description Validation Error */
@@ -13253,10 +17340,7 @@ export interface operations {
          * **Note**: Currently does not stop any active jobs for which this dataset is an output.
          */
         parameters: {
-            /**
-             * @description The type of the target history element.
-             * @example dataset
-             */
+            /** @description The type of the target history element. */
             /**
              * @deprecated
              * @description Whether to remove from disk the target HDA or child HDAs of the target HDCA.
@@ -13273,18 +17357,18 @@ export interface operations {
             /** @description Comma-separated list of keys to be passed to the serializer */
             query?: {
                 type?: components["schemas"]["HistoryContentType"];
-                purge?: boolean;
-                recursive?: boolean;
-                stop_job?: boolean;
-                view?: string;
-                keys?: string;
+                purge?: boolean | null;
+                recursive?: boolean | null;
+                stop_job?: boolean | null;
+                view?: string | null;
+                keys?: string | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The ID of the History. */
-            /** @description The ID of the item (`HDA`/`HDCA`) contained in the history. */
+            /** @description The encoded database identifier of the History. */
+            /** @description The ID of the item (`HDA`/`HDCA`) */
             path: {
                 history_id: string;
                 id: string;
@@ -13324,10 +17408,10 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The ID of the History. */
-            /** @description The ID of the item (`HDA`/`HDCA`) contained in the history. */
+            /** @description The encoded database identifier of the History. */
+            /** @description The ID of the item (`HDA`/`HDCA`) */
             path: {
                 history_id: string;
                 id: string;
@@ -13359,10 +17443,7 @@ export interface operations {
          * **Note**: Anonymous users are allowed to get their current history contents.
          */
         parameters: {
-            /**
-             * @description Only `dev` value is allowed. Set it to use the latest version of this endpoint. **All parameters marked as `deprecated` will be ignored when this parameter is set.**
-             * @example dev
-             */
+            /** @description Only `dev` value is allowed. Set it to use the latest version of this endpoint. **All parameters marked as `deprecated` will be ignored when this parameter is set.** */
             /**
              * @deprecated
              * @description Legacy name for the `dataset_details` parameter.
@@ -13386,42 +17467,33 @@ export interface operations {
             /** @description Whether to return only shareable or not shareable datasets. Leave unset for both. */
             /** @description View to be passed to the serializer */
             /** @description Comma-separated list of keys to be passed to the serializer */
-            /**
-             * @description Generally a property name to filter by followed by an (often optional) hyphen and operator string.
-             * @example create_time-gt
-             */
-            /**
-             * @description The value to filter by.
-             * @example 2015-01-29
-             */
+            /** @description Generally a property name to filter by followed by an (often optional) hyphen and operator string. */
+            /** @description The value to filter by. */
             /** @description Starts at the beginning skip the first ( offset - 1 ) items and begin returning at the Nth item */
             /** @description The maximum number of items to return. */
             /** @description String containing one of the valid ordering attributes followed (optionally) by '-asc' or '-dsc' for ascending and descending order respectively. Orders can be stacked as a comma-separated list of values. */
             query?: {
-                v?: string;
-                details?: string;
-                ids?: string;
-                types?: string[];
-                deleted?: boolean;
-                visible?: boolean;
-                shareable?: boolean;
-                view?: string;
-                keys?: string;
-                q?: string[];
-                qv?: string[];
-                offset?: number;
-                limit?: number;
-                order?: string;
+                v?: string | null;
+                details?: string | null;
+                ids?: string | null;
+                types?: string[] | null;
+                deleted?: boolean | null;
+                visible?: boolean | null;
+                shareable?: boolean | null;
+                view?: string | null;
+                keys?: string | null;
+                q?: string[] | null;
+                qv?: string[] | null;
+                offset?: number | null;
+                limit?: number | null;
+                order?: string | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The ID of the History. */
-            /**
-             * @description The type of the target history element.
-             * @example dataset
-             */
+            /** @description The encoded database identifier of the History. */
+            /** @description The type of the target history element. */
             path: {
                 history_id: string;
                 type: components["schemas"]["HistoryContentType"];
@@ -13453,18 +17525,15 @@ export interface operations {
             /** @description View to be passed to the serializer */
             /** @description Comma-separated list of keys to be passed to the serializer */
             query?: {
-                view?: string;
-                keys?: string;
+                view?: string | null;
+                keys?: string | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The ID of the History. */
-            /**
-             * @description The type of the target history element.
-             * @example dataset
-             */
+            /** @description The encoded database identifier of the History. */
+            /** @description The type of the target history element. */
             path: {
                 history_id: string;
                 type: components["schemas"]["HistoryContentType"];
@@ -13480,17 +17549,17 @@ export interface operations {
             200: {
                 content: {
                     "application/json":
+                        | components["schemas"]["HDACustom"]
                         | components["schemas"]["HDADetailed"]
                         | components["schemas"]["HDASummary"]
                         | components["schemas"]["HDCADetailed"]
                         | components["schemas"]["HDCASummary"]
-                        | components["schemas"]["CustomHistoryItem"]
                         | (
+                              | components["schemas"]["HDACustom"]
                               | components["schemas"]["HDADetailed"]
                               | components["schemas"]["HDASummary"]
                               | components["schemas"]["HDCADetailed"]
                               | components["schemas"]["HDCASummary"]
-                              | components["schemas"]["CustomHistoryItem"]
                           )[];
                 };
             };
@@ -13514,23 +17583,20 @@ export interface operations {
             /** @description View to be passed to the serializer */
             /** @description Comma-separated list of keys to be passed to the serializer */
             query?: {
-                fuzzy_count?: number;
-                view?: string;
-                keys?: string;
+                fuzzy_count?: number | null;
+                view?: string | null;
+                keys?: string | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The ID of the History. */
-            /** @description The ID of the item (`HDA`/`HDCA`) contained in the history. */
-            /**
-             * @description The type of the target history element.
-             * @example dataset
-             */
+            /** @description The ID of the item (`HDA`/`HDCA`) */
+            /** @description The encoded database identifier of the History. */
+            /** @description The type of the target history element. */
             path: {
-                history_id: string;
                 id: string;
+                history_id: string;
                 type: components["schemas"]["HistoryContentType"];
             };
         };
@@ -13539,11 +17605,11 @@ export interface operations {
             200: {
                 content: {
                     "application/json":
+                        | components["schemas"]["HDACustom"]
                         | components["schemas"]["HDADetailed"]
                         | components["schemas"]["HDASummary"]
                         | components["schemas"]["HDCADetailed"]
-                        | components["schemas"]["HDCASummary"]
-                        | components["schemas"]["CustomHistoryItem"];
+                        | components["schemas"]["HDCASummary"];
                 };
             };
             /** @description Validation Error */
@@ -13563,19 +17629,16 @@ export interface operations {
             /** @description View to be passed to the serializer */
             /** @description Comma-separated list of keys to be passed to the serializer */
             query?: {
-                view?: string;
-                keys?: string;
+                view?: string | null;
+                keys?: string | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The ID of the History. */
-            /** @description The ID of the item (`HDA`/`HDCA`) contained in the history. */
-            /**
-             * @description The type of the target history element.
-             * @example dataset
-             */
+            /** @description The encoded database identifier of the History. */
+            /** @description The ID of the item (`HDA`/`HDCA`) */
+            /** @description The type of the target history element. */
             path: {
                 history_id: string;
                 id: string;
@@ -13592,11 +17655,11 @@ export interface operations {
             200: {
                 content: {
                     "application/json":
+                        | components["schemas"]["HDACustom"]
                         | components["schemas"]["HDADetailed"]
                         | components["schemas"]["HDASummary"]
                         | components["schemas"]["HDCADetailed"]
-                        | components["schemas"]["HDCASummary"]
-                        | components["schemas"]["CustomHistoryItem"];
+                        | components["schemas"]["HDCASummary"];
                 };
             };
             /** @description Validation Error */
@@ -13630,22 +17693,19 @@ export interface operations {
             /** @description View to be passed to the serializer */
             /** @description Comma-separated list of keys to be passed to the serializer */
             query?: {
-                purge?: boolean;
-                recursive?: boolean;
-                stop_job?: boolean;
-                view?: string;
-                keys?: string;
+                purge?: boolean | null;
+                recursive?: boolean | null;
+                stop_job?: boolean | null;
+                view?: string | null;
+                keys?: string | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description History ID or any string. */
-            /** @description The ID of the item (`HDA`/`HDCA`) contained in the history. */
-            /**
-             * @description The type of the target history element.
-             * @example dataset
-             */
+            /** @description The encoded database identifier of the History. */
+            /** @description The ID of the item (`HDA`/`HDCA`) */
+            /** @description The type of the target history element. */
             path: {
                 history_id: string;
                 id: string;
@@ -13691,14 +17751,11 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The ID of the History. */
-            /** @description The ID of the item (`HDA`/`HDCA`) contained in the history. */
-            /**
-             * @description The type of the target history element.
-             * @example dataset
-             */
+            /** @description The encoded database identifier of the History. */
+            /** @description The ID of the item (`HDA`/`HDCA`) */
+            /** @description The type of the target history element. */
             path: {
                 history_id: string;
                 id: string;
@@ -13728,14 +17785,11 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The ID of the History. */
-            /** @description The ID of the item (`HDA`/`HDCA`) contained in the history. */
-            /**
-             * @description The type of the target history element.
-             * @example dataset
-             */
+            /** @description The encoded database identifier of the History. */
+            /** @description The ID of the item (`HDA`/`HDCA`) */
+            /** @description The type of the target history element. */
             path: {
                 history_id: string;
                 id: string;
@@ -13767,14 +17821,11 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The ID of the History. */
-            /** @description The ID of the item (`HDA`/`HDCA`) contained in the history. */
-            /**
-             * @description The type of the target history element.
-             * @example dataset
-             */
+            /** @description The encoded database identifier of the History. */
+            /** @description The ID of the item (`HDA`/`HDCA`) */
+            /** @description The type of the target history element. */
             path: {
                 history_id: string;
                 id: string;
@@ -13813,14 +17864,14 @@ export interface operations {
             /** @description View to be passed to the serializer */
             /** @description Comma-separated list of keys to be passed to the serializer */
             query?: {
-                view?: string;
-                keys?: string;
+                view?: string | null;
+                keys?: string | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The ID of the History. */
+            /** @description The encoded database identifier of the History. */
             path: {
                 history_id: string;
             };
@@ -13835,11 +17886,11 @@ export interface operations {
             200: {
                 content: {
                     "application/json": (
+                        | components["schemas"]["HDACustom"]
                         | components["schemas"]["HDADetailed"]
                         | components["schemas"]["HDASummary"]
                         | components["schemas"]["HDCADetailed"]
                         | components["schemas"]["HDCASummary"]
-                        | components["schemas"]["CustomHistoryItem"]
                     )[];
                 };
             };
@@ -13856,7 +17907,7 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The encoded database identifier of the History. */
             path: {
@@ -13886,7 +17937,7 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The encoded database identifier of the History. */
             path: {
@@ -13916,7 +17967,7 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The encoded database identifier of the History. */
             path: {
@@ -13949,12 +18000,12 @@ export interface operations {
             /** @description The maximum number of items to return. */
             /** @description Starts at the beginning skip the first ( offset - 1 ) items and begin returning at the Nth item */
             query?: {
-                limit?: number;
-                offset?: number;
+                limit?: number | null;
+                offset?: number | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The encoded database identifier of the History. */
             path: {
@@ -13997,7 +18048,7 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The encoded database identifier of the History. */
             path: {
@@ -14006,7 +18057,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["ExportHistoryArchivePayload"];
+                "application/json": components["schemas"]["ExportHistoryArchivePayload"] | null;
             };
         };
         responses: {
@@ -14042,13 +18093,10 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The encoded database identifier of the History. */
-            /**
-             * @description The ID of the specific Job Export History Association or `latest` (default) to download the last generated archive.
-             * @example latest
-             */
+            /** @description The ID of the specific Job Export History Association or `latest` (default) to download the last generated archive. */
             path: {
                 history_id: string;
                 jeha_id: string | "latest";
@@ -14079,14 +18127,14 @@ export interface operations {
             /** @description A comma-separated list of encoded ids of job summary objects to return - if `ids` is specified types must also be specified and have same length. */
             /** @description A comma-separated list of type of object represented by elements in the `ids` array - any of `Job`, `ImplicitCollectionJob`, or `WorkflowInvocation`. */
             query?: {
-                ids?: string;
-                types?: string;
+                ids?: string | null;
+                types?: string | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The ID of the History. */
+            /** @description The encoded database identifier of the History. */
             path: {
                 history_id: string;
             };
@@ -14115,9 +18163,9 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The ID of the History. */
+            /** @description The encoded database identifier of the History. */
             path: {
                 history_id: string;
             };
@@ -14147,7 +18195,7 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The encoded database identifier of the History. */
             path: {
@@ -14182,7 +18230,7 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The encoded database identifier of the History. */
             path: {
@@ -14212,7 +18260,7 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The encoded database identifier of the History. */
             path: {
@@ -14228,7 +18276,7 @@ export interface operations {
             /** @description Successful Response */
             200: {
                 content: {
-                    "application/json": components["schemas"]["ShareWithStatus"];
+                    "application/json": components["schemas"]["ShareHistoryWithStatus"];
                 };
             };
             /** @description Validation Error */
@@ -14247,7 +18295,7 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The encoded database identifier of the History. */
             path: {
@@ -14277,7 +18325,7 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The encoded database identifier of the History. */
             path: {
@@ -14300,6 +18348,150 @@ export interface operations {
             };
         };
     };
+    index_api_histories__history_id__tags_get: {
+        /** Show tags based on history_id */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            path: {
+                history_id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["ItemTagsListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    show_api_histories__history_id__tags__tag_name__get: {
+        /** Show tag based on history_id */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            path: {
+                history_id: string;
+                tag_name: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["ItemTagsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_api_histories__history_id__tags__tag_name__put: {
+        /** Update tag based on history_id */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            path: {
+                history_id: string;
+                tag_name: string;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ItemTagsCreatePayload"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["ItemTagsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_api_histories__history_id__tags__tag_name__post: {
+        /** Create tag based on history_id */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            path: {
+                history_id: string;
+                tag_name: string;
+            };
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ItemTagsCreatePayload"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["ItemTagsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_api_histories__history_id__tags__tag_name__delete: {
+        /** Delete tag based on history_id */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            path: {
+                history_id: string;
+                tag_name: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": boolean;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     unpublish_api_histories__history_id__unpublish_put: {
         /**
          * Removes this item from the published list.
@@ -14308,7 +18500,7 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The encoded database identifier of the History. */
             path: {
@@ -14335,7 +18527,7 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The encoded database identifier of the History. */
             path: {
@@ -14362,45 +18554,46 @@ export interface operations {
             };
         };
     };
-    export_invocation_bco_api_invocations__invocation_id__biocompute_get: {
-        /**
-         * Return a BioCompute Object for the workflow invocation.
-         * @deprecated
-         * @description The BioCompute Object endpoints are in beta - important details such
-         * as how inputs and outputs are represented, how the workflow is encoded,
-         * and how author and version information is encoded, and how URLs are
-         * generated will very likely change in important ways over time.
-         *
-         * **Deprecation Notice**: please use the asynchronous short_term_storage export system instead.
-         *
-         * 1. call POST `api/invocations/{id}/prepare_store_download` with payload:
-         *     ```
-         *     {
-         *         model_store_format: bco.json
-         *     }
-         *     ```
-         * 2. Get `storageRequestId` from response and poll GET `api/short_term_storage/${storageRequestId}/ready` until `SUCCESS`
-         *
-         * 3. Get the resulting file with `api/short_term_storage/${storageRequestId}`
-         */
-        parameters: {
+    index_invocations_api_invocations_get: {
+        /** Get the list of a user's workflow invocations. */
+        parameters?: {
+            /** @description Return only invocations for this Workflow ID */
+            /** @description Return only invocations for this History ID */
+            /** @description Return only invocations for this Job ID */
+            /** @description Return invocations for this User ID. */
+            /** @description Sort Workflow Invocations by this attribute */
+            /** @description Sort in descending order? */
+            /** @description Set to false to only include terminal Invocations. */
+            /** @description Limit the number of invocations to return. */
+            /** @description Number of invocations to skip. */
+            /** @description Is provided workflow id for Workflow instead of StoredWorkflow? */
+            /** @description View to be passed to the serializer */
+            /** @description Include details for individual invocation steps and populate a steps attribute in the resulting dictionary. */
             query?: {
-                merge_history_metadata?: boolean;
+                workflow_id?: string | null;
+                history_id?: string | null;
+                job_id?: string | null;
+                user_id?: string | null;
+                sort_by?: components["schemas"]["InvocationSortByEnum"] | null;
+                sort_desc?: boolean;
+                include_terminal?: boolean | null;
+                limit?: number | null;
+                offset?: number | null;
+                instance?: boolean | null;
+                view?: string | null;
+                step_details?: boolean;
+                include_nested_invocations?: boolean;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
-            };
-            /** @description The encoded database identifier of the Invocation. */
-            path: {
-                invocation_id: string;
+                "run-as"?: string | null;
             };
         };
         responses: {
             /** @description Successful Response */
             200: {
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["WorkflowInvocationResponse"][];
                 };
             };
             /** @description Validation Error */
@@ -14411,34 +18604,81 @@ export interface operations {
             };
         };
     };
-    download_invocation_bco_api_invocations__invocation_id__biocompute_download_get: {
+    create_invocations_from_store_api_invocations_from_store_post: {
         /**
-         * Return a BioCompute Object for the workflow invocation as a file for download.
-         * @deprecated
-         * @description The BioCompute Object endpoints are in beta - important details such
-         * as how inputs and outputs are represented, how the workflow is encoded,
-         * and how author and version information is encoded, and how URLs are
-         * generated will very likely change in important ways over time.
-         *
-         * **Deprecation Notice**: please use the asynchronous short_term_storage export system instead.
-         *
-         * 1. call POST `api/invocations/{id}/prepare_store_download` with payload:
-         *     ```
-         *     {
-         *         model_store_format: bco.json
-         *     }
-         *     ```
-         * 2. Get `storageRequestId` from response and poll GET `api/short_term_storage/${storageRequestId}/ready` until `SUCCESS`
-         *
-         * 3. Get the resulting file with `api/short_term_storage/${storageRequestId}`
+         * Create Invocations From Store
+         * @description Create invocation(s) from a supplied model store.
          */
+        parameters?: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateInvocationsFromStorePayload"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["WorkflowInvocationResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    step_api_invocations_steps__step_id__get: {
+        /** Show details of workflow invocation step. */
         parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The encoded database identifier of the WorkflowInvocationStep. */
+            path: {
+                step_id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["InvocationStep"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    show_invocation_api_invocations__invocation_id__get: {
+        /** Get detailed description of a workflow invocation. */
+        parameters: {
+            /** @description Include details for individual invocation steps and populate a steps attribute in the resulting dictionary. */
+            /**
+             * @description Populate the invocation step state with the job state instead of the invocation step state.
+             *         This will also produce one step per job in mapping jobs to mimic the older behavior with respect to collections.
+             *         Partially scheduled steps may provide incomplete information and the listed steps outputs
+             *         are not the mapped over step outputs but the individual job outputs.
+             */
             query?: {
-                merge_history_metadata?: boolean;
+                step_details?: boolean;
+                legacy_job_state?: boolean;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The encoded database identifier of the Invocation. */
             path: {
@@ -14447,7 +18687,82 @@ export interface operations {
         };
         responses: {
             /** @description Successful Response */
-            200: never;
+            200: {
+                content: {
+                    "application/json": components["schemas"]["WorkflowInvocationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_invocation_api_invocations__invocation_id__delete: {
+        /** Cancel the specified workflow invocation. */
+        parameters: {
+            /** @description Include details for individual invocation steps and populate a steps attribute in the resulting dictionary. */
+            /**
+             * @description Populate the invocation step state with the job state instead of the invocation step state.
+             *         This will also produce one step per job in mapping jobs to mimic the older behavior with respect to collections.
+             *         Partially scheduled steps may provide incomplete information and the listed steps outputs
+             *         are not the mapped over step outputs but the individual job outputs.
+             */
+            query?: {
+                step_details?: boolean;
+                legacy_job_state?: boolean;
+            };
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The encoded database identifier of the Invocation. */
+            path: {
+                invocation_id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["WorkflowInvocationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    invocation_jobs_summary_api_invocations__invocation_id__jobs_summary_get: {
+        /**
+         * Get job state summary info aggregated across all current jobs of the workflow invocation.
+         * @description Warning: We allow anyone to fetch job state information about any object they
+         * can guess an encoded ID for - it isn't considered protected data. This keeps
+         * polling IDs as part of state calculation for large histories and collections as
+         * efficient as possible.
+         */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The encoded database identifier of the Invocation. */
+            path: {
+                invocation_id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["InvocationJobsResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 content: {
@@ -14461,7 +18776,7 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The encoded database identifier of the Invocation. */
             path: {
@@ -14488,12 +18803,165 @@ export interface operations {
             };
         };
     };
+    show_invocation_report_api_invocations__invocation_id__report_get: {
+        /** Get JSON summarizing invocation for reporting. */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The encoded database identifier of the Invocation. */
+            path: {
+                invocation_id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["InvocationReport"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    show_invocation_report_pdf_api_invocations__invocation_id__report_pdf_get: {
+        /** Get PDF summarizing invocation for reporting. */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The encoded database identifier of the Invocation. */
+            path: {
+                invocation_id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: never;
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    invocation_step_jobs_summary_api_invocations__invocation_id__step_jobs_summary_get: {
+        /**
+         * Get job state summary info aggregated per step of the workflow invocation.
+         * @description Warning: We allow anyone to fetch job state information about any object they
+         * can guess an encoded ID for - it isn't considered protected data. This keeps
+         * polling IDs as part of state calculation for large histories and collections as
+         * efficient as possible.
+         */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The encoded database identifier of the Invocation. */
+            path: {
+                invocation_id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": (
+                        | components["schemas"]["InvocationStepJobsResponseStepModel"]
+                        | components["schemas"]["InvocationStepJobsResponseJobModel"]
+                        | components["schemas"]["InvocationStepJobsResponseCollectionJobsModel"]
+                    )[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    invocation_step_api_invocations__invocation_id__steps__step_id__get: {
+        /**
+         * Show details of workflow invocation step.
+         * @description An alias for `GET /api/invocations/steps/{step_id}`. `invocation_id` is ignored.
+         */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The encoded database identifier of the Invocation. */
+            /** @description The encoded database identifier of the WorkflowInvocationStep. */
+            path: {
+                invocation_id: string;
+                step_id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["InvocationStep"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_invocation_step_api_invocations__invocation_id__steps__step_id__put: {
+        /** Update state of running workflow step invocation - still very nebulous but this would be for stuff like confirming paused steps can proceed etc. */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The encoded database identifier of the Invocation. */
+            /** @description The encoded database identifier of the WorkflowInvocationStep. */
+            path: {
+                invocation_id: string;
+                step_id: string;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InvocationUpdatePayload"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["InvocationStep"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     write_store_api_invocations__invocation_id__write_store_post: {
         /** Prepare a workflow invocation export-style download and write to supplied URI. */
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The encoded database identifier of the Invocation. */
             path: {
@@ -14528,7 +18996,7 @@ export interface operations {
         parameters?: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         responses: {
@@ -14554,7 +19022,7 @@ export interface operations {
         parameters?: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         requestBody: {
@@ -14588,6 +19056,7 @@ export interface operations {
             /** @description Limit listing of jobs to those that match the history_id. If none, jobs from any history may be returned. */
             /** @description Limit listing of jobs to those that match the specified workflow ID. If none, jobs from any workflow (or from no workflows) may be returned. */
             /** @description Limit listing of jobs to those that match the specified workflow invocation ID. If none, jobs from any workflow invocation (or from no workflows) may be returned. */
+            /** @description Limit listing of jobs to those that match the specified implicit collection job ID. If none, jobs from any implicit collection execution (or from no implicit collection execution) may be returned. */
             /** @description Sort results by specified field. */
             /**
              * @description A mix of free text and GitHub-style tags used to filter the index operation.
@@ -14615,7 +19084,7 @@ export interface operations {
              * : The tool ID corresponding to the job. (The tag `t` can be used a short hand alias for this tag to filter on this attribute.)
              *
              * `runner`
-             * : The job runner name used to execte the job. (The tag `r` can be used a short hand alias for this tag to filter on this attribute.) This tag is only available for requests using admin keys and/or sessions.
+             * : The job runner name used to execute the job. (The tag `r` can be used a short hand alias for this tag to filter on this attribute.) This tag is only available for requests using admin keys and/or sessions.
              *
              * `handler`
              * : The job handler name used to execute the job. (The tag `h` can be used a short hand alias for this tag to filter on this attribute.) This tag is only available for requests using admin keys and/or sessions.
@@ -14632,31 +19101,36 @@ export interface operations {
             /** @description Limit listing of jobs to those that match one of the included tool ID sql-like patterns. If none, all are returned */
             query?: {
                 user_details?: boolean;
-                user_id?: string;
+                user_id?: string | null;
                 view?: components["schemas"]["JobIndexViewEnum"];
-                date_range_min?: string | string;
-                date_range_max?: string | string;
-                history_id?: string;
-                workflow_id?: string;
-                invocation_id?: string;
+                date_range_min?: string | string | null;
+                date_range_max?: string | string | null;
+                history_id?: string | null;
+                workflow_id?: string | null;
+                invocation_id?: string | null;
+                implicit_collection_jobs_id?: string | null;
                 order_by?: components["schemas"]["JobIndexSortByEnum"];
-                search?: string;
+                search?: string | null;
                 limit?: number;
                 offset?: number;
-                state?: string[];
-                tool_id?: string[];
-                tool_id_like?: string[];
+                state?: string[] | null;
+                tool_id?: string[] | null;
+                tool_id_like?: string[] | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         responses: {
             /** @description Successful Response */
             200: {
                 content: {
-                    "application/json": Record<string, never>[];
+                    "application/json": (
+                        | components["schemas"]["ShowFullJobResponse"]
+                        | components["schemas"]["EncodedJobDetails"]
+                        | components["schemas"]["JobSummary"]
+                    )[];
                 };
             };
             /** @description Validation Error */
@@ -14667,32 +19141,241 @@ export interface operations {
             };
         };
     };
-    show_api_jobs__id__get: {
+    search_jobs_api_jobs_search_post: {
         /**
-         * Show
-         * @description Return dictionary containing description of job data
-         *
-         * Parameters
-         * - id: ID of job to return
-         * - full: Return extra information ?
+         * Return jobs for current user
+         * @description This method is designed to scan the list of previously run jobs and find records of jobs that had
+         * the exact some input parameters and datasets. This can be used to minimize the amount of repeated work, and simply
+         * recycle the old results.
          */
-        parameters: {
-            query?: {
-                full?: boolean;
-            };
+        parameters?: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            path: {
-                id: string;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SearchJobsPayload"];
             };
         };
         responses: {
             /** @description Successful Response */
             200: {
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["EncodedJobDetails"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    show_job_api_jobs__job_id__get: {
+        /** Return dictionary containing description of job data. */
+        parameters: {
+            /** @description Show extra information. */
+            query?: {
+                full?: boolean | null;
+            };
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The ID of the job */
+            path: {
+                job_id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json":
+                        | components["schemas"]["ShowFullJobResponse"]
+                        | components["schemas"]["EncodedJobDetails"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_job_api_jobs__job_id__delete: {
+        /** Cancels specified job */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The ID of the job */
+            path: {
+                job_id: string;
+            };
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["DeleteJobPayload"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": boolean;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    check_common_problems_api_jobs__job_id__common_problems_get: {
+        /** Check inputs and job for common potential problems to aid in error reporting */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The ID of the job */
+            path: {
+                job_id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["JobInputSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    destination_params_job_api_jobs__job_id__destination_params_get: {
+        /** Return destination parameters for specified job. */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The ID of the job */
+            path: {
+                job_id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["JobDestinationParams"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    report_error_api_jobs__job_id__error_post: {
+        /** Submits a bug report via the API. */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The ID of the job */
+            path: {
+                job_id: string;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportJobErrorPayload"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["JobErrorSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_inputs_api_jobs__job_id__inputs_get: {
+        /** Returns input datasets created by a job. */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The ID of the job */
+            path: {
+                job_id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["JobInputAssociation"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_metrics_api_jobs__job_id__metrics_get: {
+        /** Return job metrics for specified job. */
+        parameters: {
+            /**
+             * @deprecated
+             * @description Whether this dataset belongs to a history (HDA) or a library (LDDA).
+             */
+            query?: {
+                hda_ldda?: components["schemas"]["DatasetSourceType"] | null;
+            };
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The ID of the job */
+            path: {
+                job_id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": (components["schemas"]["JobMetric"] | null)[];
                 };
             };
             /** @description Validation Error */
@@ -14717,7 +19400,7 @@ export interface operations {
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             path: {
                 job_id: string;
@@ -14738,6 +19421,99 @@ export interface operations {
             };
         };
     };
+    get_outputs_api_jobs__job_id__outputs_get: {
+        /** Returns output datasets created by a job. */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The ID of the job */
+            path: {
+                job_id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["JobOutputAssociation"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resolve_parameters_display_api_jobs__job_id__parameters_display_get: {
+        /**
+         * Resolve parameters as a list for nested display.
+         * @description Resolve parameters as a list for nested display.
+         * This API endpoint is unstable and tied heavily to Galaxy's JS client code,
+         * this endpoint will change frequently.
+         */
+        parameters: {
+            /**
+             * @deprecated
+             * @description Whether this dataset belongs to a history (HDA) or a library (LDDA).
+             */
+            query?: {
+                hda_ldda?: components["schemas"]["DatasetSourceType"] | null;
+            };
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The ID of the job */
+            path: {
+                job_id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["JobDisplayParametersSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resume_paused_job_api_jobs__job_id__resume_put: {
+        /** Resumes a paused job. */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The ID of the job */
+            path: {
+                job_id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["JobOutputAssociation"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     index_api_libraries_get: {
         /**
          * Returns a list of summary data for all libraries.
@@ -14746,11 +19522,11 @@ export interface operations {
         parameters?: {
             /** @description Whether to include deleted libraries in the result. */
             query?: {
-                deleted?: boolean;
+                deleted?: boolean | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         responses: {
@@ -14776,7 +19552,7 @@ export interface operations {
         parameters?: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         requestBody: {
@@ -14807,7 +19583,7 @@ export interface operations {
         parameters?: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         responses: {
@@ -14830,7 +19606,7 @@ export interface operations {
         parameters?: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         requestBody: {
@@ -14861,9 +19637,9 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The encoded identifier of the Library. */
+            /** @description The ID of the Library. */
             path: {
                 id: string;
             };
@@ -14892,20 +19668,20 @@ export interface operations {
         parameters: {
             /** @description Whether to restore a deleted library. */
             query?: {
-                undelete?: boolean;
+                undelete?: boolean | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The encoded identifier of the Library. */
+            /** @description The ID of the Library. */
             path: {
                 id: string;
             };
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["DeleteLibraryPayload"];
+                "application/json": components["schemas"]["DeleteLibraryPayload"] | null;
             };
         };
         responses: {
@@ -14931,9 +19707,9 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The encoded identifier of the Library. */
+            /** @description The ID of the Library. */
             path: {
                 id: string;
             };
@@ -14971,17 +19747,17 @@ export interface operations {
             /** @description The maximum number of permissions per page when paginating. */
             /** @description Optional search text to retrieve only the roles matching this query. */
             query?: {
-                scope?: components["schemas"]["LibraryPermissionScope"];
-                is_library_access?: boolean;
+                scope?: components["schemas"]["LibraryPermissionScope"] | null;
+                is_library_access?: boolean | null;
                 page?: number;
                 page_limit?: number;
-                q?: string;
+                q?: string | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The encoded identifier of the Library. */
+            /** @description The ID of the Library. */
             path: {
                 id: string;
             };
@@ -15011,13 +19787,13 @@ export interface operations {
         parameters: {
             /** @description Indicates what action should be performed on the Library. */
             query?: {
-                action?: components["schemas"]["LibraryPermissionAction"];
+                action?: components["schemas"]["LibraryPermissionAction"] | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The encoded identifier of the Library. */
+            /** @description The ID of the Library. */
             path: {
                 id: string;
             };
@@ -15067,10 +19843,7 @@ export interface operations {
          * [SPDX license short ID](https://spdx.github.io/spdx-spec/appendix-I-SPDX-license-list/).
          */
         parameters: {
-            /**
-             * @description The [SPDX license short identifier](https://spdx.github.io/spdx-spec/appendix-I-SPDX-license-list/)
-             * @example Apache-2.0
-             */
+            /** @description The [SPDX license short identifier](https://spdx.github.io/spdx-spec/appendix-I-SPDX-license-list/) */
             path: {
                 id: Record<string, never>;
             };
@@ -15098,7 +19871,7 @@ export interface operations {
         parameters?: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         requestBody: {
@@ -15130,12 +19903,12 @@ export interface operations {
          */
         parameters?: {
             query?: {
-                limit?: number;
-                offset?: number;
+                limit?: number | null;
+                offset?: number | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         responses: {
@@ -15158,7 +19931,7 @@ export interface operations {
         parameters?: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         requestBody: {
@@ -15189,7 +19962,7 @@ export interface operations {
         parameters?: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         requestBody: {
@@ -15201,7 +19974,9 @@ export interface operations {
             /** @description Successful Response */
             200: {
                 content: {
-                    "application/json": components["schemas"]["NotificationCreatedResponse"];
+                    "application/json":
+                        | components["schemas"]["NotificationCreatedResponse"]
+                        | components["schemas"]["AsyncTaskResultSummary"];
                 };
             };
             /** @description Validation Error */
@@ -15217,7 +19992,7 @@ export interface operations {
         parameters?: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         requestBody: {
@@ -15248,7 +20023,7 @@ export interface operations {
         parameters?: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         responses: {
@@ -15285,7 +20060,7 @@ export interface operations {
         parameters?: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         requestBody: {
@@ -15316,8 +20091,9 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
+            /** @description The ID of the Notification. */
             path: {
                 notification_id: string;
             };
@@ -15345,8 +20121,9 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
+            /** @description The ID of the Notification. */
             path: {
                 notification_id: string;
             };
@@ -15371,11 +20148,14 @@ export interface operations {
         /**
          * Returns the current user's preferences for notifications.
          * @description Anonymous users cannot have notification preferences. They will receive only broadcasted notifications.
+         *
+         * - The settings will contain all possible channels, but the client should only show the ones that are really supported by the server.
+         *   The supported channels are returned in the `supported-channels` header.
          */
         parameters?: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         responses: {
@@ -15404,7 +20184,7 @@ export interface operations {
         parameters?: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         requestBody: {
@@ -15438,7 +20218,7 @@ export interface operations {
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         responses: {
@@ -15461,8 +20241,9 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
+            /** @description The ID of the Notification. */
             path: {
                 notification_id: string;
             };
@@ -15487,8 +20268,9 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
+            /** @description The ID of the Notification. */
             path: {
                 notification_id: string;
             };
@@ -15521,8 +20303,9 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
+            /** @description The ID of the Notification. */
             path: {
                 notification_id: string;
             };
@@ -15547,7 +20330,7 @@ export interface operations {
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         responses: {
@@ -15570,7 +20353,7 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The concrete object store ID. */
             path: {
@@ -15599,8 +20382,6 @@ export interface operations {
          */
         parameters?: {
             /** @description Whether to include deleted pages in the result. */
-            /** @description Sort page index by this specified attribute on the page model */
-            /** @description Sort in descending order? */
             /**
              * @description A mix of free text and GitHub-style tags used to filter the index operation.
              *
@@ -15637,20 +20418,23 @@ export interface operations {
              * Free text search terms will be searched against the following attributes of the
              * Pages: `title`, `slug`, `tag`, `user`.
              */
+            /** @description Sort page index by this specified attribute on the page model */
+            /** @description Sort in descending order? */
             query?: {
                 deleted?: boolean;
-                user_id?: string;
-                show_published?: boolean;
-                show_shared?: boolean;
-                sort_by?: "update_time" | "title" | "username";
-                sort_desc?: boolean;
                 limit?: number;
                 offset?: number;
-                search?: string;
+                search?: string | null;
+                show_own?: boolean;
+                show_published?: boolean;
+                show_shared?: boolean;
+                sort_by?: "create_time" | "title" | "update_time" | "username";
+                sort_desc?: boolean;
+                user_id?: string | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         responses: {
@@ -15676,7 +20460,7 @@ export interface operations {
         parameters?: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         requestBody: {
@@ -15707,9 +20491,9 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The encoded database identifier of the Page. */
+            /** @description The ID of the Page. */
             path: {
                 id: string;
             };
@@ -15737,9 +20521,9 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The encoded database identifier of the Page. */
+            /** @description The ID of the Page. */
             path: {
                 id: string;
             };
@@ -15765,9 +20549,9 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The encoded database identifier of the Page. */
+            /** @description The ID of the Page. */
             path: {
                 id: string;
             };
@@ -15797,9 +20581,9 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The encoded database identifier of the Page. */
+            /** @description The ID of the Page. */
             path: {
                 id: string;
             };
@@ -15827,9 +20611,9 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The encoded database identifier of the Page. */
+            /** @description The ID of the Page. */
             path: {
                 id: string;
             };
@@ -15859,9 +20643,9 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The encoded database identifier of the Page. */
+            /** @description The ID of the Page. */
             path: {
                 id: string;
             };
@@ -15891,9 +20675,9 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The encoded database identifier of the Page. */
+            /** @description The ID of the Page. */
             path: {
                 id: string;
             };
@@ -15921,9 +20705,9 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The encoded database identifier of the Page. */
+            /** @description The ID of the Page. */
             path: {
                 id: string;
             };
@@ -15956,9 +20740,9 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The encoded database identifier of the Page. */
+            /** @description The ID of the Page. */
             path: {
                 id: string;
             };
@@ -15986,9 +20770,9 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The encoded database identifier of the Page. */
+            /** @description The ID of the Page. */
             path: {
                 id: string;
             };
@@ -15996,6 +20780,32 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["SetSlugPayload"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: never;
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    undelete_api_pages__id__undelete_put: {
+        /**
+         * Undelete the specific Page.
+         * @description Marks the Page with the given ID as undeleted.
+         */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The ID of the Page. */
+            path: {
+                id: string;
             };
         };
         responses: {
@@ -16017,9 +20827,9 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The encoded database identifier of the Page. */
+            /** @description The ID of the Page. */
             path: {
                 id: string;
             };
@@ -16047,7 +20857,7 @@ export interface operations {
         parameters?: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         responses: {
@@ -16073,7 +20883,7 @@ export interface operations {
         parameters?: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         requestBody: {
@@ -16104,7 +20914,7 @@ export interface operations {
         parameters?: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         responses: {
@@ -16130,9 +20940,9 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The encoded identifier of the Quota. */
+            /** @description The ID of the Quota. */
             path: {
                 id: string;
             };
@@ -16160,9 +20970,9 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The encoded identifier of the Quota. */
+            /** @description The ID of the Quota. */
             path: {
                 id: string;
             };
@@ -16190,9 +21000,9 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The encoded identifier of the Quota. */
+            /** @description The ID of the Quota. */
             path: {
                 id: string;
             };
@@ -16220,9 +21030,9 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The encoded identifier of the Quota. */
+            /** @description The ID of the Quota. */
             path: {
                 id: string;
             };
@@ -16255,9 +21065,9 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The encoded identifier of the Quota. */
+            /** @description The ID of the Quota. */
             path: {
                 id: string;
             };
@@ -16265,6 +21075,33 @@ export interface operations {
         requestBody?: {
             content: {
                 "application/json": components["schemas"]["DeleteQuotaPayload"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    purge_api_quotas__id__purge_post: {
+        /** Purges a previously deleted quota. */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The ID of the Quota. */
+            path: {
+                id: string;
             };
         };
         responses: {
@@ -16290,19 +21127,19 @@ export interface operations {
         parameters?: {
             /** @description The source to load datasets from. Possible values: ftpdir, userdir, importdir */
             /** @description The requested format of returned data. Either `flat` to simply list all the files, `jstree` to get a tree representation of the files, or the default `uri` to list files and directories by their URI. */
-            /** @description Wether to recursively lists all sub-directories. This will be `True` by default depending on the `target`. */
+            /** @description Whether to recursively lists all sub-directories. This will be `True` by default depending on the `target`. */
             /** @description (This only applies when `format` is `jstree`) The value can be either `folders` or `files` and it will disable the corresponding nodes of the tree. */
             /** @description Whether the query is made with the intention of writing to the source. If set to True, only entries that can be written to will be returned. */
             query?: {
                 target?: string;
-                format?: components["schemas"]["RemoteFilesFormat"];
-                recursive?: boolean;
-                disable?: components["schemas"]["RemoteFilesDisableMode"];
-                writeable?: boolean;
+                format?: components["schemas"]["RemoteFilesFormat"] | null;
+                recursive?: boolean | null;
+                disable?: components["schemas"]["RemoteFilesDisableMode"] | null;
+                writeable?: boolean | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         responses: {
@@ -16330,7 +21167,7 @@ export interface operations {
         parameters?: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         requestBody: {
@@ -16363,13 +21200,13 @@ export interface operations {
             /** @description Whether to return **only** filesources of the specified kind. The default is `None`, which will return all filesources. Multiple values can be specified by repeating the parameter. */
             /** @description Whether to exclude filesources of the specified kind from the list. The default is `None`, which will return all filesources. Multiple values can be specified by repeating the parameter. */
             query?: {
-                browsable_only?: boolean;
-                include_kind?: components["schemas"]["PluginKind"][];
-                exclude_kind?: components["schemas"]["PluginKind"][];
+                browsable_only?: boolean | null;
+                include_kind?: components["schemas"]["PluginKind"][] | null;
+                exclude_kind?: components["schemas"]["PluginKind"][] | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         responses: {
@@ -16392,7 +21229,7 @@ export interface operations {
         parameters?: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         responses: {
@@ -16415,7 +21252,7 @@ export interface operations {
         parameters?: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         requestBody: {
@@ -16443,7 +21280,85 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
+            };
+            path: {
+                id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["RoleModelResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_api_roles__id__delete: {
+        /** Delete */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            path: {
+                id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["RoleModelResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    purge_api_roles__id__purge_post: {
+        /** Purge */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            path: {
+                id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["RoleModelResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    undelete_api_roles__id__undelete_post: {
+        /** Undelete */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
             };
             path: {
                 id: string;
@@ -16514,7 +21429,7 @@ export interface operations {
         parameters?: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         requestBody: {
@@ -16544,13 +21459,13 @@ export interface operations {
             /** @description The maximum number of items to return. */
             /** @description String containing one of the valid ordering attributes followed by '-asc' or '-dsc' for ascending and descending order respectively. */
             query?: {
-                offset?: number;
-                limit?: number;
-                order?: components["schemas"]["StoredItemOrderBy"];
+                offset?: number | null;
+                limit?: number | null;
+                order?: components["schemas"]["StoredItemOrderBy"] | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         responses: {
@@ -16573,7 +21488,7 @@ export interface operations {
         parameters?: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         responses: {
@@ -16599,7 +21514,7 @@ export interface operations {
         parameters?: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         requestBody: {
@@ -16629,13 +21544,13 @@ export interface operations {
             /** @description The maximum number of items to return. */
             /** @description String containing one of the valid ordering attributes followed by '-asc' or '-dsc' for ascending and descending order respectively. */
             query?: {
-                offset?: number;
-                limit?: number;
-                order?: components["schemas"]["StoredItemOrderBy"];
+                offset?: number | null;
+                limit?: number | null;
+                order?: components["schemas"]["StoredItemOrderBy"] | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         responses: {
@@ -16658,7 +21573,7 @@ export interface operations {
         parameters?: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         responses: {
@@ -16683,13 +21598,13 @@ export interface operations {
             /** @description The maximum number of items to return. */
             /** @description String containing one of the valid ordering attributes followed by '-asc' or '-dsc' for ascending and descending order respectively. */
             query?: {
-                offset?: number;
-                limit?: number;
-                order?: components["schemas"]["StoredItemOrderBy"];
+                offset?: number | null;
+                limit?: number | null;
+                order?: components["schemas"]["StoredItemOrderBy"] | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         responses: {
@@ -16712,7 +21627,7 @@ export interface operations {
         parameters?: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         responses: {
@@ -16741,7 +21656,7 @@ export interface operations {
         parameters?: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         requestBody: {
@@ -16787,23 +21702,11 @@ export interface operations {
          * Lists all available data tables
          * @description Get the list of all available data tables.
          */
-        parameters?: {
-            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
-            header?: {
-                "run-as"?: string;
-            };
-        };
         responses: {
             /** @description A list with details on individual data tables. */
             200: {
                 content: {
                     "application/json": components["schemas"]["ToolDataEntryList"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -16812,11 +21715,11 @@ export interface operations {
         /** Import a data manager bundle */
         parameters?: {
             query?: {
-                tool_data_file_path?: Record<string, never>;
+                tool_data_file_path?: string | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         requestBody: {
@@ -16847,12 +21750,9 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /**
-             * @description The name of the tool data table
-             * @example all_fasta
-             */
+            /** @description The name of the tool data table */
             path: {
                 table_name: string;
             };
@@ -16880,12 +21780,9 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /**
-             * @description The name of the tool data table
-             * @example all_fasta
-             */
+            /** @description The name of the tool data table */
             path: {
                 table_name: string;
             };
@@ -16918,12 +21815,9 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /**
-             * @description The name of the tool data table
-             * @example all_fasta
-             */
+            /** @description The name of the tool data table */
             /** @description The name of the tool data table field */
             path: {
                 table_name: string;
@@ -16953,12 +21847,9 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /**
-             * @description The name of the tool data table
-             * @example all_fasta
-             */
+            /** @description The name of the tool data table */
             /** @description The name of the tool data table field */
             /** @description The name of a file associated with this data table field */
             path: {
@@ -16986,12 +21877,9 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /**
-             * @description The name of the tool data table
-             * @example all_fasta
-             */
+            /** @description The name of the tool data table */
             path: {
                 table_name: string;
             };
@@ -17020,11 +21908,11 @@ export interface operations {
             /** @description Filter by whether the repository has been deleted. */
             /** @description Filter by whether the repository has been uninstalled. */
             query?: {
-                name?: string;
-                owner?: string;
-                changeset?: string;
-                deleted?: boolean;
-                uninstalled?: boolean;
+                name?: string | null;
+                owner?: string | null;
+                changeset?: string | null;
+                deleted?: boolean | null;
+                uninstalled?: boolean | null;
             };
         };
         responses: {
@@ -17046,11 +21934,11 @@ export interface operations {
         /** Check for updates to the specified repository, or all installed repositories. */
         parameters?: {
             query?: {
-                id?: string;
+                id?: string | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         responses: {
@@ -17091,17 +21979,16 @@ export interface operations {
             };
         };
     };
-    "fetch_json_api_tools_fetch_post+fetch_form_api_tools_fetch_post": {
+    fetch_form_api_tools_fetch_post: {
         /** Upload files to Galaxy */
         parameters?: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["FetchDataPayload"];
                 "multipart/form-data": components["schemas"]["Body_fetch_form_api_tools_fetch_post"];
             };
         };
@@ -17167,7 +22054,7 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             path: {
                 tour_id: string;
@@ -17200,13 +22087,13 @@ export interface operations {
             /** @description Filter on username OR email */
             query?: {
                 deleted?: boolean;
-                f_email?: string;
-                f_name?: string;
-                f_any?: string;
+                f_email?: string | null;
+                f_name?: string | null;
+                f_any?: string | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         responses: {
@@ -17232,7 +22119,7 @@ export interface operations {
         parameters?: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         requestBody: {
@@ -17267,7 +22154,7 @@ export interface operations {
         parameters?: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         responses: {
@@ -17297,13 +22184,13 @@ export interface operations {
             /** @description An username address to filter on */
             /** @description Filter on username OR email */
             query?: {
-                f_email?: string;
-                f_name?: string;
-                f_any?: string;
+                f_email?: string | null;
+                f_name?: string | null;
+                f_any?: string | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         responses: {
@@ -17329,9 +22216,9 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The ID of the user to get. */
+            /** @description The ID of the user. */
             path: {
                 user_id: string;
             };
@@ -17358,9 +22245,9 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The ID of the user to get. */
+            /** @description The ID of the user. */
             path: {
                 user_id: string;
             };
@@ -17391,7 +22278,7 @@ export interface operations {
         parameters?: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         responses: {
@@ -17416,11 +22303,11 @@ export interface operations {
         parameters: {
             /** @description Indicates if the user is deleted */
             query?: {
-                deleted?: boolean;
+                deleted?: boolean | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The ID of the user to get or 'current'. */
             path: {
@@ -17449,11 +22336,11 @@ export interface operations {
         parameters: {
             /** @description Indicates if the user is deleted */
             query?: {
-                deleted?: boolean;
+                deleted?: boolean | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The ID of the user to get or 'current'. */
             path: {
@@ -17485,16 +22372,16 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The ID of the user to get. */
+            /** @description The ID of the user. */
             path: {
                 user_id: string;
             };
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["UserDeletionPayload"];
+                "application/json": components["schemas"]["UserDeletionPayload"] | null;
             };
         };
         responses: {
@@ -17517,9 +22404,9 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The ID of the user to get. */
+            /** @description The ID of the user. */
             path: {
                 user_id: string;
             };
@@ -17544,9 +22431,9 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The ID of the user to get. */
+            /** @description The ID of the user. */
             path: {
                 user_id: string;
             };
@@ -17571,9 +22458,9 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The ID of the user to get. */
+            /** @description The ID of the user. */
             path: {
                 user_id: string;
             };
@@ -17594,9 +22481,9 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The ID of the user to get. */
+            /** @description The ID of the user. */
             path: {
                 user_id: string;
             };
@@ -17626,9 +22513,9 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The ID of the user to get. */
+            /** @description The ID of the user. */
             path: {
                 user_id: string;
             };
@@ -17656,9 +22543,9 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The ID of the user to get. */
+            /** @description The ID of the user. */
             path: {
                 user_id: string;
             };
@@ -17688,9 +22575,9 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The ID of the user to get. */
+            /** @description The ID of the user. */
             path: {
                 user_id: string;
             };
@@ -17715,13 +22602,13 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
+            /** @description The ID of the user. */
             /** @description The key of the custom build to be deleted. */
-            /** @description The ID of the user to get. */
             path: {
-                key: string;
                 user_id: string;
+                key: string;
             };
         };
         requestBody: {
@@ -17749,13 +22636,13 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
+            /** @description The ID of the user. */
             /** @description The key of the custom build to be deleted. */
-            /** @description The ID of the user to get. */
             path: {
-                key: string;
                 user_id: string;
+                key: string;
             };
         };
         responses: {
@@ -17778,9 +22665,9 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The ID of the user to get. */
+            /** @description The ID of the user. */
             /** @description The object type the user wants to favorite */
             path: {
                 user_id: string;
@@ -17812,9 +22699,9 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The ID of the user to get. */
+            /** @description The ID of the user. */
             /** @description The object type the user wants to favorite */
             /** @description The ID of an object the user wants to remove from favorites */
             path: {
@@ -17838,14 +22725,97 @@ export interface operations {
             };
         };
     };
+    get_user_objectstore_usage_api_users__user_id__objectstore_usage_get: {
+        /** Return the user's object store usage summary broken down by object store ID */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The ID of the user to get or 'current'. */
+            path: {
+                user_id: string | "current";
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["UserObjectstoreUsage"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    recalculate_disk_usage_by_user_id_api_users__user_id__recalculate_disk_usage_put: {
+        /** Triggers a recalculation of the current user disk usage. */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The ID of the user. */
+            path: {
+                user_id: string;
+            };
+        };
+        responses: {
+            /** @description The asynchronous task summary to track the task state. */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["AsyncTaskResultSummary"];
+                };
+            };
+            /** @description The background task was submitted but there is no status tracking ID available. */
+            204: never;
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    send_activation_email_api_users__user_id__send_activation_email_post: {
+        /** Sends activation email to user. */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The ID of the user. */
+            path: {
+                user_id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     set_theme_api_users__user_id__theme__theme__put: {
         /** Set the user's theme choice */
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
-            /** @description The ID of the user to get. */
+            /** @description The ID of the user. */
             /** @description The theme of the GUI */
             path: {
                 user_id: string;
@@ -17872,7 +22842,7 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The ID of the user to get or 'current'. */
             path: {
@@ -17899,7 +22869,7 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The ID of the user to get or 'current'. */
             /** @description The label corresponding to the quota source to fetch usage information about. */
@@ -17912,7 +22882,7 @@ export interface operations {
             /** @description Successful Response */
             200: {
                 content: {
-                    "application/json": components["schemas"]["UserQuotaUsage"];
+                    "application/json": components["schemas"]["UserQuotaUsage"] | null;
                 };
             };
             /** @description Validation Error */
@@ -17983,19 +22953,19 @@ export interface operations {
              */
             query?: {
                 deleted?: boolean;
-                limit?: number;
-                offset?: number;
-                user_id?: string;
+                limit?: number | null;
+                offset?: number | null;
+                user_id?: string | null;
                 show_own?: boolean;
                 show_published?: boolean;
                 show_shared?: boolean;
                 sort_by?: "create_time" | "title" | "update_time" | "username";
                 sort_desc?: boolean;
-                search?: string;
+                search?: string | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         responses: {
@@ -18021,7 +22991,7 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The encoded database identifier of the Visualization. */
             path: {
@@ -18051,7 +23021,7 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The encoded database identifier of the Visualization. */
             path: {
@@ -18081,7 +23051,7 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The encoded database identifier of the Visualization. */
             path: {
@@ -18111,7 +23081,7 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The encoded database identifier of the Visualization. */
             path: {
@@ -18146,7 +23116,7 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The encoded database identifier of the Visualization. */
             path: {
@@ -18176,7 +23146,7 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The encoded database identifier of the Visualization. */
             path: {
@@ -18207,7 +23177,7 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The encoded database identifier of the Visualization. */
             path: {
@@ -18237,14 +23207,14 @@ export interface operations {
         parameters?: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         responses: {
             /** @description Information about the current authenticated user */
             200: {
                 content: {
-                    "application/json": components["schemas"]["UserModel"];
+                    "application/json": components["schemas"]["UserModel"] | null;
                 };
             };
             /** @description Validation Error */
@@ -18310,18 +23280,18 @@ export interface operations {
                 show_deleted?: boolean;
                 show_hidden?: boolean;
                 missing_tools?: boolean;
-                show_published?: boolean;
-                show_shared?: boolean;
-                sort_by?: "create_time" | "update_time" | "name";
-                sort_desc?: boolean;
-                limit?: number;
-                offset?: number;
-                search?: string;
+                show_published?: boolean | null;
+                show_shared?: boolean | null;
+                sort_by?: ("create_time" | "update_time" | "name") | null;
+                sort_desc?: boolean | null;
+                limit?: number | null;
+                offset?: number | null;
+                search?: string | null;
                 skip_step_counts?: boolean;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         responses: {
@@ -18346,15 +23316,15 @@ export interface operations {
             /** @description Whether to restrict result to hidden workflows. */
             /** @description Whether to include a list of missing tools per workflow entry */
             query?: {
-                show_deleted?: boolean;
-                show_hidden?: boolean;
-                missing_tools?: boolean;
-                show_published?: boolean;
-                show_shared?: boolean;
+                show_deleted?: boolean | null;
+                show_hidden?: boolean | null;
+                missing_tools?: boolean | null;
+                show_published?: boolean | null;
+                show_shared?: boolean | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
         };
         responses: {
@@ -18372,7 +23342,99 @@ export interface operations {
             };
         };
     };
-    disable_link_access_api_workflows__id__disable_link_access_put: {
+    show_workflow_api_workflows__workflow_id__get: {
+        /** Displays information needed to run a workflow. */
+        parameters: {
+            /** @description Use the legacy workflow format. */
+            /** @description The version of the workflow to fetch. */
+            query?: {
+                instance?: boolean | null;
+                legacy?: boolean | null;
+                version?: number | null;
+            };
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The encoded database identifier of the Stored Workflow. */
+            path: {
+                workflow_id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["StoredWorkflowDetailed"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_workflow_api_workflows__workflow_id__delete: {
+        /** Add the deleted flag to a workflow. */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The encoded database identifier of the Stored Workflow. */
+            path: {
+                workflow_id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    workflows__invocation_counts: {
+        /** Get state counts for accessible workflow. */
+        parameters: {
+            /** @description Is provided workflow id for Workflow instead of StoredWorkflow? */
+            query?: {
+                instance?: boolean | null;
+            };
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The encoded database identifier of the Stored Workflow. */
+            path: {
+                workflow_id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["RootModel_Dict_str__int__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    disable_link_access_api_workflows__workflow_id__disable_link_access_put: {
         /**
          * Makes this item inaccessible by a URL link.
          * @description Makes this item inaccessible by a URL link and return the current sharing status.
@@ -18380,11 +23442,11 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The encoded database identifier of the Stored Workflow. */
             path: {
-                id: string;
+                workflow_id: string;
             };
         };
         responses: {
@@ -18402,7 +23464,7 @@ export interface operations {
             };
         };
     };
-    enable_link_access_api_workflows__id__enable_link_access_put: {
+    enable_link_access_api_workflows__workflow_id__enable_link_access_put: {
         /**
          * Makes this item accessible by a URL link.
          * @description Makes this item accessible by a URL link and return the current sharing status.
@@ -18410,11 +23472,11 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The encoded database identifier of the Stored Workflow. */
             path: {
-                id: string;
+                workflow_id: string;
             };
         };
         responses: {
@@ -18432,7 +23494,379 @@ export interface operations {
             };
         };
     };
-    publish_api_workflows__id__publish_put: {
+    index_invocations_api_workflows__workflow_id__invocations_get: {
+        /** Get the list of a user's workflow invocations. */
+        parameters: {
+            /** @description Return only invocations for this History ID */
+            /** @description Return only invocations for this Job ID */
+            /** @description Return invocations for this User ID. */
+            /** @description Sort Workflow Invocations by this attribute */
+            /** @description Sort in descending order? */
+            /** @description Set to false to only include terminal Invocations. */
+            /** @description Limit the number of invocations to return. */
+            /** @description Number of invocations to skip. */
+            /** @description Is provided workflow id for Workflow instead of StoredWorkflow? */
+            /** @description View to be passed to the serializer */
+            /** @description Include details for individual invocation steps and populate a steps attribute in the resulting dictionary. */
+            query?: {
+                history_id?: string | null;
+                job_id?: string | null;
+                user_id?: string | null;
+                sort_by?: components["schemas"]["InvocationSortByEnum"] | null;
+                sort_desc?: boolean;
+                include_terminal?: boolean | null;
+                limit?: number | null;
+                offset?: number | null;
+                instance?: boolean | null;
+                view?: string | null;
+                step_details?: boolean;
+            };
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The encoded database identifier of the Stored Workflow. */
+            path: {
+                workflow_id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["WorkflowInvocationResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    Invoke_workflow_api_workflows__workflow_id__invocations_post: {
+        /** Schedule the workflow specified by `workflow_id` to run. */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The database identifier - UUID or encoded - of the Workflow. */
+            path: {
+                workflow_id: string | string | string;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InvokeWorkflowPayload"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json":
+                        | components["schemas"]["WorkflowInvocationResponse"]
+                        | components["schemas"]["WorkflowInvocationResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    show_workflow_invocation_api_workflows__workflow_id__invocations__invocation_id__get: {
+        /**
+         * Get detailed description of a workflow invocation.
+         * @description An alias for `GET /api/invocations/{invocation_id}`. `workflow_id` is ignored.
+         */
+        parameters: {
+            /** @description Include details for individual invocation steps and populate a steps attribute in the resulting dictionary. */
+            /**
+             * @description Populate the invocation step state with the job state instead of the invocation step state.
+             *         This will also produce one step per job in mapping jobs to mimic the older behavior with respect to collections.
+             *         Partially scheduled steps may provide incomplete information and the listed steps outputs
+             *         are not the mapped over step outputs but the individual job outputs.
+             */
+            query?: {
+                step_details?: boolean;
+                legacy_job_state?: boolean;
+            };
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The encoded database identifier of the Stored Workflow. */
+            /** @description The encoded database identifier of the Invocation. */
+            path: {
+                workflow_id: string;
+                invocation_id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["WorkflowInvocationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_workflow_invocation_api_workflows__workflow_id__invocations__invocation_id__delete: {
+        /**
+         * Cancel the specified workflow invocation.
+         * @description An alias for `DELETE /api/invocations/{invocation_id}`. `workflow_id` is ignored.
+         */
+        parameters: {
+            /** @description Include details for individual invocation steps and populate a steps attribute in the resulting dictionary. */
+            /**
+             * @description Populate the invocation step state with the job state instead of the invocation step state.
+             *         This will also produce one step per job in mapping jobs to mimic the older behavior with respect to collections.
+             *         Partially scheduled steps may provide incomplete information and the listed steps outputs
+             *         are not the mapped over step outputs but the individual job outputs.
+             */
+            query?: {
+                step_details?: boolean;
+                legacy_job_state?: boolean;
+            };
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The encoded database identifier of the Invocation. */
+            /** @description The encoded database identifier of the Stored Workflow. */
+            path: {
+                invocation_id: string;
+                workflow_id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["WorkflowInvocationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    workflow_invocation_jobs_summary_api_workflows__workflow_id__invocations__invocation_id__jobs_summary_get: {
+        /**
+         * Get job state summary info aggregated across all current jobs of the workflow invocation.
+         * @description An alias for `GET /api/invocations/{invocation_id}/jobs_summary`. `workflow_id` is ignored.
+         */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The encoded database identifier of the Stored Workflow. */
+            /** @description The encoded database identifier of the Invocation. */
+            path: {
+                workflow_id: string;
+                invocation_id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["InvocationJobsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    show_workflow_invocation_report_api_workflows__workflow_id__invocations__invocation_id__report_get: {
+        /**
+         * Get JSON summarizing invocation for reporting.
+         * @description An alias for `GET /api/invocations/{invocation_id}/report`. `workflow_id` is ignored.
+         */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The encoded database identifier of the Invocation. */
+            /** @description The encoded database identifier of the Stored Workflow. */
+            path: {
+                invocation_id: string;
+                workflow_id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["InvocationReport"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    show_workflow_invocation_report_pdf_api_workflows__workflow_id__invocations__invocation_id__report_pdf_get: {
+        /**
+         * Get PDF summarizing invocation for reporting.
+         * @description An alias for `GET /api/invocations/{invocation_id}/report.pdf`. `workflow_id` is ignored.
+         */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The encoded database identifier of the Stored Workflow. */
+            /** @description The encoded database identifier of the Invocation. */
+            path: {
+                workflow_id: string;
+                invocation_id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: never;
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    workflow_invocation_step_jobs_summary_api_workflows__workflow_id__invocations__invocation_id__step_jobs_summary_get: {
+        /**
+         * Get job state summary info aggregated per step of the workflow invocation.
+         * @description An alias for `GET /api/invocations/{invocation_id}/step_jobs_summary`. `workflow_id` is ignored.
+         */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The encoded database identifier of the Stored Workflow. */
+            /** @description The encoded database identifier of the Invocation. */
+            path: {
+                workflow_id: string;
+                invocation_id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": (
+                        | components["schemas"]["InvocationStepJobsResponseStepModel"]
+                        | components["schemas"]["InvocationStepJobsResponseJobModel"]
+                        | components["schemas"]["InvocationStepJobsResponseCollectionJobsModel"]
+                    )[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    workflow_invocation_step_api_workflows__workflow_id__invocations__invocation_id__steps__step_id__get: {
+        /**
+         * Show details of workflow invocation step.
+         * @description An alias for `GET /api/invocations/{invocation_id}/steps/{step_id}`. `workflow_id` and `invocation_id` are ignored.
+         */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The encoded database identifier of the Stored Workflow. */
+            /** @description The encoded database identifier of the Invocation. */
+            /** @description The encoded database identifier of the WorkflowInvocationStep. */
+            path: {
+                workflow_id: string;
+                invocation_id: string;
+                step_id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["InvocationStep"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_workflow_invocation_step_api_workflows__workflow_id__invocations__invocation_id__steps__step_id__put: {
+        /**
+         * Update state of running workflow step invocation.
+         * @description An alias for `PUT /api/invocations/{invocation_id}/steps/{step_id}`. `workflow_id` is ignored.
+         */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The encoded database identifier of the Stored Workflow. */
+            /** @description The encoded database identifier of the Invocation. */
+            /** @description The encoded database identifier of the WorkflowInvocationStep. */
+            path: {
+                workflow_id: string;
+                invocation_id: string;
+                step_id: string;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InvocationUpdatePayload"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["InvocationStep"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    publish_api_workflows__workflow_id__publish_put: {
         /**
          * Makes this item public and accessible by a URL link.
          * @description Makes this item publicly available by a URL link and return the current sharing status.
@@ -18440,11 +23874,11 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The encoded database identifier of the Stored Workflow. */
             path: {
-                id: string;
+                workflow_id: string;
             };
         };
         responses: {
@@ -18462,7 +23896,42 @@ export interface operations {
             };
         };
     };
-    share_with_users_api_workflows__id__share_with_users_put: {
+    refactor_api_workflows__workflow_id__refactor_put: {
+        /** Updates the workflow stored with the given ID. */
+        parameters: {
+            query?: {
+                instance?: boolean | null;
+            };
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The encoded database identifier of the Stored Workflow. */
+            path: {
+                workflow_id: string;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RefactorRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["RefactorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    share_with_users_api_workflows__workflow_id__share_with_users_put: {
         /**
          * Share this item with specific users.
          * @description Shares this item with specific users and return the current sharing status.
@@ -18470,11 +23939,11 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The encoded database identifier of the Stored Workflow. */
             path: {
-                id: string;
+                workflow_id: string;
             };
         };
         requestBody: {
@@ -18497,7 +23966,7 @@ export interface operations {
             };
         };
     };
-    sharing_api_workflows__id__sharing_get: {
+    sharing_api_workflows__workflow_id__sharing_get: {
         /**
          * Get the current sharing status of the given item.
          * @description Return the sharing status of the item.
@@ -18505,11 +23974,11 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The encoded database identifier of the Stored Workflow. */
             path: {
-                id: string;
+                workflow_id: string;
             };
         };
         responses: {
@@ -18527,7 +23996,7 @@ export interface operations {
             };
         };
     };
-    set_slug_api_workflows__id__slug_put: {
+    set_slug_api_workflows__workflow_id__slug_put: {
         /**
          * Set a new slug for this shared item.
          * @description Sets a new slug to access this item by URL. The new slug must be unique.
@@ -18535,11 +24004,11 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The encoded database identifier of the Stored Workflow. */
             path: {
-                id: string;
+                workflow_id: string;
             };
         };
         requestBody: {
@@ -18558,7 +24027,178 @@ export interface operations {
             };
         };
     };
-    unpublish_api_workflows__id__unpublish_put: {
+    index_api_workflows__workflow_id__tags_get: {
+        /** Show tags based on workflow_id */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            path: {
+                workflow_id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["ItemTagsListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    show_api_workflows__workflow_id__tags__tag_name__get: {
+        /** Show tag based on workflow_id */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            path: {
+                workflow_id: string;
+                tag_name: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["ItemTagsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_api_workflows__workflow_id__tags__tag_name__put: {
+        /** Update tag based on workflow_id */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            path: {
+                workflow_id: string;
+                tag_name: string;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ItemTagsCreatePayload"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["ItemTagsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_api_workflows__workflow_id__tags__tag_name__post: {
+        /** Create tag based on workflow_id */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            path: {
+                workflow_id: string;
+                tag_name: string;
+            };
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ItemTagsCreatePayload"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["ItemTagsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_api_workflows__workflow_id__tags__tag_name__delete: {
+        /** Delete tag based on workflow_id */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            path: {
+                workflow_id: string;
+                tag_name: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": boolean;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    undelete_workflow_api_workflows__workflow_id__undelete_post: {
+        /** Remove the deleted flag from a workflow. */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The encoded database identifier of the Stored Workflow. */
+            path: {
+                workflow_id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unpublish_api_workflows__workflow_id__unpublish_put: {
         /**
          * Removes this item from the published list.
          * @description Removes this item from the published list and return the current sharing status.
@@ -18566,11 +24206,11 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The encoded database identifier of the Stored Workflow. */
             path: {
-                id: string;
+                workflow_id: string;
             };
         };
         responses: {
@@ -18588,12 +24228,39 @@ export interface operations {
             };
         };
     };
-    delete_workflow_api_workflows__workflow_id__delete: {
-        /** Add the deleted flag to a workflow. */
+    index_invocations_api_workflows__workflow_id__usage_get: {
+        /**
+         * Get the list of a user's workflow invocations.
+         * @deprecated
+         */
         parameters: {
+            /** @description Return only invocations for this History ID */
+            /** @description Return only invocations for this Job ID */
+            /** @description Return invocations for this User ID. */
+            /** @description Sort Workflow Invocations by this attribute */
+            /** @description Sort in descending order? */
+            /** @description Set to false to only include terminal Invocations. */
+            /** @description Limit the number of invocations to return. */
+            /** @description Number of invocations to skip. */
+            /** @description Is provided workflow id for Workflow instead of StoredWorkflow? */
+            /** @description View to be passed to the serializer */
+            /** @description Include details for individual invocation steps and populate a steps attribute in the resulting dictionary. */
+            query?: {
+                history_id?: string | null;
+                job_id?: string | null;
+                user_id?: string | null;
+                sort_by?: components["schemas"]["InvocationSortByEnum"] | null;
+                sort_desc?: boolean;
+                include_terminal?: boolean | null;
+                limit?: number | null;
+                offset?: number | null;
+                instance?: boolean | null;
+                view?: string | null;
+                step_details?: boolean;
+            };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The encoded database identifier of the Stored Workflow. */
             path: {
@@ -18604,7 +24271,7 @@ export interface operations {
             /** @description Successful Response */
             200: {
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["WorkflowInvocationResponse"][];
                 };
             };
             /** @description Validation Error */
@@ -18615,15 +24282,113 @@ export interface operations {
             };
         };
     };
-    undelete_workflow_api_workflows__workflow_id__undelete_post: {
-        /** Remove the deleted flag from a workflow. */
+    Invoke_workflow_api_workflows__workflow_id__usage_post: {
+        /**
+         * Schedule the workflow specified by `workflow_id` to run.
+         * @deprecated
+         */
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
+            };
+            /** @description The database identifier - UUID or encoded - of the Workflow. */
+            path: {
+                workflow_id: string | string | string;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InvokeWorkflowPayload"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json":
+                        | components["schemas"]["WorkflowInvocationResponse"]
+                        | components["schemas"]["WorkflowInvocationResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    show_workflow_invocation_api_workflows__workflow_id__usage__invocation_id__get: {
+        /**
+         * Get detailed description of a workflow invocation.
+         * @deprecated
+         * @description An alias for `GET /api/invocations/{invocation_id}`. `workflow_id` is ignored.
+         */
+        parameters: {
+            /** @description Include details for individual invocation steps and populate a steps attribute in the resulting dictionary. */
+            /**
+             * @description Populate the invocation step state with the job state instead of the invocation step state.
+             *         This will also produce one step per job in mapping jobs to mimic the older behavior with respect to collections.
+             *         Partially scheduled steps may provide incomplete information and the listed steps outputs
+             *         are not the mapped over step outputs but the individual job outputs.
+             */
+            query?: {
+                step_details?: boolean;
+                legacy_job_state?: boolean;
+            };
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
             };
             /** @description The encoded database identifier of the Stored Workflow. */
+            /** @description The encoded database identifier of the Invocation. */
             path: {
+                workflow_id: string;
+                invocation_id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["WorkflowInvocationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_workflow_invocation_api_workflows__workflow_id__usage__invocation_id__delete: {
+        /**
+         * Cancel the specified workflow invocation.
+         * @deprecated
+         * @description An alias for `DELETE /api/invocations/{invocation_id}`. `workflow_id` is ignored.
+         */
+        parameters: {
+            /** @description Include details for individual invocation steps and populate a steps attribute in the resulting dictionary. */
+            /**
+             * @description Populate the invocation step state with the job state instead of the invocation step state.
+             *         This will also produce one step per job in mapping jobs to mimic the older behavior with respect to collections.
+             *         Partially scheduled steps may provide incomplete information and the listed steps outputs
+             *         are not the mapped over step outputs but the individual job outputs.
+             */
+            query?: {
+                step_details?: boolean;
+                legacy_job_state?: boolean;
+            };
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The encoded database identifier of the Invocation. */
+            /** @description The encoded database identifier of the Stored Workflow. */
+            path: {
+                invocation_id: string;
                 workflow_id: string;
             };
         };
@@ -18631,7 +24396,214 @@ export interface operations {
             /** @description Successful Response */
             200: {
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["WorkflowInvocationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    workflow_invocation_jobs_summary_api_workflows__workflow_id__usage__invocation_id__jobs_summary_get: {
+        /**
+         * Get job state summary info aggregated across all current jobs of the workflow invocation.
+         * @deprecated
+         * @description An alias for `GET /api/invocations/{invocation_id}/jobs_summary`. `workflow_id` is ignored.
+         */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The encoded database identifier of the Stored Workflow. */
+            /** @description The encoded database identifier of the Invocation. */
+            path: {
+                workflow_id: string;
+                invocation_id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["InvocationJobsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    show_workflow_invocation_report_api_workflows__workflow_id__usage__invocation_id__report_get: {
+        /**
+         * Get JSON summarizing invocation for reporting.
+         * @deprecated
+         * @description An alias for `GET /api/invocations/{invocation_id}/report`. `workflow_id` is ignored.
+         */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The encoded database identifier of the Invocation. */
+            /** @description The encoded database identifier of the Stored Workflow. */
+            path: {
+                invocation_id: string;
+                workflow_id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["InvocationReport"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    show_workflow_invocation_report_pdf_api_workflows__workflow_id__usage__invocation_id__report_pdf_get: {
+        /**
+         * Get PDF summarizing invocation for reporting.
+         * @deprecated
+         * @description An alias for `GET /api/invocations/{invocation_id}/report.pdf`. `workflow_id` is ignored.
+         */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The encoded database identifier of the Stored Workflow. */
+            /** @description The encoded database identifier of the Invocation. */
+            path: {
+                workflow_id: string;
+                invocation_id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: never;
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    workflow_invocation_step_jobs_summary_api_workflows__workflow_id__usage__invocation_id__step_jobs_summary_get: {
+        /**
+         * Get job state summary info aggregated per step of the workflow invocation.
+         * @deprecated
+         * @description An alias for `GET /api/invocations/{invocation_id}/step_jobs_summary`. `workflow_id` is ignored.
+         */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The encoded database identifier of the Stored Workflow. */
+            /** @description The encoded database identifier of the Invocation. */
+            path: {
+                workflow_id: string;
+                invocation_id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": (
+                        | components["schemas"]["InvocationStepJobsResponseStepModel"]
+                        | components["schemas"]["InvocationStepJobsResponseJobModel"]
+                        | components["schemas"]["InvocationStepJobsResponseCollectionJobsModel"]
+                    )[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    workflow_invocation_step_api_workflows__workflow_id__usage__invocation_id__steps__step_id__get: {
+        /**
+         * Show details of workflow invocation step.
+         * @deprecated
+         * @description An alias for `GET /api/invocations/{invocation_id}/steps/{step_id}`. `workflow_id` and `invocation_id` are ignored.
+         */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The encoded database identifier of the Stored Workflow. */
+            /** @description The encoded database identifier of the Invocation. */
+            /** @description The encoded database identifier of the WorkflowInvocationStep. */
+            path: {
+                workflow_id: string;
+                invocation_id: string;
+                step_id: string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["InvocationStep"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_workflow_invocation_step_api_workflows__workflow_id__usage__invocation_id__steps__step_id__put: {
+        /**
+         * Update state of running workflow step invocation.
+         * @deprecated
+         * @description An alias for `PUT /api/invocations/{invocation_id}/steps/{step_id}`. `workflow_id` is ignored.
+         */
+        parameters: {
+            /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+            header?: {
+                "run-as"?: string | null;
+            };
+            /** @description The encoded database identifier of the Stored Workflow. */
+            /** @description The encoded database identifier of the Invocation. */
+            /** @description The encoded database identifier of the WorkflowInvocationStep. */
+            path: {
+                workflow_id: string;
+                invocation_id: string;
+                step_id: string;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InvocationUpdatePayload"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                content: {
+                    "application/json": components["schemas"]["InvocationStep"];
                 };
             };
             /** @description Validation Error */
@@ -18646,11 +24618,11 @@ export interface operations {
         /** List all versions of a workflow. */
         parameters: {
             query?: {
-                instance?: boolean;
+                instance?: boolean | null;
             };
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The encoded database identifier of the Stored Workflow. */
             path: {
@@ -18677,7 +24649,7 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The ID of the group */
             path: {
@@ -18688,7 +24660,7 @@ export interface operations {
             /** @description Successful Response */
             200: {
                 content: {
-                    "application/json": components["schemas"]["Model"];
+                    "application/json": components["schemas"]["DrsObject"];
                 };
             };
             /** @description Validation Error */
@@ -18704,7 +24676,7 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The ID of the group */
             path: {
@@ -18715,7 +24687,7 @@ export interface operations {
             /** @description Successful Response */
             200: {
                 content: {
-                    "application/json": components["schemas"]["Model"];
+                    "application/json": components["schemas"]["DrsObject"];
                 };
             };
             /** @description Validation Error */
@@ -18731,7 +24703,7 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The ID of the group */
             /** @description The access ID of the access method for objects, unused in Galaxy. */
@@ -18760,7 +24732,7 @@ export interface operations {
         parameters: {
             /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
             header?: {
-                "run-as"?: string;
+                "run-as"?: string | null;
             };
             /** @description The ID of the group */
             /** @description The access ID of the access method for objects, unused in Galaxy. */

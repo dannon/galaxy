@@ -30,6 +30,13 @@
             :description="link.description"
             :to="`/user/${index}`" />
         <UserPreferencesElement
+            v-if="isConfigLoaded && !config.single_user"
+            id="edit-preferences-permissions"
+            icon="fa-users"
+            title="Set Dataset Permissions for New Histories"
+            description="Grant others default access to newly created histories. Changes made here will only affect histories created after these settings have been stored."
+            to="/user/permissions" />
+        <UserPreferencesElement
             id="edit-preferences-api-key"
             icon="fa-key"
             title="Manage API Key"
@@ -60,16 +67,6 @@
             title="Manage Custom Builds"
             description="Add or remove custom builds using history datasets."
             to="/custom_builds" />
-        <UserPreferencesElement
-            icon="fa-th-list"
-            title="Manage Activity Bar"
-            description="Click here to show or hide the activity bar."
-            badge="New!"
-            @click="toggleActivityBar = !toggleActivityBar">
-            <b-collapse v-model="toggleActivityBar">
-                <UserActivityBarSettings />
-            </b-collapse>
-        </UserPreferencesElement>
         <UserPreferencesElement
             v-if="hasThemes"
             icon="fa-palette"
@@ -141,7 +138,6 @@ import Vue from "vue";
 import { useConfig } from "@/composables/config";
 import { useUserStore } from "@/stores/userStore";
 
-import UserActivityBarSettings from "./UserActivityBarSettings";
 import UserBeaconSettings from "./UserBeaconSettings";
 import UserDeletion from "./UserDeletion";
 import UserPreferencesElement from "./UserPreferencesElement";
@@ -153,7 +149,6 @@ Vue.use(BootstrapVue);
 
 export default {
     components: {
-        UserActivityBarSettings,
         UserDeletion,
         UserPreferencesElement,
         ThemeSelector,
@@ -183,7 +178,6 @@ export default {
             message: null,
             showLogoutModal: false,
             showDataPrivateModal: false,
-            toggleActivityBar: false,
             toggleTheme: false,
         };
     },
@@ -197,12 +191,20 @@ export default {
             return Object.fromEntries(enabledPreferences);
         },
         hasLogout() {
-            const Galaxy = getGalaxyInstance();
-            return !!Galaxy.session_csrf_token && !this.config.single_user;
+            if (this.isConfigLoaded) {
+                const Galaxy = getGalaxyInstance();
+                return !!Galaxy.session_csrf_token && !this.config.single_user;
+            } else {
+                return false;
+            }
         },
         hasThemes() {
-            const themes = Object.keys(this.config.themes);
-            return themes?.length > 1 ?? false;
+            if (this.isConfigLoaded) {
+                const themes = Object.keys(this.config.themes);
+                return themes?.length > 1 ?? false;
+            } else {
+                return false;
+            }
         },
         userPermissionsUrl() {
             return withPrefix("/user/permissions");

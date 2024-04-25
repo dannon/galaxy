@@ -43,11 +43,11 @@ from galaxy.model.mapping import GalaxyModelMapping
 from galaxy.schema.schema import DatasetCollectionInstanceType
 from galaxy.schema.tasks import PrepareDatasetCollectionDownload
 from galaxy.security.idencoding import IdEncodingHelper
-from galaxy.util import validation
-from galaxy.web.short_term_storage import (
+from galaxy.short_term_storage import (
     ShortTermStorageMonitor,
     storage_context,
 )
+from galaxy.util import validation
 
 log = logging.getLogger(__name__)
 
@@ -350,7 +350,7 @@ class DatasetCollectionManager:
                 suitable_converters = suitable_converters.intersection(set_of_new_converters)
                 if suitable_converters:
                     most_recent_datatype = datatype
-        suitable_tool_ids = list()
+        suitable_tool_ids = []
         for tool in suitable_converters:
             tool_info = {
                 "tool_id": tool[1].id,
@@ -631,9 +631,8 @@ class DatasetCollectionManager:
             message = message_template % element_identifier
             raise RequestParameterInvalidException(message)
 
-        tags = element_identifier.pop("tags", None)
         tag_str = ""
-        if tags:
+        if tags := element_identifier.pop("tags", None):
             tag_str = ",".join(str(_) for _ in tags)
         if src_type == "hda":
             hda = self.hda_manager.get_accessible(element_id, trans.user)
@@ -672,14 +671,12 @@ class DatasetCollectionManager:
     @overload
     def get_dataset_collection_instance(
         self, trans: ProvidesHistoryContext, instance_type: Literal["history"], id, **kwds: Any
-    ) -> model.HistoryDatasetCollectionAssociation:
-        ...
+    ) -> model.HistoryDatasetCollectionAssociation: ...
 
     @overload
     def get_dataset_collection_instance(
         self, trans: ProvidesHistoryContext, instance_type: Literal["library"], id, **kwds: Any
-    ) -> model.LibraryDatasetCollectionAssociation:
-        ...
+    ) -> model.LibraryDatasetCollectionAssociation: ...
 
     def get_dataset_collection_instance(
         self, trans: ProvidesHistoryContext, instance_type: DatasetCollectionInstanceType, id, **kwds: Any
@@ -842,7 +839,7 @@ class DatasetCollectionManager:
     def _get_collection_contents_qry(self, parent_id, limit=None, offset=None):
         """Build query to find first level of collection contents by containing collection parent_id"""
         DCE = model.DatasetCollectionElement
-        qry = Query(DCE).filter(DCE.dataset_collection_id == parent_id)
+        qry = Query(DCE).filter(DCE.dataset_collection_id == parent_id)  # type:ignore[var-annotated]
         qry = qry.order_by(DCE.element_index)
         qry = qry.options(
             joinedload(model.DatasetCollectionElement.child_collection), joinedload(model.DatasetCollectionElement.hda)

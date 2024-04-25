@@ -3,31 +3,44 @@ import { mount } from "@vue/test-utils";
 import { updateContentFields } from "components/History/model/queries";
 import { PiniaVuePlugin } from "pinia";
 import { getLocalVue } from "tests/jest/helpers";
+import VueRouter from "vue-router";
+
+import { mockFetcher } from "@/api/schema/__mocks__";
 
 import ContentItem from "./ContentItem";
 
 jest.mock("components/History/model/queries");
 
 const localVue = getLocalVue();
+localVue.use(VueRouter);
 localVue.use(PiniaVuePlugin);
+const router = new VueRouter();
+
+jest.mock("vue-router/composables", () => ({
+    useRoute: jest.fn(() => ({})),
+    useRouter: jest.fn(() => ({})),
+}));
 
 // mock queries
 updateContentFields.mockImplementation(async () => {});
+
+const item = {
+    id: "item_id",
+    some_data: "some_data",
+    tags: ["tag1", "tag2", "tag3"],
+    deleted: false,
+    visible: true,
+};
 
 describe("ContentItem", () => {
     let wrapper;
 
     beforeEach(() => {
+        mockFetcher.path("/api/datasets/{dataset_id}").method("get").mock({ data: item });
         wrapper = mount(ContentItem, {
             propsData: {
                 expandDataset: true,
-                item: {
-                    id: "item_id",
-                    some_data: "some_data",
-                    tags: ["tag1", "tag2", "tag3"],
-                    deleted: false,
-                    visible: true,
-                },
+                item,
                 id: 1,
                 isDataset: true,
                 isHistoryItem: true,
@@ -48,6 +61,7 @@ describe("ContentItem", () => {
                 },
             },
             pinia: createTestingPinia(),
+            router,
         });
     });
 

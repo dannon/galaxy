@@ -185,12 +185,7 @@ class GitLabPlugin(BaseGitPlugin):
                         )
 
                 return (
-                    "Submitted error report to GitLab. Your Issue number is [#{}]({}/{}/issues/{})".format(
-                        self.issue_cache[issue_cache_key][error_title],
-                        self.gitlab_base_url,
-                        gitlab_projecturl,
-                        self.issue_cache[issue_cache_key][error_title],
-                    ),
+                    f"Submitted error report to GitLab. Your Issue number is [#{self.issue_cache[issue_cache_key][error_title]}]({self.gitlab_base_url}/{gitlab_projecturl}/issues/{self.issue_cache[issue_cache_key][error_title]})",
                     "success",
                 )
 
@@ -247,8 +242,7 @@ class GitLabPlugin(BaseGitPlugin):
         issue_data = {"title": error_title, "description": error_message}
 
         # Assign the user to the issue
-        gl_userid = kwargs.get("gl_userid", None)
-        if gl_userid is not None:
+        if (gl_userid := kwargs.get("gl_userid", None)) is not None:
             issue_data["assignee_ids"] = [gl_userid]
 
         # Create the issue on GitLab

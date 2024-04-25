@@ -2,10 +2,12 @@
 Actions to be run at job completion (or output hda creation, as in the case of
 immediate_actions listed below.
 """
+
 import datetime
 
 from markupsafe import escape
 
+from galaxy.model import PostJobActionAssociation
 from galaxy.model.base import transaction
 from galaxy.util import (
     send_mail,
@@ -111,11 +113,17 @@ class ChangeDatatypeAction(DefaultJobAction):
         for dataset_assoc in job.output_datasets:
             if action.output_name == "" or dataset_assoc.name == action.output_name:
                 app.datatypes_registry.change_datatype(dataset_assoc.dataset, action.action_arguments["newtype"])
+                return
         for dataset_collection_assoc in job.output_dataset_collection_instances:
             if action.output_name == "" or dataset_collection_assoc.name == action.output_name:
                 for dataset_instance in dataset_collection_assoc.dataset_collection_instance.dataset_instances:
                     if dataset_instance:
                         app.datatypes_registry.change_datatype(dataset_instance, action.action_arguments["newtype"])
+                else:
+                    # dynamic collection, add as PJA
+                    pjaa = PostJobActionAssociation(action, job)
+                    sa_session.add(pjaa)
+                return
 
     @classmethod
     def get_short_str(cls, pja):
@@ -140,8 +148,7 @@ class RenameDatasetAction(DefaultJobAction):
             if step_input and hasattr(step_input, "name"):
                 input_names[input_key] = step_input.name
 
-        new_name = cls._gen_new_name(action, input_names, replacement_dict)
-        if new_name:
+        if new_name := cls._gen_new_name(action, input_names, replacement_dict):
             for name, step_output in step_outputs.items():
                 if action.output_name == "" or name == action.output_name:
                     step_output.name = new_name
@@ -248,8 +255,7 @@ class RenameDatasetAction(DefaultJobAction):
             if has_collection and hasattr(has_collection, "name"):
                 input_names[input_assoc.name] = has_collection.name
 
-        new_name = cls._gen_new_name(action, input_names, replacement_dict)
-        if new_name:
+        if new_name := cls._gen_new_name(action, input_names, replacement_dict):
             for dataset_assoc in job.output_datasets:
                 if action.output_name == "" or dataset_assoc.name == action.output_name:
                     dataset_assoc.dataset.name = new_name

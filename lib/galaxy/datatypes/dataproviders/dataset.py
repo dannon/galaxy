@@ -5,6 +5,7 @@ Dataproviders that use either:
     - or provide data in some way relevant to bioinformatic data
         (e.g. parsing genomic regions from their source)
 """
+
 import logging
 import sys
 
@@ -748,7 +749,7 @@ class SQliteDataTableProvider(base.DataProvider):
             for i, row in enumerate(results):
                 if i >= self.limit:
                     break
-                yield [val for val in row]
+                yield list(row)
         else:
             yield
 

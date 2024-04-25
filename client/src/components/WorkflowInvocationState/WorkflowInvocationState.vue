@@ -2,6 +2,7 @@
     <b-tabs v-if="invocation">
         <b-tab title="Summary" active>
             <WorkflowInvocationSummary
+                class="invocation-summary"
                 :invocation="invocation"
                 :index="index"
                 :invocation-and-job-terminal="invocationAndJobTerminal"
@@ -10,9 +11,7 @@
                 @invocation-cancelled="cancelWorkflowScheduling" />
         </b-tab>
         <b-tab title="Details">
-            <WorkflowInvocationDetails
-                :invocation="invocation"
-                :invocation-and-job-terminal="invocationAndJobTerminal" />
+            <WorkflowInvocationDetails :invocation="invocation" />
         </b-tab>
         <!-- <b-tab title="Workflow Overview">
             <p>TODO: Insert readonly version of workflow editor here</p>
@@ -31,12 +30,12 @@
     </b-alert>
 </template>
 <script>
-import mixin from "components/JobStates/mixin";
 import LoadingSpan from "components/LoadingSpan";
-import JOB_STATES_MODEL from "utils/job-states-model";
-import { mapActions, mapGetters } from "vuex";
+
+import { useInvocationStore } from "@/stores/invocationStore";
 
 import { cancelWorkflowScheduling } from "./services";
+import { isTerminal, jobCount } from "./util";
 
 import WorkflowInvocationDetails from "./WorkflowInvocationDetails.vue";
 import WorkflowInvocationExportOptions from "./WorkflowInvocationExportOptions.vue";
@@ -49,7 +48,6 @@ export default {
         WorkflowInvocationDetails,
         WorkflowInvocationExportOptions,
     },
-    mixins: [mixin],
     props: {
         invocationId: {
             type: String,
@@ -61,6 +59,12 @@ export default {
             default: null,
         },
     },
+    setup() {
+        const invocationStore = useInvocationStore();
+        return {
+            invocationStore,
+        };
+    },
     data() {
         return {
             stepStatesInterval: null,
@@ -68,9 +72,8 @@ export default {
         };
     },
     computed: {
-        ...mapGetters(["getInvocationById", "getInvocationJobsSummaryById"]),
         invocation: function () {
-            return this.getInvocationById(this.invocationId);
+            return this.invocationStore.getInvocationById(this.invocationId);
         },
         invocationState: function () {
             return this.invocation?.state || "new";
@@ -86,15 +89,15 @@ export default {
             );
         },
         jobStatesTerminal: function () {
-            if (this.invocationSchedulingTerminal && this.JobStatesSummary?.jobCount === 0) {
+            if (this.invocationSchedulingTerminal && jobCount(this.jobStatesSummary) === 0) {
                 // no jobs for this invocation (think subworkflow or just inputs)
                 return true;
             }
-            return this.jobStatesSummary && this.jobStatesSummary.terminal();
+            return this.jobStatesSummary && isTerminal(this.jobStatesSummary);
         },
         jobStatesSummary() {
-            const jobsSummary = this.getInvocationJobsSummaryById(this.invocationId);
-            return !jobsSummary ? null : new JOB_STATES_MODEL.JobStatesSummary(jobsSummary);
+            const jobsSummary = this.invocationStore.getInvocationJobsSummaryById(this.invocationId);
+            return !jobsSummary ? null : jobsSummary;
         },
     },
     created: function () {
@@ -106,19 +109,16 @@ export default {
         clearTimeout(this.stepStatesInterval);
     },
     methods: {
-        ...mapActions(["fetchInvocationForId", "fetchInvocationJobsSummaryForId"]),
-        pollStepStatesUntilTerminal: function () {
+        pollStepStatesUntilTerminal: async function () {
             if (!this.invocation || !this.invocationSchedulingTerminal) {
-                this.fetchInvocationForId(this.invocationId).then((response) => {
-                    this.stepStatesInterval = setTimeout(this.pollStepStatesUntilTerminal, 3000);
-                });
+                await this.invocationStore.fetchInvocationForId({ id: this.invocationId });
+                this.stepStatesInterval = setTimeout(this.pollStepStatesUntilTerminal, 3000);
             }
         },
-        pollJobStatesUntilTerminal: function () {
+        pollJobStatesUntilTerminal: async function () {
             if (!this.jobStatesTerminal) {
-                this.fetchInvocationJobsSummaryForId(this.invocationId).then((response) => {
-                    this.jobStatesInterval = setTimeout(this.pollJobStatesUntilTerminal, 3000);
-                });
+                await this.invocationStore.fetchInvocationJobsSummaryForId({ id: this.invocationId });
+                this.jobStatesInterval = setTimeout(this.pollJobStatesUntilTerminal, 3000);
             }
         },
         onError: function (e) {

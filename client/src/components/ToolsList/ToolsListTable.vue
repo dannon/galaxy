@@ -96,7 +96,7 @@ export default {
             }
         },
         async fetchHelp(tool) {
-            await fetchData(`api/tools/${tool.id}/build`).then((response) => {
+            await fetchData(`api/tools/${encodeURIComponent(tool.id)}/build`).then((response) => {
                 const help = response.help;
                 tool._showDetails = false; // maybe not needed
                 if (help && help != "\n") {

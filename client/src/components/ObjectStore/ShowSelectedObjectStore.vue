@@ -22,7 +22,7 @@ const loading = ref(true);
 const error = ref<string | null>(null);
 
 const loadingMessage = computed(() => {
-    return localize("Loading object store details");
+    return localize("Loading storage location details");
 });
 
 async function fetch() {

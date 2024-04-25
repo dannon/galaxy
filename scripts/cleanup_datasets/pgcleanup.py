@@ -450,7 +450,7 @@ class RemovesDatasets(RemovesObjects):
             extra_dir = f"dataset_{dataset.uuid}_files"
         else:
             extra_dir = f"dataset_{dataset.id}_files"
-        self.remove_from_object_store(dataset, dict())
+        self.remove_from_object_store(dataset, {})
         self.remove_from_object_store(
             dataset, dict(dir_only=True, extra_dir=extra_dir), entire_dir=True, check_exists=True
         )
@@ -912,7 +912,8 @@ class PurgeHistorylessHDAs(PurgesHDAs, RemovesMetadataFiles, RequiresDiskUsageRe
                      FROM dataset
                     WHERE history_id IS NULL{force_retry_sql}{object_store_id_sql}
                           AND history_dataset_association.update_time < (NOW() AT TIME ZONE 'utc' - interval '%(days)s days')
-                RETURNING id),
+                RETURNING history_dataset_association.id as id,
+                          history_dataset_association.history_id as history_id),
              hda_events
           AS (INSERT INTO cleanup_event_hda_association
                           (create_time, cleanup_event_id, hda_id)
@@ -920,12 +921,15 @@ class PurgeHistorylessHDAs(PurgesHDAs, RemovesMetadataFiles, RequiresDiskUsageRe
                      FROM purged_hda_ids),
              {purge_hda_dependencies_sql}
       SELECT purged_hda_ids.id AS purged_hda_id,
+             history.user_id AS recalculate_disk_usage_user_id,
              deleted_metadata_file_ids.id AS deleted_metadata_file_id,
              deleted_metadata_file_ids.uuid AS deleted_metadata_file_uuid,
              deleted_metadata_file_ids.object_store_id AS object_store_id,
              deleted_icda_ids.id AS deleted_icda_id,
              deleted_icda_ids.hda_id AS deleted_icda_hda_id
         FROM purged_hda_ids
+             LEFT OUTER JOIN history
+                             ON purged_hda_ids.history_id = history.id
              LEFT OUTER JOIN deleted_metadata_file_ids
                              ON deleted_metadata_file_ids.hda_id = purged_hda_ids.id
              LEFT OUTER JOIN deleted_icda_ids

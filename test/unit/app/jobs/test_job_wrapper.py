@@ -66,7 +66,7 @@ class AbstractTestCases:
         @contextmanager
         def _prepared_wrapper(self):
             wrapper = self._wrapper()
-            wrapper._get_tool_evaluator = lambda *args, **kwargs: MockEvaluator(wrapper.app, wrapper.tool, wrapper.get_job(), wrapper.working_directory)  # type: ignore[assignment]
+            wrapper._get_tool_evaluator = lambda *args, **kwargs: MockEvaluator(wrapper.app, wrapper.tool, wrapper.get_job(), wrapper.working_directory)  # type: ignore[method-assign]
             wrapper.prepare()
             yield wrapper
 
@@ -113,14 +113,11 @@ class MockEvaluator:
         self.local_working_directory = local_working_directory
         self.param_dict = {}
 
-    def populate_interactivetools(self):
-        return []
-
     def set_compute_environment(self, *args, **kwds):
         pass
 
     def build(self):
-        return TEST_COMMAND, "", [], []
+        return TEST_COMMAND, "", [], [], []
 
 
 class MockJobQueue:

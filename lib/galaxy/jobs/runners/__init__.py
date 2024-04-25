@@ -1,6 +1,7 @@
 """
 Base classes for job runner plugins.
 """
+
 import datetime
 import os
 import string
@@ -10,6 +11,7 @@ import threading
 import time
 import traceback
 import typing
+import uuid
 from queue import (
     Empty,
     Queue,
@@ -33,7 +35,10 @@ from galaxy.jobs.runners.util.job_script import (
     job_script,
     write_script,
 )
-from galaxy.model.base import transaction
+from galaxy.model.base import (
+    check_database_connection,
+    transaction,
+)
 from galaxy.tool_util.deps.dependencies import (
     JobInfo,
     ToolInfo,
@@ -198,9 +203,10 @@ class BaseJobRunner:
             queue_job = job_wrapper.enqueue()
         except Exception as e:
             queue_job = False
-            # Required for exceptions thrown by object store incompatiblity.
+            # Required for exceptions thrown by object store incompatibility.
             # tested by test/integration/objectstore/test_private_handling.py
-            job_wrapper.fail(str(e), exception=e)
+            message = e.client_message if hasattr(e, "client_message") else str(e)
+            job_wrapper.fail(message, exception=e)
             log.debug(f"Job [{job_wrapper.job_id}] failed to queue {put_timer}")
             return
         if queue_job:
@@ -217,8 +223,7 @@ class BaseJobRunner:
         for _ in range(len(self.work_threads)):
             self.work_queue.put((STOP_SIGNAL, None))
 
-        join_timeout = self.app.config.monitor_thread_join_timeout
-        if join_timeout > 0:
+        if (join_timeout := self.app.config.monitor_thread_join_timeout) > 0:
             log.info("Waiting up to %d seconds for job worker threads to shutdown...", join_timeout)
             start = time.time()
             # NOTE: threads that have already joined by now are not going to be logged
@@ -827,11 +832,19 @@ class AsynchronousJobRunner(BaseJobRunner, Monitors):
                     self.watched.append(async_job_state)
             except Empty:
                 pass
+            # Ideally we'd construct a sqlalchemy session now and pass it into `check_watched_items`
+            # and have that be the only session being used. The next best thing is to scope
+            # the session and discard it after each check_watched_item loop
+            scoped_id = str(uuid.uuid4())
+            self.app.model.set_request_id(scoped_id)
             # Iterate over the list of watched jobs and check state
             try:
+                check_database_connection(self.sa_session)
                 self.check_watched_items()
             except Exception:
                 log.exception("Unhandled exception checking active jobs")
+            finally:
+                self.app.model.unset_request_id(scoped_id)
             # Sleep a bit before the next state check
             time.sleep(self.app.config.job_runner_monitor_sleep)
 

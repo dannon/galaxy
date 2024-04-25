@@ -418,6 +418,18 @@ class TestDatasetCollectionsApi(ApiTestCase):
             contents_response = self._get(contents_url)
             self._assert_status_code_is(contents_response, 403)
 
+    @requires_new_user
+    def test_published_collection_contents_accessible(self, history_id):
+        # request contents on an hdca that is in a published history
+        hdca, contents_url = self._create_collection_contents_pair(history_id)
+        with self._different_user():
+            contents_response = self._get(contents_url)
+            self._assert_status_code_is(contents_response, 403)
+        self.dataset_populator.make_public(history_id)
+        with self._different_user():
+            contents_response = self._get(contents_url)
+            self._assert_status_code_is(contents_response, 200)
+
     def test_collection_contents_invalid_collection(self, history_id):
         # request an invalid collection from a valid hdca, should get 404
         hdca, contents_url = self._create_collection_contents_pair(history_id)
@@ -443,7 +455,7 @@ class TestDatasetCollectionsApi(ApiTestCase):
         # Get contents_url from history contents, use it to show the first level
         # of collection contents in the created HDCA, then use it again to drill
         # down into the nested collection contents
-        hdca = self.dataset_collection_populator.create_list_of_list_in_history(history_id).json()
+        hdca = self.dataset_collection_populator.create_list_of_list_in_history(history_id, wait=True).json()
         root_contents_url = self._get_contents_url_for_hdca(history_id, hdca)
 
         # check root contents for this collection
@@ -454,6 +466,8 @@ class TestDatasetCollectionsApi(ApiTestCase):
         # drill down, retrieve nested collection contents
         assert "object" in root_contents[0]
         assert "contents_url" in root_contents[0]["object"]
+        assert root_contents[0]["object"]["element_count"] == 3
+        assert root_contents[0]["object"]["populated"]
         drill_contents_url = root_contents[0]["object"]["contents_url"]
         drill_contents = self._get(drill_contents_url).json()
         assert len(drill_contents) == len(hdca["elements"][0]["object"]["elements"])
