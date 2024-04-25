@@ -27,10 +27,10 @@ function chooseTemplate(selectTemplateId: string) {
 }
 
 function handleOAuth2Redirect() {
-    if (router.currentRoute.query.error === "access_denied") {
+    if (router.currentRoute.value.query.error === "access_denied") {
         errorMessage.value = "You must authorize Galaxy to access this resource. Please try again.";
-    } else if (router.currentRoute.query.error) {
-        const error = router.currentRoute.query.error;
+    } else if (router.currentRoute.value.query.error) {
+        const error = router.currentRoute.value.query.error;
 
         if (Array.isArray(error)) {
             errorMessage.value = error[0] || "There was an error creating the file source.";

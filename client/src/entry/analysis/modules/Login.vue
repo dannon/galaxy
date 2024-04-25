@@ -12,7 +12,7 @@ const router = useRouter();
 const { config, isConfigLoaded } = useConfig();
 
 const hasToken = computed(() => {
-    return router.currentRoute.query.token || router.currentRoute.query.expired_user;
+    return router.currentRoute.value.query.token || router.currentRoute.value.query.expired_user;
 });
 const sessionCsrfToken = computed(() => {
     return getGalaxyInstance().session_csrf_token;
@@ -24,10 +24,10 @@ const sessionCsrfToken = computed(() => {
         <ChangePassword
             v-if="hasToken"
             id="change-password"
-            :expired-user="router.currentRoute.query.expired_user"
-            :message-text="router.currentRoute.query.message"
-            :message-variant="router.currentRoute.query.status"
-            :token="router.currentRoute.query.token" />
+            :expired-user="router.currentRoute.value.query.expired_user"
+            :message-text="router.currentRoute.value.query.message"
+            :message-variant="router.currentRoute.value.query.status"
+            :token="router.currentRoute.value.query.token" />
         <LoginIndex
             v-else-if="isConfigLoaded"
             id="login-index"
@@ -35,7 +35,7 @@ const sessionCsrfToken = computed(() => {
             :enable-oidc="config.enable_oidc"
             :mailing-join-addr="config.mailing_join_addr"
             :prefer-custos-login="config.prefer_custos_login"
-            :redirect="router.currentRoute.query.redirect"
+            :redirect="router.currentRoute.value.query.redirect"
             :registration-warning-message="config.registration_warning_message"
             :server-mail-configured="config.server_mail_configured"
             :session-csrf-token="sessionCsrfToken"
