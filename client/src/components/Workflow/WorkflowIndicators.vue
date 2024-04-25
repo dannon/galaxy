@@ -4,7 +4,7 @@ import { faGlobe, faLink, faShieldAlt, faUser, faUsers } from "@fortawesome/free
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import { BBadge, BButton } from "bootstrap-vue";
 import { computed } from "vue";
-import { useRouter } from "vue-router/composables";
+import { useRouter } from "vue-router";
 
 import { Toast } from "@/composables/toast";
 import { useUserStore } from "@/stores/userStore";

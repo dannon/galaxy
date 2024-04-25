@@ -22,7 +22,7 @@ useConfig.mockReturnValue({
     isConfigLoaded: true,
 });
 
-jest.mock("vue-router/composables");
+jest.mock("vue-router");
 
 const localVue = getLocalVue();
 localVue.use(PiniaVuePlugin);

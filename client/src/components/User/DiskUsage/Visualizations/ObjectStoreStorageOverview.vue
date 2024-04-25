@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useRouter } from "vue-router/composables";
+import { useRouter } from "vue-router";
 
 import { fetchObjectStoreContentsSizeSummary } from "./service";
 import { buildTopNDatasetsBySizeData, byteFormattingForChart, useDataLoading, useDatasetsToDisplay } from "./util";

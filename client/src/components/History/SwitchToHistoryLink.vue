@@ -4,7 +4,7 @@ import { faArchive, faBurn } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import { BLink } from "bootstrap-vue";
 import { computed } from "vue";
-import { useRouter } from "vue-router/composables";
+import { useRouter } from "vue-router";
 
 import { HistorySummary } from "@/api";
 import { useHistoryStore } from "@/stores/historyStore";

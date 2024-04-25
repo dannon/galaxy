@@ -16,7 +16,7 @@ localVue.use(VueRouter);
 localVue.use(PiniaVuePlugin);
 const router = new VueRouter();
 
-jest.mock("vue-router/composables", () => ({
+jest.mock("vue-router", () => ({
     useRoute: jest.fn(() => ({})),
     useRouter: jest.fn(() => ({})),
 }));
