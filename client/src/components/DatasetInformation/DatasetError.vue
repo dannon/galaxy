@@ -9,7 +9,13 @@ import { computed, onMounted, ref } from "vue";
 
 import { type HDADetailed } from "@/api";
 import { fetchDatasetDetails } from "@/api/datasets";
-import { fetchJobCommonProblems, fetchJobDetails, type JobDetails, type JobInputSummary, postJobErrorReport } from "@/api/jobs";
+import {
+    fetchJobCommonProblems,
+    fetchJobDetails,
+    type JobDetails,
+    type JobInputSummary,
+    postJobErrorReport,
+} from "@/api/jobs";
 import { useMarkdown } from "@/composables/markdown";
 import { useUserStore } from "@/stores/userStore";
 import localize from "@/utils/localization";

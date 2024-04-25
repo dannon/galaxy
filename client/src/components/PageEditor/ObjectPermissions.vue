@@ -278,7 +278,7 @@ function makeAccessible(item: ItemInterface) {
         return;
     }
     promise
-        .then(() => accessibleMap.value[item.id] = true)
+        .then(() => (accessibleMap.value[item.id] = true))
         .catch((e) => {
             const errorMessage = errorMessageAsString(e);
             const title = "Failed update object accessibility.";

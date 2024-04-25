@@ -258,7 +258,7 @@ export const useWorkflowStepStore = defineScopedStore("workflowStepStore", (work
     }
 
     function resetStepInputMapOver(stepId: number) {
-        stepInputMapOver.value[stepId] =  {};
+        stepInputMapOver.value[stepId] = {};
     }
 
     function changeStepInputMapOver(stepId: number, inputName: string, mapOver: CollectionTypeDescriptor) {
