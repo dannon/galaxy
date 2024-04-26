@@ -62,7 +62,6 @@ import { allowCachedJobs } from "components/Tool/utilities";
 import { isWorkflowInput } from "components/Workflow/constants";
 import { storeToRefs } from "pinia";
 import { errorMessageAsString } from "utils/simple-error";
-import Vue from "vue";
 
 import { useConfig } from "@/composables/config";
 import { useUserStore } from "@/stores/userStore";
@@ -147,7 +146,7 @@ export default {
     methods: {
         onValidation(validation) {
             if (validation) {
-                Vue.set(this.stepValidations, validation[0], validation[1]);
+                this.stepValidations[validation[0]] = validation[1];
             } else {
                 this.stepValidations = {};
             }
