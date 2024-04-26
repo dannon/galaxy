@@ -16,6 +16,10 @@
         },
         "outDir": "./dist/build",
 
+        // Necessary for now, drop once using vite
+        "noEmit": false,
+        "declaration": true,
+
         "allowJs": true,
         "checkJs": false,
         "allowSyntheticDefaultImports": true,
