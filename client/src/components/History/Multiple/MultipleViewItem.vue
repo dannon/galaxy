@@ -45,7 +45,7 @@ function onViewCollection(collection: object) {
     <div v-else id="list-item" class="d-flex flex-column align-items-center w-100">
         <CollectionPanel
             v-if="selectedCollections.length && selectedCollections[0]?.history_id === source.id"
-            v-model:selected-collections.sync="selectedCollections"
+            v-model:selected-collections="selectedCollections"
             :history="history"
             :show-controls="false"
             @view-collection="onViewCollection" />
