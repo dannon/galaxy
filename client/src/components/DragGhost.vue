@@ -3,7 +3,6 @@ import { library } from "@fortawesome/fontawesome-svg-core";
 import { faPaperPlane } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import { storeToRefs } from "pinia";
-import { useEventStore } from "stores/eventStore";
 import { computed } from "vue";
 
 import { useEventStore } from "@/stores/eventStore";
