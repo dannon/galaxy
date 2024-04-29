@@ -3,6 +3,7 @@ Contains functionality needed in every web interface
 """
 
 import logging
+import os
 from typing import (
     Any,
     Callable,
