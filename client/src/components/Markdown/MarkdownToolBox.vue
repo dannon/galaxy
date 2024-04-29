@@ -49,7 +49,9 @@ import { getAppRoot } from "@/onload/loadConfig";
 
 import { directiveEntry } from "./directives.ts";
 import { fromSteps } from "./labels.ts";
-import MarkdownDialog from "./MarkdownDialog";
+
+import MarkdownDialog from "./MarkdownDialog.vue";
+import ToolSection from "@/components/Panels/Common/ToolSection.vue";
 
 Vue.use(BootstrapVue);
 
