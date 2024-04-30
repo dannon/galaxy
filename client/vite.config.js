@@ -11,7 +11,6 @@ const scriptsBase = path.resolve(__dirname, "./src");
 const styleBase = path.join(scriptsBase, "style");
 const buildDate = new Date();
 
-
 console.debug(license);
 export default defineConfig({
     define: {

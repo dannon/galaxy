@@ -9,7 +9,7 @@ import { updateContentFields } from "@/components/History/model/queries";
 
 import ContentItem from "./ContentItem.vue";
 
-jest.mock("components/History/model/queries");
+jest.mock("@/components/History/model/queries");
 
 const { server, http } = useServerMock();
 

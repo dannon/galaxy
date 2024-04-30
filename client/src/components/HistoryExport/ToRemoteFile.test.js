@@ -13,7 +13,7 @@ const TEST_HISTORY_ID = "hist1235";
 const TEST_JOB_ID = "job123789";
 const TEST_EXPORTS_URL = `/api/histories/${TEST_HISTORY_ID}/exports`;
 
-jest.mock("components/JobStates/wait");
+jest.mock("@/components/JobStates/wait");
 
 describe("ToRemoteFile.vue", () => {
     let axiosMock;

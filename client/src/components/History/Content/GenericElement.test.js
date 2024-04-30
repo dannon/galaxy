@@ -5,7 +5,7 @@ import VueRouter from "vue-router";
 
 import GenericElement from "./GenericElement";
 
-jest.mock("components/History/model/queries");
+jest.mock("@/components/History/model/queries");
 
 const localVue = getLocalVue();
 localVue.use(VueRouter);

@@ -2,7 +2,7 @@ import { shallowMount } from "@vue/test-utils";
 
 import JobOutputs from "./JobOutputs";
 
-jest.mock("components/providers/DatasetCollectionProvider");
+jest.mock("@/components/providers/DatasetCollectionProvider");
 
 describe("JobInformation/JobOutputs.vue", () => {
     let wrapper;

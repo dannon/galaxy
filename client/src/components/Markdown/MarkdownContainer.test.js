@@ -9,7 +9,7 @@ import { withPrefix } from "@/utils/redirect";
 import MountTarget from "./MarkdownContainer.vue";
 
 // mock routes
-jest.mock("utils/redirect");
+jest.mock("@/utils/redirect");
 withPrefix.mockImplementation((url) => url);
 
 jest.mock("@/composables/config", () => ({

@@ -1,3 +1,4 @@
+import { STATES } from "@/components/History/Content/model/states";
 import Filtering, {
     compare,
     contains,
@@ -6,9 +7,7 @@ import Filtering, {
     quotaSourceFilter,
     toBool,
     toDate,
-} from "utils/filtering";
-
-import { STATES } from "@/components/History/Content/model/states";
+} from "@/utils/filtering";
 
 import StatesInfo from "@/components/History/Content/model/StatesInfo.vue";
 

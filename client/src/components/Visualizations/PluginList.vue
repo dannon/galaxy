@@ -60,13 +60,12 @@
 </template>
 <script>
 import axios from "axios";
-import { absPath } from "utils/redirect";
 
 import { getGalaxyInstance } from "@/app";
 import DelayedInput from "@/components/Common/DelayedInput";
 import { getAppRoot } from "@/onload/loadConfig";
 import _l from "@/utils/localization";
-
+import { absPath } from "@/utils/redirect";
 
 export default {
     components: {

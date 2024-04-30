@@ -7,7 +7,7 @@ import { withPrefix } from "@/utils/redirect";
 
 import MountTarget from "./ChangePassword.vue";
 
-jest.mock("utils/redirect");
+jest.mock("@/utils/redirect");
 
 const mockSafePath = jest.fn();
 (withPrefix as jest.Mock).mockImplementation(mockSafePath);

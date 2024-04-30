@@ -7,7 +7,7 @@ import { Services } from "../services";
 import Index from "./Index";
 
 jest.mock("app");
-jest.mock("onload/loadConfig");
+jest.mock("@/onload/loadConfig");
 getAppRoot.mockImplementation(() => "/");
 jest.mock("../services");
 
