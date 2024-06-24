@@ -25,6 +25,7 @@ const STATIC_PLUGIN_BUILD_IDS = [
     "jqplot/jqplot_bar",
     "media_player",
     "msa",
+    // "msa_react",
     "mvpapp",
     "ngl",
     "nora",
