@@ -1,0 +1,20 @@
+{
+    "name": "visualization",
+    "version": "0.2.0",
+    "keywords": [
+        "galaxy",
+        "visualization"
+    ],
+    "license": "AFL-3.0",
+    "dependencies": {
+        "vue": "^3.4.30",
+        "vue-vega": "^1.0.0-alpha.13"
+    },
+    "scripts": {
+        "build": "parcel build src/script.js --no-cache --dist-dir static"
+    },
+    "devDependencies": {
+        "@parcel/transformer-vue": "2.11.0",
+        "parcel": "2.11.0"
+    }
+}

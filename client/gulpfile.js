@@ -24,6 +24,7 @@ const STATIC_PLUGIN_BUILD_IDS = [
     "hyphyvision",
     "jqplot/jqplot_bar",
     "media_player",
+    "vegalite",
     "msa",
     // "msa_react",
     "mvpapp",
