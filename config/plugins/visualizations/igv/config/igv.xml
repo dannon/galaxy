@@ -14,7 +14,7 @@
     <params>
         <param type="dataset" var_name_in_template="hda" required="true">dataset_id</param>
     </params>
-    <entry_point entry_point_type="chart" src="dist/script.js"/>
+    <entry_point entry_point_type="chart" src="script.js"/>
     <specs>
         <tag>div</tag>
         <use_panels>both</use_panels>
@@ -124,11 +124,6 @@
             <label>Locus</label>
             <value></value>
             <type>text</type>
-        </input>
-        <input>
-            <name>reference</name>
-            <label>Custom Reference</label>
-            <type>data_dialog</type>
         </input>
     </settings>
     <groups>

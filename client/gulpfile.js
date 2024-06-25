@@ -229,6 +229,7 @@ function watchPlugins() {
 
 module.exports.client = client;
 module.exports.plugins = plugins;
+module.exports.stagePlugins = stagePlugins;
 module.exports.pluginsRebuild = pluginsRebuild;
 module.exports.watchPlugins = watchPlugins;
 module.exports.default = parallel(client, plugins);

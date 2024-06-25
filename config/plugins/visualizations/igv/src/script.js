@@ -4,6 +4,7 @@ import igv from "igv";
 
 _.extend(window.bundleEntries || {}, {
     load: function (options) {
+        const target = document.getElementById(options.targets[0]).innerHTML = "Loading IGV...";
         const igvDiv = document.createElement("div");
 
         /*
