@@ -7,11 +7,14 @@
     ],
     "license": "AFL-3.0",
     "dependencies": {
-        "igv": "^2.7.9",
-        "parcel-bundler": "^1.12.5",
+        "igv": "^2.15.12",
         "underscore": "^1.12.1"
     },
     "scripts": {
-        "build": "parcel build src/script.js -d static/dist"
+        "build": "parcel build src/script.js --dist-dir static"
+    },
+    "devDependencies": {
+        "parcel": "^2.12.0",
+        "process": "^0.11.10"
     }
 }
