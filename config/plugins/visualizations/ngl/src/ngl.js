@@ -1,4 +1,4 @@
-import * as ngl from "./viewer";
+import * as ngl from "ngl";
 
 /** Get boolean as string */
 function asBoolean(value) {
