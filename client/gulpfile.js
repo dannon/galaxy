@@ -23,6 +23,7 @@ const STATIC_PLUGIN_BUILD_IDS = [
     "heatmap/heatmap_default",
     "hyphyvision",
     "jqplot/jqplot_bar",
+    "igv",
     "media_player",
     "vegalite",
     "msa",
