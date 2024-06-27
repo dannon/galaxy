@@ -5,6 +5,7 @@ Revises: b855b714e8b8
 Create Date: 2023-06-05 13:23:42.050738
 
 """
+
 # from alembic import op
 # import sqlalchemy as sa
 
@@ -13,6 +14,7 @@ from sqlalchemy import (
     DateTime,
     Integer,
     Text,
+    ForeignKey,
 )
 
 from galaxy.model.migrations.util import (
@@ -26,20 +28,22 @@ down_revision = "a99a5b52ccb8"
 branch_labels = None
 depends_on = None
 
+
 def upgrade():
     create_table(
         "chat_exchange",
         Column("id", Integer, primary_key=True),
-        Column("user_id", Integer, index=True),
+        Column("user_id", Integer, ForeignKey("galaxy_user.id")),
     )
 
     create_table(
         "chat_exchange_message",
         Column("id", Integer, primary_key=True),
-        Column("chat_exchange_id", Integer, index=True),
+        Column("chat_exchange_id", Integer, ForeignKey("chat_exchange.id")),
         Column("create_time", DateTime),
         Column("message", Text),
     )
+
 
 def downgrade():
     drop_table("chat_exchange_message")
