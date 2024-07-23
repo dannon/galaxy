@@ -18,6 +18,7 @@ interface Record {
     id: string;
     isLeaf: boolean;
     url: string;
+    _rowVariant?: string;
 }
 
 interface Props {
