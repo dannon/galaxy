@@ -8,7 +8,7 @@ import {
     faSpinner,
     faTrash,
 } from "@fortawesome/free-solid-svg-icons";
-import Vue, { computed, type Ref, ref } from "vue";
+import { computed, type Ref, ref } from "vue";
 
 import { stepJobsSummaryFetcher, type StepJobSummary, type WorkflowInvocationElementView } from "@/api/invocations";
 import { isWorkflowInput } from "@/components/Workflow/constants";
@@ -208,7 +208,7 @@ export function useInvocationGraph(
                 }
 
                 // update the invocation graph steps object
-                Vue.set(steps.value, i, graphStepFromWfStep);
+                steps.value[i] = graphStepFromWfStep;
             }
 
             invocationGraph.value!.steps = { ...steps.value };
