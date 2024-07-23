@@ -118,7 +118,6 @@ export const useWorkflowCommentStore = defineScopedStore("workflowCommentStore",
             if (select) {
                 setCommentMultiSelected(newComment.id, true);
             }
-
         });
     };
 
