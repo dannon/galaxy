@@ -2,7 +2,6 @@
 import { faUpload } from "@fortawesome/free-solid-svg-icons";
 import { BButton } from "bootstrap-vue";
 import { onMounted, type Ref, ref, watch } from "vue";
-import Vue from "vue";
 
 import { useGlobalUploadModal } from "@/composables/globalUploadModal";
 import { getAppRoot } from "@/onload/loadConfig";
@@ -18,6 +17,7 @@ interface Record {
     id: string;
     isLeaf: boolean;
     url: string;
+    _rowVariant?: string;
 }
 
 interface Props {
