@@ -3,7 +3,7 @@ import { BAlert, BLink } from "bootstrap-vue";
 import { storeToRefs } from "pinia";
 import { computed, onMounted, ref, watch } from "vue";
 import { RouterLink } from "vue-router";
-import { useRouter } from "vue-router/composables";
+import { useRouter } from "vue-router";
 
 import { canMutateHistory } from "@/api";
 import { copyWorkflow } from "@/components/Workflow/workflows.services";

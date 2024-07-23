@@ -2,7 +2,7 @@
 import { library } from "@fortawesome/fontawesome-svg-core";
 import { faArrowUp, faCaretDown, faEdit, faTrash } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
-import { useRouter } from "vue-router/composables";
+import { useRouter } from "vue-router";
 
 interface Props {
     prefix: string;

@@ -14,7 +14,7 @@ jest.mock("@/composables/config", () => ({
     })),
 }));
 
-jest.mock("vue-router/composables", () => ({
+jest.mock("vue-router", () => ({
     useRoute: jest.fn(() => ({})),
 }));
 

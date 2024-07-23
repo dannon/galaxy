@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { BButton } from "bootstrap-vue";
 import { computed } from "vue";
-import { useRoute } from "vue-router/composables";
+import { useRoute } from "vue-router";
 
 interface Props {
     title: string;

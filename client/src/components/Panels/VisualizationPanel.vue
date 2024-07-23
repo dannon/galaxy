@@ -3,7 +3,7 @@ import { faEye } from "@fortawesome/free-solid-svg-icons";
 import { BAlert, BModal } from "bootstrap-vue";
 import { storeToRefs } from "pinia";
 import { computed, onMounted, type Ref, ref } from "vue";
-import { useRouter } from "vue-router/composables";
+import { useRouter } from "vue-router";
 
 import { useHistoryStore } from "@/stores/historyStore";
 import { absPath } from "@/utils/redirect";
