@@ -25,7 +25,7 @@ from packaging.version import Version
 from webob.compat import cgi_FieldStorage
 
 from galaxy import util
-from galaxy.files import ProvidesUserFileSourcesUserContext
+from galaxy.files import ProvidesFileSourcesUserContext
 from galaxy.managers.dbkeys import read_dbnames
 from galaxy.model import (
     cached_id,
@@ -42,6 +42,11 @@ from galaxy.model import (
 from galaxy.model.dataset_collections import builder
 from galaxy.schema.fetch_data import FilesPayload
 from galaxy.tool_util.parser import get_input_source as ensure_input_source
+from galaxy.tool_util.parser.util import (
+    boolean_is_checked,
+    boolean_true_and_false_values,
+    ParameterParseException,
+)
 from galaxy.tools.parameters.workflow_utils import workflow_building_modes
 from galaxy.util import (
     sanitize_param,
@@ -113,9 +118,11 @@ def is_runtime_context(trans, other_values):
 
 
 def parse_dynamic_options(param, input_source):
-    if (options_elem := input_source.parse_dynamic_options_elem()) is not None:
-        return dynamic_options.DynamicOptions(options_elem, param)
-    return None
+    dynamic_options_config = input_source.parse_dynamic_options()
+    if not dynamic_options_config:
+        return None
+    options_elem = dynamic_options_config.elem()
+    return dynamic_options.DynamicOptions(options_elem, param)
 
 
 # Describe a parameter value error where there is no actual supplied
@@ -593,27 +600,14 @@ class BooleanToolParameter(ToolParameter):
     def __init__(self, tool, input_source):
         input_source = ensure_input_source(input_source)
         super().__init__(tool, input_source)
-        truevalue = input_source.get("truevalue", "true")
-        falsevalue = input_source.get("falsevalue", "false")
-        if tool and Version(str(tool.profile)) >= Version("23.1"):
-            if truevalue == falsevalue:
-                raise ParameterValueError("Cannot set true and false to the same value", self.name)
-            if truevalue.lower() == "false":
-                raise ParameterValueError(
-                    f"Cannot set truevalue to [{truevalue}], Galaxy state may encounter issues distinguishing booleans and strings in this case.",
-                    self.name,
-                )
-            if falsevalue.lower() == "true":
-                raise ParameterValueError(
-                    f"Cannot set falsevalue to [{falsevalue}], Galaxy state may encounter issues distinguishing booleans and strings in this case.",
-                    self.name,
-                )
-
+        try:
+            truevalue, falsevalue = boolean_true_and_false_values(input_source, tool and tool.profile)
+        except ParameterParseException as ppe:
+            raise ParameterValueError(ppe.message, self.name)
         self.truevalue = truevalue
         self.falsevalue = falsevalue
-        nullable = input_source.get_bool("optional", False)
-        self.optional = nullable
-        self.checked = input_source.get_bool("checked", None if nullable else False)
+        self.optional = input_source.get_bool("optional", False)
+        self.checked = boolean_is_checked(input_source)
 
     def from_json(self, value, trans=None, other_values=None):
         return self.to_python(value)
@@ -845,7 +839,7 @@ class ColorToolParameter(ToolParameter):
         input_source = ensure_input_source(input_source)
         super().__init__(tool, input_source)
         self.value = input_source.get("value", "#000000")
-        self.rgb = input_source.get("rgb", False)
+        self.rgb = input_source.get_bool("rgb", False)
 
     def get_initial_value(self, trans, other_values):
         if self.value is not None:
@@ -2053,7 +2047,8 @@ def src_id_to_item(
         item = sa_session.get(src_to_class[value["src"]], decoded_id)
     except KeyError:
         raise ValueError(f"Unknown input source {value['src']} passed to job submission API.")
-    assert item
+    if not item:
+        raise ValueError("Invalid input id passed to job submission API.")
     item.extra_params = {k: v for k, v in value.items() if k not in ("src", "id")}
     return item
 
@@ -2188,19 +2183,37 @@ class DataToolParameter(BaseDataToolParameter):
         dataset_matcher_factory = get_dataset_matcher_factory(trans)
         dataset_matcher = dataset_matcher_factory.dataset_matcher(self, other_values)
         for v in rval:
-            if v:
-                if hasattr(v, "deleted") and v.deleted:
+            if isinstance(v, DatasetCollectionElement):
+                if hda := v.hda:
+                    v = hda
+                elif ldda := v.ldda:
+                    v = ldda
+                elif collection := v.child_collection:
+                    v = collection
+                elif not v.collection and v.collection.populated_optimized:
+                    raise ParameterValueError("the selected collection has not been populated.", self.name)
+                else:
+                    raise ParameterValueError("Collection element in unexpected state", self.name)
+            if isinstance(v, DatasetInstance):
+                if v.deleted:
                     raise ParameterValueError("the previously selected dataset has been deleted.", self.name)
-                elif hasattr(v, "dataset") and v.dataset.state in [Dataset.states.ERROR, Dataset.states.DISCARDED]:
+                elif v.dataset and v.dataset.state in [Dataset.states.ERROR, Dataset.states.DISCARDED]:
                     raise ParameterValueError(
                         "the previously selected dataset has entered an unusable state", self.name
                     )
-                elif hasattr(v, "dataset"):
-                    if isinstance(v, DatasetCollectionElement):
-                        v = v.hda
-                    match = dataset_matcher.hda_match(v)
-                    if match and match.implicit_conversion:
-                        v.implicit_conversion = True  # type:ignore[union-attr]
+                match = dataset_matcher.hda_match(v)
+                if match and match.implicit_conversion:
+                    v.implicit_conversion = True  # type:ignore[union-attr]
+            elif isinstance(v, HistoryDatasetCollectionAssociation):
+                if v.deleted:
+                    raise ParameterValueError("the previously selected dataset collection has been deleted.", self.name)
+                v = v.collection
+            if isinstance(v, DatasetCollection):
+                if v.elements_deleted:
+                    raise ParameterValueError(
+                        "the previously selected dataset collection has elements that are deleted.", self.name
+                    )
+
         if not self.multiple:
             if len(rval) > 1:
                 raise ParameterValueError("more than one dataset supplied to single input dataset parameter", self.name)
@@ -2497,10 +2510,19 @@ class DataCollectionToolParameter(BaseDataToolParameter):
                 rval = session.get(HistoryDatasetCollectionAssociation, int(value[len("hdca:") :]))
             else:
                 rval = session.get(HistoryDatasetCollectionAssociation, int(value))
-        if rval and isinstance(rval, HistoryDatasetCollectionAssociation):
-            if rval.deleted:
-                raise ParameterValueError("the previously selected dataset collection has been deleted", self.name)
-            # TODO: Handle error states, implement error states ...
+        if rval:
+            if isinstance(rval, HistoryDatasetCollectionAssociation):
+                if rval.deleted:
+                    raise ParameterValueError("the previously selected dataset collection has been deleted", self.name)
+                if rval.collection.elements_deleted:
+                    raise ParameterValueError(
+                        "the previously selected dataset collection has elements that are deleted.", self.name
+                    )
+            if isinstance(rval, DatasetCollectionElement):
+                if (child_collection := rval.child_collection) and child_collection.elements_deleted:
+                    raise ParameterValueError(
+                        "the previously selected dataset collection has elements that are deleted.", self.name
+                    )
         return rval
 
     def to_text(self, value):
@@ -2517,6 +2539,7 @@ class DataCollectionToolParameter(BaseDataToolParameter):
         # create dictionary and fill default parameters
         other_values = other_values or {}
         d = super().to_dict(trans)
+        d["collection_types"] = self.collection_types
         d["extensions"] = self.extensions
         d["multiple"] = self.multiple
         d["options"] = {"hda": [], "hdca": [], "dce": []}
@@ -2633,7 +2656,7 @@ class DirectoryUriToolParameter(SimpleTextToolParameter):
         file_source = file_source_path.file_source
         if file_source is None:
             raise ParameterValueError(f"'{value}' is not a valid file source uri.", self.name)
-        user_context = ProvidesUserFileSourcesUserContext(trans)
+        user_context = ProvidesFileSourcesUserContext(trans)
         user_has_access = file_source.user_has_access(user_context)
         if not user_has_access:
             raise ParameterValueError(f"The user cannot access {value}.", self.name)
@@ -2681,7 +2704,9 @@ class RulesListToolParameter(BaseJsonToolParameter):
 
 # Code from CWL branch to massage in order to be shared across tools and workflows,
 # and for CWL artifacts as well as Galaxy ones.
-def raw_to_galaxy(app: "MinimalApp", history: "History", as_dict_value: Dict[str, Any]) -> "HistoryItem":
+def raw_to_galaxy(
+    app: "MinimalApp", history: "History", as_dict_value: Dict[str, Any], commit: bool = True
+) -> "HistoryItem":
     object_class = as_dict_value["class"]
     if object_class == "File":
         # TODO: relative_to = "/"
@@ -2728,7 +2753,8 @@ def raw_to_galaxy(app: "MinimalApp", history: "History", as_dict_value: Dict[str
         app.model.session.add(primary_data)
         history.stage_addition(primary_data)
         history.add_pending_items()
-        app.model.session.flush()
+        if commit:
+            app.model.session.commit()
         return primary_data
     else:
         name = as_dict_value.get("name")
@@ -2740,6 +2766,7 @@ def raw_to_galaxy(app: "MinimalApp", history: "History", as_dict_value: Dict[str
             name=name,
             collection=collection,
         )
+        app.model.session.add(hdca)
 
         def write_elements_to_collection(has_elements, collection_builder):
             element_dicts = has_elements.get("elements")
@@ -2747,7 +2774,8 @@ def raw_to_galaxy(app: "MinimalApp", history: "History", as_dict_value: Dict[str
                 element_class = element_dict["class"]
                 identifier = element_dict["identifier"]
                 if element_class == "File":
-                    hda = raw_to_galaxy(app, history, element_dict)
+                    # Don't commit for inner elements
+                    hda = raw_to_galaxy(app, history, element_dict, commit=False)
                     collection_builder.add_dataset(identifier, hda)
                 else:
                     subcollection_builder = collection_builder.get_level(identifier)
@@ -2756,8 +2784,10 @@ def raw_to_galaxy(app: "MinimalApp", history: "History", as_dict_value: Dict[str
         collection_builder = builder.BoundCollectionBuilder(collection)
         write_elements_to_collection(as_dict_value, collection_builder)
         collection_builder.populate()
-        app.model.session.add(hdca)
-        app.model.session.flush()
+        history.stage_addition(hdca)
+        history.add_pending_items()
+        if commit:
+            app.model.session.commit()
         return hdca
 
 

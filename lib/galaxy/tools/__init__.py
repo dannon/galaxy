@@ -13,6 +13,7 @@ import tempfile
 from collections.abc import MutableMapping
 from pathlib import Path
 from typing import (
+    Any,
     cast,
     Dict,
     List,
@@ -80,6 +81,10 @@ from galaxy.tool_util.parser.interface import (
     PageSource,
     ToolSource,
 )
+from galaxy.tool_util.parser.util import (
+    parse_profile_version,
+    parse_tool_version_with_defaults,
+)
 from galaxy.tool_util.parser.xml import (
     XmlPageSource,
     XmlToolSource,
@@ -92,6 +97,7 @@ from galaxy.tool_util.toolbox import (
 )
 from galaxy.tool_util.toolbox.views.sources import StaticToolBoxViewSources
 from galaxy.tool_util.verify.interactor import ToolTestDescription
+from galaxy.tool_util.verify.parse import parse_tool_test_descriptions
 from galaxy.tool_util.verify.test_data import TestDataNotFoundError
 from galaxy.tool_util.version import (
     LegacyVersion,
@@ -144,7 +150,6 @@ from galaxy.tools.parameters.input_translation import ToolInputTranslator
 from galaxy.tools.parameters.meta import expand_meta_parameters
 from galaxy.tools.parameters.workflow_utils import workflow_building_modes
 from galaxy.tools.parameters.wrapped_json import json_wrap
-from galaxy.tools.test import parse_tests
 from galaxy.util import (
     in_directory,
     listify,
@@ -565,6 +570,8 @@ class ToolBox(AbstractToolBox):
     def create_dynamic_tool(self, dynamic_tool, **kwds):
         tool_format = dynamic_tool.tool_format
         tool_representation = dynamic_tool.value
+        if "name" not in tool_representation:
+            tool_representation["name"] = f"dynamic tool {dynamic_tool.uuid}"
         tool_source = get_tool_source_from_representation(
             tool_format=tool_format,
             tool_representation=tool_representation,
@@ -1003,7 +1010,7 @@ class Tool(Dictifiable):
         """
         Read tool configuration from the element `root` and fill in `self`.
         """
-        self.profile = float(tool_source.parse_profile())
+        self.profile = parse_profile_version(tool_source)
         # Get the UNIQUE id for the tool
         self.old_id = tool_source.parse_id()
         if guid is None:
@@ -1029,18 +1036,13 @@ class Tool(Dictifiable):
 
         # Get the (user visible) name of the tool
         self.name = tool_source.parse_name()
-        if not self.name and dynamic:
+        if not self.name and dynamic and self.id:
             self.name = self.id
         if not dynamic and not self.name:
             raise Exception(f"Missing tool 'name' for tool with id '{self.id}' at '{tool_source}'")
 
-        self.version = tool_source.parse_version()
-        if not self.version:
-            if profile < Version("16.04"):
-                # For backward compatibility, some tools may not have versions yet.
-                self.version = "1.0.0"
-            else:
-                raise Exception(f"Missing tool 'version' for tool with id '{self.id}' at '{tool_source}'")
+        version = parse_tool_version_with_defaults(self.id, tool_source, profile)
+        self.version = version
 
         # Legacy feature, ignored by UI.
         self.force_history_refresh = False
@@ -1304,9 +1306,10 @@ class Tool(Dictifiable):
             self.trackster_conf = TracksterConfig.parse(trackster_conf)
 
     def parse_tests(self):
-        if tests_source := self.tool_source:
+        if self.tool_source:
+            test_descriptions = parse_tool_test_descriptions(self.tool_source, self.id)
             try:
-                self.__tests = json.dumps([t.to_dict() for t in parse_tests(self, tests_source)], indent=None)
+                self.__tests = json.dumps([t.to_dict() for t in test_descriptions], indent=None)
             except Exception:
                 self.__tests = None
                 log.exception("Failed to parse tool tests for tool '%s'", self.id)
@@ -1475,22 +1478,12 @@ class Tool(Dictifiable):
         self.stdio_regexes = regexes
 
     def _parse_citations(self, tool_source):
-        # TODO: Move following logic into ToolSource abstraction.
-        if not hasattr(tool_source, "root"):
-            return []
-
-        root = tool_source.root
-        citations: List[str] = []
-        citations_elem = root.find("citations")
-        if citations_elem is None:
-            return citations
-
-        for citation_elem in citations_elem:
-            if citation_elem.tag != "citation":
-                pass
-            citations_manager = getattr(self.app, "citations_manager", None)
-            if citations_manager is not None:
-                citation = citations_manager.parse_citation(citation_elem)
+        citation_models = tool_source.parse_citations()
+        citations_manager = getattr(self.app, "citations_manager", None)
+        citations = []
+        if citations_manager is not None:
+            for citation_model in citation_models:
+                citation = citations_manager.parse_citation(citation_model)
                 if citation:
                     citations.append(citation)
         return citations
@@ -2103,7 +2096,7 @@ class Tool(Dictifiable):
                             )
                         parent[input.name] = value
                     except Exception:
-                        messages[prefixed_name] = "Attempt to replace invalid value for '%s' failed." % (prefixed_label)
+                        messages[prefixed_name] = f"Attempt to replace invalid value for '{prefixed_label}' failed."
                 else:
                     messages[prefixed_name] = error
 
@@ -2315,7 +2308,7 @@ class Tool(Dictifiable):
                     if os.path.exists(filesystem_path):
                         tarball_files.append((filesystem_path, tarball_path))
                         image_found = True
-                        tool_xml = tool_xml.replace("${static_path}/%s" % tarball_path, tarball_path)
+                        tool_xml = tool_xml.replace(f"${{static_path}}/{tarball_path}", tarball_path)
         # If one or more tool help images were found, add the modified tool XML to the tarball instead of the original.
         if image_found:
             with tempfile.NamedTemporaryFile(mode="w", suffix=".xml", delete=False) as fh2:
@@ -2684,7 +2677,7 @@ class Tool(Dictifiable):
             )
             if tool is None:
                 raise exceptions.MessageException(
-                    "This dataset was created by an obsolete tool (%s). Can't re-run." % tool_id
+                    f"This dataset was created by an obsolete tool ({tool_id}). Can't re-run."
                 )
             if (self.id != tool_id and self.old_id != tool_id) or self.version != tool_version:
                 if self.id == tool_id:
@@ -3235,7 +3228,9 @@ class DatabaseOperationTool(Tool):
                     )
 
         for input_dataset in input_datasets.values():
-            check_dataset_state(input_dataset.state)
+            if input_dataset:
+                # None is a possible input for optional inputs
+                check_dataset_state(input_dataset.state)
 
         for input_dataset_collection_pairs in input_dataset_collections.values():
             for input_dataset_collection, _ in input_dataset_collection_pairs:
@@ -3305,6 +3300,94 @@ class ZipCollectionTool(DatabaseOperationTool):
         )
 
 
+class CrossProductFlatCollectionTool(DatabaseOperationTool):
+    tool_type = "cross_product_flat"
+    require_terminal_states = False
+    require_dataset_ok = False
+
+    def produce_outputs(self, trans, out_data, output_collections, incoming, history, **kwds):
+        input_a = incoming["input_a"]
+        input_b = incoming["input_b"]
+        join_identifier = incoming["join_identifier"]
+
+        output_a = {}
+        output_b = {}
+        all_copied_hdas = []
+
+        for input_a_dce in input_a.collection.elements:
+            element_identifier_a = input_a_dce.element_identifier
+            for input_b_dce in input_b.collection.elements:
+                element_identifier_b = input_b_dce.element_identifier
+                identifier = f"{element_identifier_a}{join_identifier}{element_identifier_b}"
+
+                hda_a_copy = input_a_dce.element_object.copy(copy_tags=input_a_dce.element_object.tags, flush=False)
+                hda_b_copy = input_b_dce.element_object.copy(copy_tags=input_b_dce.element_object.tags, flush=False)
+                all_copied_hdas.append(hda_a_copy)
+                all_copied_hdas.append(hda_b_copy)
+                output_a[identifier] = hda_a_copy
+                output_b[identifier] = hda_b_copy
+
+        self._add_datasets_to_history(history, all_copied_hdas)
+        output_collections.create_collection(
+            self.outputs["output_a"], "output_a", elements=output_a, propagate_hda_tags=False
+        )
+        output_collections.create_collection(
+            self.outputs["output_b"], "output_b", elements=output_b, propagate_hda_tags=False
+        )
+
+
+class CrossProductNestedCollectionTool(DatabaseOperationTool):
+    tool_type = "cross_product_nested"
+    require_terminal_states = False
+    require_dataset_ok = False
+
+    def produce_outputs(self, trans, out_data, output_collections, incoming, history, **kwds):
+        input_a = incoming["input_a"]
+        input_b = incoming["input_b"]
+
+        output_a = {}
+        output_b = {}
+        all_copied_hdas = []
+
+        for input_a_dce in input_a.collection.elements:
+            element_identifier_a = input_a_dce.element_identifier
+
+            iter_elements_a = {}
+            iter_elements_b = {}
+
+            for input_b_dce in input_b.collection.elements:
+                element_identifier_b = input_b_dce.element_identifier
+
+                hda_a_copy = input_a_dce.element_object.copy(copy_tags=input_a_dce.element_object.tags, flush=False)
+                hda_b_copy = input_b_dce.element_object.copy(copy_tags=input_b_dce.element_object.tags, flush=False)
+                all_copied_hdas.append(hda_a_copy)
+                all_copied_hdas.append(hda_b_copy)
+                iter_elements_a[element_identifier_b] = hda_a_copy
+                iter_elements_b[element_identifier_b] = hda_b_copy
+
+            sub_collection_a: Dict[str, Any] = {}
+            sub_collection_a["src"] = "new_collection"
+            sub_collection_a["collection_type"] = "list"
+            sub_collection_a["elements"] = iter_elements_a
+
+            output_a[element_identifier_a] = sub_collection_a
+
+            sub_collection_b: Dict[str, Any] = {}
+            sub_collection_b["src"] = "new_collection"
+            sub_collection_b["collection_type"] = "list"
+            sub_collection_b["elements"] = iter_elements_b
+
+            output_b[element_identifier_a] = sub_collection_b
+
+        self._add_datasets_to_history(history, all_copied_hdas)
+        output_collections.create_collection(
+            self.outputs["output_a"], "output_a", elements=output_a, propagate_hda_tags=False
+        )
+        output_collections.create_collection(
+            self.outputs["output_b"], "output_b", elements=output_b, propagate_hda_tags=False
+        )
+
+
 class BuildListCollectionTool(DatabaseOperationTool):
     tool_type = "build_list"
     require_terminal_states = False
@@ -3355,12 +3438,20 @@ class ExtractDatasetCollectionTool(DatabaseOperationTool):
         how = incoming["which"]["which_dataset"]
         if how == "first":
             extracted_element = collection.first_dataset_element
+            if not extracted_element:
+                raise exceptions.RequestParameterInvalidException("Input collection has no dataset elements.")
         elif how == "by_identifier":
-            extracted_element = collection[incoming["which"]["identifier"]]
+            try:
+                extracted_element = collection[incoming["which"]["identifier"]]
+            except KeyError as e:
+                raise exceptions.RequestParameterInvalidException(e.args[0])
         elif how == "by_index":
-            extracted_element = collection[int(incoming["which"]["index"])]
+            try:
+                extracted_element = collection[int(incoming["which"]["index"])]
+            except KeyError as e:
+                raise exceptions.RequestParameterInvalidException(e.args[0])
         else:
-            raise exceptions.MessageException("Invalid tool parameters.")
+            raise exceptions.RequestParameterInvalidException("Invalid tool parameters.")
         extracted = extracted_element.element_object
         extracted_o = extracted.copy(
             copy_tags=extracted.tags, new_name=extracted_element.element_identifier, flush=False

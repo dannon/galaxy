@@ -5,7 +5,6 @@ import type {
     WorkflowCommentColor,
     WorkflowCommentStore,
 } from "@/stores/workflowEditorCommentStore";
-import type { Step, WorkflowStepStore } from "@/stores/workflowStepStore";
 
 class CommentAction extends UndoRedoAction {
     protected store: WorkflowCommentStore;
@@ -147,83 +146,59 @@ export class LazyChangeSizeAction extends LazyMutateCommentAction<"size"> {
     }
 }
 
-type StepWithPosition = Step & { position: NonNullable<Step["position"]> };
+export class ToggleCommentSelectedAction extends UndoRedoAction {
+    store;
+    commentId;
+    type;
+    toggleTo: boolean;
 
-export class LazyMoveMultipleAction extends LazyUndoRedoAction {
-    private commentStore;
-    private stepStore;
-    private comments;
-    private steps;
+    constructor(store: WorkflowCommentStore, comment: WorkflowComment) {
+        super();
 
-    private stepStartOffsets = new Map<number, [number, number]>();
-    private commentStartOffsets = new Map<number, [number, number]>();
-
-    private positionFrom;
-    private positionTo;
+        this.store = store;
+        this.commentId = comment.id;
+        this.type = comment.type;
+        this.toggleTo = !store.getCommentMultiSelected(this.commentId);
+    }
 
     get name() {
-        return "move multiple nodes";
+        if (this.toggleTo === true) {
+            return `add ${this.type} comment to selection`;
+        } else {
+            return `remove ${this.type} comment from selection`;
+        }
     }
 
-    constructor(
-        commentStore: WorkflowCommentStore,
-        stepStore: WorkflowStepStore,
-        comments: WorkflowComment[],
-        steps: StepWithPosition[],
-        position: { x: number; y: number },
-        positionTo?: { x: number; y: number }
-    ) {
-        super();
-        this.commentStore = commentStore;
-        this.stepStore = stepStore;
-        this.comments = [...comments];
-        this.steps = [...steps];
-
-        this.steps.forEach((step) => {
-            this.stepStartOffsets.set(step.id, [step.position.left - position.x, step.position.top - position.y]);
-        });
-
-        this.comments.forEach((comment) => {
-            this.commentStartOffsets.set(comment.id, [
-                comment.position[0] - position.x,
-                comment.position[1] - position.y,
-            ]);
-        });
-
-        this.positionFrom = { ...position };
-        this.positionTo = positionTo ? { ...positionTo } : { ...position };
-    }
-
-    changePosition(position: { x: number; y: number }) {
-        this.setPosition(position);
-        this.positionTo = { ...position };
-    }
-
-    private setPosition(position: { x: number; y: number }) {
-        this.steps.forEach((step) => {
-            const stepPosition = { left: 0, top: 0 };
-            const offset = this.stepStartOffsets.get(step.id) ?? [0, 0];
-            stepPosition.left = position.x + offset[0];
-            stepPosition.top = position.y + offset[1];
-            this.stepStore.updateStep({ ...step, position: stepPosition });
-        });
-
-        this.comments.forEach((comment) => {
-            const offset = this.commentStartOffsets.get(comment.id) ?? [0, 0];
-            const commentPosition = [position.x + offset[0], position.y + offset[1]] as [number, number];
-            this.commentStore.changePosition(comment.id, commentPosition);
-        });
-    }
-
-    queued() {
-        this.setPosition(this.positionTo);
+    run() {
+        this.store.setCommentMultiSelected(this.commentId, this.toggleTo);
     }
 
     undo() {
-        this.setPosition(this.positionFrom);
+        this.store.setCommentMultiSelected(this.commentId, !this.toggleTo);
+    }
+}
+
+export class RemoveAllFreehandCommentsAction extends UndoRedoAction {
+    store;
+    comments;
+
+    constructor(store: WorkflowCommentStore) {
+        super();
+
+        this.store = store;
+        const freehandComments = store.comments.filter((comment) => comment.type === "freehand");
+        this.comments = structuredClone(freehandComments);
     }
 
-    redo() {
-        this.setPosition(this.positionTo);
+    get name() {
+        return "remove all freehand comments";
+    }
+
+    run() {
+        this.store.deleteFreehandComments();
+    }
+
+    undo() {
+        this.store.addComments(structuredClone(this.comments));
     }
 }

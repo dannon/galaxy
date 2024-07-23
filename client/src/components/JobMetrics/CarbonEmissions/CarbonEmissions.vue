@@ -4,6 +4,8 @@ import { faQuestionCircle } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import { computed, unref } from "vue";
 
+import { usePersistentToggle } from "@/composables/persistentToggle";
+
 import * as carbonEmissionsConstants from "./carbonEmissionConstants.js";
 import type { IconName } from "./IconTypes";
 
@@ -33,6 +35,8 @@ interface CarbonEmissionsProps {
 const props = withDefaults(defineProps<CarbonEmissionsProps>(), {
     memoryAllocatedInMebibyte: 0,
 });
+
+const { toggled, toggle } = usePersistentToggle("carbonEmissions");
 
 const carbonEmissions = computed(() => {
     const memoryPowerUsed = carbonEmissionsConstants.memoryPowerUsage;
@@ -270,9 +274,11 @@ function getEnergyNeededText(energyNeededInKiloWattHours: number) {
 
 <template v-if="carbonEmissions && carbonEmissionsComparisons">
     <div class="mt-4">
-        <Heading h2 separator inline bold> Carbon Footprint </Heading>
+        <Heading h2 separator size="md" inline :collapse="toggled ? 'closed' : 'open'" @click="toggle()">
+            Carbon Footprint
+        </Heading>
 
-        <section class="carbon-emission-values my-4">
+        <section v-if="!toggled" class="carbon-emission-values my-4">
             <div class="emissions-grid">
                 <!-- Carbon Footprint Totals -->
                 <CarbonEmissionsCard

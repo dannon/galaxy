@@ -16,6 +16,10 @@ class HasCreatingJob(Protocol):
     def creating_job(self): ...
 
 
+class HasDeleted(Protocol):
+    deleted: bool
+
+
 class HasExt(Protocol):
     @property
     def ext(self): ...
@@ -55,6 +59,7 @@ class HasExtraFilesAndMetadata(HasExtraFilesPath, HasMetadata, Protocol): ...
 
 class DatasetProtocol(
     HasCreatingJob,
+    HasDeleted,
     HasExt,
     HasExtraFilesPath,
     HasFileName,
@@ -84,6 +89,8 @@ class DatasetProtocol(
     def has_data(self) -> bool: ...
 
     def set_peek(self) -> None: ...
+
+    def attach_implicitly_converted_dataset(self, session, new_dataset, target_ext: str) -> None: ...
 
 
 class DatasetHasHidProtocol(DatasetProtocol, HasHid, Protocol): ...

@@ -61,6 +61,7 @@ const props = defineProps<{
     datatypesMapper: DatatypesMapperModel;
     parentNode: HTMLElement | null;
     readonly: boolean;
+    blank: boolean;
 }>();
 
 const emit = defineEmits(["pan-by", "stopDragging", "onDragConnector"]);
@@ -351,7 +352,7 @@ const removeTagsAction = computed(() => {
 
 <template>
     <div class="node-output" :class="rowClass" :data-output-name="output.name">
-        <div class="d-flex flex-column w-100">
+        <div v-if="!props.blank" class="d-flex flex-column w-100">
             <div class="node-output-buttons">
                 <button
                     v-if="showCalloutActiveOutput"
@@ -408,9 +409,9 @@ const removeTagsAction = computed(() => {
         <DraggableWrapper
             :id="id"
             ref="terminalComponent"
-            v-b-tooltip.hover="outputDetails"
+            v-b-tooltip.hover="!props.blank ? outputDetails : ''"
             class="output-terminal prevent-zoom"
-            :class="{ 'mapped-over': isMultiple }"
+            :class="{ 'mapped-over': isMultiple, 'blank-output': props.blank }"
             :output-name="output.name"
             :root-offset="rootOffset"
             :prevent-default="false"
@@ -460,12 +461,14 @@ const removeTagsAction = computed(() => {
 .output-terminal {
     @include node-terminal-style(right);
 
-    &:hover {
-        color: $brand-success;
-    }
+    &:not(.blank-output) {
+        &:hover {
+            color: $brand-success;
+        }
 
-    button:focus + .terminal-icon {
-        color: $brand-success;
+        button:focus + .terminal-icon {
+            color: $brand-success;
+        }
     }
 }
 

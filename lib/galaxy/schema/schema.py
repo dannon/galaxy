@@ -349,6 +349,9 @@ class LimitedUserModel(Model):
     email: Optional[str] = None
 
 
+MaybeLimitedUserModel = Union[UserModel, LimitedUserModel]
+
+
 class DiskUsageUserModel(Model):
     total_disk_usage: float = TotalDiskUsageField
     nice_total_disk_usage: str = NiceTotalDiskUsageField
@@ -383,7 +386,12 @@ class RemoteUserCreationPayload(Model):
 
 
 class UserDeletionPayload(Model):
-    purge: bool = Field(default=..., title="Purge user", description="Purge the user")
+    purge: bool = Field(
+        default=False,
+        title="Purge user",
+        description="Purge the user. Deprecated, please use the `purge` query parameter instead.",
+        json_schema_extra={"deprecated": True},
+    )
 
 
 class FavoriteObject(Model):
@@ -690,7 +698,7 @@ class HDASummary(HDACommon):
 class HDAInaccessible(HDACommon):
     """History Dataset Association information when the user can not access it."""
 
-    accessible: bool = AccessibleField
+    accessible: Literal[False]
     state: DatasetStateField
 
 
@@ -941,6 +949,8 @@ class HDAObject(Model, WithModelClass):
     history_id: HistoryID
     tags: List[str]
     copied_from_ldda_id: Optional[EncodedDatabaseIdField] = None
+    accessible: Optional[bool] = None
+    purged: bool
     model_config = ConfigDict(extra="allow")
 
 
@@ -971,13 +981,13 @@ class DCESummary(Model, WithModelClass):
         title="Element Identifier",
         description="The actual name of this element.",
     )
-    element_type: DCEType = Field(
-        ...,
+    element_type: Optional[DCEType] = Field(
+        None,
         title="Element Type",
         description="The type of the element. Used to interpret the `object` field.",
     )
-    object: Union[HDAObject, HDADetailed, DCObject] = Field(
-        ...,
+    object: Optional[Union[HDAObject, HDADetailed, DCObject]] = Field(
+        None,
         title="Object",
         description="The element's specific data depending on the value of `element_type`.",
     )
@@ -1563,14 +1573,14 @@ class CreateHistoryPayload(Model):
         default=None,
         title="History ID",
         description=(
-            "The encoded ID of the history to copy. " "Provide this value only if you want to copy an existing history."
+            "The encoded ID of the history to copy. Provide this value only if you want to copy an existing history."
         ),
     )
     all_datasets: Optional[bool] = Field(
         default=True,
         title="All Datasets",
         description=(
-            "Whether to copy also deleted HDAs/HDCAs. Only applies when " "providing a `history_id` to copy from."
+            "Whether to copy also deleted HDAs/HDCAs. Only applies when providing a `history_id` to copy from."
         ),
     )
     archive_source: Optional[str] = Field(
@@ -3219,30 +3229,65 @@ class DatasetAssociationRoles(Model):
     )
 
 
-class UpdateDatasetPermissionsPayload(Model):
+class UpdateDatasetPermissionsPayloadBase(Model):
     action: Optional[DatasetPermissionAction] = Field(
         DatasetPermissionAction.set_permissions,
         title="Action",
         description="Indicates what action should be performed on the dataset.",
     )
-    access_ids: Optional[RoleIdList] = Field(
-        [],
-        alias="access_ids[]",  # Added for backward compatibility but it looks really ugly...
+
+
+AccessIdsField = Annotated[
+    Optional[RoleIdList],
+    Field(
+        default=None,
         title="Access IDs",
         description="A list of role encoded IDs defining roles that should have access permission on the dataset.",
-    )
-    manage_ids: Optional[RoleIdList] = Field(
-        [],
-        alias="manage_ids[]",
+    ),
+]
+
+ManageIdsField = Annotated[
+    Optional[RoleIdList],
+    Field(
+        default=None,
         title="Manage IDs",
         description="A list of role encoded IDs defining roles that should have manage permission on the dataset.",
-    )
-    modify_ids: Optional[RoleIdList] = Field(
-        [],
-        alias="modify_ids[]",
+    ),
+]
+
+ModifyIdsField = Annotated[
+    Optional[RoleIdList],
+    Field(
+        default=None,
         title="Modify IDs",
         description="A list of role encoded IDs defining roles that should have modify permission on the dataset.",
-    )
+    ),
+]
+
+
+class UpdateDatasetPermissionsPayload(UpdateDatasetPermissionsPayloadBase):
+    access_ids: Annotated[Optional[RoleIdList], Field(default=None, alias="access_ids[]")] = None
+    manage_ids: Annotated[Optional[RoleIdList], Field(default=None, alias="manage_ids[]")] = None
+    modify_ids: Annotated[Optional[RoleIdList], Field(default=None, alias="modify_ids[]")] = None
+
+
+class UpdateDatasetPermissionsPayloadAliasB(UpdateDatasetPermissionsPayloadBase):
+    access: AccessIdsField = None
+    manage: ManageIdsField = None
+    modify: ModifyIdsField = None
+
+
+class UpdateDatasetPermissionsPayloadAliasC(UpdateDatasetPermissionsPayloadBase):
+    access_ids: AccessIdsField = None
+    manage_ids: ManageIdsField = None
+    modify_ids: ModifyIdsField = None
+
+
+UpdateDatasetPermissionsPayloadAliases = Union[
+    UpdateDatasetPermissionsPayload,
+    UpdateDatasetPermissionsPayloadAliasB,
+    UpdateDatasetPermissionsPayloadAliasC,
+]
 
 
 @partial_model()
@@ -3273,7 +3318,7 @@ class HDACustom(HDADetailed):
     model_config = ConfigDict(extra="allow")
 
 
-AnyHDA = Union[HDACustom, HDADetailed, HDASummary]
+AnyHDA = Union[HDACustom, HDADetailed, HDASummary, HDAInaccessible]
 AnyHDCA = Union[HDCADetailed, HDCASummary]
 AnyHistoryContentItem = Annotated[
     Union[
@@ -3411,7 +3456,7 @@ class ShareWithPayload(Model):
         ...,
         title="User Identifiers",
         description=(
-            "A collection of encoded IDs (or email addresses) of users " "that this resource will be shared with."
+            "A collection of encoded IDs (or email addresses) of users that this resource will be shared with."
         ),
     )
     share_option: Optional[SharingOptions] = Field(
@@ -3725,14 +3770,6 @@ class PageSummaryList(RootModel):
     )
 
 
-class DatasetSummary(Model):
-    id: EncodedDatabaseIdField
-    create_time: Optional[datetime] = CreateTimeField
-    update_time: Optional[datetime] = UpdateTimeField
-    state: DatasetStateField
-    deleted: bool
-    purged: bool
-    purgable: bool
-    file_size: int
-    total_size: int
-    uuid: UuidField
+class MessageExceptionModel(BaseModel):
+    err_msg: str
+    err_code: int

@@ -61,7 +61,7 @@ class TagHandler:
         self.item_tag_assoc_info: Dict[str, ItemTagAssocInfo] = {}
         # Can't include type annotation in signature, because lagom will attempt to look up
         # GalaxySession, but can't find it due to the circular import
-        self.galaxy_session: Optional["GalaxySession"] = galaxy_session
+        self.galaxy_session: Optional[GalaxySession] = galaxy_session
 
     def create_tag_handler_session(self, galaxy_session: Optional["GalaxySession"]):
         # Creates a transient tag handler that avoids repeated flushes
@@ -95,6 +95,7 @@ class TagHandler:
         if flush:
             with transaction(self.sa_session):
                 self.sa_session.commit()
+        item.update()
         return item.tags
 
     def get_tag_assoc_class(self, item_class):
@@ -501,7 +502,7 @@ class GalaxyTagHandlerSession(GalaxyTagHandler):
 
     def __init__(self, sa_session, galaxy_session: Optional["GalaxySession"]):
         super().__init__(sa_session, galaxy_session)
-        self.created_tags: Dict[str, "Tag"] = {}
+        self.created_tags: Dict[str, Tag] = {}
 
     def _get_tag(self, tag_name):
         """Get tag from cache or database."""

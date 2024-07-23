@@ -18,3 +18,14 @@ export interface SelectionItem {
     url: string;
     _rowVariant?: string;
 }
+
+export interface ItemsProviderContext {
+    apiUrl?: string;
+    currentPage: number;
+    perPage: number;
+    filter?: string;
+    sortBy?: string;
+    sortDesc?: boolean;
+}
+
+export type ItemsProvider = (ctx: ItemsProviderContext) => Promise<SelectionItem[]>;

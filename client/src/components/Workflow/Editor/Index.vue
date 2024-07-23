@@ -98,7 +98,7 @@
                             @onUpgrade="onUpgrade" />
                     </div>
                 </div>
-                <div ref="right-panel" class="unified-panel-body workflow-right p-2">
+                <div ref="rightPanelElement" class="unified-panel-body workflow-right p-2">
                     <div v-if="!initialLoading">
                         <FormTool
                             v-if="hasActiveNodeTool"
@@ -186,7 +186,7 @@ import { useMagicKeys, whenever } from "@vueuse/core";
 import { logicAnd, logicNot, logicOr } from "@vueuse/math";
 import { Toast } from "composables/toast";
 import { storeToRefs } from "pinia";
-import Vue, { computed, nextTick, onUnmounted, ref, unref } from "vue";
+import Vue, { computed, nextTick, onUnmounted, ref, unref, watch } from "vue";
 
 import { getUntypedWorkflowParameters } from "@/components/Workflow/Editor/modules/parameters";
 import { ConfirmDialog } from "@/composables/confirmDialog";
@@ -357,6 +357,15 @@ export default {
         }
 
         const tags = ref([]);
+
+        watch(
+            () => props.workflowTags,
+            (newTags) => {
+                tags.value = [...newTags];
+            },
+            { immediate: true }
+        );
+
         const setTagsHandler = new SetValueActionHandler(
             undoRedoStore,
             (value) => (tags.value = structuredClone(value)),
@@ -366,6 +375,22 @@ export default {
         /** user set tags. queues an undo/redo action */
         function setTags(newTags) {
             setTagsHandler.set(tags.value, newTags);
+        }
+
+        watch(
+            () => stateStore.activeNodeId,
+            () => {
+                scrollToTop();
+            }
+        );
+
+        const rightPanelElement = ref(null);
+
+        function scrollToTop() {
+            rightPanelElement.value?.scrollTo({
+                top: 0,
+                behavior: "instant",
+            });
         }
 
         const { comments } = storeToRefs(commentStore);
@@ -394,17 +419,18 @@ export default {
             }
         });
 
-        function resetStores() {
+        async function resetStores() {
             hasChanges.value = false;
             connectionStore.$reset();
             stepStore.$reset();
             stateStore.$reset();
             commentStore.$reset();
             undoRedoStore.$reset();
+            await nextTick();
         }
 
-        onUnmounted(() => {
-            resetStores();
+        onUnmounted(async () => {
+            await resetStores();
             emit("update:confirmation", false);
         });
 
@@ -428,6 +454,8 @@ export default {
             setAnnotation,
             tags,
             setTags,
+            rightPanelElement,
+            scrollToTop,
             connectionStore,
             hasChanges,
             hasInvalidConnections,
@@ -576,7 +604,7 @@ export default {
             hide_modal(); // hide other modals created in utilities also...
         },
         async onRefactor(response) {
-            this.resetStores();
+            await this.resetStores();
             await fromSimple(this.id, response.workflow);
             this._loadEditorData(response.workflow);
         },
@@ -600,7 +628,6 @@ export default {
                 ...sourceStep,
                 id: null,
                 uuid: null,
-                label: null,
                 position: defaultPosition(this.graphOffset, this.transform),
             });
         },
@@ -620,7 +647,8 @@ export default {
                 const action = new CopyIntoWorkflowAction(
                     this.id,
                     data,
-                    defaultPosition(this.graphOffset, this.transform)
+                    defaultPosition(this.graphOffset, this.transform),
+                    true
                 );
                 this.undoRedoStore.applyAction(action);
                 // Determine if any parameters were 'upgraded' and provide message
@@ -775,10 +803,9 @@ export default {
             this.report.markdown = markdown;
         },
         onRun() {
-            const runUrl = `/workflows/run?id=${this.id}`;
-            this.onNavigate(runUrl);
+            this.onNavigate(`/workflows/run?id=${this.id}`, false, false, true);
         },
-        async onNavigate(url, forceSave = false, ignoreChanges = false) {
+        async onNavigate(url, forceSave = false, ignoreChanges = false, appendVersion = false) {
             if (this.isNewTempWorkflow) {
                 await this.onCreate();
             } else if (this.hasChanges && !forceSave && !ignoreChanges) {
@@ -791,6 +818,9 @@ export default {
                 await this.onSave();
             }
 
+            if (appendVersion && this.version !== undefined) {
+                url += `&version=${this.version}`;
+            }
             this.hasChanges = false;
             await nextTick();
             this.$router.push(url);
@@ -889,7 +919,7 @@ export default {
         },
         async _loadCurrent(id, version) {
             if (!this.isNewTempWorkflow) {
-                this.resetStores();
+                await this.resetStores();
                 this.onWorkflowMessage("Loading workflow...", "progress");
 
                 try {
@@ -912,9 +942,6 @@ export default {
                 this.hasChanges = true;
                 this.setCreator(creator);
             }
-        },
-        onActiveNode(nodeId) {
-            this.$refs["right-panel"].scrollTop = 0;
         },
         onInsertedStateMessages(insertedStateMessages) {
             this.insertedStateMessages = insertedStateMessages;
@@ -950,7 +977,7 @@ export default {
 
     .editor-title {
         overflow: hidden;
-        white-space: no-wrap;
+        white-space: nowrap;
         text-overflow: ellipsis;
     }
 }
