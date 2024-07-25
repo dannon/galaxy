@@ -9,9 +9,9 @@ import { computed, ref } from "vue";
 import type { UserNotification } from "@/api/notifications";
 import { useNotificationsStore } from "@/stores/notificationsStore";
 
+import NotificationCard from "./NotificationCard.vue";
 import Heading from "@/components/Common/Heading.vue";
 import LoadingSpan from "@/components/LoadingSpan.vue";
-import NotificationCard from "@/components/Notifications/NotificationCard.vue";
 import NotificationsPreferences from "@/components/User/Notifications/NotificationsPreferences.vue";
 
 library.add(faCog, faHourglassHalf, faRetweet);

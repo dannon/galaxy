@@ -1,7 +1,8 @@
 import flushPromises from "flush-promises";
 
 import { mockFetcher } from "@/api/schema/__mocks__";
-import { useShortTermStorageMonitor } from "@/composables/shortTermStorageMonitor";
+
+import { useShortTermStorageMonitor } from "./shortTermStorageMonitor";
 
 jest.mock("@/api/schema");
 

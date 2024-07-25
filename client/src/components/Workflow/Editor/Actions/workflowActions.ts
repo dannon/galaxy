@@ -1,3 +1,5 @@
+import { type defaultPosition } from "@/components/Workflow/Editor/composables/useDefaultStepPosition";
+import { fromSimple, type Workflow } from "@/components/Workflow/Editor/modules/model";
 import { LazyUndoRedoAction, UndoRedoAction, type UndoRedoStore } from "@/stores/undoRedoStore";
 import { useConnectionStore } from "@/stores/workflowConnectionStore";
 import {
@@ -9,8 +11,6 @@ import { useWorkflowStateStore, type WorkflowStateStore } from "@/stores/workflo
 import { type Step, useWorkflowStepStore, type WorkflowStepStore } from "@/stores/workflowStepStore";
 import { ensureDefined } from "@/utils/assertions";
 
-import { type defaultPosition } from "../composables/useDefaultStepPosition";
-import { fromSimple, type Workflow } from "../modules/model";
 import { cloneStepWithUniqueLabel, getLabelSet } from "./cloneStep";
 
 export class LazySetValueAction<T> extends LazyUndoRedoAction {

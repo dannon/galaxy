@@ -1,13 +1,8 @@
 import simplify from "simplify-js";
 import { ref, watch } from "vue";
 
-import { useWorkflowStores } from "@/composables/workflowStores";
-import { type BaseWorkflowComment } from "@/stores/workflowEditorCommentStore";
-import { assertDefined } from "@/utils/assertions";
-import { match } from "@/utils/utils";
-
-import { AddCommentAction } from "../Actions/commentActions";
-import { AddToSelectionAction, RemoveFromSelectionAction } from "../Actions/workflowActions";
+import { AddCommentAction } from "@/components/Workflow/Editor/Actions/commentActions";
+import { AddToSelectionAction, RemoveFromSelectionAction } from "@/components/Workflow/Editor/Actions/workflowActions";
 import {
     AxisAlignedBoundingBox,
     vecMax,
@@ -16,7 +11,11 @@ import {
     vecSnap,
     vecSubtract,
     type Vector,
-} from "../modules/geometry";
+} from "@/components/Workflow/Editor/modules/geometry";
+import { useWorkflowStores } from "@/composables/workflowStores";
+import { type BaseWorkflowComment } from "@/stores/workflowEditorCommentStore";
+import { assertDefined } from "@/utils/assertions";
+import { match } from "@/utils/utils";
 
 export function useToolLogic() {
     const comment = ref<BaseWorkflowComment | null>(null);

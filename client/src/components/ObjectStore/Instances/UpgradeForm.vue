@@ -3,9 +3,9 @@ import { BAlert } from "bootstrap-vue";
 import { computed, ref } from "vue";
 
 import { type FormEntry, upgradeForm, upgradeFormDataToPayload } from "@/components/ConfigTemplates/formUtil";
+import type { ObjectStoreTemplateSummary } from "@/components/ObjectStore/Templates/types";
 import { errorMessageAsString } from "@/utils/simple-error";
 
-import type { ObjectStoreTemplateSummary } from "../Templates/types";
 import { useInstanceRouting } from "./routing";
 import { update } from "./services";
 import type { UserConcreteObjectStore } from "./types";

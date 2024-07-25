@@ -13,7 +13,7 @@ import { absPath, prependPath } from "@/utils/redirect";
 
 import { type ItemUrls } from ".";
 
-import DatasetDownload from "@/components/History/Content/Dataset/DatasetDownload.vue";
+import DatasetDownload from "./DatasetDownload.vue";
 
 library.add(faBug, faChartBar, faInfoCircle, faLink, faRedo, faSitemap);
 

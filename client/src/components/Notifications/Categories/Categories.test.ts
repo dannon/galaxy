@@ -6,8 +6,8 @@ import { setActivePinia } from "pinia";
 
 import { generateMessageNotification, generateNewSharedItemNotification } from "@/components/Notifications/test-utils";
 
-import MessageNotification from "@/components/Notifications/Categories/MessageNotification.vue";
-import SharedItemNotification from "@/components/Notifications/Categories/SharedItemNotification.vue";
+import MessageNotification from "./MessageNotification.vue";
+import SharedItemNotification from "./SharedItemNotification.vue";
 
 const localVue = getLocalVue(true);
 

@@ -13,8 +13,8 @@ import { useToast } from "@/composables/toast";
 import { useHistoryStore } from "@/stores/historyStore";
 import localize from "@/utils/localization";
 
+import ArchivedHistoryCard from "./ArchivedHistoryCard.vue";
 import DelayedInput from "@/components/Common/DelayedInput.vue";
-import ArchivedHistoryCard from "@/components/History/Archiving/ArchivedHistoryCard.vue";
 import LoadingSpan from "@/components/LoadingSpan.vue";
 
 const router = useRouter();

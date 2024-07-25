@@ -95,7 +95,8 @@ import BootstrapVue from "bootstrap-vue";
 import _ from "underscore";
 import Vue from "vue";
 
-import { getContainerResolutionToolbox, resolveContainersWithInstall } from "../AdminServices";
+import { getContainerResolutionToolbox, resolveContainersWithInstall } from "@/components/admin/AdminServices";
+
 import ContainerResolutionDetails from "./ContainerResolutionDetails";
 import { DESCRIPTION } from "./ContainerResolver";
 import DependencyIndexMixin from "./DependencyIndexMixin";

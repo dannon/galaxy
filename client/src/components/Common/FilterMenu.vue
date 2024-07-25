@@ -9,13 +9,13 @@ import { computed, ref, set } from "vue";
 import type Filtering from "@/utils/filtering";
 import { type Alias, type ErrorType, getOperatorForAlias, type ValidFilter } from "@/utils/filtering";
 
-import DelayedInput from "@/components/Common/DelayedInput.vue";
-import FilterMenuBoolean from "@/components/Common/FilterMenuBoolean.vue";
-import FilterMenuDropdown from "@/components/Common/FilterMenuDropdown.vue";
-import FilterMenuInput from "@/components/Common/FilterMenuInput.vue";
-import FilterMenuMultiTags from "@/components/Common/FilterMenuMultiTags.vue";
-import FilterMenuObjectStore from "@/components/Common/FilterMenuObjectStore.vue";
-import FilterMenuRanged from "@/components/Common/FilterMenuRanged.vue";
+import DelayedInput from "./DelayedInput.vue";
+import FilterMenuBoolean from "./FilterMenuBoolean.vue";
+import FilterMenuDropdown from "./FilterMenuDropdown.vue";
+import FilterMenuInput from "./FilterMenuInput.vue";
+import FilterMenuMultiTags from "./FilterMenuMultiTags.vue";
+import FilterMenuObjectStore from "./FilterMenuObjectStore.vue";
+import FilterMenuRanged from "./FilterMenuRanged.vue";
 
 library.add(faAngleDoubleUp, faQuestion, faSearch);
 

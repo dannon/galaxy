@@ -1,4 +1,4 @@
-import { fetcher } from "@/api/schema";
+import { fetcher } from "./schema";
 
 export const deleteQuota = fetcher.path("/api/quotas/{id}").method("delete").create();
 export const purgeQuota = fetcher.path("/api/quotas/{id}/purge").method("post").create();

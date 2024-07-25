@@ -1,4 +1,4 @@
-import { fetcher } from "@/api/schema";
+import { fetcher } from "./schema";
 
 /** Page request helper **/
 const deletePageById = fetcher.path("/api/pages/{id}").method("delete").create();

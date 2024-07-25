@@ -9,10 +9,10 @@ import { useHistoryStore } from "@/stores/historyStore";
 import { absPath } from "@/utils/redirect";
 import { urlData } from "@/utils/url";
 
+import ActivityPanel from "./ActivityPanel.vue";
 import DelayedInput from "@/components/Common/DelayedInput.vue";
 import DataDialog from "@/components/DataDialog/DataDialog.vue";
 import LoadingSpan from "@/components/LoadingSpan.vue";
-import ActivityPanel from "@/components/Panels/ActivityPanel.vue";
 
 interface Plugin {
     description: string;

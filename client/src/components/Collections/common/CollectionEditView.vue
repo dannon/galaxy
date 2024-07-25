@@ -20,9 +20,9 @@ import { errorMessageAsString } from "@/utils/simple-error";
 
 import { type HistoryContentBulkOperationPayload, updateHistoryItemsBulk } from "./services";
 
-import ChangeDatatypeTab from "@/components/Collections/common/ChangeDatatypeTab.vue";
-import DatabaseEditTab from "@/components/Collections/common/DatabaseEditTab.vue";
-import SuitableConvertersTab from "@/components/Collections/common/SuitableConvertersTab.vue";
+import ChangeDatatypeTab from "./ChangeDatatypeTab.vue";
+import DatabaseEditTab from "./DatabaseEditTab.vue";
+import SuitableConvertersTab from "./SuitableConvertersTab.vue";
 import Heading from "@/components/Common/Heading.vue";
 import FormDisplay from "@/components/Form/FormDisplay.vue";
 import LoadingSpan from "@/components/LoadingSpan.vue";

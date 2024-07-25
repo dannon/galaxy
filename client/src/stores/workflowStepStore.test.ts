@@ -1,8 +1,7 @@
 import { createPinia, setActivePinia } from "pinia";
 
-import { type NewStep, type StepInputConnection, useWorkflowStepStore } from "@/stores/workflowStepStore";
-
 import { useConnectionStore } from "./workflowConnectionStore";
+import { type NewStep, type StepInputConnection, useWorkflowStepStore } from "./workflowStepStore";
 
 const stepInputConnection: StepInputConnection = {
     "1": {

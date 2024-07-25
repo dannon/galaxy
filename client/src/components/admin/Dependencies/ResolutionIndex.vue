@@ -86,7 +86,8 @@ import BootstrapVue from "bootstrap-vue";
 import _ from "underscore";
 import Vue from "vue";
 
-import { getToolboxDependencies, installDependencies, uninstallDependencies } from "../AdminServices";
+import { getToolboxDependencies, installDependencies, uninstallDependencies } from "@/components/admin/AdminServices";
+
 import DependencyIndexMixin from "./DependencyIndexMixin";
 import ResolutionDetails from "./ResolutionDetails";
 

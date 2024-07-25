@@ -72,7 +72,8 @@ import UtcDate from "components/UtcDate";
 import { getAppRoot } from "onload/loadConfig";
 import { mapActions, mapState } from "pinia";
 
-import { useEntryPointStore } from "../../stores/entryPointStore";
+import { useEntryPointStore } from "@/stores/entryPointStore";
+
 import { Services } from "./services";
 
 library.add(faExternalLinkAlt);

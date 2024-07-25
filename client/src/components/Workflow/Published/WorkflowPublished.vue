@@ -15,10 +15,10 @@ import type { Workflow } from "@/stores/workflowStore";
 import { assertDefined } from "@/utils/assertions";
 import { withPrefix } from "@/utils/redirect";
 
+import WorkflowInformation from "./WorkflowInformation.vue";
 import ActivityBar from "@/components/ActivityBar/ActivityBar.vue";
 import Heading from "@/components/Common/Heading.vue";
 import WorkflowGraph from "@/components/Workflow/Editor/WorkflowGraph.vue";
-import WorkflowInformation from "@/components/Workflow/Published/WorkflowInformation.vue";
 
 library.add(faBuilding, faDownload, faEdit, faPlay, faSpinner, faUser);
 

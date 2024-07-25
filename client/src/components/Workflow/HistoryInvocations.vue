@@ -3,7 +3,7 @@ import { computed } from "vue";
 
 import { useHistoryStore } from "@/stores/historyStore";
 
-import GridInvocation from "../Grid/GridInvocation.vue";
+import GridInvocation from "@/components/Grid/GridInvocation.vue";
 
 interface HistoryInvocationProps {
     historyId: string;

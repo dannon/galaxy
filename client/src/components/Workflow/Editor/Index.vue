@@ -186,7 +186,7 @@ import { Toast } from "composables/toast";
 import { storeToRefs } from "pinia";
 import Vue, { computed, nextTick, onUnmounted, ref, unref, watch } from "vue";
 
-import { getUntypedWorkflowParameters } from "@/components/Workflow/Editor/modules/parameters";
+import { Services } from "@/components/Workflow/services";
 import { ConfirmDialog } from "@/composables/confirmDialog";
 import { useDatatypesMapper } from "@/composables/datatypesMapper";
 import { useUid } from "@/composables/utils/uid";
@@ -197,16 +197,18 @@ import { useScopePointerStore } from "@/stores/scopePointerStore";
 import { LastQueue } from "@/utils/lastQueue";
 import { errorMessageAsString } from "@/utils/simple-error";
 
-import { Services } from "../services";
 import { InsertStepAction, useStepActions } from "./Actions/stepActions";
 import { CopyIntoWorkflowAction, SetValueActionHandler } from "./Actions/workflowActions";
 import { defaultPosition } from "./composables/useDefaultStepPosition";
 import { fromSimple } from "./modules/model";
+import { getUntypedWorkflowParameters } from "./modules/parameters";
 import { getModule, getVersions, loadWorkflow, saveWorkflow } from "./modules/services";
 import { getStateUpgradeMessages } from "./modules/utilities";
 import reportDefault from "./reportDefault";
 
 import WorkflowAttributes from "./Attributes.vue";
+import FormDefault from "./Forms/FormDefault.vue";
+import FormTool from "./Forms/FormTool.vue";
 import WorkflowLint from "./Lint.vue";
 import MessagesModal from "./MessagesModal.vue";
 import WorkflowOptions from "./Options.vue";
@@ -217,8 +219,6 @@ import WorkflowGraph from "./WorkflowGraph.vue";
 import MarkdownEditor from "@/components/Markdown/MarkdownEditor.vue";
 import FlexPanel from "@/components/Panels/FlexPanel.vue";
 import ToolPanel from "@/components/Panels/ToolPanel.vue";
-import FormDefault from "@/components/Workflow/Editor/Forms/FormDefault.vue";
-import FormTool from "@/components/Workflow/Editor/Forms/FormTool.vue";
 
 library.add(faArrowLeft, faArrowRight);
 

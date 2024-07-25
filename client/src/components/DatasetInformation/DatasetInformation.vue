@@ -3,8 +3,8 @@ import { type HDADetailed } from "@/api";
 import { withPrefix } from "@/utils/redirect";
 import { bytesToString } from "@/utils/utils";
 
-import DatasetHashes from "@/components/DatasetInformation/DatasetHashes.vue";
-import DatasetSources from "@/components/DatasetInformation/DatasetSources.vue";
+import DatasetHashes from "./DatasetHashes.vue";
+import DatasetSources from "./DatasetSources.vue";
 import DecodedId from "@/components/DecodedId.vue";
 import UtcDate from "@/components/UtcDate.vue";
 

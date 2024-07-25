@@ -5,7 +5,7 @@ import { Toast } from "composables/toast";
 import { getAppRoot } from "onload/loadConfig";
 import _ from "underscore";
 
-import mod_library_model from "../library-model";
+import mod_library_model from "@/components/Libraries/LibraryFolder/TopToolbar/library-model";
 
 var ImportCollectionModal = Backbone.View.extend({
     options: null,

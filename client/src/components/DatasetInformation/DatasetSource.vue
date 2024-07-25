@@ -8,7 +8,7 @@ import { type DatasetTransform } from "@/api";
 import { copy } from "@/utils/clipboard";
 import localize from "@/utils/localization";
 
-import DatasetSourceTransform from "@/components/DatasetInformation/DatasetSourceTransform.vue";
+import DatasetSourceTransform from "./DatasetSourceTransform.vue";
 
 library.add(faCopy, faExternalLinkAlt);
 

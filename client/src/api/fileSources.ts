@@ -1,4 +1,4 @@
-import { type components } from "@/api/schema";
+import { type components } from "./schema";
 
 export type FileSourceTemplateSummary = components["schemas"]["FileSourceTemplateSummary"];
 export type FileSourceTemplateSummaries = FileSourceTemplateSummary[];

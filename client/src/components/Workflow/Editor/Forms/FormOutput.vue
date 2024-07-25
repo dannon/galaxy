@@ -79,7 +79,8 @@
 <script>
 import FormCard from "@/components/Form/FormCard";
 import FormElement from "@/components/Form/FormElement";
-import FormOutputLabel from "@/components/Workflow/Editor/Forms/FormOutputLabel";
+
+import FormOutputLabel from "./FormOutputLabel";
 
 const actions = [
     "RenameDatasetAction__newname",

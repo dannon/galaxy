@@ -8,9 +8,8 @@ import { storeToRefs } from "pinia";
 import Webhooks from "utils/webhooks";
 import { computed, ref } from "vue";
 
+import { copyId, copyLink, downloadTool, openLink } from "@/components/Tool/utilities";
 import { useUserStore } from "@/stores/userStore";
-
-import { copyId, copyLink, downloadTool, openLink } from "../utilities";
 
 library.add(faCaretDown, faLink, faDownload, faExternalLinkAlt, faCopy);
 

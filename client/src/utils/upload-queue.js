@@ -1,8 +1,8 @@
 /*
     galaxy upload utilities - requires FormData and XMLHttpRequest
 */
-import { uploadPayload } from "@/utils/upload-payload.js";
-import { sendPayload, uploadSubmit } from "@/utils/upload-submit.js";
+import { uploadPayload } from "./upload-payload.js";
+import { sendPayload, uploadSubmit } from "./upload-submit.js";
 
 export class UploadQueue {
     constructor(options) {

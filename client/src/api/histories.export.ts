@@ -1,10 +1,11 @@
-import { type components, fetcher } from "@/api/schema";
 import {
     type ExportRecord,
     ExportRecordModel,
     type ObjectExportTaskResponse,
 } from "@/components/Common/models/exportRecordModel";
 import { DEFAULT_EXPORT_PARAMS } from "@/composables/shortTermStorage";
+
+import { type components, fetcher } from "./schema";
 
 type ModelStoreFormat = components["schemas"]["ModelStoreFormat"];
 

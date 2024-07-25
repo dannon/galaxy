@@ -9,8 +9,8 @@ import { computed, ref } from "vue";
 
 import { invocationForJob } from "@/api/invocations";
 
-import DecodedId from "../DecodedId.vue";
 import CodeRow from "./CodeRow.vue";
+import DecodedId from "@/components/DecodedId.vue";
 
 const job = ref(null);
 const invocationId = ref(null);

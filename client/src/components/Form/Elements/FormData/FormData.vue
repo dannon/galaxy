@@ -15,8 +15,8 @@ import { orList } from "@/utils/strings";
 import type { DataOption } from "./types";
 import { BATCH, SOURCE, VARIANTS } from "./variants";
 
-import FormSelection from "../FormSelection.vue";
 import FormSelect from "@/components/Form/Elements/FormSelect.vue";
+import FormSelection from "@/components/Form/Elements/FormSelection.vue";
 
 library.add(faCopy, faFile, faFolder, faCaretDown, faCaretUp, faExclamation, faLink, faUnlink);
 

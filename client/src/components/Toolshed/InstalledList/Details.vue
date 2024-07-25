@@ -17,9 +17,9 @@
 import LoadingSpan from "components/LoadingSpan";
 import { getAppRoot } from "onload/loadConfig";
 
-import { Services } from "../services";
+import { Services } from "@/components/Toolshed/services";
 
-import RepositoryDetails from "../RepositoryDetails/Index.vue";
+import RepositoryDetails from "@/components/Toolshed/RepositoryDetails/Index.vue";
 
 export default {
     components: {

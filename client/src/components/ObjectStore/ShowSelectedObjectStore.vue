@@ -6,8 +6,8 @@ import { errorMessageAsString } from "@/utils/simple-error";
 
 import type { ConcreteObjectStoreModel } from "./types";
 
+import DescribeObjectStore from "./DescribeObjectStore.vue";
 import LoadingSpan from "@/components/LoadingSpan.vue";
-import DescribeObjectStore from "@/components/ObjectStore/DescribeObjectStore.vue";
 
 interface ShowSelectObjectStoreProps {
     forWhat: string;

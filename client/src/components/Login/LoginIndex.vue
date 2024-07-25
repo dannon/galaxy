@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref } from "vue";
 
-import LoginForm from "@/components/Login/LoginForm.vue";
-import RegisterForm from "@/components/Login/RegisterForm.vue";
+import LoginForm from "./LoginForm.vue";
+import RegisterForm from "./RegisterForm.vue";
 
 interface Props {
     sessionCsrfToken: string;

@@ -1,6 +1,7 @@
 import { createPinia, setActivePinia } from "pinia";
 
 import { testDatatypesMapper } from "@/components/Datatypes/test_fixtures";
+import { advancedSteps, simpleSteps } from "@/components/Workflow/Editor/test_fixtures";
 import { useUndoRedoStore } from "@/stores/undoRedoStore";
 import { useConnectionStore } from "@/stores/workflowConnectionStore";
 import { useWorkflowCommentStore } from "@/stores/workflowEditorCommentStore";
@@ -14,7 +15,6 @@ import {
     useWorkflowStepStore,
 } from "@/stores/workflowStepStore";
 
-import { advancedSteps, simpleSteps } from "../test_fixtures";
 import {
     ANY_COLLECTION_TYPE_DESCRIPTION,
     CollectionTypeDescription,

@@ -3,7 +3,7 @@ import { storeToRefs } from "pinia";
 
 import { useBroadcastsStore } from "@/stores/broadcastsStore";
 
-import BroadcastContainer from "@/components/Notifications/Broadcasts/BroadcastContainer.vue";
+import BroadcastContainer from "./BroadcastContainer.vue";
 
 const { activeBroadcasts } = storeToRefs(useBroadcastsStore());
 </script>

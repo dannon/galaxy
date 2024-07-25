@@ -1,7 +1,7 @@
 import axios from "axios";
 
-import { withPrefix } from "@/utils/redirect";
-import { rethrowSimple } from "@/utils/simple-error";
+import { withPrefix } from "./redirect";
+import { rethrowSimple } from "./simple-error";
 
 export interface UrlDataOptions {
     url: string;

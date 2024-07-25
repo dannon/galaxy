@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { type DatasetTransform } from "@/api";
 
-import DatasetSource from "@/components/DatasetInformation/DatasetSource.vue";
+import DatasetSource from "./DatasetSource.vue";
 
 interface Props {
     sources: {

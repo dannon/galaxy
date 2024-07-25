@@ -1,8 +1,9 @@
 import { type AxiosResponse } from "axios";
 import { computed, type Ref, ref } from "vue";
 
-import { useToast } from "@/composables/toast";
 import { errorMessageAsString } from "@/utils/simple-error";
+
+import { useToast } from "./toast";
 
 interface InputOption {
     roleName: string;

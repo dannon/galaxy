@@ -8,7 +8,8 @@ import axios, { type AxiosError, type AxiosResponse } from "axios";
 import { getGalaxyInstance } from "@/app";
 import { NON_TERMINAL_STATES } from "@/components/WorkflowInvocationState/util";
 import { getAppRoot } from "@/onload/loadConfig";
-import _l from "@/utils/localization";
+
+import _l from "./localization";
 
 export function stateIsTerminal(result: Record<string, any>) {
     return !NON_TERMINAL_STATES.includes(result.state);

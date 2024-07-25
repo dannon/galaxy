@@ -1,7 +1,5 @@
 import { ref } from "vue";
 
-import localize from "@/utils/localization";
-
 import {
     cleanupDatasets,
     cleanupHistories,
@@ -11,7 +9,9 @@ import {
     fetchDiscardedDatasetsSummary,
     fetchDiscardedHistories,
     fetchDiscardedHistoriesSummary,
-} from "../services";
+} from "@/components/User/DiskUsage/Management/services";
+import localize from "@/utils/localization";
+
 import { type CleanupCategory } from "./model";
 
 export function useCleanupCategories() {

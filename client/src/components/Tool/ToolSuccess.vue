@@ -6,11 +6,11 @@ import { useRouter } from "vue-router/composables";
 import { useConfig } from "@/composables/config";
 import { useJobStore } from "@/stores/jobStore";
 
-import LoadingSpan from "../LoadingSpan.vue";
-import ToolRecommendation from "../ToolRecommendation.vue";
 import ToolSuccessMessage from "./ToolSuccessMessage.vue";
 import Webhook from "@/components/Common/Webhook.vue";
+import LoadingSpan from "@/components/LoadingSpan.vue";
 import ToolEntryPoints from "@/components/ToolEntryPoints/ToolEntryPoints.vue";
+import ToolRecommendation from "@/components/ToolRecommendation.vue";
 
 const { config } = useConfig(true);
 const jobStore = useJobStore();

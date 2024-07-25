@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { BTab, BTabs } from "bootstrap-vue";
 
-import FromFileOrUrl from "@/components/Workflow/Import/FromFileOrUrl.vue";
-import TrsImport from "@/components/Workflow/Import/TrsImport.vue";
-import TrsSearch from "@/components/Workflow/Import/TrsSearch.vue";
+import FromFileOrUrl from "./Import/FromFileOrUrl.vue";
+import TrsImport from "./Import/TrsImport.vue";
+import TrsSearch from "./Import/TrsSearch.vue";
 </script>
 
 <template>

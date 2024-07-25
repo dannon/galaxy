@@ -1,6 +1,6 @@
 import { type ObjectStoreTemplateType } from "@/api/objectStores";
-import { useObjectStoreTemplatesStore } from "@/stores/objectStoreTemplatesStore";
 
+import { useObjectStoreTemplatesStore } from "./objectStoreTemplatesStore";
 import { setupTestPinia } from "./testUtils";
 
 const s3 = "aws_s3" as ObjectStoreTemplateType;

@@ -6,7 +6,7 @@ import type { HDCADetailed, HistoryItemSummary } from "@/api";
 import STATES from "@/mvc/dataset/states";
 import localize from "@/utils/localization";
 
-import CollectionCreator from "@/components/Collections/common/CollectionCreator.vue";
+import CollectionCreator from "./common/CollectionCreator.vue";
 
 interface Props {
     initialElements: Array<any>;

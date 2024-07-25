@@ -22,7 +22,7 @@ import { assertArray } from "@/utils/assertions";
 
 import type { Item, ShareOption } from "./item";
 
-import Heading from "../Common/Heading.vue";
+import Heading from "@/components/Common/Heading.vue";
 
 const props = defineProps<{
     item: Item;

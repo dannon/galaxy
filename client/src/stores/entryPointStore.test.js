@@ -3,7 +3,8 @@ import MockAdapter from "axios-mock-adapter";
 import flushPromises from "flush-promises";
 import { createPinia, setActivePinia } from "pinia";
 
-import testInteractiveToolsResponse from "../components/InteractiveTools/testData/testInteractiveToolsResponse";
+import testInteractiveToolsResponse from "@/components/InteractiveTools/testData/testInteractiveToolsResponse";
+
 import { useEntryPointStore } from "./entryPointStore";
 
 describe("stores/EntryPointStore", () => {

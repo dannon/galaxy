@@ -4,8 +4,8 @@ import { onMounted, ref } from "vue";
 
 import { type StoredWorkflowDetailed, workflowFetcher } from "@/api/workflows";
 
-import GridInvocation from "../Grid/GridInvocation.vue";
-import LoadingSpan from "../LoadingSpan.vue";
+import GridInvocation from "@/components/Grid/GridInvocation.vue";
+import LoadingSpan from "@/components/LoadingSpan.vue";
 
 interface Props {
     storedWorkflowId: string;

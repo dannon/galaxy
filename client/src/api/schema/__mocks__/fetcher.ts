@@ -1,4 +1,4 @@
-import { type paths } from "@/api/schema";
+import { type paths } from "./..";
 
 jest.mock("@/api/schema", () => ({
     fetcher: mockFetcher,

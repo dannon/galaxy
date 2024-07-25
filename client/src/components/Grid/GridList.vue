@@ -16,8 +16,6 @@ import {
     type RowData,
 } from "./configs/types";
 
-import HelpText from "../Help/HelpText.vue";
-import SwitchToHistoryLink from "../History/SwitchToHistoryLink.vue";
 import GridBoolean from "./GridElements/GridBoolean.vue";
 import GridDatasets from "./GridElements/GridDatasets.vue";
 import GridExpand from "./GridElements/GridExpand.vue";
@@ -26,6 +24,8 @@ import GridOperations from "./GridElements/GridOperations.vue";
 import GridText from "./GridElements/GridText.vue";
 import FilterMenu from "@/components/Common/FilterMenu.vue";
 import Heading from "@/components/Common/Heading.vue";
+import HelpText from "@/components/Help/HelpText.vue";
+import SwitchToHistoryLink from "@/components/History/SwitchToHistoryLink.vue";
 import SharingIndicators from "@/components/Indices/SharingIndicators.vue";
 import LoadingSpan from "@/components/LoadingSpan.vue";
 import StatelessTags from "@/components/TagsMultiselect/StatelessTags.vue";

@@ -11,10 +11,10 @@ import { useUserStore } from "@/stores/userStore";
 
 import type { TrsSelection, TrsTool as TrsToolInterface } from "./types";
 
+import TrsServerSelection from "./TrsServerSelection.vue";
+import TrsTool from "./TrsTool.vue";
+import TrsUrlImport from "./TrsUrlImport.vue";
 import LoadingSpan from "@/components/LoadingSpan.vue";
-import TrsServerSelection from "@/components/Workflow/Import/TrsServerSelection.vue";
-import TrsTool from "@/components/Workflow/Import/TrsTool.vue";
-import TrsUrlImport from "@/components/Workflow/Import/TrsUrlImport.vue";
 
 interface Props {
     isRun?: boolean;

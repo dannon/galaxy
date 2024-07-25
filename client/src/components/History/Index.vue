@@ -6,9 +6,9 @@ import type { CollectionEntry } from "@/api";
 import { useHistoryStore } from "@/stores/historyStore";
 import { useUserStore } from "@/stores/userStore";
 
-import CurrentCollection from "@/components/History/CurrentCollection/CollectionPanel.vue";
-import HistoryNavigation from "@/components/History/CurrentHistory/HistoryNavigation.vue";
-import HistoryPanel from "@/components/History/CurrentHistory/HistoryPanel.vue";
+import CurrentCollection from "./CurrentCollection/CollectionPanel.vue";
+import HistoryNavigation from "./CurrentHistory/HistoryNavigation.vue";
+import HistoryPanel from "./CurrentHistory/HistoryPanel.vue";
 
 const userStore = useUserStore();
 const historyStore = useHistoryStore();

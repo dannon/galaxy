@@ -10,7 +10,8 @@
 import { make_popup_menus } from "ui/popupmenu";
 import { monitorInit } from "utils/installMonitor";
 
-import { prependInitialization } from "../initQueue";
+import { prependInitialization } from "@/onload/initQueue";
+
 // specific initialization functions
 import { addIframeClass, adjustIframeLinks } from "./iframesAreTerrible";
 import { init_refresh_on_change } from "./init_refresh_on_change";

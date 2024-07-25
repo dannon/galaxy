@@ -3,13 +3,9 @@ import { computed, ref } from "vue";
 
 import { type AnonymousUser, type User } from "@/api";
 import { useUserLocalStorage } from "@/composables/userLocalStorage";
-import { useHistoryStore } from "@/stores/historyStore";
-import {
-    addFavoriteToolQuery,
-    getCurrentUser,
-    removeFavoriteToolQuery,
-    setCurrentThemeQuery,
-} from "@/stores/users/queries";
+
+import { useHistoryStore } from "./historyStore";
+import { addFavoriteToolQuery, getCurrentUser, removeFavoriteToolQuery, setCurrentThemeQuery } from "./users/queries";
 
 interface Preferences {
     theme: string;

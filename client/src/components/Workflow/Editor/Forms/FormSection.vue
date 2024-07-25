@@ -29,7 +29,8 @@
 
 <script>
 import FormElement from "@/components/Form/FormElement";
-import FormOutput from "@/components/Workflow/Editor/Forms/FormOutput";
+
+import FormOutput from "./FormOutput";
 
 export default {
     components: {

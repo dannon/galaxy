@@ -12,7 +12,7 @@ import { bytesToString } from "@/utils/utils";
 import { type QuotaUsage } from "./Quota/model";
 import { fetch } from "./Quota/services";
 
-import QuotaUsageSummary from "@/components/User/DiskUsage/Quota/QuotaUsageSummary.vue";
+import QuotaUsageSummary from "./Quota/QuotaUsageSummary.vue";
 
 const { config, isConfigLoaded } = useConfig(true);
 const userStore = useUserStore();

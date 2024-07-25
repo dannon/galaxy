@@ -3,7 +3,8 @@ import { createPinia, setActivePinia } from "pinia";
 
 import { type DCESummary, type HDCASummary } from "@/api";
 import { mockFetcher } from "@/api/schema/__mocks__";
-import { type DCEEntry, useCollectionElementsStore } from "@/stores/collectionElementsStore";
+
+import { type DCEEntry, useCollectionElementsStore } from "./collectionElementsStore";
 
 jest.mock("@/api/schema");
 

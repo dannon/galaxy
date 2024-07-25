@@ -6,8 +6,8 @@ import { mockFetcher } from "@/api/schema/__mocks__";
 
 import ShowSelectedObjectStore from "./ShowSelectedObjectStore";
 
+import DescribeObjectStore from "./DescribeObjectStore.vue";
 import LoadingSpan from "@/components/LoadingSpan.vue";
-import DescribeObjectStore from "@/components/ObjectStore/DescribeObjectStore.vue";
 
 jest.mock("@/api/schema");
 

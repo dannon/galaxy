@@ -2,12 +2,12 @@
 import { BButton, BCard, BCollapse, BNav, BNavItem } from "bootstrap-vue";
 import { onMounted, onUpdated, ref } from "vue";
 
-import { getCitations } from "@/components/Citation/services";
 import { useConfig } from "@/composables/config";
 
 import { type Citation } from ".";
+import { getCitations } from "./services";
 
-import CitationItem from "@/components/Citation/CitationItem.vue";
+import CitationItem from "./CitationItem.vue";
 
 const outputFormats = Object.freeze({
     CITATION: "bibliography",

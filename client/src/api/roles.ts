@@ -1,4 +1,4 @@
-import { fetcher } from "@/api/schema";
+import { fetcher } from "./schema";
 
 const getRoles = fetcher.path("/api/roles").method("get").create();
 export async function getAllRoles() {

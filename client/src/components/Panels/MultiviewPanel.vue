@@ -15,9 +15,9 @@ import { localize } from "@/utils/localization";
 import { withPrefix } from "@/utils/redirect";
 import { errorMessageAsString } from "@/utils/simple-error";
 
+import ActivityPanel from "./ActivityPanel.vue";
 import FilterMenu from "@/components/Common/FilterMenu.vue";
 import HistoryList from "@/components/History/HistoryScrollList.vue";
-import ActivityPanel from "@/components/Panels/ActivityPanel.vue";
 
 const route = useRoute();
 const router = useRouter();

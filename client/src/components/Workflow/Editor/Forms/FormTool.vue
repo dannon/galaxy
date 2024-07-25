@@ -59,11 +59,10 @@ import { storeToRefs } from "pinia";
 import Utils from "utils/utils";
 import { ref, toRef, watch } from "vue";
 
+import { useStepProps } from "@/components/Workflow/Editor/composables/useStepProps";
+import { useUniqueLabelError } from "@/components/Workflow/Editor/composables/useUniqueLabelError";
 import { useWorkflowStores } from "@/composables/workflowStores";
 import { useRefreshFromStore } from "@/stores/refreshFromStore";
-
-import { useStepProps } from "../composables/useStepProps";
-import { useUniqueLabelError } from "../composables/useUniqueLabelError";
 
 import FormConditional from "./FormConditional.vue";
 import FormSection from "./FormSection.vue";

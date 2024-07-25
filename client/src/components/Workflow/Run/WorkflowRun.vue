@@ -15,10 +15,10 @@ import { errorMessageAsString } from "@/utils/simple-error";
 import { WorkflowRunModel } from "./model";
 import { getRunData } from "./services";
 
+import WorkflowRunForm from "./WorkflowRunForm.vue";
+import WorkflowRunFormSimple from "./WorkflowRunFormSimple.vue";
+import WorkflowRunSuccess from "./WorkflowRunSuccess.vue";
 import LoadingSpan from "@/components/LoadingSpan.vue";
-import WorkflowRunForm from "@/components/Workflow/Run/WorkflowRunForm.vue";
-import WorkflowRunFormSimple from "@/components/Workflow/Run/WorkflowRunFormSimple.vue";
-import WorkflowRunSuccess from "@/components/Workflow/Run/WorkflowRunSuccess.vue";
 
 const historyStore = useHistoryStore();
 const historyItemsStore = useHistoryItemsStore();

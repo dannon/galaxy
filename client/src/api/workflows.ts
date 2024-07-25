@@ -1,4 +1,4 @@
-import { type components, fetcher } from "@/api/schema";
+import { type components, fetcher } from "./schema";
 
 export type StoredWorkflowDetailed = components["schemas"]["StoredWorkflowDetailed"];
 

@@ -6,8 +6,9 @@ import { setActivePinia } from "pinia";
 import type Vue from "vue";
 
 import { type UserNotification } from "@/api/notifications";
-import { generateMessageNotification, generateNewSharedItemNotification } from "@/components/Notifications/test-utils";
 import { useNotificationsStore } from "@/stores/notificationsStore";
+
+import { generateMessageNotification, generateNewSharedItemNotification } from "./test-utils";
 
 import NotificationActions from "./NotificationActions.vue";
 

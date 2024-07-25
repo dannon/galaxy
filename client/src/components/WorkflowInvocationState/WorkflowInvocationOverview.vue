@@ -15,12 +15,12 @@ import {
     runningCount as jobStatesSummaryRunningCount,
 } from "./util";
 
-import ExternalLink from "../ExternalLink.vue";
-import HelpText from "../Help/HelpText.vue";
-import InvocationGraph from "../Workflow/Invocation/Graph/InvocationGraph.vue";
+import InvocationMessage from "./InvocationMessage.vue";
+import ExternalLink from "@/components/ExternalLink.vue";
+import HelpText from "@/components/Help/HelpText.vue";
 import LoadingSpan from "@/components/LoadingSpan.vue";
 import ProgressBar from "@/components/ProgressBar.vue";
-import InvocationMessage from "@/components/WorkflowInvocationState/InvocationMessage.vue";
+import InvocationGraph from "@/components/Workflow/Invocation/Graph/InvocationGraph.vue";
 
 function getUrl(path: string): string {
     return getRootFromIndexLink() + path;

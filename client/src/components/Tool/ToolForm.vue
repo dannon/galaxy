@@ -123,11 +123,11 @@ import { useJobStore } from "stores/jobStore";
 import { refreshContentsWrapper } from "utils/data";
 
 import { canMutateHistory } from "@/api";
+import ToolRecommendation from "@/components/ToolRecommendation";
 import { useConfigStore } from "@/stores/configurationStore";
 import { useHistoryStore } from "@/stores/historyStore";
 import { useUserStore } from "@/stores/userStore";
 
-import ToolRecommendation from "../ToolRecommendation";
 import { getToolFormData, submitJob, updateToolFormData } from "./services";
 import ToolCard from "./ToolCard";
 import { allowCachedJobs } from "./utilities";

@@ -13,9 +13,9 @@ import { withPrefix } from "@/utils/redirect";
 
 import type { TrsSelection } from "./types";
 
+import TrsServerSelection from "./TrsServerSelection.vue";
+import TrsTool from "./TrsTool.vue";
 import LoadingSpan from "@/components/LoadingSpan.vue";
-import TrsServerSelection from "@/components/Workflow/Import/TrsServerSelection.vue";
-import TrsTool from "@/components/Workflow/Import/TrsTool.vue";
 
 library.add(faQuestion, faTimes);
 

@@ -1,6 +1,5 @@
 import { type BrowsableFilesSourcePlugin } from "@/api/remoteFiles";
-
-import { type SelectionItem } from "../SelectionDialog/selectionTypes";
+import { type SelectionItem } from "@/components/SelectionDialog/selectionTypes";
 
 export const isSubPath = (originPath: string, destinationPath: string) => {
     return subPathCondition(ensureTrailingSlash(originPath), ensureTrailingSlash(destinationPath));

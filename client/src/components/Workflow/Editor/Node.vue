@@ -155,7 +155,6 @@ import Vue, { computed, reactive, ref } from "vue";
 
 import { getGalaxyInstance } from "@/app";
 import { DatatypesMapperModel } from "@/components/Datatypes/model";
-import { useNodePosition } from "@/components/Workflow/Editor/composables/useNodePosition";
 import WorkflowIcons from "@/components/Workflow/icons";
 import type { GraphStep } from "@/composables/useInvocationGraph";
 import { useWorkflowStores } from "@/composables/workflowStores";
@@ -163,14 +162,15 @@ import type { TerminalPosition, XYPosition } from "@/stores/workflowEditorStateS
 import type { Step } from "@/stores/workflowStepStore";
 
 import { ToggleStepSelectedAction } from "./Actions/stepActions";
+import { useNodePosition } from "./composables/useNodePosition";
 import type { OutputTerminals } from "./modules/terminals";
 
+import DraggableWrapper from "./DraggablePan.vue";
+import NodeInput from "./NodeInput.vue";
+import NodeInvocationText from "./NodeInvocationText.vue";
+import NodeOutput from "./NodeOutput.vue";
+import Recommendations from "./Recommendations.vue";
 import LoadingSpan from "@/components/LoadingSpan.vue";
-import DraggableWrapper from "@/components/Workflow/Editor/DraggablePan.vue";
-import NodeInput from "@/components/Workflow/Editor/NodeInput.vue";
-import NodeInvocationText from "@/components/Workflow/Editor/NodeInvocationText.vue";
-import NodeOutput from "@/components/Workflow/Editor/NodeOutput.vue";
-import Recommendations from "@/components/Workflow/Editor/Recommendations.vue";
 
 Vue.use(BootstrapVue);
 

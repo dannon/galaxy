@@ -10,11 +10,11 @@ import localize from "@/utils/localization";
 
 import { types_to_icons } from "./utilities";
 
-import LoadingSpan from "../LoadingSpan.vue";
 import FavoritesButton from "./Buttons/FavoritesButton.vue";
 import PanelViewMenu from "./Menus/PanelViewMenu.vue";
 import ToolBox from "./ToolBox.vue";
 import Heading from "@/components/Common/Heading.vue";
+import LoadingSpan from "@/components/LoadingSpan.vue";
 
 library.add(faCaretDown);
 

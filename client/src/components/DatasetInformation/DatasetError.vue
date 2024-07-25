@@ -20,7 +20,7 @@ import { useMarkdown } from "@/composables/markdown";
 import { useUserStore } from "@/stores/userStore";
 import localize from "@/utils/localization";
 
-import DatasetErrorDetails from "@/components/DatasetInformation/DatasetErrorDetails.vue";
+import DatasetErrorDetails from "./DatasetErrorDetails.vue";
 import FormElement from "@/components/Form/FormElement.vue";
 
 library.add(faBug);

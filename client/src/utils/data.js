@@ -7,8 +7,8 @@ import { getAppRoot } from "onload/loadConfig";
 import { startWatchingHistory } from "store/historyStore/model/watchHistory";
 import Vue from "vue";
 
-import { uploadPayload } from "@/utils/upload-payload.js";
-import { uploadSubmit } from "@/utils/upload-submit.js";
+import { uploadPayload } from "./upload-payload.js";
+import { uploadSubmit } from "./upload-submit.js";
 
 import DataDialog from "components/DataDialog/DataDialog.vue";
 import DatasetCollectionDialog from "components/SelectionDialog/DatasetCollectionDialog.vue";

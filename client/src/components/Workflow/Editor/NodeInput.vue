@@ -18,18 +18,18 @@ import {
 } from "vue";
 
 import { DatatypesMapperModel } from "@/components/Datatypes/model";
-import {
-    ConnectionAcceptable,
-    type InputTerminals,
-    type OutputCollectionTerminal,
-    terminalFactory,
-} from "@/components/Workflow/Editor/modules/terminals";
 import { useWorkflowStores } from "@/composables/workflowStores";
 import { getConnectionId } from "@/stores/workflowConnectionStore";
 import type { InputTerminalSource } from "@/stores/workflowStepStore";
 
 import { useRelativePosition } from "./composables/relativePosition";
 import { useTerminal } from "./composables/useTerminal";
+import {
+    ConnectionAcceptable,
+    type InputTerminals,
+    type OutputCollectionTerminal,
+    terminalFactory,
+} from "./modules/terminals";
 
 library.add(faChevronCircleRight, faMinusSquare);
 

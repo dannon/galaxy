@@ -15,13 +15,13 @@ import localize from "@/utils/localization";
 import { cancelWorkflowScheduling } from "./services";
 import { isTerminal, jobCount, runningCount } from "./util";
 
-import Heading from "../Common/Heading.vue";
-import SwitchToHistoryLink from "../History/SwitchToHistoryLink.vue";
-import UtcDate from "../UtcDate.vue";
 import WorkflowInvocationExportOptions from "./WorkflowInvocationExportOptions.vue";
 import WorkflowInvocationInputOutputTabs from "./WorkflowInvocationInputOutputTabs.vue";
 import WorkflowInvocationOverview from "./WorkflowInvocationOverview.vue";
+import Heading from "@/components/Common/Heading.vue";
+import SwitchToHistoryLink from "@/components/History/SwitchToHistoryLink.vue";
 import LoadingSpan from "@/components/LoadingSpan.vue";
+import UtcDate from "@/components/UtcDate.vue";
 import InvocationReport from "@/components/Workflow/InvocationReport.vue";
 import WorkflowInvocationsCount from "@/components/Workflow/WorkflowInvocationsCount.vue";
 import WorkflowRunButton from "@/components/Workflow/WorkflowRunButton.vue";

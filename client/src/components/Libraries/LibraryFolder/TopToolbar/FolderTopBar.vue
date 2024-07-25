@@ -127,8 +127,9 @@ import { getAppRoot } from "onload/loadConfig";
 import mod_utils from "utils/utils";
 import Vue from "vue";
 
-import SearchField from "../SearchField";
-import { Services } from "../services";
+import SearchField from "@/components/Libraries/LibraryFolder/SearchField";
+import { Services } from "@/components/Libraries/LibraryFolder/services";
+
 import mod_add_datasets from "./add-datasets";
 import { deleteSelectedItems } from "./delete-selected";
 import download from "./download";

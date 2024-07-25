@@ -12,6 +12,9 @@ import { historyFetcher } from "@/api/histories";
 import { archiveHistory, unarchiveHistory } from "@/api/histories.archived";
 import { HistoryFilters } from "@/components/History/HistoryFilters";
 import { useUserLocalStorage } from "@/composables/userLocalStorage";
+import { rethrowSimple } from "@/utils/simple-error";
+import { sortByObjectProp } from "@/utils/sorting";
+
 import {
     cloneHistory,
     createAndSelectNewHistory,
@@ -23,9 +26,7 @@ import {
     secureHistoryOnServer,
     setCurrentHistoryOnServer,
     updateHistoryFields,
-} from "@/stores/services/history.services";
-import { rethrowSimple } from "@/utils/simple-error";
-import { sortByObjectProp } from "@/utils/sorting";
+} from "./services/history.services";
 
 const PAGINATION_LIMIT = 10;
 const isLoadingHistory = new Set();

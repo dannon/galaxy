@@ -20,7 +20,7 @@ import localize from "@/utils/localization";
 import { withPrefix } from "@/utils/redirect";
 import { errorMessageAsString } from "@/utils/simple-error";
 
-import NewUserConfirmation from "@/components/Login/NewUserConfirmation.vue";
+import NewUserConfirmation from "./NewUserConfirmation.vue";
 import ExternalLogin from "@/components/User/ExternalIdentities/ExternalLogin.vue";
 
 interface Props {

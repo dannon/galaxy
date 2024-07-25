@@ -1,8 +1,8 @@
 /**
  * List of built-in activities
  */
-import { type Activity } from "@/stores/activityStore";
-import { type EventData } from "@/stores/eventStore";
+import { type Activity } from "./activityStore";
+import { type EventData } from "./eventStore";
 
 export const Activities = [
     {

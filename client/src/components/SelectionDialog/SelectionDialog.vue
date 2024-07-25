@@ -6,11 +6,9 @@ import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import { BAlert, BButton, BLink, BModal, BPagination, BSpinner, BTable } from "bootstrap-vue";
 import { computed, ref, watch } from "vue";
 
-import { type ItemsProvider, SELECTION_STATES } from "@/components/SelectionDialog/selectionTypes";
+import { type FieldEntry, type ItemsProvider, SELECTION_STATES, type SelectionItem } from "./selectionTypes";
 
-import { type FieldEntry, type SelectionItem } from "./selectionTypes";
-
-import DataDialogSearch from "@/components/SelectionDialog/DataDialogSearch.vue";
+import DataDialogSearch from "./DataDialogSearch.vue";
 import StatelessTags from "@/components/TagsMultiselect/StatelessTags.vue";
 
 library.add(faCaretLeft, faCheck, faCheckSquare, faFolder, faMinusSquare, faSpinner, faSquare, faTimes);

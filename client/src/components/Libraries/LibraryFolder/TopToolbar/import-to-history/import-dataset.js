@@ -6,8 +6,8 @@ import { getAppRoot } from "onload/loadConfig";
 import _ from "underscore";
 import _l from "utils/localization";
 
-import { updateProgress } from "../delete-selected";
-import mod_library_model from "../library-model";
+import { updateProgress } from "@/components/Libraries/LibraryFolder/TopToolbar/delete-selected";
+import mod_library_model from "@/components/Libraries/LibraryFolder/TopToolbar/library-model";
 
 var ImportDatasetModal = Backbone.View.extend({
     options: null,

@@ -66,19 +66,18 @@ import { storeToRefs } from "pinia";
 import { computed, ref, toRef, watch } from "vue";
 
 import type { DatatypesMapperModel } from "@/components/Datatypes/model";
+import { useStepProps } from "@/components/Workflow/Editor/composables/useStepProps";
+import { useUniqueLabelError } from "@/components/Workflow/Editor/composables/useUniqueLabelError";
 import WorkflowIcons from "@/components/Workflow/icons";
 import { useWorkflowStores } from "@/composables/workflowStores";
 import { useRefreshFromStore } from "@/stores/refreshFromStore";
 import type { Step } from "@/stores/workflowStepStore";
 
-import { useStepProps } from "../composables/useStepProps";
-import { useUniqueLabelError } from "../composables/useUniqueLabelError";
-
 import FormConditional from "./FormConditional.vue";
+import FormOutputLabel from "./FormOutputLabel.vue";
 import FormCard from "@/components/Form/FormCard.vue";
 import FormDisplay from "@/components/Form/FormDisplay.vue";
 import FormElement from "@/components/Form/FormElement.vue";
-import FormOutputLabel from "@/components/Workflow/Editor/Forms/FormOutputLabel.vue";
 
 const props = defineProps<{
     step: Step;

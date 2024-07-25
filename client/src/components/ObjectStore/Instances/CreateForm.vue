@@ -8,11 +8,11 @@ import {
     type FormEntry,
     pluginStatusToErrorMessage,
 } from "@/components/ConfigTemplates/formUtil";
-import type { UserConcreteObjectStore } from "@/components/ObjectStore/Instances/types";
 import type { ObjectStoreTemplateSummary } from "@/components/ObjectStore/Templates/types";
 import { errorMessageAsString } from "@/utils/simple-error";
 
 import { create, test } from "./services";
+import type { UserConcreteObjectStore } from "./types";
 
 import InstanceForm from "@/components/ConfigTemplates/InstanceForm.vue";
 

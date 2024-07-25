@@ -3,14 +3,15 @@ import { library } from "@fortawesome/fontawesome-svg-core";
 import { faPlus } from "@fortawesome/free-solid-svg-icons";
 import { BNav, BNavItem } from "bootstrap-vue";
 
-import historiesGridConfig from "@/components/Grid/configs/histories";
-import historiesPublishedGridConfig from "@/components/Grid/configs/historiesPublished";
-import historiesSharedGridConfig from "@/components/Grid/configs/historiesShared";
 import { useUserStore } from "@/stores/userStore";
 
+import historiesGridConfig from "./configs/histories";
+import historiesPublishedGridConfig from "./configs/historiesPublished";
+import historiesSharedGridConfig from "./configs/historiesShared";
+
+import GridList from "./GridList.vue";
 import Heading from "@/components/Common/Heading.vue";
 import LoginRequired from "@/components/Common/LoginRequired.vue";
-import GridList from "@/components/Grid/GridList.vue";
 import HistoryArchive from "@/components/History/Archiving/HistoryArchive.vue";
 
 const userStore = useUserStore();

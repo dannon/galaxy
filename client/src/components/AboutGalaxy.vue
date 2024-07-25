@@ -8,10 +8,10 @@ import { RouterLink } from "vue-router";
 import { useConfig } from "@/composables/config";
 import { getAppRoot } from "@/onload/loadConfig";
 
-import Heading from "@/components/Common/Heading.vue";
-import ExternalLink from "@/components/ExternalLink.vue";
-import License from "@/components/License/License.vue";
-import UtcDate from "@/components/UtcDate.vue";
+import Heading from "./Common/Heading.vue";
+import ExternalLink from "./ExternalLink.vue";
+import License from "./License/License.vue";
+import UtcDate from "./UtcDate.vue";
 
 const { config, isConfigLoaded } = useConfig();
 

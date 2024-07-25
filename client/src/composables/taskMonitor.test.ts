@@ -1,7 +1,8 @@
 import flushPromises from "flush-promises";
 
 import { mockFetcher } from "@/api/schema/__mocks__";
-import { useTaskMonitor } from "@/composables/taskMonitor";
+
+import { useTaskMonitor } from "./taskMonitor";
 
 jest.mock("@/api/schema");
 

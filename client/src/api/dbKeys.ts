@@ -3,6 +3,6 @@
  * but now it is used to get the list of more generic "dbkeys".
  */
 
-import { fetcher } from "@/api/schema";
+import { fetcher } from "./schema";
 
 export const dbKeysFetcher = fetcher.path("/api/genomes").method("get").create();

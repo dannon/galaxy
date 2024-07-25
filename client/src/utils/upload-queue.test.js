@@ -1,6 +1,5 @@
-import { sendPayload } from "@/utils/upload-submit.js";
-
 import { UploadQueue } from "./upload-queue.js";
+import { sendPayload } from "./upload-submit.js";
 
 jest.mock("@/utils/upload-submit.js");
 sendPayload.mockImplementation(() => jest.fn());

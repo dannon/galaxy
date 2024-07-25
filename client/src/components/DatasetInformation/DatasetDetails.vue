@@ -11,8 +11,8 @@ import { useConfig } from "@/composables/config";
 import { useUserStore } from "@/stores/userStore";
 import { stateIsTerminal } from "@/utils/utils";
 
+import DatasetInformation from "./DatasetInformation.vue";
 import DatasetStorage from "@/components/Dataset/DatasetStorage/DatasetStorage.vue";
-import DatasetInformation from "@/components/DatasetInformation/DatasetInformation.vue";
 import InheritanceChain from "@/components/InheritanceChain//InheritanceChain.vue";
 import JobDependencies from "@/components/JobDependencies/JobDependencies.vue";
 import JobDestinationParams from "@/components/JobDestinationParams/JobDestinationParams.vue";

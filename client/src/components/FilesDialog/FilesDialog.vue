@@ -10,7 +10,6 @@ import {
     type RemoteEntry,
 } from "@/api/remoteFiles";
 import { UrlTracker } from "@/components/DataDialog/utilities";
-import { fileSourcePluginToItem, isSubPath } from "@/components/FilesDialog/utilities";
 import {
     type ItemsProvider,
     type ItemsProviderContext,
@@ -22,6 +21,7 @@ import { useFileSources } from "@/composables/fileSources";
 import { errorMessageAsString } from "@/utils/simple-error";
 
 import { Model } from "./model";
+import { fileSourcePluginToItem, isSubPath } from "./utilities";
 
 import SelectionDialog from "@/components/SelectionDialog/SelectionDialog.vue";
 

@@ -3,7 +3,7 @@
  * It allows to select individual items or perform a query selection.
  */
 
-import { HistoryFilters } from "../HistoryFilters";
+import { HistoryFilters } from "@/components/History/HistoryFilters";
 
 export default {
     props: {

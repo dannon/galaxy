@@ -3,13 +3,14 @@ import { library } from "@fortawesome/fontawesome-svg-core";
 import { faPlus } from "@fortawesome/free-solid-svg-icons";
 import { BNav, BNavItem } from "bootstrap-vue";
 
-import pagesGridConfig from "@/components/Grid/configs/pages";
-import pagesPublishedGridConfig from "@/components/Grid/configs/pagesPublished";
 import { useUserStore } from "@/stores/userStore";
 
+import pagesGridConfig from "./configs/pages";
+import pagesPublishedGridConfig from "./configs/pagesPublished";
+
+import GridList from "./GridList.vue";
 import Heading from "@/components/Common/Heading.vue";
 import LoginRequired from "@/components/Common/LoginRequired.vue";
-import GridList from "@/components/Grid/GridList.vue";
 
 const userStore = useUserStore();
 

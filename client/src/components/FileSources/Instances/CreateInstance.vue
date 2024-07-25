@@ -6,7 +6,7 @@ import { useFileSourceTemplatesStore } from "@/stores/fileSourceTemplatesStore";
 
 import { useInstanceRouting } from "./routing";
 
-import CreateForm from "@/components/FileSources/Instances/CreateForm.vue";
+import CreateForm from "./CreateForm.vue";
 import LoadingSpan from "@/components/LoadingSpan.vue";
 
 interface Props {

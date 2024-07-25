@@ -10,13 +10,13 @@ import { copyWorkflow, updateWorkflow } from "@/components/Workflow/workflows.se
 import { Toast } from "@/composables/toast";
 import { useUserStore } from "@/stores/userStore";
 
+import WorkflowActions from "./WorkflowActions.vue";
+import WorkflowActionsExtend from "./WorkflowActionsExtend.vue";
+import WorkflowIndicators from "./WorkflowIndicators.vue";
+import WorkflowRename from "./WorkflowRename.vue";
 import AsyncButton from "@/components/Common/AsyncButton.vue";
 import TextSummary from "@/components/Common/TextSummary.vue";
 import StatelessTags from "@/components/TagsMultiselect/StatelessTags.vue";
-import WorkflowActions from "@/components/Workflow/List/WorkflowActions.vue";
-import WorkflowActionsExtend from "@/components/Workflow/List/WorkflowActionsExtend.vue";
-import WorkflowIndicators from "@/components/Workflow/List/WorkflowIndicators.vue";
-import WorkflowRename from "@/components/Workflow/List/WorkflowRename.vue";
 import WorkflowPublished from "@/components/Workflow/Published/WorkflowPublished.vue";
 import WorkflowInvocationsCount from "@/components/Workflow/WorkflowInvocationsCount.vue";
 import WorkflowRunButton from "@/components/Workflow/WorkflowRunButton.vue";

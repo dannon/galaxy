@@ -6,9 +6,9 @@ import { ref } from "vue";
 
 import { useActivityStore } from "@/stores/activityStore";
 
+import ActivityPanel from "./ActivityPanel.vue";
 import ActivitySettings from "@/components/ActivityBar/ActivitySettings.vue";
 import DelayedInput from "@/components/Common/DelayedInput.vue";
-import ActivityPanel from "@/components/Panels/ActivityPanel.vue";
 
 const activityStore = useActivityStore();
 

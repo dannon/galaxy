@@ -9,9 +9,9 @@ import { computed } from "vue";
 import { useConfirmDialog } from "@/composables/confirmDialog";
 import { useNotificationsStore } from "@/stores/notificationsStore";
 
+import ActivityPanel from "./ActivityPanel.vue";
 import LoadingSpan from "@/components/LoadingSpan.vue";
 import NotificationCard from "@/components/Notifications/NotificationCard.vue";
-import ActivityPanel from "@/components/Panels/ActivityPanel.vue";
 
 library.add(faCheckDouble);
 

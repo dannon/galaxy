@@ -5,7 +5,7 @@ import { useRouter } from "vue-router/composables";
 
 import { useConfig } from "@/composables/config";
 
-import BroadcastsList from "@/components/admin/Notifications/BroadcastsList.vue";
+import BroadcastsList from "./BroadcastsList.vue";
 import Heading from "@/components/Common/Heading.vue";
 
 const router = useRouter();

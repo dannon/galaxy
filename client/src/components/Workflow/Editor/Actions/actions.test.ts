@@ -1,12 +1,12 @@
 import { createPinia, setActivePinia } from "pinia";
 
+import { fromSimple, type Workflow } from "@/components/Workflow/Editor/modules/model";
 import { LazyUndoRedoAction, type UndoRedoAction, useUndoRedoStore } from "@/stores/undoRedoStore";
 import { useConnectionStore } from "@/stores/workflowConnectionStore";
 import { useWorkflowCommentStore } from "@/stores/workflowEditorCommentStore";
 import { useWorkflowStateStore } from "@/stores/workflowEditorStateStore";
 import { useWorkflowStepStore } from "@/stores/workflowStepStore";
 
-import { fromSimple, type Workflow } from "../modules/model";
 import {
     AddCommentAction,
     ChangeColorAction,

@@ -2,10 +2,10 @@
 import { curveCatmullRom, curveLinear, line } from "d3";
 import { computed } from "vue";
 
+import { vecSubtract } from "@/components/Workflow/Editor/modules/geometry";
 import { useWorkflowStores } from "@/composables/workflowStores";
 import type { FreehandWorkflowComment } from "@/stores/workflowEditorCommentStore";
 
-import { vecSubtract } from "../modules/geometry";
 import { colors } from "./colors";
 
 const props = defineProps<{

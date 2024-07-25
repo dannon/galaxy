@@ -1,9 +1,8 @@
 import { useEventListener } from "@vueuse/core";
 import { type Ref, watch } from "vue";
 
+import { vecSnap } from "@/components/Workflow/Editor/modules/geometry";
 import { useWorkflowStores } from "@/composables/workflowStores";
-
-import { vecSnap } from "../modules/geometry";
 
 /**
  * Common functionality required for handling a user resizable element.

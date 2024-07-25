@@ -16,8 +16,8 @@ import { useHistoryStore } from "@/stores/historyStore";
 import localize from "@/utils/localization";
 import { errorMessageAsString } from "@/utils/simple-error";
 
-import HistoryDropZone from "../CurrentHistory/HistoryDropZone.vue";
 import MultipleViewItem from "./MultipleViewItem.vue";
+import HistoryDropZone from "@/components/History/CurrentHistory/HistoryDropZone.vue";
 
 library.add(faCheckSquare, faPlus);
 

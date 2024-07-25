@@ -7,11 +7,12 @@ import { BAlert, BButton, BTab, BTabs } from "bootstrap-vue";
 import { onMounted, ref } from "vue";
 
 import { fetchDatasetAttributes } from "@/api/datasets";
-import { setAttributes } from "@/components/DatasetInformation/services";
 import { useHistoryStore } from "@/stores/historyStore";
 import localize from "@/utils/localization";
 
-import Heading from "../Common/Heading.vue";
+import { setAttributes } from "./services";
+
+import Heading from "@/components/Common/Heading.vue";
 import FormDisplay from "@/components/Form/FormDisplay.vue";
 import LoadingSpan from "@/components/LoadingSpan.vue";
 

@@ -32,8 +32,8 @@
 import BootstrapVue from "bootstrap-vue";
 import Vue from "vue";
 
-import InstallationActions from "../RepositoryDetails/InstallationActions";
-import { Services } from "../services";
+import InstallationActions from "@/components/Toolshed/RepositoryDetails/InstallationActions";
+import { Services } from "@/components/Toolshed/services";
 
 Vue.use(BootstrapVue);
 

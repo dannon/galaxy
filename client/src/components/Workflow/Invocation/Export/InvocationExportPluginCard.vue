@@ -14,9 +14,9 @@ import { Toast } from "@/composables/toast";
 import { type InvocationExportPlugin } from "./model";
 
 import ActionButton from "./ActionButton.vue";
+import ExportButton from "./ExportButton.vue";
+import ExportToRemoteModal from "./ExportToRemoteModal.vue";
 import PersistentTaskProgressMonitorAlert from "@/components/Common/PersistentTaskProgressMonitorAlert.vue";
-import ExportButton from "@/components/Workflow/Invocation/Export/ExportButton.vue";
-import ExportToRemoteModal from "@/components/Workflow/Invocation/Export/ExportToRemoteModal.vue";
 
 library.add(faCloudUploadAlt, faDownload);
 

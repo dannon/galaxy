@@ -1,11 +1,11 @@
 import { ref } from "vue";
 
-import { type TaskMonitor } from "@/composables/genericTaskMonitor";
+import { type TaskMonitor } from "./genericTaskMonitor";
 import {
     type MonitoringData,
     type MonitoringRequest,
     usePersistentProgressTaskMonitor,
-} from "@/composables/persistentProgressMonitor";
+} from "./persistentProgressMonitor";
 
 // Mocks for dependencies
 jest.mock("@vueuse/core", () => ({

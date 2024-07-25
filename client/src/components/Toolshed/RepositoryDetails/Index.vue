@@ -65,9 +65,8 @@ import { mapActions, mapState } from "pinia";
 import { useToolStore } from "stores/toolStore";
 import Vue from "vue";
 
+import { Services } from "@/components/Toolshed/services";
 import { useConfig } from "@/composables/config";
-
-import { Services } from "../services";
 
 import InstallationActions from "./InstallationActions.vue";
 import InstallationSettings from "./InstallationSettings.vue";

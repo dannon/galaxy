@@ -3,8 +3,8 @@ import { onMounted, ref } from "vue";
 
 import { historyFetcher } from "@/api/histories";
 
+import HistoryView from "./HistoryView.vue";
 import PublishedItem from "@/components/Common/PublishedItem.vue";
-import HistoryView from "@/components/History/HistoryView.vue";
 
 interface Props {
     id: string;

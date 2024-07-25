@@ -18,8 +18,8 @@ import localize from "@/utils/localization";
 
 import { HistoriesFilters } from "./HistoriesFilters";
 
-import TextSummary from "../Common/TextSummary.vue";
 import Heading from "@/components/Common/Heading.vue";
+import TextSummary from "@/components/Common/TextSummary.vue";
 import StatelessTags from "@/components/TagsMultiselect/StatelessTags.vue";
 import ScrollToTopButton from "@/components/ToolsList/ScrollToTopButton.vue";
 import UtcDate from "@/components/UtcDate.vue";

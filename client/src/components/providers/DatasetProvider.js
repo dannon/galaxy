@@ -1,6 +1,6 @@
 import { fetchDatasetDetails } from "@/api/datasets";
-import { SingleQueryProvider } from "@/components/providers/SingleQueryProvider";
 
+import { SingleQueryProvider } from "./SingleQueryProvider";
 import { stateIsTerminal } from "./utils";
 
 export default SingleQueryProvider(fetchDatasetDetails, stateIsTerminal);

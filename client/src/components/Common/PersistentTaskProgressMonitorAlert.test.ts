@@ -8,7 +8,7 @@ import {
     usePersistentProgressTaskMonitor,
 } from "@/composables/persistentProgressMonitor";
 
-import PersistentTaskProgressMonitorAlert from "@/components/Common/PersistentTaskProgressMonitorAlert.vue";
+import PersistentTaskProgressMonitorAlert from "./PersistentTaskProgressMonitorAlert.vue";
 
 type ComponentUnderTestProps = Partial<PropType<typeof PersistentTaskProgressMonitorAlert>>;
 

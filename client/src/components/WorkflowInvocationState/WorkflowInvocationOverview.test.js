@@ -2,7 +2,8 @@ import { createTestingPinia } from "@pinia/testing";
 import { shallowMount } from "@vue/test-utils";
 import { getLocalVue } from "tests/jest/helpers";
 
-import invocationData from "../Workflow/test/json/invocation.json";
+import invocationData from "@/components/Workflow/test/json/invocation.json";
+
 import WorkflowInvocationOverview from "./WorkflowInvocationOverview";
 
 const localVue = getLocalVue();

@@ -1,4 +1,4 @@
-import { fetcher } from "@/api/schema";
+import { fetcher } from "./schema";
 
 export const datatypesFetcher = fetcher.path("/api/datatypes").method("get").create();
 

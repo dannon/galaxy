@@ -1,4 +1,4 @@
-import { runFilter } from "@/composables/filter/filterFunction";
+import { runFilter } from "./filterFunction";
 
 let array = [];
 let filter = "";

@@ -4,7 +4,7 @@
  *
  * Logic stolen from job-state-model.js and hdca-li.js
  */
-import { STATES } from "../model/states";
+import { STATES } from "@/components/History/Content/model/states";
 
 const NON_TERMINAL_STATES = ["new", "waiting", "queued", "running", "resubmitted", "upload"];
 const ERROR_STATES = ["error", "failed", "deleted"];

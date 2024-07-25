@@ -4,9 +4,8 @@ import MockAdapter from "axios-mock-adapter";
 import flushPromises from "flush-promises";
 import { getLocalVue } from "tests/jest/helpers";
 
+import { setupSelectableMock } from "@/components/ObjectStore/mockServices";
 import { ROOT_COMPONENT } from "@/utils/navigation";
-
-import { setupSelectableMock } from "../ObjectStore/mockServices";
 
 import UserPreferredObjectStore from "./UserPreferredObjectStore.vue";
 

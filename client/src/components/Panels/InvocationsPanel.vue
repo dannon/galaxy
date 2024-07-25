@@ -4,8 +4,8 @@ import { storeToRefs } from "pinia";
 
 import { useUserStore } from "@/stores/userStore";
 
-import InvocationScrollList from "../Workflow/Invocation/InvocationScrollList.vue";
 import ActivityPanel from "./ActivityPanel.vue";
+import InvocationScrollList from "@/components/Workflow/Invocation/InvocationScrollList.vue";
 
 const { currentUser, toggledSideBar } = storeToRefs(useUserStore());
 </script>

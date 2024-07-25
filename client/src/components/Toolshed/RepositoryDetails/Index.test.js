@@ -6,8 +6,8 @@ import { createPinia } from "pinia";
 import { getLocalVue } from "tests/jest/helpers";
 
 import { mockFetcher } from "@/api/schema/__mocks__";
+import { Services } from "@/components/Toolshed/services";
 
-import { Services } from "../services";
 import Index from "./Index";
 
 jest.mock("app");

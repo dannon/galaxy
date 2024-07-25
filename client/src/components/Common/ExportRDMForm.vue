@@ -8,11 +8,10 @@ import {
     createRemoteEntry,
     type FilterFileSourcesOptions,
 } from "@/api/remoteFiles";
+import { fileSourcePluginToItem } from "@/components/FilesDialog/utilities";
 import { useToast } from "@/composables/toast";
 import localize from "@/utils/localization";
 import { errorMessageAsString } from "@/utils/simple-error";
-
-import { fileSourcePluginToItem } from "../FilesDialog/utilities";
 
 import ExternalLink from "@/components/ExternalLink.vue";
 import FilesInput from "@/components/FilesDialog/FilesInput.vue";

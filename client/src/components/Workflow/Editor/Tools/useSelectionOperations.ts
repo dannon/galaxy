@@ -1,9 +1,8 @@
 import { computed, inject, type Ref, unref } from "vue";
 
+import { DeleteSelectionAction, DuplicateSelectionAction } from "@/components/Workflow/Editor/Actions/workflowActions";
+import { useMultiSelect } from "@/components/Workflow/Editor/composables/multiSelect";
 import { useWorkflowStores } from "@/composables/workflowStores";
-
-import { DeleteSelectionAction, DuplicateSelectionAction } from "../Actions/workflowActions";
-import { useMultiSelect } from "../composables/multiSelect";
 
 export function useSelectionOperations() {
     const { undoRedoStore } = useWorkflowStores();

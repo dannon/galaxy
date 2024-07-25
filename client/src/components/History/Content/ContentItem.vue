@@ -7,13 +7,13 @@ import { BBadge, BButton, BCollapse } from "bootstrap-vue";
 import { computed, ref } from "vue";
 import { useRoute, useRouter } from "vue-router/composables";
 
-import type { ItemUrls } from "@/components/History/Content/Dataset/index";
 import { updateContentFields } from "@/components/History/model/queries";
 import { useEntryPointStore } from "@/stores/entryPointStore";
 import { useEventStore } from "@/stores/eventStore";
 import { clearDrag } from "@/utils/setDrag";
 
 import { JobStateSummary } from "./Collection/JobStateSummary";
+import type { ItemUrls } from "./Dataset";
 import { HIERARCHICAL_COLLECTION_JOB_STATES, type StateMap, STATES } from "./model/states";
 
 import CollectionDescription from "./Collection/CollectionDescription.vue";

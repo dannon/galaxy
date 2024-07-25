@@ -8,8 +8,8 @@ import { copyDataset, getDatasets } from "@/api/datasets";
 import { updateTags } from "@/api/tags";
 import { useHistoryStore } from "@/stores/historyStore";
 
+import DatasetName from "./DatasetName.vue";
 import DelayedInput from "@/components/Common/DelayedInput.vue";
-import DatasetName from "@/components/Dataset/DatasetName.vue";
 import SwitchToHistoryLink from "@/components/History/SwitchToHistoryLink.vue";
 import LoadingSpan from "@/components/LoadingSpan.vue";
 import StatelessTags from "@/components/TagsMultiselect/StatelessTags.vue";

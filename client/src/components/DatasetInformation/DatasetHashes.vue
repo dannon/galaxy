@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { type DatasetHash as DatasetHashType } from "@/api";
 
-import DatasetHash from "@/components/DatasetInformation/DatasetHash.vue";
+import DatasetHash from "./DatasetHash.vue";
 
 interface Props {
     hashes: DatasetHashType[];

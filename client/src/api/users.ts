@@ -1,4 +1,4 @@
-import { fetcher } from "@/api/schema";
+import { fetcher } from "./schema";
 
 export const createApiKey = fetcher.path("/api/users/{user_id}/api_key").method("post").create();
 export const deleteUser = fetcher.path("/api/users/{user_id}").method("delete").create();

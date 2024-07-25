@@ -3,7 +3,7 @@ import Backbone from "backbone";
 import { getAppRoot } from "onload/loadConfig";
 import Utils from "utils/utils";
 
-import { rethrowSimple } from "@/utils/simple-error";
+import { rethrowSimple } from "./simple-error";
 
 let webhookData = undefined;
 

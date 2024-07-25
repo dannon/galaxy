@@ -1,6 +1,7 @@
 import { createLocalVue, mount } from "@vue/test-utils";
 
-import { Services } from "../services";
+import { Services } from "@/components/Toolshed/services";
+
 import Categories from "./Categories";
 
 jest.mock("../services");

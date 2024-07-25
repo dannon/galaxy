@@ -6,7 +6,7 @@
 </template>
 
 <script>
-import { types_to_icons } from "../utilities";
+import { types_to_icons } from "@/components/Panels/utilities";
 
 export default {
     props: {

@@ -2,17 +2,17 @@
 import { storeToRefs } from "pinia";
 import { computed } from "vue";
 
-import invocationsGridConfig from "@/components/Grid/configs/invocations";
-import invocationsHistoryGridConfig from "@/components/Grid/configs/invocationsHistory";
-import invocationsWorkflowGridConfig from "@/components/Grid/configs/invocationsWorkflow";
 import { useUserStore } from "@/stores/userStore";
 
+import invocationsGridConfig from "./configs/invocations";
+import invocationsHistoryGridConfig from "./configs/invocationsHistory";
+import invocationsWorkflowGridConfig from "./configs/invocationsWorkflow";
 import type { GridConfig } from "./configs/types";
 
-import Heading from "../Common/Heading.vue";
-import UtcDate from "../UtcDate.vue";
-import WorkflowInvocationState from "../WorkflowInvocationState/WorkflowInvocationState.vue";
-import GridList from "@/components/Grid/GridList.vue";
+import GridList from "./GridList.vue";
+import Heading from "@/components/Common/Heading.vue";
+import UtcDate from "@/components/UtcDate.vue";
+import WorkflowInvocationState from "@/components/WorkflowInvocationState/WorkflowInvocationState.vue";
 
 interface Props {
     noInvocationsMessage?: string;

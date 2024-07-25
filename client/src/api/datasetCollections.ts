@@ -1,5 +1,5 @@
-import { type CollectionEntry, type DCESummary, type HDCADetailed, type HDCASummary, isHDCA } from "@/api";
-import { fetcher } from "@/api/schema";
+import { type CollectionEntry, type DCESummary, type HDCADetailed, type HDCASummary, isHDCA } from "./";
+import { fetcher } from "./schema";
 
 const DEFAULT_LIMIT = 50;
 

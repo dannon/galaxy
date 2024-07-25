@@ -1,10 +1,9 @@
 import { computed, type Ref } from "vue";
 
+import { ClearSelectionAction } from "@/components/Workflow/Editor/Actions/workflowActions";
 import { useWorkflowStores } from "@/composables/workflowStores";
 import { type Step } from "@/stores/workflowStepStore";
 import { ensureDefined } from "@/utils/assertions";
-
-import { ClearSelectionAction } from "../Actions/workflowActions";
 
 export function useMultiSelect(workflowId?: Ref<string> | string) {
     const { commentStore, stateStore, stepStore, undoRedoStore } = useWorkflowStores(workflowId);

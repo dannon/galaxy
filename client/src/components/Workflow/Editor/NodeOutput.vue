@@ -40,9 +40,9 @@ import { useTerminal } from "./composables/useTerminal";
 import { type CollectionTypeDescriptor, NULL_COLLECTION_TYPE_DESCRIPTION } from "./modules/collectionTypeDescription";
 import type { OutputTerminals } from "./modules/terminals";
 
+import ConnectionMenu from "./ConnectionMenu.vue";
 import DraggableWrapper from "./DraggablePan.vue";
 import StatelessTags from "@/components/TagsMultiselect/StatelessTags.vue";
-import ConnectionMenu from "@/components/Workflow/Editor/ConnectionMenu.vue";
 
 type ElementBounding = UnwrapRef<UseElementBoundingReturn>;
 

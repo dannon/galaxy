@@ -14,7 +14,7 @@ import { computed } from "vue";
 import type { ColorVariant } from ".";
 import { type ExportRecord } from "./models/exportRecordModel";
 
-import Heading from "@/components/Common/Heading.vue";
+import Heading from "./Heading.vue";
 import LoadingSpan from "@/components/LoadingSpan.vue";
 
 library.add(faCheckCircle, faClock, faExclamationCircle, faExclamationTriangle, faLink);

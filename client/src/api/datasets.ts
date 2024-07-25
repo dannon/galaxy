@@ -1,9 +1,10 @@
 import axios from "axios";
 import { type FetchArgType } from "openapi-typescript-fetch";
 
-import { type HDADetailed } from "@/api";
-import { type components, fetcher } from "@/api/schema";
 import { withPrefix } from "@/utils/redirect";
+
+import { type HDADetailed } from "./";
+import { type components, fetcher } from "./schema";
 
 export const datasetsFetcher = fetcher.path("/api/datasets").method("get").create();
 

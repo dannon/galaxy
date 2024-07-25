@@ -6,8 +6,9 @@ import { BFormInput } from "bootstrap-vue";
 import { ref } from "vue";
 import { useRouter } from "vue-router/composables";
 
-import { createWorkflow } from "@/components/Workflow/workflows.services";
 import { Toast } from "@/composables/toast";
+
+import { createWorkflow } from "./workflows.services";
 
 import AsyncButton from "@/components/Common/AsyncButton.vue";
 import Heading from "@/components/Common/Heading.vue";

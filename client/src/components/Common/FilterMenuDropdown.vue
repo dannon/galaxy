@@ -7,10 +7,9 @@ import { capitalize } from "lodash";
 import { computed, onMounted, ref, type UnwrapRef, watch } from "vue";
 
 import { type QuotaUsage } from "@/components/User/DiskUsage/Quota/model";
+import { fetch } from "@/components/User/DiskUsage/Quota/services";
 import { type FilterType, type ValidFilter } from "@/utils/filtering";
 import { errorMessageAsString } from "@/utils/simple-error";
-
-import { fetch } from "../User/DiskUsage/Quota/services";
 
 import QuotaUsageBar from "@/components/User/DiskUsage/Quota/QuotaUsageBar.vue";
 

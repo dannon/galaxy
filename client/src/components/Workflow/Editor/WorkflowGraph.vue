@@ -84,13 +84,13 @@ import { maxZoom, minZoom } from "./modules/zoomLevels";
 
 import AdaptiveGrid from "./AdaptiveGrid.vue";
 import WorkflowComment from "./Comments/WorkflowComment.vue";
+import WorkflowNode from "./Node.vue";
 import BoxSelectPreview from "./Tools/BoxSelectPreview.vue";
 import InputCatcher from "./Tools/InputCatcher.vue";
 import ToolBar from "./Tools/ToolBar.vue";
-import WorkflowNode from "@/components/Workflow/Editor/Node.vue";
-import WorkflowEdges from "@/components/Workflow/Editor/WorkflowEdges.vue";
-import WorkflowMinimap from "@/components/Workflow/Editor/WorkflowMinimap.vue";
-import ZoomControl from "@/components/Workflow/Editor/ZoomControl.vue";
+import WorkflowEdges from "./WorkflowEdges.vue";
+import WorkflowMinimap from "./WorkflowMinimap.vue";
+import ZoomControl from "./ZoomControl.vue";
 
 const emit = defineEmits(["transform", "graph-offset", "onRemove", "scrollTo"]);
 const props = defineProps({

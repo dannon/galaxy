@@ -6,8 +6,8 @@ import {
     type InputTerminal,
     type OutputTerminal,
     useConnectionStore,
-} from "@/stores/workflowConnectionStore";
-import { type NewStep, useWorkflowStepStore } from "@/stores/workflowStepStore";
+} from "./workflowConnectionStore";
+import { type NewStep, useWorkflowStepStore } from "./workflowStepStore";
 
 const workflowStepZero: NewStep = {
     input_connections: {},

@@ -12,8 +12,8 @@ import type { HDCADetailed, HistoryItemSummary } from "@/api";
 import STATES from "@/mvc/dataset/states";
 import localize from "@/utils/localization";
 
-import CollectionCreator from "@/components/Collections/common/CollectionCreator.vue";
-import DatasetCollectionElementView from "@/components/Collections/ListDatasetCollectionElementView.vue";
+import CollectionCreator from "./common/CollectionCreator.vue";
+import DatasetCollectionElementView from "./ListDatasetCollectionElementView.vue";
 
 library.add(faSortAlphaDown, faUndo);
 

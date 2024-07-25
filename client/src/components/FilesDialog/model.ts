@@ -1,8 +1,9 @@
 /**
  * Model to track selected URI for FilesDialog - mirroring DataDialog's model.
  */
-import { isSubPath } from "@/components/FilesDialog/utilities";
 import { type SelectionItem } from "@/components/SelectionDialog/selectionTypes";
+
+import { isSubPath } from "./utilities";
 
 interface ModelOptions {
     multiple?: boolean;

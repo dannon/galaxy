@@ -2,11 +2,12 @@
 import axios from "axios";
 import { onMounted, ref } from "vue";
 
-import { type SelectionItem } from "@/components/SelectionDialog/selectionTypes";
 import { withPrefix } from "@/utils/redirect";
 import { errorMessageAsString } from "@/utils/simple-error";
 
-import SelectionDialog from "@/components/SelectionDialog/SelectionDialog.vue";
+import { type SelectionItem } from "./selectionTypes";
+
+import SelectionDialog from "./SelectionDialog.vue";
 
 interface HistoryItem {
     id: string;

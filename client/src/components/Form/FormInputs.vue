@@ -67,11 +67,11 @@
 <script>
 import { set } from "vue";
 
-import { matchCase } from "@/components/Form/utilities";
+import { matchCase } from "./utilities";
 
 import FormCard from "./FormCard.vue";
+import FormElement from "./FormElement.vue";
 import FormRepeat from "./FormRepeat.vue";
-import FormElement from "@/components/Form/FormElement.vue";
 
 export default {
     name: "FormNode",

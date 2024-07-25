@@ -5,8 +5,9 @@ import MockAdapter from "axios-mock-adapter";
 import flushPromises from "flush-promises";
 import { getLocalVue } from "tests/jest/helpers";
 
-import testToolsListResponse from "../testData/toolsList";
-import testToolsListInPanelResponse from "../testData/toolsListInPanel";
+import testToolsListResponse from "@/components/ToolsView/testData/toolsList";
+import testToolsListInPanelResponse from "@/components/ToolsView/testData/toolsListInPanel";
+
 import ToolsJson from "./ToolsJson";
 
 const localVue = getLocalVue();

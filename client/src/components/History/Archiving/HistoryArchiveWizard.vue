@@ -12,8 +12,8 @@ import { useFileSources } from "@/composables/fileSources";
 import { useToast } from "@/composables/toast";
 import { useHistoryStore } from "@/stores/historyStore";
 
-import HistoryArchiveExportSelector from "@/components/History/Archiving/HistoryArchiveExportSelector.vue";
-import HistoryArchiveSimple from "@/components/History/Archiving/HistoryArchiveSimple.vue";
+import HistoryArchiveExportSelector from "./HistoryArchiveExportSelector.vue";
+import HistoryArchiveSimple from "./HistoryArchiveSimple.vue";
 import LoadingSpan from "@/components/LoadingSpan.vue";
 
 library.add(faArchive);

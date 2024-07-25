@@ -6,7 +6,7 @@ import { onMounted, ref, watch } from "vue";
 
 import localize from "@/utils/localization";
 
-import ClickToEdit from "@/components/Collections/common/ClickToEdit.vue";
+import ClickToEdit from "./common/ClickToEdit.vue";
 
 library.add(faUnlink);
 

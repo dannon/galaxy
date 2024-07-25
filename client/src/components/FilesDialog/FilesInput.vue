@@ -3,9 +3,8 @@ import { BFormInput } from "bootstrap-vue";
 import { computed } from "vue";
 
 import { type FileSourceBrowsingMode, type FilterFileSourcesOptions } from "@/api/remoteFiles";
+import { type SelectionItem } from "@/components/SelectionDialog/selectionTypes";
 import { filesDialog } from "@/utils/data";
-
-import { type SelectionItem } from "../SelectionDialog/selectionTypes";
 
 interface Props {
     value: string;

@@ -1,6 +1,6 @@
 import { createPinia, setActivePinia } from "pinia";
 
-import { useActivityStore } from "@/stores/activityStore";
+import { useActivityStore } from "./activityStore";
 
 // mock Galaxy object
 jest.mock("./activitySetup", () => ({

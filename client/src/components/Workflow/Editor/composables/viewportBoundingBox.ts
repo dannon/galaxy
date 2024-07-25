@@ -1,9 +1,8 @@
 import { type UseElementBoundingReturn } from "@vueuse/core";
 import { type Ref, ref, unref, watch } from "vue";
 
+import { AxisAlignedBoundingBox } from "@/components/Workflow/Editor/modules/geometry";
 import { useAnimationFrameThrottle } from "@/composables/throttle";
-
-import { AxisAlignedBoundingBox } from "../modules/geometry";
 
 /**
  * Constructs a bounding box following the editors pan and zoom in

@@ -5,7 +5,7 @@ import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 
 import type { HistorySummaryExtended } from "@/api";
 
-import DefaultOperations from "@/components/History/CurrentHistory/HistoryOperations/DefaultOperations.vue";
+import DefaultOperations from "./DefaultOperations.vue";
 
 library.add(faCheckSquare, faCompress);
 

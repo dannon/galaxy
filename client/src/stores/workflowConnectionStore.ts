@@ -1,9 +1,9 @@
 import { computed, del, ref, set } from "vue";
 
-import { useWorkflowStepStore } from "@/stores/workflowStepStore";
 import { pushOrSet } from "@/utils/pushOrSet";
 
 import { defineScopedStore } from "./scopedStore";
+import { useWorkflowStepStore } from "./workflowStepStore";
 
 interface InvalidConnections {
     [index: ConnectionId]: string | undefined;

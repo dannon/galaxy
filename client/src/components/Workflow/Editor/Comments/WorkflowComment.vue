@@ -2,9 +2,6 @@
 import { type UseElementBoundingReturn } from "@vueuse/core";
 import { computed } from "vue";
 
-import { useWorkflowStores } from "@/composables/workflowStores";
-import type { WorkflowComment, WorkflowCommentColor } from "@/stores/workflowEditorCommentStore";
-
 import {
     ChangeColorAction,
     DeleteCommentAction,
@@ -12,7 +9,9 @@ import {
     LazyChangePositionAction,
     LazyChangeSizeAction,
     ToggleCommentSelectedAction,
-} from "../Actions/commentActions";
+} from "@/components/Workflow/Editor/Actions/commentActions";
+import { useWorkflowStores } from "@/composables/workflowStores";
+import type { WorkflowComment, WorkflowCommentColor } from "@/stores/workflowEditorCommentStore";
 
 import FrameComment from "./FrameComment.vue";
 import FreehandComment from "./FreehandComment.vue";

@@ -5,9 +5,8 @@ import flushPromises from "flush-promises";
 import { setActivePinia } from "pinia";
 
 import { mockFetcher } from "@/api/schema/__mocks__";
+import { generateRandomWorkflowList } from "@/components/Workflow/testUtils";
 import { useUserStore } from "@/stores/userStore";
-
-import { generateRandomWorkflowList } from "../testUtils";
 
 import WorkflowList from "./WorkflowList.vue";
 
