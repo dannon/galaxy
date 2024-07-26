@@ -19,7 +19,8 @@
 
 <script>
 import axios from "axios";
-import { getAppRoot } from "onload/loadConfig";
+
+import { getAppRoot } from "@/onload/loadConfig";
 
 import BaseGrid from "./BaseGrid.vue";
 import Message from "@/components/Message.vue";

@@ -9,9 +9,10 @@
 
 /* jquery and _ are exposed via expose-loader while several external plugins rely on these */
 import $ from "jquery"; // eslint-disable-line no-unused-vars
-import Client from "mvc/visualization/chart/chart-client";
 import _ from "underscore"; // eslint-disable-line no-unused-vars
-import { TracksterUIView } from "viz/trackster";
+
+import Client from "./mvc/visualization/chart/chart-client";
+import { TracksterUIView } from "./viz/trackster";
 
 // Previously "chart"
 

@@ -1,11 +1,11 @@
 import { mount } from "@vue/test-utils";
-import FilesDialog from "components/FilesDialog/FilesDialog";
-import { rootResponse } from "components/FilesDialog/testingData";
 import flushPromises from "flush-promises";
 import { createPinia } from "pinia";
 import { getLocalVue } from "tests/jest/helpers";
 
 import { mockFetcher } from "@/api/schema/__mocks__";
+import FilesDialog from "@/components/FilesDialog/FilesDialog";
+import { rootResponse } from "@/components/FilesDialog/testingData";
 
 import FormDirectory from "./FormDirectory";
 

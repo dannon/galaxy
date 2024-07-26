@@ -6,7 +6,7 @@ import { useGlobalUploadModal } from "@/composables/globalUploadModal.js";
 import { useUploadStore } from "@/stores/uploadStore";
 import Query from "@/utils/query-string-parsing.js";
 
-import ActivityItem from "components/ActivityBar/ActivityItem.vue";
+import ActivityItem from "@/components/ActivityBar/ActivityItem.vue";
 
 export interface Props {
     id: string;

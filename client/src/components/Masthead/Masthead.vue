@@ -1,13 +1,13 @@
 <script setup>
 import { BNavbar, BNavbarBrand, BNavbarNav } from "bootstrap-vue";
 import { storeToRefs } from "pinia";
-import { userLogout } from "utils/logout";
-import { withPrefix } from "utils/redirect";
 import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router/composables";
 
 import { useConfig } from "@/composables/config";
 import { useUserStore } from "@/stores/userStore";
+import { userLogout } from "@/utils/logout";
+import { withPrefix } from "@/utils/redirect";
 
 import { loadWebhookMenuItems } from "./_webhooks";
 import MastheadDropdown from "./MastheadDropdown";

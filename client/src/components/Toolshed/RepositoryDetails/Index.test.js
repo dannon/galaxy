@@ -1,12 +1,12 @@
 import { shallowMount } from "@vue/test-utils";
 import axios from "axios";
 import MockAdapter from "axios-mock-adapter";
-import { getAppRoot } from "onload/loadConfig";
 import { createPinia } from "pinia";
 import { getLocalVue } from "tests/jest/helpers";
 
 import { mockFetcher } from "@/api/schema/__mocks__";
 import { Services } from "@/components/Toolshed/services";
+import { getAppRoot } from "@/onload/loadConfig";
 
 import Index from "./Index";
 

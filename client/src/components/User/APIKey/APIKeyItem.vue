@@ -1,8 +1,9 @@
 <script setup>
-import { getGalaxyInstance } from "app";
-import CopyToClipboard from "components/CopyToClipboard";
-import UtcDate from "components/UtcDate";
 import { ref } from "vue";
+
+import { getGalaxyInstance } from "@/app";
+import CopyToClipboard from "@/components/CopyToClipboard";
+import UtcDate from "@/components/UtcDate";
 
 import svc from "./model/service";
 

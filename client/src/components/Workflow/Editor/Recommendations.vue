@@ -18,10 +18,9 @@
 </template>
 
 <script>
-import LoadingSpan from "components/LoadingSpan";
-import _l from "utils/localization";
-
+import LoadingSpan from "@/components/LoadingSpan";
 import { useWorkflowStores } from "@/composables/workflowStores";
+import _l from "@/utils/localization";
 import { getShortToolId } from "@/utils/tool";
 
 import { getToolPredictions } from "./modules/services";

@@ -4,9 +4,9 @@ import MockAdapter from "axios-mock-adapter";
 import { BListGroupItem } from "bootstrap-vue";
 import flushPromises from "flush-promises";
 import { createPinia } from "pinia";
-import { useHistoryStore } from "stores/historyStore";
 import { getLocalVue } from "tests/jest/helpers";
 
+import { useHistoryStore } from "@/stores/historyStore";
 import { useUserStore } from "@/stores/userStore";
 
 import SelectorModal from "./SelectorModal";

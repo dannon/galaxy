@@ -4,8 +4,9 @@
  */
 import Backbone from "backbone";
 import $ from "jquery";
-import { make_popupmenu } from "ui/popupmenu";
 import _ from "underscore";
+
+import { make_popupmenu } from "@/ui/popupmenu";
 
 var IconButton = Backbone.Model.extend({
     defaults: {

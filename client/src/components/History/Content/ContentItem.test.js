@@ -1,11 +1,11 @@
 import { createTestingPinia } from "@pinia/testing";
 import { mount } from "@vue/test-utils";
-import { updateContentFields } from "components/History/model/queries";
 import { PiniaVuePlugin } from "pinia";
 import { getLocalVue } from "tests/jest/helpers";
 import VueRouter from "vue-router";
 
 import { mockFetcher } from "@/api/schema/__mocks__";
+import { updateContentFields } from "@/components/History/model/queries";
 
 import ContentItem from "./ContentItem";
 

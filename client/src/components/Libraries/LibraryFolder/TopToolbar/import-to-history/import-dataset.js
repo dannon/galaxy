@@ -1,13 +1,13 @@
-import { getGalaxyInstance } from "app";
 import Backbone from "backbone";
-import { Toast } from "composables/toast";
 import $ from "jquery";
-import { getAppRoot } from "onload/loadConfig";
 import _ from "underscore";
-import _l from "utils/localization";
 
+import { getGalaxyInstance } from "@/app";
 import { updateProgress } from "@/components/Libraries/LibraryFolder/TopToolbar/delete-selected";
 import mod_library_model from "@/components/Libraries/LibraryFolder/TopToolbar/library-model";
+import { Toast } from "@/composables/toast";
+import { getAppRoot } from "@/onload/loadConfig";
+import _l from "@/utils/localization";
 
 var ImportDatasetModal = Backbone.View.extend({
     options: null,

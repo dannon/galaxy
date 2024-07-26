@@ -14,10 +14,9 @@
     </div>
 </template>
 <script>
-import LoadingSpan from "components/LoadingSpan";
-import { getAppRoot } from "onload/loadConfig";
-
+import LoadingSpan from "@/components/LoadingSpan";
 import { Services } from "@/components/Toolshed/services";
+import { getAppRoot } from "@/onload/loadConfig";
 
 import RepositoryDetails from "@/components/Toolshed/RepositoryDetails/Index.vue";
 

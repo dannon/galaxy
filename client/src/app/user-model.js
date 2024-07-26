@@ -1,6 +1,7 @@
 import Backbone from "backbone";
-import { getAppRoot } from "onload/loadConfig";
-import _l from "utils/localization";
+
+import { getAppRoot } from "@/onload/loadConfig";
+import _l from "@/utils/localization";
 
 //==============================================================================
 /** @class Model for a Galaxy user (including anonymous users).

@@ -3,8 +3,9 @@
  */
 import Backbone from "backbone";
 import $ from "jquery";
-import Modal from "mvc/ui/ui-modal";
 import _ from "underscore";
+
+import Modal from "@/mvc/ui/ui-modal";
 
 import Buttons from "./buttons";
 

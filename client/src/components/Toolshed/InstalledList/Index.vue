@@ -53,11 +53,11 @@
 </template>
 <script>
 import BootstrapVue from "bootstrap-vue";
-import LoadingSpan from "components/LoadingSpan";
-import { getAppRoot } from "onload/loadConfig";
 import Vue from "vue";
 
+import LoadingSpan from "@/components/LoadingSpan";
 import { Services } from "@/components/Toolshed/services";
+import { getAppRoot } from "@/onload/loadConfig";
 
 import RepositoryDetails from "./Details";
 import Monitor from "./Monitor";

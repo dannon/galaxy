@@ -1,8 +1,9 @@
 import { mount } from "@vue/test-utils";
 import axios from "axios";
 import MockAdapter from "axios-mock-adapter";
-import { typesAndMappingResponse } from "components/Datatypes/test_fixtures";
 import { getLocalVue } from "tests/jest/helpers";
+
+import { typesAndMappingResponse } from "@/components/Datatypes/test_fixtures";
 
 import HistoryDatasetDisplay from "./HistoryDatasetDisplay.vue";
 

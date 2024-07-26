@@ -3,10 +3,10 @@ import { library } from "@fortawesome/fontawesome-svg-core";
 import { faStar as farStar } from "@fortawesome/free-regular-svg-icons";
 import { faStar as fasStar } from "@fortawesome/free-solid-svg-icons";
 import { storeToRefs } from "pinia";
-import ariaAlert from "utils/ariaAlert";
 import { computed } from "vue";
 
 import { useUserStore } from "@/stores/userStore";
+import ariaAlert from "@/utils/ariaAlert";
 
 library.add(fasStar, farStar);
 

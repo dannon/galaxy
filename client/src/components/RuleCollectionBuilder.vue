@@ -567,33 +567,35 @@
 </template>
 <script>
 import HotTable from "@handsontable/vue";
-import { getGalaxyInstance } from "app";
 import axios from "axios";
 import BootstrapVue from "bootstrap-vue";
-import ColumnSelector from "components/RuleBuilder/ColumnSelector";
-import IdentifierDisplay from "components/RuleBuilder/IdentifierDisplay";
-import RegularExpressionInput from "components/RuleBuilder/RegularExpressionInput";
-import RuleDefs from "components/RuleBuilder/rule-definitions";
-import RuleComponent from "components/RuleBuilder/RuleComponent";
-import RuleDisplay from "components/RuleBuilder/RuleDisplay";
-import RuleModalFooter from "components/RuleBuilder/RuleModalFooter";
-import RuleModalHeader from "components/RuleBuilder/RuleModalHeader";
-import RuleModalMiddle from "components/RuleBuilder/RuleModalMiddle";
-import RuleTargetComponent from "components/RuleBuilder/RuleTargetComponent";
-import SavedRulesSelector from "components/RuleBuilder/SavedRulesSelector";
-import SaveRules from "components/RuleBuilder/SaveRules";
-import StateDiv from "components/RuleBuilder/StateDiv";
-import Select2 from "components/Select2";
-import UploadUtils from "components/Upload/utils";
-import { ERROR_STATES, NON_TERMINAL_STATES } from "components/WorkflowInvocationState/util";
 import $ from "jquery";
-import { getAppRoot } from "onload/loadConfig";
 import _ from "underscore";
-import { refreshContentsWrapper } from "utils/data";
-import _l from "utils/localization";
 import Vue from "vue";
 
-import TooltipOnHover from "components/TooltipOnHover.vue";
+import { getGalaxyInstance } from "@/app";
+import { getAppRoot } from "@/onload/loadConfig";
+import { refreshContentsWrapper } from "@/utils/data";
+import _l from "@/utils/localization";
+
+import ColumnSelector from "./RuleBuilder/ColumnSelector";
+import IdentifierDisplay from "./RuleBuilder/IdentifierDisplay";
+import RegularExpressionInput from "./RuleBuilder/RegularExpressionInput";
+import RuleDefs from "./RuleBuilder/rule-definitions";
+import RuleComponent from "./RuleBuilder/RuleComponent";
+import RuleDisplay from "./RuleBuilder/RuleDisplay";
+import RuleModalFooter from "./RuleBuilder/RuleModalFooter";
+import RuleModalHeader from "./RuleBuilder/RuleModalHeader";
+import RuleModalMiddle from "./RuleBuilder/RuleModalMiddle";
+import RuleTargetComponent from "./RuleBuilder/RuleTargetComponent";
+import SavedRulesSelector from "./RuleBuilder/SavedRulesSelector";
+import SaveRules from "./RuleBuilder/SaveRules";
+import StateDiv from "./RuleBuilder/StateDiv";
+import Select2 from "./Select2";
+import UploadUtils from "./Upload/utils";
+import { ERROR_STATES, NON_TERMINAL_STATES } from "./WorkflowInvocationState/util";
+
+import TooltipOnHover from "./TooltipOnHover.vue";
 
 Vue.use(BootstrapVue);
 

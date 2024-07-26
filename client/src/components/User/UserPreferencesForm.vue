@@ -2,9 +2,10 @@
     <FormGeneric v-bind="formConfig" />
 </template>
 <script>
-import FormGeneric from "components/Form/FormGeneric";
-import { getUserPreferencesModel } from "components/User/UserPreferencesModel";
-import Query from "utils/query-string-parsing";
+import FormGeneric from "@/components/Form/FormGeneric";
+import Query from "@/utils/query-string-parsing";
+
+import { getUserPreferencesModel } from "./UserPreferencesModel";
 
 export default {
     components: {

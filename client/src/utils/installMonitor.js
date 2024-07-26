@@ -7,7 +7,7 @@
  * properties.
  */
 
-import { mock } from "utils/mock";
+import { mock } from "./mock";
 
 // stores values that are returned when somebody asks for window.Something
 window._monitorStorage = window._monitorStorage || {};

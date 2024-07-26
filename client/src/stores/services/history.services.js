@@ -1,5 +1,6 @@
 import axios from "axios";
-import { prependPath } from "utils/redirect";
+
+import { prependPath } from "@/utils/redirect";
 
 /**
  * Generic json getter

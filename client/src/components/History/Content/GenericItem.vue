@@ -24,13 +24,13 @@
 </template>
 
 <script>
-import LoadingSpan from "components/LoadingSpan";
-import { Toast } from "composables/toast";
 import { mapActions } from "pinia";
 
 import { deleteContent, updateContentFields } from "@/components/History/model/queries";
+import LoadingSpan from "@/components/LoadingSpan";
 import { DatasetCollectionProvider, DatasetProvider } from "@/components/providers";
 import { DatasetCollectionElementProvider } from "@/components/providers/storeProviders";
+import { Toast } from "@/composables/toast";
 import { useHistoryStore } from "@/stores/historyStore";
 import { errorMessageAsString } from "@/utils/simple-error";
 

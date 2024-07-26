@@ -1,8 +1,8 @@
 import { mount } from "@vue/test-utils";
-import { getAppRoot } from "onload/loadConfig";
 import { getLocalVue } from "tests/jest/helpers";
 
 import { Services } from "@/components/Toolshed/services";
+import { getAppRoot } from "@/onload/loadConfig";
 
 import Index from "./Index";
 

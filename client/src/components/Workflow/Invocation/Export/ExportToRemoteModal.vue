@@ -1,7 +1,8 @@
 <script setup>
 import { BModal } from "bootstrap-vue";
-import ExportForm from "components/Common/ExportForm";
 import { computed, ref } from "vue";
+
+import ExportForm from "@/components/Common/ExportForm";
 
 import { InvocationExportPlugin } from "./model";
 

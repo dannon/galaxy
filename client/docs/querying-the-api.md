@@ -43,8 +43,8 @@ const { data: dataset } = await datasetsFetcher({ id: "testID" });
 
 ```js
 import axios from "axios";
-import { getAppRoot } from "onload/loadConfig";
-import { rethrowSimple } from "utils/simple-error";
+import { getAppRoot } from "@/onload/loadConfig";
+import { rethrowSimple } from "@/utils/simple-error";
 
 async getDataset(datasetId) {
     const url = `${getAppRoot()}api/datasets/${datasetId}`;

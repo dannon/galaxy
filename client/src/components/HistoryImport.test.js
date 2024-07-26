@@ -1,11 +1,12 @@
 import { mount } from "@vue/test-utils";
 import axios from "axios";
 import MockAdapter from "axios-mock-adapter";
-import { waitOnJob } from "components/JobStates/wait";
 import flushPromises from "flush-promises";
 import { getLocalVue, wait } from "tests/jest/helpers";
 
 import { mockFetcher } from "@/api/schema/__mocks__";
+
+import { waitOnJob } from "./JobStates/wait";
 
 import HistoryImport from "./HistoryImport.vue";
 

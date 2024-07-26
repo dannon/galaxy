@@ -23,9 +23,10 @@
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import axios from "axios";
 import BootstrapVue from "bootstrap-vue";
-import { withPrefix } from "utils/redirect";
-import { errorMessageAsString } from "utils/simple-error";
 import Vue from "vue";
+
+import { withPrefix } from "@/utils/redirect";
+import { errorMessageAsString } from "@/utils/simple-error";
 
 Vue.use(BootstrapVue);
 

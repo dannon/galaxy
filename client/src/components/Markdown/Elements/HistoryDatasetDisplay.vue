@@ -97,10 +97,10 @@
 </template>
 
 <script>
-import { DatatypesMapperModel } from "components/Datatypes/model";
-import LoadingSpan from "components/LoadingSpan";
-import { UrlDataProvider } from "components/providers/UrlDataProvider";
-import { getAppRoot } from "onload/loadConfig";
+import { DatatypesMapperModel } from "@/components/Datatypes/model";
+import LoadingSpan from "@/components/LoadingSpan";
+import { UrlDataProvider } from "@/components/providers/UrlDataProvider";
+import { getAppRoot } from "@/onload/loadConfig";
 
 import HistoryDatasetAsImage from "./HistoryDatasetAsImage.vue";
 

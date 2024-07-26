@@ -1,11 +1,10 @@
 /*
  * Utilities for working with upload data structures.
  */
-import { errorMessageAsString, rethrowSimple } from "utils/simple-error";
-
 import { datatypesFetcher } from "@/api/datatypes";
 import { dbKeysFetcher } from "@/api/dbKeys";
 import { remoteFilesFetcher } from "@/api/remoteFiles";
+import { errorMessageAsString, rethrowSimple } from "@/utils/simple-error";
 
 export const AUTO_EXTENSION = {
     id: "auto",

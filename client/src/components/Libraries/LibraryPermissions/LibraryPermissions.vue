@@ -41,14 +41,16 @@
 <script>
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import BootstrapVue from "bootstrap-vue";
-import { initPermissionsIcons } from "components/Libraries/icons";
-import { extractRoles } from "components/Libraries/library-utils";
-import PermissionsHeader from "components/Libraries/LibraryPermissions/PermissionsHeader";
-import PermissionsInputField from "components/Libraries/LibraryPermissions/PermissionsInputField";
-import { Services } from "components/Libraries/LibraryPermissions/services";
-import { Toast } from "composables/toast";
-import { getAppRoot } from "onload/loadConfig";
 import Vue from "vue";
+
+import { initPermissionsIcons } from "@/components/Libraries/icons";
+import { extractRoles } from "@/components/Libraries/library-utils";
+import { Toast } from "@/composables/toast";
+import { getAppRoot } from "@/onload/loadConfig";
+
+import PermissionsHeader from "./PermissionsHeader";
+import PermissionsInputField from "./PermissionsInputField";
+import { Services } from "./services";
 
 Vue.use(BootstrapVue);
 initPermissionsIcons();

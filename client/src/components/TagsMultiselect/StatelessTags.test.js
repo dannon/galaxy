@@ -1,8 +1,8 @@
 import { mount } from "@vue/test-utils";
-import { useToast } from "composables/toast";
 import { getLocalVue } from "tests/jest/helpers";
 import { computed } from "vue";
 
+import { useToast } from "@/composables/toast";
 import { normalizeTag, useUserTagsStore } from "@/stores/userTagsStore";
 
 import StatelessTags from "./StatelessTags";

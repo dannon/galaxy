@@ -3,9 +3,10 @@ import axios from "axios";
 import MockAdapter from "axios-mock-adapter";
 import flushPromises from "flush-promises";
 import { createPinia } from "pinia";
-import { useHistoryStore } from "stores/historyStore";
-import { useUserStore } from "stores/userStore";
 import { getLocalVue } from "tests/jest/helpers";
+
+import { useHistoryStore } from "@/stores/historyStore";
+import { useUserStore } from "@/stores/userStore";
 
 import MultipleView from "./MultipleView";
 

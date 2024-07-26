@@ -1,11 +1,11 @@
-import { getGalaxyInstance } from "app";
 import axios from "axios";
 import Backbone from "backbone";
-import { Toast } from "composables/toast";
-import { getAppRoot } from "onload/loadConfig";
 import _ from "underscore";
 
+import { getGalaxyInstance } from "@/app";
 import mod_library_model from "@/components/Libraries/LibraryFolder/TopToolbar/library-model";
+import { Toast } from "@/composables/toast";
+import { getAppRoot } from "@/onload/loadConfig";
 
 var ImportCollectionModal = Backbone.View.extend({
     options: null,

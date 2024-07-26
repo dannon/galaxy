@@ -2,11 +2,11 @@ import { mount } from "@vue/test-utils";
 import axios from "axios";
 import MockAdapter from "axios-mock-adapter";
 import { createPinia } from "pinia";
-import { useHistoryStore } from "stores/historyStore";
-import { useUserStore } from "stores/userStore";
 import { getLocalVue } from "tests/jest/helpers";
 
 import { mockFetcher } from "@/api/schema/__mocks__";
+import { useHistoryStore } from "@/stores/historyStore";
+import { useUserStore } from "@/stores/userStore";
 
 import UploadContainer from "./UploadContainer.vue";
 import UploadModal from "./UploadModal.vue";

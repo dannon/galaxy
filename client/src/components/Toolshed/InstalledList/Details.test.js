@@ -1,7 +1,7 @@
 import { createLocalVue, shallowMount } from "@vue/test-utils";
-import { getAppRoot } from "onload/loadConfig";
 
 import { Services } from "@/components/Toolshed/services";
+import { getAppRoot } from "@/onload/loadConfig";
 
 import Details from "./Details";
 

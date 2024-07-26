@@ -2,11 +2,11 @@
 import { library } from "@fortawesome/fontawesome-svg-core";
 import { faEdit } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
-import RuleCollectionBuilder from "components/RuleCollectionBuilder";
-import RulesDisplay from "components/RulesDisplay/RulesDisplay";
 import { computed, ref } from "vue";
 
 import { fetchCollectionDetails } from "@/api/datasetCollections";
+import RuleCollectionBuilder from "@/components/RuleCollectionBuilder";
+import RulesDisplay from "@/components/RulesDisplay/RulesDisplay";
 
 library.add(faEdit);
 

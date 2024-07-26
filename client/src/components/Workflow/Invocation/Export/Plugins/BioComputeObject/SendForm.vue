@@ -2,11 +2,11 @@
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import axios from "axios";
 import { BModal } from "bootstrap-vue";
-import ExternalLink from "components/ExternalLink";
-import { Toast } from "composables/toast";
-import { withPrefix } from "utils/redirect";
 import { inject, reactive, ref } from "vue";
 
+import ExternalLink from "@/components/ExternalLink";
+import { Toast } from "@/composables/toast";
+import { withPrefix } from "@/utils/redirect";
 import { wait } from "@/utils/utils";
 
 const sendBCOModal = ref(null);

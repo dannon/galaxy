@@ -1,8 +1,9 @@
-import { getGalaxyInstance } from "app";
 import Backbone from "backbone";
 import $ from "jquery";
 import _ from "underscore";
-import util_mod from "viz/trackster/util";
+
+import { getGalaxyInstance } from "@/app";
+import util_mod from "@/viz/trackster/util";
 
 /**
  * A configuration setting. Currently key is used as id.

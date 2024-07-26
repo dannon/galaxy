@@ -61,13 +61,13 @@
 
 <script>
 import { BAlert } from "bootstrap-vue";
-import ButtonSpinner from "components/Common/ButtonSpinner";
-import FormCard from "components/Form/FormCard";
-import FormDisplay from "components/Form/FormDisplay";
-import FormElement from "components/Form/FormElement";
-import { allowCachedJobs } from "components/Tool/utilities";
 import { mapState } from "pinia";
 
+import ButtonSpinner from "@/components/Common/ButtonSpinner";
+import FormCard from "@/components/Form/FormCard";
+import FormDisplay from "@/components/Form/FormDisplay";
+import FormElement from "@/components/Form/FormElement";
+import { allowCachedJobs } from "@/components/Tool/utilities";
 import { useHistoryStore } from "@/stores/historyStore";
 import { useUserStore } from "@/stores/userStore";
 

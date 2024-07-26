@@ -117,18 +117,18 @@
 </template>
 <script>
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
-import { getGalaxyInstance } from "app";
 import BootstrapVue from "bootstrap-vue";
-import { initTopBarIcons } from "components/Libraries/icons";
-import FolderDetails from "components/Libraries/LibraryFolder/FolderDetails/FolderDetails";
-import LibraryBreadcrumb from "components/Libraries/LibraryFolder/LibraryBreadcrumb";
-import { Toast } from "composables/toast";
-import { getAppRoot } from "onload/loadConfig";
-import mod_utils from "utils/utils";
 import Vue from "vue";
 
+import { getGalaxyInstance } from "@/app";
+import { initTopBarIcons } from "@/components/Libraries/icons";
+import FolderDetails from "@/components/Libraries/LibraryFolder/FolderDetails/FolderDetails";
+import LibraryBreadcrumb from "@/components/Libraries/LibraryFolder/LibraryBreadcrumb";
 import SearchField from "@/components/Libraries/LibraryFolder/SearchField";
 import { Services } from "@/components/Libraries/LibraryFolder/services";
+import { Toast } from "@/composables/toast";
+import { getAppRoot } from "@/onload/loadConfig";
+import mod_utils from "@/utils/utils";
 
 import mod_add_datasets from "./add-datasets";
 import { deleteSelectedItems } from "./delete-selected";

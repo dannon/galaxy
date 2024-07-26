@@ -2,8 +2,8 @@
  * TODO: Make this part of galaxy.js later, once the global refs are gone
  */
 
-import config from "config";
-import { serverPath } from "utils/serverPath";
+import config from "@/config";
+import { serverPath } from "@/utils/serverPath";
 
 import { GalaxyApp } from "./galaxy";
 

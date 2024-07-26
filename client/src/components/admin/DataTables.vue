@@ -14,7 +14,8 @@
 
 <script>
 import axios from "axios";
-import { getAppRoot } from "onload/loadConfig";
+
+import { getAppRoot } from "@/onload/loadConfig";
 
 import DataManagerGrid from "./DataManagerGrid.vue";
 import DataTablesGrid from "./DataTablesGrid.vue";

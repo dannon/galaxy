@@ -86,18 +86,18 @@ import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import { refDebounced } from "@vueuse/core";
 import axios from "axios";
 import BootstrapVue from "bootstrap-vue";
-import JobError from "components/JobInformation/JobError";
-import { waitOnJob } from "components/JobStates/wait";
-import LoadingSpan from "components/LoadingSpan";
-import { getAppRoot } from "onload/loadConfig";
-import { errorMessageAsString } from "utils/simple-error";
 import Vue, { ref, watch } from "vue";
 
 import { fetchFileSources } from "@/api/remoteFiles";
+import { getAppRoot } from "@/onload/loadConfig";
+import { errorMessageAsString } from "@/utils/simple-error";
 
 import ExternalLink from "./ExternalLink";
+import JobError from "./JobInformation/JobError";
+import { waitOnJob } from "./JobStates/wait";
+import LoadingSpan from "./LoadingSpan";
 
-import FilesInput from "components/FilesDialog/FilesInput.vue";
+import FilesInput from "./FilesDialog/FilesInput.vue";
 
 library.add(faFolderOpen);
 library.add(faUpload);

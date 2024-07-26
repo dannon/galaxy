@@ -1,10 +1,10 @@
 import { createTestingPinia } from "@pinia/testing";
 import { mount } from "@vue/test-utils";
-import { WindowManager } from "layout/window-manager";
 import { PiniaVuePlugin } from "pinia";
 import { getLocalVue } from "tests/jest/helpers";
 
 import { mockFetcher } from "@/api/schema/__mocks__";
+import { WindowManager } from "@/layout/window-manager";
 
 import { loadWebhookMenuItems } from "./_webhooks";
 

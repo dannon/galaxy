@@ -1,7 +1,9 @@
 import $ from "jquery";
-import * as bigwig from "libs/bbi/bigwig";
-import { getAppRoot } from "onload/loadConfig";
-import visualization from "viz/visualization";
+
+import * as bigwig from "@/libs/bbi/bigwig";
+import { getAppRoot } from "@/onload/loadConfig";
+
+import visualization from "./visualization";
 
 /**
  * Data manager for BBI datasets/files, including BigWig and BigBed.

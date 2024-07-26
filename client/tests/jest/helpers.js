@@ -3,13 +3,13 @@
  */
 import { createLocalVue, shallowMount } from "@vue/test-utils";
 import BootstrapVue from "bootstrap-vue";
-import { iconPlugin } from "components/plugins/icons";
-import { localizationPlugin } from "components/plugins/localization";
-import { vueRxShortcutPlugin } from "components/plugins/vueRxShortcuts";
+import { iconPlugin } from "@/components/plugins/icons";
+import { localizationPlugin } from "@/components/plugins/localization";
+import { vueRxShortcutPlugin } from "@/components/plugins/vueRxShortcuts";
 import { PiniaVuePlugin } from "pinia";
 import { fromEventPattern, timer } from "rxjs";
 import { debounceTime, take, takeUntil } from "rxjs/operators";
-import _l from "utils/localization";
+import _l from "@/utils/localization";
 
 import _short from "@/components/plugins/short";
 import VueRouter from "vue-router";

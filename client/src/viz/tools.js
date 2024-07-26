@@ -4,10 +4,12 @@
 import Backbone from "backbone";
 import * as d3 from "d3v3";
 import $ from "jquery";
-import { DatasetCollection } from "mvc/dataset/data";
-import { getAppRoot } from "onload/loadConfig";
 import _ from "underscore";
-import util from "viz/trackster/util";
+
+import { DatasetCollection } from "@/mvc/dataset/data";
+import { getAppRoot } from "@/onload/loadConfig";
+
+import util from "./trackster/util";
 
 /**
  * Mixin for tracking model visibility.

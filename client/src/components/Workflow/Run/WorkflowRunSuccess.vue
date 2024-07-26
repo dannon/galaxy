@@ -33,13 +33,13 @@
 </template>
 
 <script>
-import WorkflowInvocationState from "components/WorkflowInvocationState/WorkflowInvocationState";
-import { getAppRoot } from "onload/loadConfig";
 import { mapActions, mapState } from "pinia";
-import { refreshContentsWrapper } from "utils/data";
-import Webhooks from "utils/webhooks";
 
+import WorkflowInvocationState from "@/components/WorkflowInvocationState/WorkflowInvocationState";
+import { getAppRoot } from "@/onload/loadConfig";
 import { useHistoryStore } from "@/stores/historyStore";
+import { refreshContentsWrapper } from "@/utils/data";
+import Webhooks from "@/utils/webhooks";
 
 export default {
     components: {

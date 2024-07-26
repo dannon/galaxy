@@ -7,10 +7,9 @@
  * will more properly be run inside a lifecycle handler inside of a component.
  */
 
-import { make_popup_menus } from "ui/popupmenu";
-import { monitorInit } from "utils/installMonitor";
-
 import { prependInitialization } from "@/onload/initQueue";
+import { make_popup_menus } from "@/ui/popupmenu";
+import { monitorInit } from "@/utils/installMonitor";
 
 // specific initialization functions
 import { addIframeClass, adjustIframeLinks } from "./iframesAreTerrible";

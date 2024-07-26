@@ -145,8 +145,6 @@
 </template>
 
 <script>
-import { buildCollectionModal } from "components/History/adapters/buildCollectionModal";
-import { HistoryFilters } from "components/History/HistoryFilters";
 import {
     addTagsToSelectedContent,
     changeDatatypeOfSelectedContent,
@@ -158,11 +156,13 @@ import {
     undeleteSelectedContent,
     unhideSelectedContent,
 } from "components/History/model/crud";
-import { createDatasetCollection, getHistoryContent } from "components/History/model/queries";
-import { DatatypesProvider, DbKeyProvider } from "components/providers";
-import SingleItemSelector from "components/SingleItemSelector";
-import { StatelessTags } from "components/Tags";
 
+import { buildCollectionModal } from "@/components/History/adapters/buildCollectionModal";
+import { HistoryFilters } from "@/components/History/HistoryFilters";
+import { createDatasetCollection, getHistoryContent } from "@/components/History/model/queries";
+import { DatatypesProvider, DbKeyProvider } from "@/components/providers";
+import SingleItemSelector from "@/components/SingleItemSelector";
+import { StatelessTags } from "@/components/Tags";
 import { useConfig } from "@/composables/config";
 
 export default {

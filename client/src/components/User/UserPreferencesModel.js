@@ -1,5 +1,5 @@
-import { getGalaxyInstance } from "app";
-import _l from "utils/localization";
+import { getGalaxyInstance } from "@/app";
+import _l from "@/utils/localization";
 
 export const getUserPreferencesModel = (user_id) => {
     const Galaxy = getGalaxyInstance();

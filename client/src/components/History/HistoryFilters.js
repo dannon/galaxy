@@ -1,5 +1,3 @@
-import { STATES } from "components/History/Content/model/states";
-import StatesInfo from "components/History/Content/model/StatesInfo";
 import Filtering, {
     compare,
     contains,
@@ -9,6 +7,9 @@ import Filtering, {
     toBool,
     toDate,
 } from "utils/filtering";
+
+import { STATES } from "./Content/model/states";
+import StatesInfo from "./Content/model/StatesInfo";
 
 const excludeStates = ["empty", "failed", "upload", "placeholder", "failed_populated_state", "new_populated_state"];
 const states = Object.keys(STATES).filter((state) => !excludeStates.includes(state));

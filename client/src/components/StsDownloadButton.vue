@@ -23,11 +23,11 @@ import { faDownload, faSpinner } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import axios from "axios";
 import { BButton } from "bootstrap-vue";
-import { Toast } from "composables/toast";
-import { getAppRoot } from "onload/loadConfig";
-import { withPrefix } from "utils/redirect";
 
 import { useConfig } from "@/composables/config";
+import { Toast } from "@/composables/toast";
+import { getAppRoot } from "@/onload/loadConfig";
+import { withPrefix } from "@/utils/redirect";
 
 library.add(faDownload, faSpinner);
 export default {

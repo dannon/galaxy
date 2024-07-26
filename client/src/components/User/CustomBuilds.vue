@@ -149,11 +149,12 @@ chr5    152537259</pre
 <script>
 import "vue-multiselect/dist/vue-multiselect.min.css";
 
-import { getGalaxyInstance } from "app";
 import axios from "axios";
 import BootstrapVue from "bootstrap-vue";
 import Vue from "vue";
 import Multiselect from "vue-multiselect";
+
+import { getGalaxyInstance } from "@/app";
 
 Vue.use(BootstrapVue);
 

@@ -39,13 +39,13 @@
 <script>
 import axios from "axios";
 import { BModal, BRow, VBModal } from "bootstrap-vue";
-import SelectObjectStore from "components/ObjectStore/SelectObjectStore";
 import { mapState } from "pinia";
-import { prependPath } from "utils/redirect";
-import { errorMessageAsString } from "utils/simple-error";
 import Vue from "vue";
 
+import SelectObjectStore from "@/components/ObjectStore/SelectObjectStore";
 import { useConfigStore } from "@/stores/configurationStore";
+import { prependPath } from "@/utils/redirect";
+import { errorMessageAsString } from "@/utils/simple-error";
 
 Vue.use(VBModal);
 

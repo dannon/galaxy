@@ -1,21 +1,23 @@
 import "ui/editable-text";
 
-import { getGalaxyInstance } from "app";
 import Backbone from "backbone";
 import $ from "jquery";
-import { Dataset } from "mvc/dataset/data";
-import { getAppRoot } from "onload/loadConfig";
 import _ from "underscore";
-import config_mod from "utils/config";
-import _l from "utils/localization";
-import bbi from "viz/bbi-data-manager";
-import tools_mod from "viz/tools";
-import filters_mod from "viz/trackster/filters";
-import painters from "viz/trackster/painters";
-import slotting from "viz/trackster/slotting";
-import util from "viz/trackster/util";
-import visualization from "viz/visualization";
-import viz_views from "viz/viz_views";
+
+import { getGalaxyInstance } from "@/app";
+import { Dataset } from "@/mvc/dataset/data";
+import { getAppRoot } from "@/onload/loadConfig";
+import config_mod from "@/utils/config";
+import _l from "@/utils/localization";
+import bbi from "@/viz/bbi-data-manager";
+import tools_mod from "@/viz/tools";
+import visualization from "@/viz/visualization";
+import viz_views from "@/viz/viz_views";
+
+import filters_mod from "./filters";
+import painters from "./painters";
+import slotting from "./slotting";
+import util from "./util";
 
 var extend = _.extend;
 

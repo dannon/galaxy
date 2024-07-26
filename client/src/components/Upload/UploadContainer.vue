@@ -1,7 +1,5 @@
 <script setup>
 import { BAlert, BTab, BTabs } from "bootstrap-vue";
-import { getDatatypesMapper } from "components/Datatypes";
-import LoadingSpan from "components/LoadingSpan";
 import {
     AUTO_EXTENSION,
     DEFAULT_DBKEY,
@@ -13,6 +11,8 @@ import { storeToRefs } from "pinia";
 import { computed, onMounted, ref } from "vue";
 
 import { canMutateHistory } from "@/api";
+import { getDatatypesMapper } from "@/components/Datatypes";
+import LoadingSpan from "@/components/LoadingSpan";
 import { useHistoryStore } from "@/stores/historyStore";
 import { useUploadStore } from "@/stores/uploadStore";
 import { uploadPayload } from "@/utils/upload-payload.js";

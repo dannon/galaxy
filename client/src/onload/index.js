@@ -12,10 +12,10 @@ import "@fontsource/atkinson-hyperlegible/700.css";
 
 // Client-side configuration variables (based on environment)
 import { library } from "@fortawesome/fontawesome-svg-core";
-import config from "config";
 
 // Custom Icons
 import customIconPack from "@/assets/icons.json";
+import config from "@/config";
 
 import { overrideProductionConsole } from "./console";
 

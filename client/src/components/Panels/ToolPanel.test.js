@@ -3,12 +3,12 @@ import "jest-location-mock";
 import { mount } from "@vue/test-utils";
 import axios from "axios";
 import MockAdapter from "axios-mock-adapter";
-import toolsList from "components/ToolsView/testData/toolsList";
-import toolsListInPanel from "components/ToolsView/testData/toolsListInPanel";
 import flushPromises from "flush-promises";
 import { createPinia } from "pinia";
 import { getLocalVue } from "tests/jest/helpers";
 
+import toolsList from "@/components/ToolsView/testData/toolsList";
+import toolsListInPanel from "@/components/ToolsView/testData/toolsListInPanel";
 import { useConfig } from "@/composables/config";
 
 import viewsList from "./testData/viewsList";

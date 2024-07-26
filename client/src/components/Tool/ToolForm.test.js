@@ -1,14 +1,14 @@
 import { mount } from "@vue/test-utils";
 import axios from "axios";
 import MockAdapter from "axios-mock-adapter";
-import MockCurrentHistory from "components/providers/MockCurrentHistory";
 import { createPinia } from "pinia";
-import { useHistoryStore } from "stores/historyStore";
-import { useUserStore } from "stores/userStore";
 import { getLocalVue } from "tests/jest/helpers";
 import Vue from "vue";
 
 import { mockFetcher } from "@/api/schema/__mocks__";
+import MockCurrentHistory from "@/components/providers/MockCurrentHistory";
+import { useHistoryStore } from "@/stores/historyStore";
+import { useUserStore } from "@/stores/userStore";
 
 import ToolForm from "./ToolForm";
 

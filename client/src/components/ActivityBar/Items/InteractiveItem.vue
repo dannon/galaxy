@@ -4,7 +4,7 @@ import { computed } from "vue";
 
 import { useEntryPointStore } from "@/stores/entryPointStore";
 
-import ActivityItem from "components/ActivityBar/ActivityItem.vue";
+import ActivityItem from "@/components/ActivityBar/ActivityItem.vue";
 
 const { entryPoints } = storeToRefs(useEntryPointStore());
 

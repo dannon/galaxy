@@ -17,9 +17,9 @@
 </template>
 <script>
 import BootstrapVue from "bootstrap-vue";
-import LoadingSpan from "components/LoadingSpan";
 import Vue from "vue";
 
+import LoadingSpan from "@/components/LoadingSpan";
 import { Services } from "@/components/Toolshed/services";
 
 import RepositoryDetails from "@/components/Toolshed/RepositoryDetails/Index.vue";

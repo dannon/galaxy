@@ -2,7 +2,7 @@
 import { BTab } from "bootstrap-vue";
 
 import ParameterStep from "./ParameterStep.vue";
-import GenericHistoryItem from "components/History/Content/GenericItem.vue";
+import GenericHistoryItem from "@/components/History/Content/GenericItem.vue";
 
 const props = defineProps({
     invocation: {

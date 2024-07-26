@@ -3,7 +3,8 @@
  */
 import Backbone from "backbone";
 import $ from "jquery";
-import Utils from "utils/utils";
+
+import Utils from "./utils";
 
 export default Backbone.Model.extend({
     initialize: function () {

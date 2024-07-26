@@ -25,13 +25,13 @@
 </template>
 
 <script>
-import FormCard from "components/Form/FormCard";
-import FormDisplay from "components/Form/FormDisplay";
-import { visitInputs } from "components/Form/utilities";
-import { UrlDataProvider } from "components/providers/UrlDataProvider";
-import { withPrefix } from "utils/redirect";
+import { UrlDataProvider } from "@/components/providers/UrlDataProvider";
+import { withPrefix } from "@/utils/redirect";
 
+import FormCard from "./FormCard";
+import FormDisplay from "./FormDisplay";
 import { submitData } from "./services";
+import { visitInputs } from "./utilities";
 
 export default {
     components: {

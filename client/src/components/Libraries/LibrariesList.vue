@@ -183,18 +183,18 @@
 <script>
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import BootstrapVue from "bootstrap-vue";
-import { initLibrariesIcons } from "components/Libraries/icons";
-import { DEFAULT_PER_PAGE, MAX_DESCRIPTION_LENGTH, onError } from "components/Libraries/library-utils";
-import LibraryEditField from "components/Libraries/LibraryEditField";
-import SearchField from "components/Libraries/LibraryFolder/SearchField";
-import { Toast } from "composables/toast";
-import { getAppRoot } from "onload/loadConfig";
 import { mapState } from "pinia";
-import _l from "utils/localization";
 import Vue from "vue";
 
+import { Toast } from "@/composables/toast";
+import { getAppRoot } from "@/onload/loadConfig";
 import { useUserStore } from "@/stores/userStore";
+import _l from "@/utils/localization";
 
+import { initLibrariesIcons } from "./icons";
+import { DEFAULT_PER_PAGE, MAX_DESCRIPTION_LENGTH, onError } from "./library-utils";
+import LibraryEditField from "./LibraryEditField";
+import SearchField from "./LibraryFolder/SearchField";
 import { Services } from "./services";
 import { fields } from "./table-fields";
 
