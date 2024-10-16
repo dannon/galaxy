@@ -73,7 +73,7 @@ export default {
             delay: 200,
         };
     },
-    destroyed() {
+    unmounted() {
         this.clearTimeout();
     },
     methods: {

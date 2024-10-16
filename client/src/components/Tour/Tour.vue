@@ -91,7 +91,7 @@ export default {
             return this.currentIndex >= 1;
         },
     },
-    beforeDestroy() {
+    beforeUnmount() {
         window.removeEventListener("keyup", this.handleKeyup);
     },
     mounted() {
