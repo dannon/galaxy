@@ -174,7 +174,7 @@ function cancelWorkflowSchedulingLocal() {
                     !invocationStateSuccess || !workflowStore.getStoredWorkflowByInstanceId(invocation.workflow_id)
                 "
                 :lazy="reportLazy"
-                :active.sync="reportActive">
+                v-model:active="reportActive">
                 <InvocationReport v-if="invocationStateSuccess" :invocation-id="invocation.id" />
             </BTab>
             <BTab title="Export" lazy>

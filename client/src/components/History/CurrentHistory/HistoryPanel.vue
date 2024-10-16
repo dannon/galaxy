@@ -460,10 +460,10 @@ function arrowNavigate(item: HistoryItemSummary, eventKey: string) {
                     name="History Items"
                     placeholder="search datasets"
                     :filter-class="filterClass"
-                    :filter-text.sync="filterText"
+                    v-model:filter-text="filterText"
                     :loading="isLoading"
                     :search-error="searchError"
-                    :show-advanced.sync="showAdvanced" />
+                    v-model:show-advanced="showAdvanced" />
 
                 <section v-if="!showAdvanced">
                     <HistoryDetails
@@ -480,7 +480,7 @@ function arrowNavigate(item: HistoryItemSummary, eventKey: string) {
                         :last-checked="lastCheckedTime"
                         :show-controls="canEditHistory"
                         :owned-by-current-user="userOwnsHistory(currentUser, history)"
-                        :filter-text.sync="filterText"
+                        v-model:filter-text="filterText"
                         :hide-reload="isMultiViewItem"
                         @reloadContents="reloadContents" />
 
@@ -491,7 +491,7 @@ function arrowNavigate(item: HistoryItemSummary, eventKey: string) {
                         :show-selection="showSelection"
                         :expanded-count="expandedCount"
                         :has-matches="hasMatches(historyItems)"
-                        :operation-running.sync="operationRunning"
+                        v-model:operation-running="operationRunning"
                         @update:show-selection="setShowSelection"
                         @collapse-all="collapseAll">
                         <template v-slot:selection-operations>
@@ -503,7 +503,7 @@ function arrowNavigate(item: HistoryItemSummary, eventKey: string) {
                                 :selection-size="selectionSize"
                                 :is-query-selection="isQuerySelection"
                                 :total-items-in-query="totalMatchesCount"
-                                :operation-running.sync="operationRunning"
+                                v-model:operation-running="operationRunning"
                                 @update:show-selection="setShowSelection"
                                 @operation-error="onOperationError"
                                 @hide-selection="onHideSelection"

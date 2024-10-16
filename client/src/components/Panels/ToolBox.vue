@@ -247,7 +247,7 @@ function onToggle() {
                 :enable-advanced="!props.workflow"
                 :current-panel-view="props.panelView || ''"
                 :placeholder="localize('search tools')"
-                :show-advanced.sync="propShowAdvanced"
+                v-model:show-advanced="propShowAdvanced"
                 :tools-list="toolsList"
                 :current-panel="localSectionsById"
                 :query="query"

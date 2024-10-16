@@ -170,7 +170,7 @@ const { anySelected, selectedCountText, deleteSelection, deselectAll, duplicateS
                         class="button"
                         data-tool="toggle_snap"
                         :title="snapButtonTitle"
-                        :pressed.sync="snapActive"
+                        v-model:pressed="snapActive"
                         variant="outline-primary">
                         <FontAwesomeIcon icon="fa-magnet" size="lg" />
                     </BButton>
@@ -278,14 +278,14 @@ const { anySelected, selectedCountText, deleteSelection, deselectAll, duplicateS
             <div v-if="toolbarStore.currentTool === 'textComment'" class="option buttons">
                 <BButtonGroup>
                     <BButton
-                        :pressed.sync="commentOptions.bold"
+                        v-model:pressed="commentOptions.bold"
                         variant="outline-primary"
                         class="button font-weight-bold"
                         data-option="toggle-bold">
                         Bold
                     </BButton>
                     <BButton
-                        :pressed.sync="commentOptions.italic"
+                        v-model:pressed="commentOptions.italic"
                         variant="outline-primary"
                         class="button font-italic"
                         data-option="toggle-italic">

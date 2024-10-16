@@ -135,9 +135,9 @@ const modalBodyClasses = computed(() => {
                     name="Histories"
                     placeholder="search histories"
                     :filter-class="HistoriesFilters"
-                    :filter-text.sync="filter"
+                    v-model:filter-text="filter"
                     :loading="busy"
-                    :show-advanced.sync="showAdvanced" />
+                    v-model:show-advanced="showAdvanced" />
             </BFormGroup>
 
             <HistoryList
@@ -145,10 +145,10 @@ const modalBodyClasses = computed(() => {
                 :multiple="props.multiple"
                 :selected-histories="selectedHistories"
                 :additional-options="props.additionalOptions"
-                :show-modal.sync="propShowModal"
+                v-model:show-modal="propShowModal"
                 in-modal
                 :filter="filter"
-                :loading.sync="busy"
+                v-model:loading="busy"
                 @selectHistory="selectHistory"
                 @setFilter="setFilterValue">
                 <template v-slot:modal-button-area>

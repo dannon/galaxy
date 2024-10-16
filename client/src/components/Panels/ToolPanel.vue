@@ -140,7 +140,7 @@ function onInsertWorkflowSteps(workflowId: string, workflowStepCount: number | u
                     v-if="panelViews && Object.keys(panelViews).length > 1"
                     :panel-views="panelViews"
                     :current-panel-view="currentPanelView"
-                    :show-advanced.sync="showAdvanced"
+                    v-model:show-advanced="showAdvanced"
                     :store-loading="loading"
                     @updatePanelView="updatePanelView">
                     <template v-slot:panel-view-selector>
@@ -176,9 +176,9 @@ function onInsertWorkflowSteps(workflowId: string, workflowStepCount: number | u
         <ToolBox
             v-if="isPanelPopulated"
             :workflow="props.workflow"
-            :panel-query.sync="query"
+            v-model:panel-query="query"
             :panel-view="currentPanelView"
-            :show-advanced.sync="showAdvanced"
+            v-model:show-advanced="showAdvanced"
             :editor-workflows="editorWorkflows"
             :data-managers="dataManagers"
             :module-sections="moduleSections"
