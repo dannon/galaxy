@@ -9314,12 +9314,12 @@ open@^8.0.9:
     is-docker "^2.1.1"
     is-wsl "^2.2.0"
 
-openapi-fetch@^0.10.6:
-  version "0.10.6"
-  resolved "https://registry.yarnpkg.com/openapi-fetch/-/openapi-fetch-0.10.6.tgz#255017e3e609c5e7be16bc1ed7a973977c085cdc"
-  integrity sha512-6xXfvIEL/POtLGOaFPsp3O+pDe+J3DZYxbD9BrsQHXOTeNK8z/gsWHT6adUy1KcpQOhmkerMzlQrJM6DbN55dQ==
+openapi-fetch@^0.12.2:
+  version "0.12.2"
+  resolved "https://registry.yarnpkg.com/openapi-fetch/-/openapi-fetch-0.12.2.tgz#f8d6c8f00ef32a62da4b3918336df1b204495543"
+  integrity sha512-ctMQ4LkkSWfIDUMuf1SYuPMsQ7ePcWAkYaMPW1lCDdk4WlV3Vulq1zoyGrwnFVvrBs5t7OOqNF+EKa8SAaovEA==
   dependencies:
-    openapi-typescript-helpers "^0.0.11"
+    openapi-typescript-helpers "^0.0.13"
 
 openapi-msw@^0.7.0:
   version "0.7.0"
@@ -9333,10 +9333,10 @@ openapi-typescript-helpers@0.0.8:
   resolved "https://registry.yarnpkg.com/openapi-typescript-helpers/-/openapi-typescript-helpers-0.0.8.tgz#460f395362cc16e4a5de56264b7b1c5a03746e35"
   integrity sha512-1eNjQtbfNi5Z/kFhagDIaIRj6qqDzhjNJKz8cmMW0CVdGwT6e1GLbAfgI0d28VTJa1A8jz82jm/4dG8qNoNS8g==
 
-openapi-typescript-helpers@^0.0.11:
-  version "0.0.11"
-  resolved "https://registry.yarnpkg.com/openapi-typescript-helpers/-/openapi-typescript-helpers-0.0.11.tgz#d05e88216b8f3771d5df41c863ebc5c9d10e2954"
-  integrity sha512-xofUHlVFq+BMquf3nh9I8N2guHckW6mrDO/F3kaFgrL7MGbjldDnQ9TIT+rkH/+H0LiuO+RuZLnNmsJwsjwUKg==
+openapi-typescript-helpers@^0.0.13:
+  version "0.0.13"
+  resolved "https://registry.yarnpkg.com/openapi-typescript-helpers/-/openapi-typescript-helpers-0.0.13.tgz#d959b6a87b5461759e240af375fab480252d2caf"
+  integrity sha512-z44WK2e7ygW3aUtAtiurfEACohf/Qt9g6BsejmIYgEoY4REHeRzgFJmO3ium0libsuzPc145I+8lE9aiiZrQvQ==
 
 openapi-typescript@^7.3.0:
   version "7.3.0"

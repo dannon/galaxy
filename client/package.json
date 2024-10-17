@@ -80,7 +80,7 @@
     "markdown-it": "^13.0.2",
     "markdown-it-regexp": "^0.4.0",
     "object-hash": "^3.0.0",
-    "openapi-fetch": "^0.10.6",
+    "openapi-fetch": "^0.12.2",
     "pinia": "^2.1.7",
     "popper.js": "^1.16.1",
     "pretty-bytes": "^6.1.1",
