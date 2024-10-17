@@ -40,7 +40,7 @@ const columns = computed(() => {
     const columns = Array(props.options.dataset_config.metadata_columns);
     // for each column_name, inject header
     if (props.options.dataset_config.metadata_column_names?.length > 0) {
-        props.options.dataset_config.metadata_column_names.forEach((column_name, index) => {
+        props.options.dataset_config.metadata_column_names.forEach((column_name: string, index: number) => {
             columns[index] = column_name;
         });
     }
@@ -50,7 +50,7 @@ const columns = computed(() => {
 const columnStyle = computed(() => {
     const columnStyle = Array(props.options.dataset_config.metadata_columns);
     if (props.options.dataset_config.metadata_column_types?.length > 0) {
-        props.options.dataset_config.metadata_column_types.forEach((column_type, index) => {
+        props.options.dataset_config.metadata_column_types.forEach((column_type: string, index: number) => {
             columnStyle[index] = column_type === "str" || column_type === "list" ? "string-align" : "number-align";
         });
     }
