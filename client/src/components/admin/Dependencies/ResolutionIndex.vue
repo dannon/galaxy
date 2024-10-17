@@ -82,15 +82,11 @@
     </dependency-index-wrapper>
 </template>
 <script>
-import BootstrapVue from "bootstrap-vue";
 import _ from "underscore";
-import Vue from "vue";
 
 import { getToolboxDependencies, installDependencies, uninstallDependencies } from "../AdminServices";
 import DependencyIndexMixin from "./DependencyIndexMixin";
 import ResolutionDetails from "./ResolutionDetails";
-
-Vue.use(BootstrapVue);
 
 export const RESOLVER_DESCRIPTIONS = {
     conda: "",

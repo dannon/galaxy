@@ -42,16 +42,12 @@
 
 <script>
 import axios from "axios";
-import BootstrapVue from "bootstrap-vue";
 import ToolSection from "components/Panels/Common/ToolSection";
 import { getAppRoot } from "onload/loadConfig";
-import Vue from "vue";
 
 import { directiveEntry } from "./directives.ts";
 import { fromSteps } from "./labels.ts";
 import MarkdownDialog from "./MarkdownDialog";
-
-Vue.use(BootstrapVue);
 
 function historySharedElements(mode) {
     return [

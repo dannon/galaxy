@@ -16,8 +16,6 @@
 </template>
 
 <script>
-import Vue from "vue";
-
 import FormInputs from "./FormInputs";
 import { matchInputs, validateInputs, visitInputs } from "./utilities";
 

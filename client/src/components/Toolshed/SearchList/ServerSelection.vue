@@ -31,11 +31,6 @@
     </div>
 </template>
 <script>
-import BootstrapVue from "bootstrap-vue";
-import Vue from "vue";
-
-Vue.use(BootstrapVue);
-
 export default {
     props: {
         toolshedUrl: {

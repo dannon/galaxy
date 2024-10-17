@@ -142,14 +142,12 @@
 <script>
 import { getGalaxyInstance } from "app";
 import axios from "axios";
-import BootstrapVue from "bootstrap-vue";
 import { getUserPreferencesModel } from "components/User/UserPreferencesModel";
 import { mapActions, mapState } from "pinia";
 import _l from "utils/localization";
 import { userLogoutAll } from "utils/logout";
 import QueryStringParsing from "utils/query-string-parsing";
 import { withPrefix } from "utils/redirect";
-import Vue from "vue";
 
 import { useConfig } from "@/composables/config";
 import { useFileSourceTemplatesStore } from "@/stores/fileSourceTemplatesStore";
@@ -162,8 +160,6 @@ import UserPreferencesElement from "./UserPreferencesElement";
 import UserPreferredObjectStore from "./UserPreferredObjectStore";
 
 import ThemeSelector from "./ThemeSelector.vue";
-
-Vue.use(BootstrapVue);
 
 export default {
     components: {

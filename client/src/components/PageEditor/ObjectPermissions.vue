@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import axios from "axios";
-import Vue, { computed, type Ref, ref, watch } from "vue";
+import { computed, type Ref, ref, watch } from "vue";
 
 import { GalaxyApi, type MessageException } from "@/api";
 import { fetchCollectionSummary } from "@/api/datasetCollections";

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { BAlert } from "bootstrap-vue";
-import Vue, { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 
 import {
     browseRemoteFiles,

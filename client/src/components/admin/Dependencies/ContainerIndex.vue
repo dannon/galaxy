@@ -91,16 +91,12 @@
     </dependency-index-wrapper>
 </template>
 <script>
-import BootstrapVue from "bootstrap-vue";
 import _ from "underscore";
-import Vue from "vue";
 
 import { getContainerResolutionToolbox, resolveContainersWithInstall } from "../AdminServices";
 import ContainerResolutionDetails from "./ContainerResolutionDetails";
 import { DESCRIPTION } from "./ContainerResolver";
 import DependencyIndexMixin from "./DependencyIndexMixin";
-
-Vue.use(BootstrapVue);
 
 const RESOLVER_TYPE_OPTIONS = _.keys(DESCRIPTION).map((resolverType) => ({ value: resolverType, text: resolverType }));
 RESOLVER_TYPE_OPTIONS.splice(0, 0, { value: null, text: "*any*" });

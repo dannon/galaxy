@@ -68,7 +68,6 @@ import { allowCachedJobs } from "components/Tool/utilities";
 import { isWorkflowInput } from "components/Workflow/constants";
 import { storeToRefs } from "pinia";
 import { errorMessageAsString } from "utils/simple-error";
-import Vue from "vue";
 
 import { useConfig } from "@/composables/config";
 import { useUserStore } from "@/stores/userStore";

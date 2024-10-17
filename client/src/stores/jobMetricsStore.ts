@@ -1,6 +1,6 @@
 import axios from "axios";
 import { defineStore } from "pinia";
-import Vue, { computed, ref } from "vue";
+import { computed, ref } from "vue";
 
 import { prependPath } from "@/utils/redirect";
 

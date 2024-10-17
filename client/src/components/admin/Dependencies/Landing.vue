@@ -11,14 +11,9 @@
     </div>
 </template>
 <script>
-import BootstrapVue from "bootstrap-vue";
-import Vue from "vue";
-
 import ContainerIndex from "./ContainerIndex";
 import ResolutionIndex from "./ResolutionIndex";
 import UnusedIndex from "./UnusedIndex";
-
-Vue.use(BootstrapVue);
 
 export default {
     components: { ContainerIndex, ResolutionIndex, UnusedIndex },

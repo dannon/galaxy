@@ -263,7 +263,6 @@
 
 <script>
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
-import BootstrapVue from "bootstrap-vue";
 import { initFolderTableIcons } from "components/Libraries/icons";
 import { DEFAULT_PER_PAGE, MAX_DESCRIPTION_LENGTH } from "components/Libraries/library-utils";
 import UtcDate from "components/UtcDate";
@@ -282,8 +281,6 @@ import { fields } from "./table-fields";
 import FolderTopBar from "./TopToolbar/FolderTopBar";
 
 initFolderTableIcons();
-
-Vue.use(BootstrapVue);
 
 function initialFolderState() {
     return {

@@ -569,7 +569,6 @@
 import HotTable from "@handsontable/vue";
 import { getGalaxyInstance } from "app";
 import axios from "axios";
-import BootstrapVue from "bootstrap-vue";
 import ColumnSelector from "components/RuleBuilder/ColumnSelector";
 import IdentifierDisplay from "components/RuleBuilder/IdentifierDisplay";
 import RegularExpressionInput from "components/RuleBuilder/RegularExpressionInput";
@@ -591,11 +590,8 @@ import { getAppRoot } from "onload/loadConfig";
 import _ from "underscore";
 import { refreshContentsWrapper } from "utils/data";
 import _l from "utils/localization";
-import Vue from "vue";
 
 import TooltipOnHover from "components/TooltipOnHover.vue";
-
-Vue.use(BootstrapVue);
 
 const RULES = RuleDefs.RULES;
 const MAPPING_TARGETS = RuleDefs.MAPPING_TARGETS;

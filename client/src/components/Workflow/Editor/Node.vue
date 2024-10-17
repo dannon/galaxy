@@ -149,9 +149,8 @@ import { library } from "@fortawesome/fontawesome-svg-core";
 import { faCodeBranch } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import { type UseElementBoundingReturn, type UseScrollReturn, type VueInstance } from "@vueuse/core";
-import BootstrapVue from "bootstrap-vue";
 import type { PropType, Ref } from "vue";
-import Vue, { computed, reactive, ref } from "vue";
+import { computed, reactive, ref } from "vue";
 
 import { getGalaxyInstance } from "@/app";
 import { DatatypesMapperModel } from "@/components/Datatypes/model";
@@ -171,8 +170,6 @@ import NodeInput from "@/components/Workflow/Editor/NodeInput.vue";
 import NodeInvocationText from "@/components/Workflow/Editor/NodeInvocationText.vue";
 import NodeOutput from "@/components/Workflow/Editor/NodeOutput.vue";
 import Recommendations from "@/components/Workflow/Editor/Recommendations.vue";
-
-Vue.use(BootstrapVue);
 
 library.add(faCodeBranch);
 

@@ -48,17 +48,13 @@
 
 <script>
 import axios from "axios";
-import BootstrapVue from "bootstrap-vue";
 import JobError from "components/JobInformation/JobError";
 import { waitOnJob } from "components/JobStates/wait";
 import LoadingSpan from "components/LoadingSpan";
 import { getAppRoot } from "onload/loadConfig";
 import { errorMessageAsString } from "utils/simple-error";
-import Vue from "vue";
 
 import ExportLink from "./ExportLink.vue";
-
-Vue.use(BootstrapVue);
 
 export default {
     components: { LoadingSpan, ExportLink, JobError },

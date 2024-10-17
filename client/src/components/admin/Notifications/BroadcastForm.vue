@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import { BAlert, BButton, BCol, BFormGroup, BFormInput, BRow } from "bootstrap-vue";
-import Vue, { computed, ref } from "vue";
+import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 
 import { type components, GalaxyApi } from "@/api";

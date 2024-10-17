@@ -16,15 +16,11 @@
     </div>
 </template>
 <script>
-import BootstrapVue from "bootstrap-vue";
 import LoadingSpan from "components/LoadingSpan";
-import Vue from "vue";
 
 import { Services } from "../services";
 
 import RepositoryDetails from "../RepositoryDetails/Index.vue";
-
-Vue.use(BootstrapVue);
 
 const READY = 0;
 const LOADING = 1;

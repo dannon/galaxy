@@ -5,7 +5,6 @@
 
 import axios from "axios";
 import { defineStore } from "pinia";
-import Vue from "vue";
 
 import { getAppRoot } from "@/onload/loadConfig";
 

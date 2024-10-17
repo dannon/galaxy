@@ -1,6 +1,6 @@
 <script setup>
 import { BButton } from "bootstrap-vue";
-import Vue, { computed, ref } from "vue";
+import { computed, ref } from "vue";
 
 import { uploadPayload } from "@/utils/upload-payload.js";
 import { uploadSubmit } from "@/utils/upload-submit.js";

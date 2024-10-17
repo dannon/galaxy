@@ -21,13 +21,10 @@
 import { library } from "@fortawesome/fontawesome-svg-core";
 import { faInfoCircle } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
-import BootstrapVue from "bootstrap-vue";
-import Vue from "vue";
 
 import JobInformation from "./JobInformation.vue";
 
 library.add(faInfoCircle);
-Vue.use(BootstrapVue);
 
 export default {
     components: { JobInformation, FontAwesomeIcon },

@@ -92,17 +92,13 @@
 
 <script>
 import { getGalaxyInstance } from "app";
-import BootstrapVue from "bootstrap-vue";
 import { Toast } from "composables/toast";
 import { sanitize } from "dompurify";
 import { userLogout } from "utils/logout";
-import Vue from "vue";
 
 import svc from "./service";
 
 import ExternalLogin from "components/User/ExternalIdentities/ExternalLogin.vue";
-
-Vue.use(BootstrapVue);
 
 export default {
     components: {

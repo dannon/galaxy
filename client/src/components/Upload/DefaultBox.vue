@@ -4,7 +4,7 @@ import { faCopy, faEdit, faFolderOpen, faLaptop } from "@fortawesome/free-solid-
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import { BButton } from "bootstrap-vue";
 import { filesDialog } from "utils/data";
-import Vue, { computed, ref } from "vue";
+import { computed, ref } from "vue";
 
 import { UploadQueue } from "@/utils/upload-queue.js";
 

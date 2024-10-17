@@ -4,7 +4,7 @@
 
 import axios from "axios";
 import { defineStore } from "pinia";
-import Vue, { computed, type Ref, ref, shallowRef } from "vue";
+import { computed, type Ref, ref, shallowRef } from "vue";
 
 import { createWhooshQuery, filterTools, type types_to_icons } from "@/components/Panels/utilities";
 import { useUserLocalStorage } from "@/composables/userLocalStorage";

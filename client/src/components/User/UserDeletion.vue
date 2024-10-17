@@ -38,12 +38,8 @@
 
 <script>
 import axios from "axios";
-import BootstrapVue from "bootstrap-vue";
 import { userLogoutClient } from "utils/logout";
 import { withPrefix } from "utils/redirect";
-import Vue from "vue";
-
-Vue.use(BootstrapVue);
 
 export default {
     props: {

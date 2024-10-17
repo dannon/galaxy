@@ -78,11 +78,9 @@
 import { library } from "@fortawesome/fontawesome-svg-core";
 import { faExclamationTriangle, faMagic } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
-import BootstrapVue from "bootstrap-vue";
 import LintSection from "components/Workflow/Editor/LintSection";
 import { UntypedParameters } from "components/Workflow/Editor/modules/parameters";
 import { storeToRefs } from "pinia";
-import Vue from "vue";
 
 import { DatatypesMapperModel } from "@/components/Datatypes/model";
 import { useWorkflowStores } from "@/composables/workflowStores";
@@ -97,8 +95,6 @@ import {
     getUnlabeledOutputs,
     getUntypedParameters,
 } from "./modules/linting";
-
-Vue.use(BootstrapVue);
 
 library.add(faExclamationTriangle);
 library.add(faMagic);

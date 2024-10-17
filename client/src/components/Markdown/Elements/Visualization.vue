@@ -8,12 +8,8 @@
 
 <script>
 import axios from "axios";
-import BootstrapVue from "bootstrap-vue";
 import LoadingSpan from "components/LoadingSpan";
 import { getAppRoot } from "onload/loadConfig";
-import Vue from "vue";
-
-Vue.use(BootstrapVue);
 
 export default {
     components: {
