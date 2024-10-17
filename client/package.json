@@ -101,7 +101,7 @@
     "util": "^0.12.5",
     "vue": "^3.5.12",
     "vue-infinite-scroll": "^2.0.2",
-    "vue-loader": "^17.3.1",
+    "vue-loader": "^17.4.2",
     "vue-multiselect": "^2.1.8",
     "vue-observe-visibility": "^1.0.0",
     "vue-prismjs": "^1.2.0",
