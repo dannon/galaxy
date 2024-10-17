@@ -88,7 +88,7 @@ export function useKeyedCache<T>(
             storedItems.value[itemId] = item;
             return item;
         } catch (error) {
-            loadingErrors.value[itemId] = error;
+            loadingErrors.value[itemId] = error as Error;
         } finally {
             delete loadingItem.value[itemId];
         }
