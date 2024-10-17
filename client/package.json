@@ -131,7 +131,8 @@
     "jest": "jest --config tests/jest/jest.config.js",
     "jest-watch": "jest --config tests/jest/jest.config.js --watch",
     "eslint-precommit": "eslint -c .eslintrc.js --quiet --ext .js,.vue,.ts src tests/jest/standalone",
-    "eslint": "eslint -c .eslintrc.js --ext .js,.vue,.ts src tests/jest/standalone"
+    "eslint": "eslint -c .eslintrc.js --ext .js,.vue,.ts src tests/jest/standalone",
+    "vue-tsc": "vue-tsc --noEmit"
   },
   "devDependencies": {
     "@babel/core": "^7.23.3",
@@ -199,6 +200,7 @@
     "ts-loader": "^9.5.1",
     "tsconfig-paths-webpack-plugin": "^4.1.0",
     "typescript": "^5.2.2",
+    "vue-tsc": "^2.1.6",
     "webpack": "^5.89.0",
     "webpack-cli": "^5.1.4",
     "webpack-dev-server": "^4.15.1",
