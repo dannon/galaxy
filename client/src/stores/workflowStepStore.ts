@@ -1,4 +1,4 @@
-import { computed, ref, set } from "vue";
+import { computed, ref } from "vue";
 
 import { type CollectionTypeDescriptor } from "@/components/Workflow/Editor/modules/collectionTypeDescription";
 import { type Connection, getConnectionId, useConnectionStore } from "@/stores/workflowConnectionStore";
@@ -215,7 +215,7 @@ export const useWorkflowStepStore = defineScopedStore("workflowStepStore", (work
         const stepId = newStep.id ?? getStepIndex.value + 1;
         const step = Object.freeze({ ...newStep, id: stepId } as Step);
 
-        set(steps.value, stepId.toString(), step);
+        steps.value[stepId.toString()] = step;
 
         if (createConnections) {
             stepToConnections(step).forEach((connection) => connectionStore.addConnection(connection));
@@ -271,18 +271,18 @@ export const useWorkflowStepStore = defineScopedStore("workflowStepStore", (work
     }
 
     function changeStepMapOver(stepId: number, mapOver: CollectionTypeDescriptor) {
-        set(stepMapOver.value, stepId, mapOver);
+        stepMapOver.value[stepId] = mapOver;
     }
 
     function resetStepInputMapOver(stepId: number) {
-        set(stepInputMapOver.value, stepId, {});
+        stepInputMapOver.value[stepId] = {};
     }
 
     function changeStepInputMapOver(stepId: number, inputName: string, mapOver: CollectionTypeDescriptor) {
         if (stepInputMapOver.value[stepId]) {
-            set(stepInputMapOver.value[stepId]!, inputName, mapOver);
+            stepInputMapOver.value[stepId]![inputName] = mapOver;
         } else {
-            set(stepInputMapOver.value, stepId, { [inputName]: mapOver });
+            stepInputMapOver.value[stepId] = { [inputName]: mapOver };
         }
     }
 

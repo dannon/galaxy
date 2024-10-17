@@ -80,7 +80,7 @@ function convertUTCtoLocal(utcTimeString: string) {
 
 function addActionLink() {
     if (!broadcastData.value.content.action_links) {
-        Vue.set(broadcastData.value.content, "action_links", []);
+        broadcastData.value.content.action_links = [];
     }
 
     broadcastData.value.content.action_links?.push({

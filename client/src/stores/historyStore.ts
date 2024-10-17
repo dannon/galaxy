@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { computed, ref, set } from "vue";
+import { computed, ref } from "vue";
 
 import {
     type AnyHistory,
@@ -110,17 +110,17 @@ export const useHistoryStore = defineStore("historyStore", () => {
     }
 
     function setFilterText(historyId: string, filterText: string) {
-        set(storedFilterTexts.value, historyId, filterText);
+        storedFilterTexts.value[historyId] = filterText;
     }
 
     function setHistory(history: AnyHistory | HistoryContentsStats) {
         if (storedHistories.value[history.id] !== undefined) {
             // Merge the incoming history with existing one to keep additional information
             Object.entries(history).forEach(([key, value]) => {
-                set(storedHistories.value[history.id]!, key, value);
+                storedHistories.value[history.id]![key] =  value;
             });
         } else {
-            set(storedHistories.value, history.id, history);
+            storedHistories.value[history.id] = history;
         }
     }
 

@@ -1,5 +1,5 @@
 import { type MaybeRefOrGetter, toValue } from "@vueuse/core";
-import { computed, type Ref, ref, set, unref } from "vue";
+import { computed, type Ref, ref, unref } from "vue";
 
 /**
  * Parameters for fetching an item from the server.
@@ -81,14 +81,14 @@ export function useKeyedCache<T>(
         if (isAlreadyLoading || failedLoading) {
             return;
         }
-        set(loadingItem.value, itemId, true);
+        loadingItem.value[itemId] = true;
         try {
             const fetchItem = unref(fetchItemHandler);
             const item = await fetchItem({ id: itemId });
-            set(storedItems.value, itemId, item);
+            storedItems.value[itemId] = item;
             return item;
         } catch (error) {
-            set(loadingErrors.value, itemId, error);
+            loadingErrors.value[itemId] = error;
         } finally {
             delete loadingItem.value[itemId];
         }

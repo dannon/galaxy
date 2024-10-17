@@ -169,7 +169,7 @@ export default {
     methods: {
         onValidation(validation) {
             if (validation) {
-                Vue.set(this.stepValidations, validation[0], validation[1]);
+                this.stepValidations[validation[0]] = validation[1];
             } else {
                 this.stepValidations = {};
             }

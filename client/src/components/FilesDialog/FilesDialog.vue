@@ -204,7 +204,7 @@ function formatRows() {
         else if (!item.isLeaf) {
             _rowVariant = getIcon(isDirectorySelected(item.id), item.url);
         }
-        Vue.set(item, "_rowVariant", _rowVariant);
+        item._rowVariant = _rowVariant;
     }
     allSelected.value = checkIfAllSelected();
     if (currentDirectory.value?.url) {

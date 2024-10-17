@@ -119,7 +119,7 @@ export default {
             });
         },
         toggleDetails(item) {
-            this.$set(item, "_showDetails", !item._showDetails);
+            item["_showDetails"] = !item._showDetails;
         },
         translateState(state) {
             const translateDict = {

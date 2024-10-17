@@ -50,7 +50,7 @@ export const useJobStore = defineStore("jobStore", {
         },
         // Setters
         saveJobForJobId(jobId: string, job: Job) {
-            Vue.set(this.jobs, jobId, job);
+            this.jobs[jobId] = job;
         },
         saveLatestResponse(response: ResponseVal) {
             this.response = response;

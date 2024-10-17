@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { type PropType, ref, set } from "vue";
+import { type PropType, ref } from "vue";
 
 import { type components } from "@/api/schema";
 
@@ -16,7 +16,7 @@ const expandCollections = ref({});
 const expandDatasets = ref({});
 
 function toggle(expansionMap: Record<string, boolean>, itemId: string) {
-    set(expansionMap, itemId, !expansionMap[itemId]);
+    expansionMap[itemId] = !expansionMap[itemId];
 }
 </script>
 

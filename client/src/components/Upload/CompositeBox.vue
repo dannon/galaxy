@@ -144,7 +144,7 @@ function inputExtension(newExtension) {
                 description: item.description || item.name,
                 optional: item.optional,
             };
-            Vue.set(uploadItems.value, index, uploadModel);
+            uploadItems.value[index] = uploadModel;
         });
     }
     restoreStatus();

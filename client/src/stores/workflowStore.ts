@@ -1,6 +1,6 @@
 import axios from "axios";
 import { defineStore } from "pinia";
-import { computed, ref, set } from "vue";
+import { computed, ref } from "vue";
 
 import { getAppRoot } from "@/onload/loadConfig";
 import { type Steps } from "@/stores/workflowStepStore";
@@ -61,7 +61,7 @@ export const useWorkflowStore = defineStore("workflowStore", () => {
 
             const { data } = await promise;
 
-            set(workflowsByInstanceId.value, workflowId, data as Workflow);
+            workflowsByInstanceId.value[workflowId] = data as Workflow;
         }
 
         workflowDetailPromises.delete(workflowId);

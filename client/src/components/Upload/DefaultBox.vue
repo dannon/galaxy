@@ -143,7 +143,7 @@ function eventAnnounce(index, file) {
         fileSize: file.size,
         fileUri: file.uri,
     };
-    Vue.set(uploadItems.value, index, uploadModel);
+    uploadItems.value[index] = uploadModel;
 }
 
 /** Populates collection builder with uploaded files */

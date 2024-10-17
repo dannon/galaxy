@@ -39,7 +39,7 @@ export const useJobMetricsStore = defineStore("jobMetricsStore", () => {
         const jobMetrics = (await axios.get<JobMetric[]>(path)).data;
         const jobMetricsObject = datasetType == "hda" ? jobMetricsByHdaId : jobMetricsByLddaId;
 
-        Vue.set(jobMetricsObject.value, datasetId, jobMetrics);
+        jobMetricsObject.value[datasetId] = jobMetrics;
     }
 
     async function fetchJobMetricsForJobId(jobId: string) {
@@ -50,7 +50,7 @@ export const useJobMetricsStore = defineStore("jobMetricsStore", () => {
         const path = prependPath(`api/jobs/${jobId}/metrics`);
         const jobMetrics = (await axios.get<JobMetric[]>(path)).data;
 
-        Vue.set(jobMetricsByJobId.value, jobId, jobMetrics);
+        jobMetricsByJobId.value[jobId] = jobMetrics;
     }
 
     return {

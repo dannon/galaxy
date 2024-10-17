@@ -8,7 +8,7 @@ import {
     faSpinner,
     faTrash,
 } from "@fortawesome/free-solid-svg-icons";
-import { computed, type Ref, ref, set } from "vue";
+import { computed, type Ref, ref } from "vue";
 
 import { GalaxyApi } from "@/api";
 import { type InvocationStep, type StepJobSummary, type WorkflowInvocationElementView } from "@/api/invocations";
@@ -179,7 +179,7 @@ export function useInvocationGraph(
 
             // add the graph step to the steps object if it doesn't exist yet
             if (!steps.value[i]) {
-                set(steps.value, i, graphStepFromWfStep);
+                steps.value[i] = graphStepFromWfStep;
             }
         }
 
@@ -230,7 +230,7 @@ export function useInvocationGraph(
                     }
                     // now store the job states for this step in the graph step, if they changed since the last time
                     if (JSON.stringify(graphStep.jobs) !== JSON.stringify(invocationStepSummary.states)) {
-                        set(graphStep, "jobs", invocationStepSummary.states);
+                        graphStep.jobs = invocationStepSummary.states;
                     }
                 } else {
                     // TODO: There is no summary for this step's `job_id`; what does this mean?

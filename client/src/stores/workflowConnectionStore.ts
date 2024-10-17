@@ -1,4 +1,4 @@
-import { computed, ref, set } from "vue";
+import { computed, ref } from "vue";
 
 import { useWorkflowStepStore } from "@/stores/workflowStepStore";
 import { pushOrSet } from "@/utils/pushOrSet";
@@ -167,7 +167,7 @@ export const useConnectionStore = defineScopedStore("workflowConnectionStore", (
     }
 
     function markInvalidConnection(connectionId: string, reason: string) {
-        set(invalidConnections.value, connectionId, reason);
+        invalidConnections.value[connectionId] = reason;
     }
 
     function dropFromInvalidConnections(connectionId: string) {
