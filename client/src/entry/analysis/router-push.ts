@@ -1,4 +1,4 @@
-import { type RouteLocationRaw,type Router } from "vue-router";
+import { type RouteLocationRaw, type Router } from "vue-router";
 
 import { getGalaxyInstance } from "@/app";
 import { addSearchParams } from "@/utils/url";
@@ -13,11 +13,11 @@ import { addSearchParams } from "@/utils/url";
  */
 export function patchRouterPush(router: Router) {
     const originalPush = router.push;
-    router.push = function(location: RouteLocationRaw, options: any = {}) {
+    router.push = function (location: RouteLocationRaw, options: { title?: string; force?: boolean } = {}) {
         // Add key to location to force component refresh
         const { title, force } = options;
         if (force) {
-            location = addSearchParams(location, { __vkey__: Date.now() });
+            location = addSearchParams(location.toString(), { __vkey__: Date.now().toString() });
         }
         /*
         // Verify if confirmation is required
