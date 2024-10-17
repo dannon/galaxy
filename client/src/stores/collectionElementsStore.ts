@@ -113,7 +113,7 @@ export const useCollectionElementsStore = defineStore("collectionElementsStore",
 
             return { fetchedElements, elementOffset: offset };
         } catch (error) {
-            loadingCollectionElementsErrors.value[collectionKey] = error;
+            loadingCollectionElementsErrors.value[collectionKey] = error as Error; // type is `unknown` in catch block
         } finally {
             delete loadingCollectionElements.value[collectionKey];
         }
