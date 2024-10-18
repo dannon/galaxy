@@ -1,1 +1,1 @@
-export { default as FilesDialog } from "./FilesDialog";
+export { default as FilesDialog } from "./FilesDialog.vue";
