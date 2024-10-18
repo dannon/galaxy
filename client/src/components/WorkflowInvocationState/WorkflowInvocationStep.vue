@@ -147,7 +147,7 @@ export default {
         ToolLinkPopover,
         WorkflowStepIcon,
         WorkflowStepTitle,
-        WorkflowInvocationState: () => import("components/WorkflowInvocationState/WorkflowInvocationState"),
+        WorkflowInvocationState: () => import("./WorkflowInvocationState.vue"),
     },
     props: {
         invocation: Object,

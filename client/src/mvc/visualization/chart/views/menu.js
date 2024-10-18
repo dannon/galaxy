@@ -101,7 +101,7 @@ export default Backbone.View.extend({
     },
 
     downloadAs: function (filetype) {
-        import(/* webpackChunkName: "Screenshot" */ "mvc/visualization/chart/components/screenshot").then(
+        import(/* webpackChunkName: "Screenshot" */ "../components/screenshot").then(
             (Screenshot) => {
                 if (filetype === "png") {
                     Screenshot.createPNG({
