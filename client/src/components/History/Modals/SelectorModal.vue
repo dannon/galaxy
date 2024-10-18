@@ -123,8 +123,7 @@ const modalBodyClasses = computed(() => {
             :body-class="modalBodyClasses"
             static
             centered
-            hide-footer
-            v-on="$listeners">
+            hide-footer>
             <template v-slot:modal-title>
                 <Heading h2 inline size="sm">{{ localize(title) }}</Heading>
             </template>

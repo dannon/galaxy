@@ -185,8 +185,8 @@ defineExpose({
                 :history-id="currentHistoryId"
                 :list-db-keys="listDbKeys"
                 :multiple="multiple"
-                @progress="progress"
-                v-on="$listeners" />
+                v-bind="$attrs"
+                @progress="progress" />
         </BTab>
         <BTab v-if="showComposite" id="composite" title="Composite" button-id="tab-title-link-composite">
             <CompositeBox
@@ -197,7 +197,7 @@ defineExpose({
                 :has-callback="hasCallback"
                 :history-id="currentHistoryId"
                 :list-db-keys="listDbKeys"
-                v-on="$listeners" />
+                v-bind="$attrs" />
         </BTab>
         <BTab v-if="showCollection" id="collection" title="Collection" button-id="tab-title-link-collection">
             <DefaultBox
@@ -211,7 +211,7 @@ defineExpose({
                 :history-id="currentHistoryId"
                 :is-collection="true"
                 :list-db-keys="listDbKeys"
-                v-on="$listeners" />
+                v-bind="$attrs" />
         </BTab>
         <BTab v-if="showRules" id="rule-based" title="Rule-based" button-id="tab-title-link-rule-based">
             <RulesInput
@@ -219,7 +219,7 @@ defineExpose({
                 :ftp-upload-site="currentUserId && ftpUploadSite"
                 :has-callback="hasCallback"
                 :history-id="currentHistoryId"
-                v-on="$listeners" />
+                v-bind="$attrs" />
         </BTab>
     </BTabs>
     <div v-else>

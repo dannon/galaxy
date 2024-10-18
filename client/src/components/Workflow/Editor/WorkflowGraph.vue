@@ -39,12 +39,12 @@
                     :scale="scale"
                     :readonly="readonly"
                     :is-invocation="props.isInvocation"
+                    v-bind="$attrs"
                     @pan-by="panBy"
                     @stopDragging="onStopDragging"
                     @onDragConnector="onDragConnector"
                     @onActivate="onActivate"
-                    @onDeactivate="onDeactivate"
-                    v-on="$listeners" />
+                    @onDeactivate="onDeactivate" />
                 <WorkflowComment
                     v-for="comment in comments"
                     :id="`workflow-comment-${comment.id}`"

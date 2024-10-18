@@ -34,6 +34,7 @@ upstream component or environment that is accessed through props and events -->
 
 <script>
 import VueTagsInput from "@johmun/vue-tags-input";
+import { getCurrentInstance } from "vue";
 
 import { createTag, VALID_TAG_RE } from "./model";
 
@@ -124,7 +125,19 @@ export default {
             return false;
         },
         hasHandler(eventName) {
-            return Object.keys(this.$listeners).includes(eventName);
+            const instance = getCurrentInstance();
+            if (!instance) {
+                return false;
+            }
+
+            // Convert eventName from kebab-case to PascalCase
+            const pascalCaseEvent = eventName
+                .split("-")
+                .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+                .join("");
+
+            const handlerKey = `on${pascalCaseEvent}`;
+            return handlerKey in instance.vnode.props;
         },
     },
 };
