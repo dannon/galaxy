@@ -20,7 +20,7 @@ export { runTour } from "@/components/Tour/runTour";
 export { default as LegacyGridView } from "legacy/grid/grid-view";
 export { createTabularDatasetChunkedView } from "@/mvc/dataset/data";
 export { create_chart, create_histogram } from "reports/run_stats";
-export { Toast } from "ui/toast"; // TODO: remove when external consumers are updated/gone (IES right now)
+export { Toast } from "@/ui/toast"; // TODO: remove when external consumers are updated/gone (IES right now)
 export { TracksterUI } from "viz/trackster";
 
 export function trackster(options) {
@@ -29,7 +29,7 @@ export function trackster(options) {
 
 // Previously wandering around as window.thing = thing in the onload script
 export { hide_modal, Modal, show_in_overlay, show_message, show_modal } from "layout/modal";
-export { make_popup_menus, make_popupmenu } from "ui/popupmenu";
+export { make_popup_menus, make_popupmenu } from "@/ui/popupmenu";
 export { default as async_save_text } from "@/utils/async-save-text";
 export function chart(options) {
     return new Client(options);
