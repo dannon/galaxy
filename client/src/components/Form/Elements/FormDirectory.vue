@@ -29,8 +29,8 @@
                     placeholder="enter directory name"
                     trim
                     @keyup.enter="addPath"
-                    @keydown.191.capture.prevent.stop="addPath"
-                    @keydown.8.capture="removeLastPath" />
+                    @keydown.capture.prevent.stop="handleKeydown"
+                    @keydown.backspace.capture="removeLastPath" />
             </b-breadcrumb-item>
         </b-breadcrumb>
     </div>
@@ -104,8 +104,13 @@ export default {
                 this.updateURL();
             }
         },
-        addPath({ key }) {
-            if ((key === "Enter" || key === "/") && this.isValidName) {
+        handleKeydown(event) {
+            if (event.key === "Enter" || event.key === "/") {
+                this.addPath();
+            }
+        },
+        addPath() {
+            if (this.isValidName) {
                 const newFolder = this.currentDirectoryName;
                 this.pathChunks.push({ pathChunk: newFolder, editable: true });
                 this.currentDirectoryName = "";
