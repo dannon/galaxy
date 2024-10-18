@@ -44,7 +44,7 @@
 import axios from "axios";
 import BootstrapVue from "bootstrap-vue";
 import ToolSection from "@/components/Panels/Common/ToolSection";
-import { getAppRoot } from "onload/loadConfig";
+import { getAppRoot } from "@/onload/loadConfig";
 import Vue from "vue";
 
 import { directiveEntry } from "./directives.ts";

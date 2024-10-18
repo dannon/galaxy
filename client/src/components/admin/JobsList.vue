@@ -102,7 +102,7 @@ import Heading from "@/components/Common/Heading";
 import filtersMixin from "@/components/Indices/filtersMixin";
 import { jobsProvider } from "@/components/providers/JobProvider";
 import { NON_TERMINAL_STATES } from "@/components/WorkflowInvocationState/util";
-import { getAppRoot } from "onload/loadConfig";
+import { getAppRoot } from "@/onload/loadConfig";
 import { errorMessageAsString } from "@/utils/simple-error";
 
 import { commonJobFields } from "./JobFields";

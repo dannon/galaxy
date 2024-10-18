@@ -52,7 +52,7 @@ import WorkflowEditorModule from "@/entry/analysis/modules/WorkflowEditor";
 import AdminRoutes from "@/entry/analysis/routes/admin-routes";
 import LibraryRoutes from "@/entry/analysis/routes/library-routes";
 import StorageDashboardRoutes from "@/entry/analysis/routes/storageDashboardRoutes";
-import { getAppRoot } from "onload/loadConfig";
+import { getAppRoot } from "@/onload/loadConfig";
 import Vue from "vue";
 import VueRouter from "vue-router";
 

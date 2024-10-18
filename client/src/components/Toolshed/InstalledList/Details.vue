@@ -15,7 +15,7 @@
 </template>
 <script>
 import LoadingSpan from "@/components/LoadingSpan";
-import { getAppRoot } from "onload/loadConfig";
+import { getAppRoot } from "@/onload/loadConfig";
 
 import { Services } from "../services";
 

@@ -1,6 +1,6 @@
 import { mount } from "@vue/test-utils";
 import flushPromises from "flush-promises";
-import { getAppRoot } from "onload/loadConfig";
+import { getAppRoot } from "@/onload/loadConfig";
 import { createPinia } from "pinia";
 import { useUserStore } from "@/stores/userStore";
 import { getLocalVue } from "tests/jest/helpers";
@@ -13,7 +13,7 @@ import restrictedDatasetResponse from "./testData/restrictedDataset.json";
 import unrestrictedDatasetResponse from "./testData/unrestrictedDataset.json";
 
 jest.mock("app");
-jest.mock("onload/loadConfig");
+jest.mock("@/onload/loadConfig");
 getAppRoot.mockImplementation(() => "/");
 jest.mock("../services");
 

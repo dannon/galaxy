@@ -44,7 +44,7 @@ import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import axios from "axios";
 import BootstrapVue from "bootstrap-vue";
 import LoadingSpan from "@/components/LoadingSpan";
-import { getAppRoot } from "onload/loadConfig";
+import { getAppRoot } from "@/onload/loadConfig";
 import Vue from "vue";
 
 import License from "./License";

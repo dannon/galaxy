@@ -67,7 +67,7 @@ import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import axios from "axios";
 import { buildFields } from "@/components/Libraries/library-utils";
 import UtcDate from "@/components/UtcDate";
-import { getAppRoot } from "onload/loadConfig";
+import { getAppRoot } from "@/onload/loadConfig";
 import _l from "@/utils/localization";
 
 library.add(faInfoCircle);

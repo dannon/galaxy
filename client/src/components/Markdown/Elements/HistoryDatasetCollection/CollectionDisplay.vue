@@ -47,7 +47,7 @@
 import axios from "axios";
 import LoadingSpan from "@/components/LoadingSpan";
 import { copyCollection } from "@/components/Markdown/services";
-import { getAppRoot } from "onload/loadConfig";
+import { getAppRoot } from "@/onload/loadConfig";
 import { mapState } from "pinia";
 
 import { useHistoryStore } from "@/stores/historyStore";
