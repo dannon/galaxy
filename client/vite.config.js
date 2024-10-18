@@ -27,11 +27,11 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
-        config: path.resolve(scriptsBase, "config", targetEnv) + ".js",
+      config: path.resolve(scriptsBase, "config", targetEnv) + ".js",
     },
   },
   build: {
-    manifest: 'true',
+    manifest: true,
     minify: 'terser',
     rollupOptions: {
       input: 'src/entry/analysis/index.ts',
