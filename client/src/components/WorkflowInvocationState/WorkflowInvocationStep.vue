@@ -122,7 +122,7 @@ export default {
         GenericHistoryItem,
         WorkflowInvocationStepHeader,
         WorkflowStepTitle,
-        WorkflowInvocationState: () => import("components/WorkflowInvocationState/WorkflowInvocationState"),
+        WorkflowInvocationState: () => import("./WorkflowInvocationState.vue"),
     },
     props: {
         invocation: Object,

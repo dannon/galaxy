@@ -20,7 +20,7 @@ function ruleBasedCollectionCreatorModal(elements, elementsType, importType, opt
     // Prevents user from accidentally closing the modal by clicking outside the bounds
     options.closing_events = false;
     const { promise, showEl } = collectionCreatorModalSetup(options);
-    return import(/* webpackChunkName: "ruleCollectionBuilder" */ "components/RuleCollectionBuilder.vue").then(
+    return import(/* webpackChunkName: "ruleCollectionBuilder" */ "../RuleCollectionBuilder.vue").then(
         (module) => {
             var ruleCollectionBuilderInstance = Vue.extend(module.default);
             var vm = document.createElement("div");
