@@ -138,9 +138,9 @@ function onInsertWorkflowSteps(workflowId: string, workflowStepCount: number | u
             <div class="unified-panel-header-inner mx-3 my-2 d-flex justify-content-between">
                 <PanelViewMenu
                     v-if="panelViews && Object.keys(panelViews).length > 1"
+                    v-model:show-advanced="showAdvanced"
                     :panel-views="panelViews"
                     :current-panel-view="currentPanelView"
-                    v-model:show-advanced="showAdvanced"
                     :store-loading="loading"
                     @updatePanelView="updatePanelView">
                     <template v-slot:panel-view-selector>
@@ -175,10 +175,10 @@ function onInsertWorkflowSteps(workflowId: string, workflowStepCount: number | u
         </div>
         <ToolBox
             v-if="isPanelPopulated"
-            :workflow="props.workflow"
             v-model:panel-query="query"
-            :panel-view="currentPanelView"
             v-model:show-advanced="showAdvanced"
+            :workflow="props.workflow"
+            :panel-view="currentPanelView"
             :editor-workflows="editorWorkflows"
             :data-managers="dataManagers"
             :module-sections="moduleSections"

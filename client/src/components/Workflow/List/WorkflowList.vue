@@ -222,15 +222,15 @@ onMounted(() => {
 
             <FilterMenu
                 id="workflow-list-filter"
+                v-model:filter-text="filterText"
+                v-model:show-advanced="showAdvanced"
                 name="workflows"
                 class="mb-2"
                 :filter-class="workflowFilters"
-                v-model:filter-text="filterText"
                 :loading="loading || overlay"
                 has-help
                 view="compact"
-                :placeholder="searchPlaceHolder"
-                v-model:show-advanced="showAdvanced">
+                :placeholder="searchPlaceHolder">
                 <template v-slot:menu-help-text>
                     <div v-html="helpHtml(activeList)"></div>
                 </template>

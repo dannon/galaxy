@@ -320,12 +320,12 @@ async function resumePausedJobs() {
             v-if="!props.minimal"
             v-show="showSwitchModal"
             id="selector-history-modal"
+            v-model:show-modal="showSwitchModal"
             :histories="histories"
             :additional-options="['center', 'multi']"
-            v-model:show-modal="showSwitchModal"
             @selectHistory="historyStore.setCurrentHistory($event.id)" />
 
-        <CopyModal :history="history" v-model:show-modal="showCopyModal" />
+        <CopyModal v-model:show-modal="showCopyModal" :history="history" />
 
         <BModal
             v-model="showPrivacyModal"

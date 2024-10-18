@@ -168,13 +168,13 @@ function cancelWorkflowSchedulingLocal() {
             </BTab> -->
             <BTab
                 v-if="!props.isSubworkflow"
+                v-model:active="reportActive"
                 title="Report"
                 title-item-class="invocation-report-tab"
                 :disabled="
                     !invocationStateSuccess || !workflowStore.getStoredWorkflowByInstanceId(invocation.workflow_id)
                 "
-                :lazy="reportLazy"
-                v-model:active="reportActive">
+                :lazy="reportLazy">
                 <InvocationReport v-if="invocationStateSuccess" :invocation-id="invocation.id" />
             </BTab>
             <BTab title="Export" lazy>

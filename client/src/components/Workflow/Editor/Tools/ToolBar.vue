@@ -166,11 +166,11 @@ const { anySelected, selectedCountText, deleteSelection, deselectAll, duplicateS
                         <FontAwesomeIcon icon="fa-mouse-pointer" size="lg" />
                     </BButton>
                     <BButton
+                        v-model:pressed="snapActive"
                         v-b-tooltip.hover.noninteractive.right
                         class="button"
                         data-tool="toggle_snap"
                         :title="snapButtonTitle"
-                        v-model:pressed="snapActive"
                         variant="outline-primary">
                         <FontAwesomeIcon icon="fa-magnet" size="lg" />
                     </BButton>

@@ -1,5 +1,5 @@
 <template>
-    <FormCard :title="outputTitle" collapsible v-model:expanded="expanded">
+    <FormCard v-model:expanded="expanded" :title="outputTitle" collapsible>
         <template v-slot:body>
             <FormOutputLabel :name="outputName" :step="step" />
             <FormElement
@@ -33,7 +33,7 @@
                 type="tags"
                 help="This action will remove tags for the dataset."
                 @input="onInput" />
-            <FormCard title="Assign columns" collapsible v-model:expanded="expandedColumn">
+            <FormCard v-model:expanded="expandedColumn" title="Assign columns" collapsible>
                 <template v-slot:body>
                     <FormElement
                         :id="actionNames.ColumnSetAction__chromCol"
