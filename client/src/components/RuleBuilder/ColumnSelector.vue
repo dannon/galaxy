@@ -129,7 +129,9 @@ export default {
         },
         moveUp(value) {
             const swapVal = this.target[value - 1];
+            // eslint-disable-next-line vue/no-mutating-props
             this.target[value - 1] = this.target[value];
+            // eslint-disable-next-line vue/no-mutating-props
             this.target[value] = swapVal;
         },
     },
