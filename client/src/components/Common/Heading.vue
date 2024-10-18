@@ -94,7 +94,7 @@ const element = computed(() => {
 </template>
 
 <style lang="scss" scoped>
-@import "scss/theme/blue.scss";
+@import "theme/blue.scss";
 
 .heading {
     word-break: break-all;

@@ -364,7 +364,7 @@ whenever(isOpen, async () => {
 </template>
 
 <style scoped lang="scss">
-@import "scss/theme/blue.scss";
+@import "theme/blue.scss";
 
 .headless-multiselect {
     fieldset {

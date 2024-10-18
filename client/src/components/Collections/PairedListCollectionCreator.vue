@@ -1331,11 +1331,11 @@ function _naiveStartingAndEndingLCS(s1: string, s2: string) {
 
 <style lang="scss">
 $fa-font-path: "../../../node_modules/@fortawesome/fontawesome-free/webfonts/";
-@import "~@fortawesome/fontawesome-free/scss/_variables";
-@import "~@fortawesome/fontawesome-free/scss/solid";
-@import "~@fortawesome/fontawesome-free/scss/fontawesome";
-@import "~@fortawesome/fontawesome-free/scss/brands";
-@import "~bootstrap/scss/_functions.scss";
+@import "@fortawesome/fontawesome-free/scss/_variables";
+@import "@fortawesome/fontawesome-free/scss/solid";
+@import "@fortawesome/fontawesome-free/scss/fontawesome";
+@import "@fortawesome/fontawesome-free/scss/brands";
+@import "bootstrap/scss/_functions.scss";
 @import "theme/blue.scss";
 .paired-column {
     text-align: center;
