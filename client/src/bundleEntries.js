@@ -9,7 +9,7 @@
 
 /* jquery and _ are exposed via expose-loader while several external plugins rely on these */
 import $ from "jquery"; // eslint-disable-line no-unused-vars
-import Client from "mvc/visualization/chart/chart-client";
+import Client from "@/mvc/visualization/chart/chart-client";
 import _ from "underscore"; // eslint-disable-line no-unused-vars
 import { TracksterUIView } from "viz/trackster";
 
@@ -18,7 +18,7 @@ import { TracksterUIView } from "viz/trackster";
 export { getGalaxyInstance, setGalaxyInstance } from "@/app";
 export { runTour } from "@/components/Tour/runTour";
 export { default as LegacyGridView } from "legacy/grid/grid-view";
-export { createTabularDatasetChunkedView } from "mvc/dataset/data";
+export { createTabularDatasetChunkedView } from "@/mvc/dataset/data";
 export { create_chart, create_histogram } from "reports/run_stats";
 export { Toast } from "ui/toast"; // TODO: remove when external consumers are updated/gone (IES right now)
 export { TracksterUI } from "viz/trackster";

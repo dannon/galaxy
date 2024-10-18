@@ -1,7 +1,7 @@
 import { getGalaxyInstance } from "@/app";
 import Backbone from "backbone";
 import $ from "jquery";
-import Modal from "mvc/ui/ui-modal";
+import Modal from "@/mvc/ui/ui-modal";
 import { getAppRoot } from "onload/loadConfig";
 import Deferred from "@/utils/deferred";
 

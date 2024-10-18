@@ -1,4 +1,4 @@
-import STATES from "mvc/dataset/states";
+import STATES from "@/mvc/dataset/states";
 // ============================================================================
 // plain 3 step job chain
 var datasets1 = [

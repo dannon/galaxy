@@ -3,7 +3,7 @@
  */
 import Backbone from "backbone";
 import $ from "jquery";
-import Modal from "mvc/ui/ui-modal";
+import Modal from "@/mvc/ui/ui-modal";
 import _ from "underscore";
 
 import Buttons from "./buttons";
