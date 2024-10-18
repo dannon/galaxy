@@ -117,10 +117,11 @@ export const useHistoryStore = defineStore("historyStore", () => {
         if (storedHistories.value[history.id] !== undefined) {
             // Merge the incoming history with existing one to keep additional information
             Object.entries(history).forEach(([key, value]) => {
+                // @ts-ignore
                 storedHistories.value[history.id]![key] =  value;
             });
         } else {
-            storedHistories.value[history.id] = history;
+            storedHistories.value[history.id] = history as AnyHistory;
         }
     }
 
@@ -152,12 +153,14 @@ export const useHistoryStore = defineStore("historyStore", () => {
     }
 
     function pinHistory(historyId: string) {
+        // @ts-ignore
         if (pinnedHistories.value.findIndex((item) => item.id == historyId) == -1) {
             pinnedHistories.value.push({ id: historyId });
         }
     }
 
     function unpinHistories(historyIds: string[]) {
+        // @ts-ignore
         pinnedHistories.value = pinnedHistories.value.filter((h) => !historyIds.includes(h.id));
     }
 

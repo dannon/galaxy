@@ -166,11 +166,11 @@ export const useConnectionStore = defineScopedStore("workflowConnectionStore", (
         stepToConnections.value = updateStepToConnections(connections.value);
     }
 
-    function markInvalidConnection(connectionId: string, reason: string) {
+    function markInvalidConnection(connectionId: ConnectionId, reason: string) {
         invalidConnections.value[connectionId] = reason;
     }
 
-    function dropFromInvalidConnections(connectionId: string) {
+    function dropFromInvalidConnections(connectionId: ConnectionId) {
         delete invalidConnections.value[connectionId];
     }
 

@@ -204,7 +204,8 @@ function formatRows() {
         else if (!item.isLeaf) {
             _rowVariant = getIcon(isDirectorySelected(item.id), item.url);
         }
-        item._rowVariant = _rowVariant;
+        // todo: this is possibly a normal string, improve typing.
+        item._rowVariant = _rowVariant as SelectionState;
     }
     allSelected.value = checkIfAllSelected();
     if (currentDirectory.value?.url) {
