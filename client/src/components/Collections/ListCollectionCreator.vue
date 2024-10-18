@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import "ui/hoverhighlight";
+import "@/ui/hoverhighlight";
 
 import { library } from "@fortawesome/fontawesome-svg-core";
 import { faSortAlphaDown, faUndo } from "@fortawesome/free-solid-svg-icons";

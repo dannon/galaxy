@@ -1,6 +1,6 @@
 import Backbone from "backbone";
 import $ from "jquery";
-import { make_popupmenu } from "ui/popupmenu";
+import { make_popupmenu } from "@/ui/popupmenu";
 import _ from "underscore";
 /**
  * View for track/group header.
