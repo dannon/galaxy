@@ -209,7 +209,7 @@ const showHelpForum = computed(() => isConfigLoaded.value && config.value.enable
 </template>
 
 <style lang="scss" scoped>
-@import "scss/theme/blue.scss";
+@import "theme/blue.scss";
 
 .underlay::after {
     content: "";

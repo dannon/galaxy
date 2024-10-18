@@ -178,7 +178,7 @@ function togglePreferences() {
 </template>
 
 <style lang="scss" scoped>
-@import "scss/theme/blue.scss";
+@import "theme/blue.scss";
 
 .notifications-list-container {
     .notifications-list-header {
