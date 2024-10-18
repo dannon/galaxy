@@ -408,7 +408,7 @@
 </template>
 <script>
 import BootstrapVue from "bootstrap-vue";
-import STATES from "mvc/dataset/states";
+import STATES from "@/mvc/dataset/states";
 import levenshteinDistance from "@/utils/levenshtein";
 import _l from "@/utils/localization";
 import naturalSort from "@/utils/natural-sort";

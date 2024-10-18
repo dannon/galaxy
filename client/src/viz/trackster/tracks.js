@@ -3,7 +3,7 @@ import "ui/editable-text";
 import { getGalaxyInstance } from "@/app";
 import Backbone from "backbone";
 import $ from "jquery";
-import { Dataset } from "mvc/dataset/data";
+import { Dataset } from "@/mvc/dataset/data";
 import { getAppRoot } from "onload/loadConfig";
 import _ from "underscore";
 import config_mod from "@/utils/config";
