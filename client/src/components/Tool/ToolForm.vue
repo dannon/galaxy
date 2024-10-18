@@ -111,12 +111,12 @@
 
 <script>
 import { getGalaxyInstance } from "@/app";
-import ButtonSpinner from "@/components/Common/ButtonSpinner";
-import Heading from "@/components/Common/Heading";
-import FormDisplay from "@/components/Form/FormDisplay";
-import FormElement from "@/components/Form/FormElement";
-import LoadingSpan from "@/components/LoadingSpan";
-import ToolEntryPoints from "@/components/ToolEntryPoints/ToolEntryPoints";
+import ButtonSpinner from "@/components/Common/ButtonSpinner.vue";
+import Heading from "@/components/Common/Heading.vue";
+import FormDisplay from "@/components/Form/FormDisplay.vue";
+import FormElement from "@/components/Form/FormElement.vue";
+import LoadingSpan from "@/components/LoadingSpan.vue";
+import ToolEntryPoints from "@/components/ToolEntryPoints/ToolEntryPoints.vue";
 import { mapActions, mapState, storeToRefs } from "pinia";
 import { useHistoryItemsStore } from "@/stores/historyItemsStore";
 import { useJobStore } from "@/stores/jobStore";
@@ -127,9 +127,9 @@ import { useConfigStore } from "@/stores/configurationStore";
 import { useHistoryStore } from "@/stores/historyStore";
 import { useUserStore } from "@/stores/userStore";
 
-import ToolRecommendation from "../ToolRecommendation";
+import ToolRecommendation from "../ToolRecommendation.vue";
 import { getToolFormData, submitJob, updateToolFormData } from "./services";
-import ToolCard from "./ToolCard";
+import ToolCard from "./ToolCard.vue";
 import { allowCachedJobs } from "./utilities";
 
 import FormSelect from "@/components/Form/Elements/FormSelect.vue";

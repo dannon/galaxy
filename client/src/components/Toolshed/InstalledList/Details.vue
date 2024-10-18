@@ -14,7 +14,7 @@
     </div>
 </template>
 <script>
-import LoadingSpan from "@/components/LoadingSpan";
+import LoadingSpan from "@/components/LoadingSpan.vue";
 import { getAppRoot } from "@/onload/loadConfig";
 
 import { Services } from "../services";

@@ -1,6 +1,6 @@
 import { shallowMount } from "@vue/test-utils";
 
-import MarkdownVisualization from "./MarkdownVisualization";
+import MarkdownVisualization from "./MarkdownVisualization.vue";
 
 describe("Markdown/MarkdownVisualization", () => {
     it("test wizard", async () => {

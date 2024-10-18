@@ -30,9 +30,9 @@
 </template>
 
 <script>
-import JobMetrics from "@/components/JobMetrics/JobMetrics";
+import JobMetrics from "@/components/JobMetrics/JobMetrics.vue";
 
-import JobInformation from "./JobInformation";
+import JobInformation from "./JobInformation.vue";
 
 import CodeRow from "./CodeRow.vue";
 import JobParameters from "@/components/JobParameters/JobParameters.vue";

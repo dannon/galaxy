@@ -24,9 +24,9 @@
 import { library } from "@fortawesome/fontawesome-svg-core";
 import { faEdit, faUndo } from "@fortawesome/free-solid-svg-icons";
 import { getGalaxyInstance } from "@/app";
-import FormCard from "@/components/Form/FormCard";
-import FormDisplay from "@/components/Form/FormDisplay";
-import FormMessage from "@/components/Form/FormMessage";
+import FormCard from "@/components/Form/FormCard.vue";
+import FormDisplay from "@/components/Form/FormDisplay.vue";
+import FormMessage from "@/components/Form/FormMessage.vue";
 import { visitInputs } from "@/components/Form/utilities";
 import WorkflowIcons from "@/components/Workflow/icons";
 import { mapState } from "pinia";

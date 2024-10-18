@@ -4,7 +4,7 @@ import { computed } from "vue";
 
 import { useUserTagsStore } from "@/stores/userTagsStore";
 
-import Attributes from "./Attributes";
+import Attributes from "./Attributes.vue";
 import { UntypedParameters } from "./modules/parameters";
 
 jest.mock("app");

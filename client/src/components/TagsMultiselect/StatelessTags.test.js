@@ -5,7 +5,7 @@ import { computed } from "vue";
 
 import { normalizeTag, useUserTagsStore } from "@/stores/userTagsStore";
 
-import StatelessTags from "./StatelessTags";
+import StatelessTags from "./StatelessTags.vue";
 
 const autocompleteTags = ["name:named_user_tag", "abc", "my_tag"];
 const toggleButton = ".toggle-button";

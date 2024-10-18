@@ -4,7 +4,7 @@ import axios from "axios";
 import MockAdapter from "axios-mock-adapter";
 import { getLocalVue } from "tests/jest/helpers";
 
-import FormTool from "./FormTool";
+import FormTool from "./FormTool.vue";
 
 jest.mock("@/api/schema");
 

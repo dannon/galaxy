@@ -1,7 +1,7 @@
 import { shallowMount } from "@vue/test-utils";
 import { getLocalVue } from "tests/jest/helpers";
 
-import Options from "./Options";
+import Options from "./Options.vue";
 
 const localVue = getLocalVue();
 

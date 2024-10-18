@@ -3,7 +3,7 @@ import { mount } from "@vue/test-utils";
 import { findViaNavigation, getLocalVue } from "tests/jest/helpers";
 import { ROOT_COMPONENT } from "@/utils/navigation";
 
-import WorkflowStorageConfiguration from "./WorkflowStorageConfiguration";
+import WorkflowStorageConfiguration from "./WorkflowStorageConfiguration.vue";
 
 const localVue = getLocalVue(true);
 

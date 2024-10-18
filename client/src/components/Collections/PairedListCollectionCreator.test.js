@@ -1,6 +1,6 @@
 import DATA from "@tests/test-data/paired-collection-creator.data.js";
 import { mount, shallowMount } from "@vue/test-utils";
-import PairedListCollectionCreator from "@/components/Collections/PairedListCollectionCreator";
+import PairedListCollectionCreator from "@/components/Collections/PairedListCollectionCreator.vue";
 
 describe("PairedListCollectionCreator", () => {
     let wrapper;
