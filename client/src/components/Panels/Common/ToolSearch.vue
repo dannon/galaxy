@@ -122,7 +122,7 @@ const ontologyList = computed(() =>
 onMounted(() => {
     // initialize worker
     if (!searchWorker.value) {
-        searchWorker.value = new Worker(new URL("components/Panels/toolSearch.worker.js", import.meta.url));
+        searchWorker.value = new Worker(new URL("../toolSearch.worker.js", import.meta.url));
     }
     searchWorker.value.onmessage = ({ data }) => {
         const { type, payload, sectioned, query, closestTerm } = data;
