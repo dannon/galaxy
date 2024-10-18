@@ -10,9 +10,9 @@ import { useConfig } from "@/composables/config";
 import { useUserStore } from "@/stores/userStore";
 
 import { loadWebhookMenuItems } from "./_webhooks";
-import MastheadDropdown from "./MastheadDropdown";
-import MastheadItem from "./MastheadItem";
-import QuotaMeter from "./QuotaMeter";
+import MastheadDropdown from "./MastheadDropdown.vue";
+import MastheadItem from "./MastheadItem.vue";
+import QuotaMeter from "./QuotaMeter.vue";
 
 const { isAnonymous, currentUser } = storeToRefs(useUserStore());
 

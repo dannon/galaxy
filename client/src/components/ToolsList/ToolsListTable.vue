@@ -33,7 +33,7 @@ import Vue from "vue";
 import infiniteScroll from "vue-infinite-scroll";
 
 import { fetchData } from "./services";
-import ToolsListItem from "./ToolsListItem";
+import ToolsListItem from "./ToolsListItem.vue";
 
 const defaultBufferLen = 4;
 const loadTimeout = 100;

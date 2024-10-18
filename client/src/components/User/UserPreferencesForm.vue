@@ -2,7 +2,7 @@
     <FormGeneric v-bind="formConfig" :trim-inputs="true" />
 </template>
 <script>
-import FormGeneric from "@/components/Form/FormGeneric";
+import FormGeneric from "@/components/Form/FormGeneric.vue";
 import { getUserPreferencesModel } from "@/components/User/UserPreferencesModel";
 import Query from "@/utils/query-string-parsing";
 

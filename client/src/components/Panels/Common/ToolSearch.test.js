@@ -5,7 +5,7 @@ import { createPinia } from "pinia";
 import { getLocalVue } from "tests/jest/helpers";
 import VueRouter from "vue-router";
 
-import ToolSearch from "./ToolSearch";
+import ToolSearch from "./ToolSearch.vue";
 
 const localVue = getLocalVue();
 localVue.use(VueRouter);

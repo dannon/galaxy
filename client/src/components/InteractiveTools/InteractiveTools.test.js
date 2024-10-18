@@ -7,7 +7,7 @@ import { PiniaVuePlugin, setActivePinia } from "pinia";
 import { useEntryPointStore } from "@/stores/entryPointStore";
 import { getLocalVue } from "tests/jest/helpers";
 
-import InteractiveTools from "./InteractiveTools";
+import InteractiveTools from "./InteractiveTools.vue";
 import testInteractiveToolsResponse from "./testData/testInteractiveToolsResponse";
 
 describe("InteractiveTools/InteractiveTools.vue", () => {
