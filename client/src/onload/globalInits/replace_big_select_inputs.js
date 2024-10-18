@@ -1,4 +1,4 @@
-// Transplanted from "onload.js"
+// Transplanted from "@/onload.js"
 
 import $ from "jquery";
 

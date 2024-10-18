@@ -3,7 +3,7 @@
 // through getGalaxyInstance, and rarely with setGalaxyInstance
 
 import config from "config";
-import { getAppRoot } from "onload/loadConfig";
+import { getAppRoot } from "@/onload/loadConfig";
 import { serverPath } from "@/utils/serverPath";
 
 import { getGalaxyInstance, setGalaxyInstance } from "./singleton";

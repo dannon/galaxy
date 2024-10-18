@@ -19,7 +19,7 @@ localVue.use(PiniaVuePlugin);
 jest.mock("components/Datatypes/factory");
 jest.mock("./modules/services");
 jest.mock("layout/modal");
-jest.mock("onload/loadConfig");
+jest.mock("@/onload/loadConfig");
 jest.mock("./modules/utilities");
 
 jest.mock("app");

@@ -86,7 +86,7 @@ import PermissionsHeader from "@/components/Libraries/LibraryPermissions/Permiss
 import PermissionsInputField from "@/components/Libraries/LibraryPermissions/PermissionsInputField";
 import { Services } from "@/components/Libraries/LibraryPermissions/services";
 import { Toast } from "@/composables/toast";
-import { getAppRoot } from "onload/loadConfig";
+import { getAppRoot } from "@/onload/loadConfig";
 import Vue from "vue";
 import VueObserveVisibility from "vue-observe-visibility";
 

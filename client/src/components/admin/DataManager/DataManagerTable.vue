@@ -41,7 +41,7 @@
 
 <script>
 import axios from "axios";
-import { getAppRoot } from "onload/loadConfig";
+import { getAppRoot } from "@/onload/loadConfig";
 
 import GButton from "@/components/BaseComponents/GButton.vue";
 import Alert from "@/components/Alert.vue";

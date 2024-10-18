@@ -1,5 +1,5 @@
 import axios from "axios";
-import { getAppRoot } from "onload";
+import { getAppRoot } from "@/onload";
 import { mountVueComponent } from "@/utils/mountVueComponent";
 
 import Tour from "./Tour";

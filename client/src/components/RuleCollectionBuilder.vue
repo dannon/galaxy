@@ -588,7 +588,7 @@ import Select2 from "@/components/Select2";
 import UploadUtils from "@/components/Upload/utils";
 import { ERROR_STATES, NON_TERMINAL_STATES } from "@/components/WorkflowInvocationState/util";
 import $ from "jquery";
-import { getAppRoot } from "onload/loadConfig";
+import { getAppRoot } from "@/onload/loadConfig";
 import _ from "underscore";
 import _l from "utils/localization";
 import Vue from "vue";

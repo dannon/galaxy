@@ -4,7 +4,7 @@
 
 <script>
 import GridView from "@/mvc/grid/grid-view";
-import { getAppRoot } from "onload";
+import { getAppRoot } from "@/onload";
 
 export default {
     props: {
