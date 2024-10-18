@@ -2,7 +2,7 @@ import { getGalaxyInstance } from "@/app";
 import axios from "axios";
 import Backbone from "backbone";
 import { Toast } from "@/composables/toast";
-import { getAppRoot } from "onload/loadConfig";
+import { getAppRoot } from "@/onload/loadConfig";
 import _ from "underscore";
 
 import mod_library_model from "../library-model";

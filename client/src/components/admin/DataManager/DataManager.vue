@@ -76,7 +76,7 @@
 
 <script>
 import axios from "axios";
-import { getAppRoot } from "onload/loadConfig";
+import { getAppRoot } from "@/onload/loadConfig";
 import { debounce } from "underscore";
 
 import Alert from "@/components/Alert.vue";
