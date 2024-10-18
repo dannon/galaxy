@@ -32,8 +32,8 @@ export default defineConfig({
   },
   build: {
     manifest: 'true',
+    minify: 'terser',
     rollupOptions: {
-      minify: 'terser',
       input: 'src/entry/analysis/index.ts',
     },
     cssCodeSplit: true,
