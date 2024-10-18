@@ -177,7 +177,7 @@ function onActionClick(link: string) {
 </template>
 
 <style scoped lang="scss">
-@import "scss/theme/blue.scss";
+@import "theme/blue.scss";
 .broadcast-card {
     border-radius: 0.25rem;
     border: 1px solid $gray-300;

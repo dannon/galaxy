@@ -174,7 +174,7 @@ loadBroadcastsList();
 </template>
 
 <style scoped lang="scss">
-@import "scss/theme/blue.scss";
+@import "theme/blue.scss";
 
 .list-operations {
     border-radius: 0.5rem;

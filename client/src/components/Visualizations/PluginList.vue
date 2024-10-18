@@ -158,7 +158,7 @@ export default {
 
 <style lang="scss" scoped>
 @import "theme/blue.scss";
-@import "~scss/mixins.scss";
+@import "mixins.scss";
 
 .plugin-list {
     display: flex;

@@ -338,7 +338,7 @@ onMounted(() => {
 </template>
 
 <style lang="scss">
-@import "scss/mixins.scss";
+@import "mixins.scss";
 @import "breakpoints.scss";
 
 .workflows-list {

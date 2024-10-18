@@ -40,7 +40,7 @@ const emit = defineEmits(["select"]);
 </template>
 
 <style lang="scss" scoped>
-@import "scss/theme/blue.scss";
+@import "theme/blue.scss";
 
 .notification-card {
     display: flex;
