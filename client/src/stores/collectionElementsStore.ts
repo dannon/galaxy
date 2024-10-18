@@ -185,7 +185,7 @@ export const useCollectionElementsStore = defineStore("collectionElementsStore",
             storedCollections.value[collection.id] = collection;
             return collection;
         } catch (error) {
-            loadingCollectionElementsErrors.value[params.id] = error;
+            loadingCollectionElementsErrors.value[params.id] = error as Error; // type is `unknown` in catch block
         } finally {
             delete loadingCollectionElements.value[params.id];
         }
