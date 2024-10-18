@@ -302,7 +302,7 @@ async function onTagClick(tag: string) {
         .workflow-card-footer {
             display: flex;
             justify-content: space-between;
-            align-items: end;
+            align-items: flex-end;
 
             .workflow-card-tags {
                 max-width: 60%;
@@ -313,7 +313,7 @@ async function onTagClick(tag: string) {
                 gap: 0.25rem;
                 margin-top: 0.25rem;
                 align-items: center;
-                justify-content: end;
+                justify-content: flex-end;
             }
         }
 
@@ -335,7 +335,7 @@ async function onTagClick(tag: string) {
 
         @container workflow-card (min-width: #{$breakpoint-sm}, max-width: #{$breakpoint-md}) {
             .workflow-card-actions {
-                justify-content: end;
+                justify-content: flex-end;
             }
         }
     }
@@ -343,13 +343,13 @@ async function onTagClick(tag: string) {
     @container workflow-card (max-width: #{$breakpoint-md}) {
         .workflow-count-actions {
             align-items: baseline;
-            justify-content: end;
+            justify-content: flex-end;
         }
     }
 
     @container workflow-card (min-width: #{$breakpoint-md}) {
         .workflow-count-actions {
-            align-items: end;
+            align-items: flex-end;
             flex-direction: column-reverse;
         }
     }

@@ -507,7 +507,7 @@ const { anySelected, selectedCountText, deleteSelection, deselectAll, duplicateS
         display: flex;
         padding: 0.25rem;
         gap: 0.25rem;
-        align-items: end;
+        align-items: flex-end;
         flex-direction: column-reverse;
         align-self: flex-start;
 
