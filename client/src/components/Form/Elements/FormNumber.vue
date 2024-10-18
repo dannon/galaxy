@@ -13,8 +13,7 @@
                     :step="step"
                     :type="fieldType"
                     @change="onInputChange"
-                    @keydown.190.capture="onFloatInput"
-                    @keydown.110.capture="onFloatInput" />
+                    @keydown.capture="onFloatInput" />
             </b-col>
             <b-col v-if="isRangeValid" class="pl-0">
                 <b-form-input v-model="currentValue" class="ui-input" :min="min" :max="max" :step="step" type="range" />
@@ -103,9 +102,9 @@ export default {
         },
     },
     methods: {
-        onFloatInput(e) {
-            if (this.isInteger) {
-                e.preventDefault();
+        onFloatInput(event) {
+            if (this.isInteger && (event.key === "." || event.key === ",")) {
+                event.preventDefault();
                 this.showAlert(this.fractionWarning);
             }
         },
