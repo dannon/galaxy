@@ -1,4 +1,4 @@
-import "ui/editable-text";
+import "@/ui/editable-text";
 
 import { getGalaxyInstance } from "@/app";
 import Backbone from "backbone";
