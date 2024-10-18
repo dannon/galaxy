@@ -12,7 +12,7 @@ import { getLocalVue } from "tests/jest/helpers";
 import { useConfig } from "@/composables/config";
 
 import viewsList from "./testData/viewsList";
-import ToolPanel from "./ToolPanel";
+import ToolPanel from "./ToolPanel.vue";
 import { types_to_icons } from "./utilities";
 
 const localVue = getLocalVue();

@@ -49,7 +49,7 @@ import { mapActions, mapState } from "pinia";
 import { useHistoryStore } from "@/stores/historyStore";
 import { useUserStore } from "@/stores/userStore";
 
-import TourStep from "./TourStep";
+import TourStep from "./TourStep.vue";
 
 // popup display duration when auto-playing the tour
 const playDelay = 3000;

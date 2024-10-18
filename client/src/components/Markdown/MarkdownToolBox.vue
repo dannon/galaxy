@@ -43,13 +43,13 @@
 <script>
 import axios from "axios";
 import BootstrapVue from "bootstrap-vue";
-import ToolSection from "@/components/Panels/Common/ToolSection";
+import ToolSection from "@/components/Panels/Common/ToolSection.vue";
 import { getAppRoot } from "@/onload/loadConfig";
 import Vue from "vue";
 
 import { directiveEntry } from "./directives.ts";
 import { fromSteps } from "./labels.ts";
-import MarkdownDialog from "./MarkdownDialog";
+import MarkdownDialog from "./MarkdownDialog.vue";
 
 Vue.use(BootstrapVue);
 

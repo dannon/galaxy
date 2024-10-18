@@ -5,8 +5,8 @@
     </div>
 </template>
 <script>
-import DisplayApplications from "./DisplayApplications";
-import PluginList from "./PluginList";
+import DisplayApplications from "./DisplayApplications.vue";
+import PluginList from "./PluginList.vue";
 
 export default {
     components: {

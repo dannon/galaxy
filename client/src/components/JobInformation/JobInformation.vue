@@ -1,8 +1,8 @@
 <script setup>
-import CopyToClipboard from "@/components/CopyToClipboard";
-import HelpText from "@/components/Help/HelpText";
+import CopyToClipboard from "@/components/CopyToClipboard.vue";
+import HelpText from "@/components/Help/HelpText.vue";
 import { JobDetailsProvider } from "@/components/providers/JobProvider";
-import UtcDate from "@/components/UtcDate";
+import UtcDate from "@/components/UtcDate.vue";
 import { NON_TERMINAL_STATES } from "@/components/WorkflowInvocationState/util";
 import { formatDuration, intervalToDuration } from "date-fns";
 import { computed, ref } from "vue";

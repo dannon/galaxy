@@ -33,7 +33,7 @@
 </template>
 
 <script>
-import WorkflowInvocationState from "@/components/WorkflowInvocationState/WorkflowInvocationState";
+import WorkflowInvocationState from "@/components/WorkflowInvocationState/WorkflowInvocationState.vue";
 import { getAppRoot } from "@/onload/loadConfig";
 import { mapActions, mapState } from "pinia";
 import { refreshContentsWrapper } from "@/utils/data";

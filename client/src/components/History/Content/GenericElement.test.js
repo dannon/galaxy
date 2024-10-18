@@ -3,7 +3,7 @@ import { mount } from "@vue/test-utils";
 import { getLocalVue } from "tests/jest/helpers";
 import VueRouter from "vue-router";
 
-import GenericElement from "./GenericElement";
+import GenericElement from "./GenericElement.vue";
 
 jest.mock("components/History/model/queries");
 

@@ -5,7 +5,7 @@ import { createPinia } from "pinia";
 import { useUserStore } from "@/stores/userStore";
 import { getLocalVue } from "tests/jest/helpers";
 
-import ToolCard from "./ToolCard";
+import ToolCard from "./ToolCard.vue";
 
 jest.mock("@/api/schema");
 

@@ -3,7 +3,7 @@
 </template>
 
 <script>
-import CenterFrame from "@/entry/analysis/modules/CenterFrame";
+import CenterFrame from "@/entry/analysis/modules/CenterFrame.vue";
 
 import { runTour } from "./runTour";
 

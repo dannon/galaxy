@@ -97,8 +97,8 @@
 
 <script>
 import axios from "axios";
-import JobsTable from "@/components/admin/JobsTable";
-import Heading from "@/components/Common/Heading";
+import JobsTable from "@/components/admin/JobsTable.vue";
+import Heading from "@/components/Common/Heading.vue";
 import filtersMixin from "@/components/Indices/filtersMixin";
 import { jobsProvider } from "@/components/providers/JobProvider";
 import { NON_TERMINAL_STATES } from "@/components/WorkflowInvocationState/util";
@@ -106,7 +106,7 @@ import { getAppRoot } from "@/onload/loadConfig";
 import { errorMessageAsString } from "@/utils/simple-error";
 
 import { commonJobFields } from "./JobFields";
-import JobLock from "./JobLock";
+import JobLock from "./JobLock.vue";
 
 function cancelJob(jobId, message) {
     const url = `${getAppRoot()}api/jobs/${jobId}`;
