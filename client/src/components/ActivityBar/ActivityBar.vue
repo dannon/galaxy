@@ -22,6 +22,7 @@ import NotificationItem from "./Items/NotificationItem.vue";
 import UploadItem from "./Items/UploadItem.vue";
 import AdminPanel from "@/components/admin/AdminPanel.vue";
 import FlexPanel from "@/components/Panels/FlexPanel.vue";
+import InteractiveToolsPanel from "@/components/Panels/InteractiveToolsPanel.vue";
 import MultiviewPanel from "@/components/Panels/MultiviewPanel.vue";
 import NotificationsPanel from "@/components/Panels/NotificationsPanel.vue";
 import SettingsPanel from "@/components/Panels/SettingsPanel.vue";
@@ -242,7 +243,7 @@ defineExpose({
                                 :title="activity.title"
                                 :tooltip="activity.tooltip"
                                 :to="activity.to"
-                                @click="toggleSidebar()" />
+                                @click="toggleSidebar('interactivetools')" />
                             <ActivityItem
                                 v-else-if="activity.id === 'admin' || activity.panel"
                                 :id="`${activity.id}`"
@@ -331,6 +332,7 @@ defineExpose({
             <VisualizationPanel v-else-if="isActiveSideBar('visualizations')" />
             <MultiviewPanel v-else-if="isActiveSideBar('multiview')" />
             <NotificationsPanel v-else-if="isActiveSideBar('notifications')" />
+            <InteractiveToolsPanel v-else-if="isActiveSideBar('interactivetools')" />
             <SettingsPanel
                 v-else-if="isActiveSideBar('settings')"
                 :activity-bar-id="props.activityBarId"
