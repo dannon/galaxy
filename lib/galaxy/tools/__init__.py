@@ -2729,6 +2729,7 @@ class Tool(UsesDictVisibleKeys):
         # Basic information
         tool_dict = self._dictify_view_keys()
 
+        tool_dict["icon"] = self.icon
         tool_dict["edam_operations"] = self.edam_operations
         tool_dict["edam_topics"] = self.edam_topics
         tool_dict["hidden"] = self.hidden
