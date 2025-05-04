@@ -124,7 +124,7 @@ import { startWatchingHistory } from "@/watch/watchHistoryProvided";
 
 import ToolRecommendation from "../ToolRecommendation.vue";
 import { getToolFormData, submitJob, updateToolFormData } from "./services";
-import ToolCard from "./ToolCard";
+import ToolCard from "./ToolCard.vue";
 
 import FormSelect from "@/components/Form/Elements/FormSelect.vue";
 
