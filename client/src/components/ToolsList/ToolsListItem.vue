@@ -130,7 +130,7 @@ const formattedToolHelp = computed(() => {
 </template>
 
 <style lang="scss" scoped>
-@import "theme/blue.scss";
+@import "@/style/scss/theme/blue.scss";
 
 .tool-list-item {
     border-left: solid 3px $brand-secondary;

@@ -1336,7 +1336,7 @@ $fa-font-path: "../../../node_modules/@fortawesome/fontawesome-free/webfonts/";
 @import "@fortawesome/fontawesome-free/scss/fontawesome";
 @import "@fortawesome/fontawesome-free/scss/brands";
 @import "bootstrap/scss/_functions.scss";
-@import "theme/blue.scss";
+@import "@/style/scss/theme/blue.scss";
 .paired-column {
     text-align: center;
     // mess with these two to make center more/scss priority

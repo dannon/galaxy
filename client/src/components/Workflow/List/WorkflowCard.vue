@@ -142,7 +142,7 @@ const workflowCardTitle = computed(() => {
 </template>
 
 <style scoped lang="scss">
-@import "theme/blue.scss";
+@import "@/style/scss/theme/blue.scss";
 @import "_breakpoints.scss";
 
 .workflow-card {

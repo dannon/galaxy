@@ -137,7 +137,7 @@ function close() {
 </template>
 
 <style scoped lang="scss">
-@import "theme/blue.scss";
+@import "@/style/scss/theme/blue.scss";
 
 .tool-inspector {
     --clearance: 8px;

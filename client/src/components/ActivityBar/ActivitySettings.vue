@@ -138,7 +138,7 @@ function executeActivity(activity: Activity) {
 </template>
 
 <style lang="scss">
-@import "theme/blue.scss";
+@import "@/style/scss/theme/blue.scss";
 
 .activity-settings-item {
     background: none;

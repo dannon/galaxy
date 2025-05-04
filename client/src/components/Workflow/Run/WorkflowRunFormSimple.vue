@@ -369,7 +369,7 @@ async function onExecute() {
 </template>
 
 <style scoped lang="scss">
-@import "theme/blue.scss";
+@import "@/style/scss/theme/blue.scss";
 
 .workflow-runtime-settings-panel {
     background-color: $brand-light;

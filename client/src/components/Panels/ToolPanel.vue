@@ -209,7 +209,7 @@ initializePanel();
 </template>
 
 <style lang="scss" scoped>
-@import "theme/blue.scss";
+@import "@/style/scss/theme/blue.scss";
 
 .panel-view-selector {
     color: $panel-header-text-color;

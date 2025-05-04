@@ -65,7 +65,7 @@ function pluralize(word: string) {
 </template>
 
 <style lang="scss" scoped>
-@import "theme/blue.scss";
+@import "@/style/scss/theme/blue.scss";
 
 .description {
     font-size: $h6-font-size;

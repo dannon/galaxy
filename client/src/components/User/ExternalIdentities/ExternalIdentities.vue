@@ -233,7 +233,7 @@ export default {
 @import "bootstrap/scss/variables";
 @import "bootstrap/scss/mixins";
 @import "bootstrap/scss/utilities/spacing";
-@import "theme/blue.scss";
+@import "@/style/scss/theme/blue.scss";
 @import "mixins.scss";
 
 .operations {

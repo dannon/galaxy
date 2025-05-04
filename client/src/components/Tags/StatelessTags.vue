@@ -133,7 +133,7 @@ export default {
 <style lang="scss">
 // Most styling of the tags should happen in here.
 
-@import "theme/blue";
+@import "@/style/scss/theme/blue";
 @import "mixins.scss";
 
 // Puts a little graphic in place of the text-input

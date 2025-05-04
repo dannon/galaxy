@@ -136,7 +136,7 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-@import "theme/blue.scss";
+@import "@/style/scss/theme/blue.scss";
 
 .tools-list-table {
     display: flex;
