@@ -26,13 +26,13 @@
 
 <script>
 import BootstrapVue from "bootstrap-vue";
-import ToolSection from "@/components/Panels/Common/ToolSection";
+import ToolSection from "@/components/Panels/Common/ToolSection.vue";
 import Vue from "vue";
 
 import { fromSteps } from "@/components/Workflow/Editor/modules/labels";
 
 import { directiveEntry } from "./directives.ts";
-import MarkdownDialog from "./MarkdownDialog";
+import MarkdownDialog from "./MarkdownDialog.vue";
 
 import ActivityPanel from "@/components/Panels/ActivityPanel.vue";
 

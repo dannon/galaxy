@@ -152,7 +152,7 @@
 </template>
 
 <script>
-import { HistoryFilters } from "components/History/HistoryFilters";
+import { HistoryFilters } from "@/components/History/HistoryFilters";
 import {
     addTagsToSelectedContent,
     changeDatatypeOfSelectedContent,

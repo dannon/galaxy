@@ -13,7 +13,7 @@ import HistoryExportTasks from "@/components/History/Export/HistoryExport.vue";
 import HistoryPublished from "@/components/History/HistoryPublished.vue";
 import HistoryView from "@/components/History/HistoryView.vue";
 import HistoryMultipleView from "@/components/History/Multiple/MultipleView.vue";
-import { HistoryExport } from "@/components/HistoryExport/index.vue";
+import HistoryExport from "@/components/HistoryExport/index.vue";
 import HistoryImport from "@/components/HistoryImport.vue";
 import InteractiveTools from "@/components/InteractiveTools/InteractiveTools.vue";
 import JobDetails from "@/components/JobInformation/JobDetails.vue";

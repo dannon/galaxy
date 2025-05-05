@@ -6,7 +6,7 @@ import { startWatchingHistory } from "@/watch/watchHistory";
 
 import { getCurrentGalaxyHistory, mountSelectionDialog } from "./dataModalUtils";
 
-import DataDialog from "components/DataDialog/DataDialog.vue";
+import DataDialog from "@/components/DataDialog/DataDialog.vue";
 
 /**
  * Opens a modal dialog for data selection

@@ -1,6 +1,6 @@
 import axios from "axios";
 import $ from "jquery";
-import { getAppRoot } from "onload/loadConfig";
+import { getAppRoot } from "@/onload/loadConfig";
 import Vue from "vue";
 
 // This should be moved more centrally (though still hanging off Galaxy for

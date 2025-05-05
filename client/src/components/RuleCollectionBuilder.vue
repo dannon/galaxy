@@ -590,7 +590,7 @@ import { ERROR_STATES, NON_TERMINAL_STATES } from "@/components/WorkflowInvocati
 import $ from "jquery";
 import { getAppRoot } from "@/onload/loadConfig";
 import _ from "underscore";
-import _l from "utils/localization";
+import _l from "@/utils/localization";
 import Vue from "vue";
 
 import { errorMessageAsString } from "@/utils/simple-error";

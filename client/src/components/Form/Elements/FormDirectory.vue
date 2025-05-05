@@ -50,7 +50,7 @@ import { faFolder, faFolderOpen } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import { FilesDialog } from "@/components/FilesDialog";
 import { Toast } from "@/composables/toast";
-import _l from "utils/localization";
+import _l from "@/utils/localization";
 
 import { errorMessageAsString } from "@/utils/simple-error";
 

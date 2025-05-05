@@ -98,15 +98,15 @@
     </div>
 </template>
 <script>
-import GenericHistoryItem from "components/History/Content/GenericItem";
-import LoadingSpan from "components/LoadingSpan";
-import { InvocationStepProvider } from "components/providers";
+import GenericHistoryItem from "@/components/History/Content/GenericItem.vue";
+import LoadingSpan from "@/components/LoadingSpan.vue";
+import { InvocationStepProvider } from "@/components/providers";
 import { mapActions, mapState } from "pinia";
 import { useToolStore } from "@/stores/toolStore";
 import { useWorkflowStore } from "@/stores/workflowStore";
 
-import ParameterStep from "./ParameterStep";
-import WorkflowStepTitle from "./WorkflowStepTitle";
+import ParameterStep from "./ParameterStep.vue";
+import WorkflowStepTitle from "./WorkflowStepTitle.vue";
 
 import Heading from "../Common/Heading.vue";
 import JobStep from "./JobStep.vue";
