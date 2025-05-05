@@ -63,11 +63,13 @@ export const useCollectionBuilderItemsStore = defineStore("collectionBuilderItem
 
     function getFilterQuery(filterText: string) {
         let filters = filterText ? HistoryFilters.getQueryDict(filterText) : DEFAULT_FILTERS;
-        if (filters.history_content_type) {
-            delete filters.history_content_type;
+        // Create a new filters object to ensure type safety
+        const safeFilters: Record<string, any> = { ...filters };
+        if ("history_content_type" in safeFilters) {
+            delete safeFilters.history_content_type;
         }
-        filters = { ...filters, history_content_type: "dataset" };
-        return filtersToQueryValues(filters);
+        safeFilters.history_content_type = "dataset";
+        return filtersToQueryValues(safeFilters);
     }
 
     return {
