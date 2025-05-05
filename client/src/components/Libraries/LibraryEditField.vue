@@ -11,7 +11,7 @@
                 <span
                     class="shrinked-description"
                     :title="text"
-                    v-html="linkify(DOMPurify.sanitize(text.substring(0, maxDescriptionLength)))">
+                    v-html="linkify(sanitize(text.substring(0, maxDescriptionLength)))">
                 </span>
                 <!-- eslint-enable vue/no-v-html -->
                 <span :title="text">...</span>
@@ -20,7 +20,7 @@
             <!-- Regular -->
             <div v-else>
                 <!-- eslint-disable-next-line vue/no-v-html -->
-                <div v-html="linkify(DOMPurify.sanitize(text ?? ''))"></div>
+                <div v-html="linkify(sanitize(text ?? ''))"></div>
                 <!-- hide toggle expand if text is too short -->
                 <a
                     v-if="text && text.length > maxDescriptionLength"
@@ -65,7 +65,9 @@ export default {
         };
     },
     methods: {
-        sanitize,
+        sanitize(text) {
+            return DOMPurify.sanitize(text);
+        },
         updateValue(value) {
             this.$emit("update:changedValue", value);
         },
