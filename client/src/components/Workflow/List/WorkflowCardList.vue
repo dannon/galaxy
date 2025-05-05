@@ -131,7 +131,7 @@ function onInsertSteps(workflow: WorkflowSummary) {
 </style>
 
 <style scoped lang="scss">
-@import "_breakpoints.scss";
+@import "@/style/scss/_breakpoints.scss";
 
 .workflow-card-list {
     container: cards-list / inline-size;

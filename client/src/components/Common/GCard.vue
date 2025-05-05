@@ -499,7 +499,7 @@ const getActionId = (cardId: string, actionId: string) => `g-card-action-${actio
 
 <style scoped lang="scss">
 @import "@/style/scss/theme/blue.scss";
-@import "_breakpoints.scss";
+@import "@/style/scss/_breakpoints.scss";
 
 .g-card {
     container: g-card / inline-size;

@@ -139,5 +139,5 @@ async function copy(close: () => void) {
 </template>
 
 <style lang="scss">
-@import "transitions.scss";
+@import "@/style/scss/transitions.scss";
 </style>

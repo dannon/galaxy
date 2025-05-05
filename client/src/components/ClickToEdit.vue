@@ -81,7 +81,7 @@ export default {
 
 <style lang="scss" scoped>
 @import "@/style/scss/theme/blue.scss";
-@import "mixins.scss";
+@import "@/style/scss/mixins.scss";
 
 .clickToEdit {
     position: relative;

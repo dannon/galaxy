@@ -234,7 +234,7 @@ export default {
 @import "bootstrap/scss/mixins";
 @import "bootstrap/scss/utilities/spacing";
 @import "@/style/scss/theme/blue.scss";
-@import "mixins.scss";
+@import "@/style/scss/mixins.scss";
 
 .operations {
     margin-bottom: 0;
