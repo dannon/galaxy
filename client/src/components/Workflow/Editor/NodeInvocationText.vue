@@ -2,7 +2,7 @@
 import { faCheckSquare, faSquare } from "@fortawesome/free-regular-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import { BFormInput } from "bootstrap-vue";
-import { sanitize } from "dompurify";
+import DOMPurify from "dompurify";
 
 import { isWorkflowInput } from "@/components/Workflow/constants";
 import { type GraphStep, iconClasses, statePlaceholders } from "@/composables/useInvocationGraph";
@@ -16,7 +16,7 @@ function isColor(value?: string): boolean {
 }
 
 function textHtml(value: string): string {
-    return sanitize(value, { ALLOWED_TAGS: ["b"] });
+    return DOMPurify.sanitize(value, { ALLOWED_TAGS: ["b"] });
 }
 </script>
 <template>
