@@ -100,9 +100,6 @@ watch(() => dataset.value?.file_ext, checkPreferredVisualization, { immediate: t
                             {{ dataset.genome_build }}
                         </BLink>
                     </span>
-                    <div v-if="dataset.misc_info" class="info">
-                        <span class="value">{{ dataset.misc_info }}</span>
-                    </div>
                 </div>
             </transition>
         </header>
