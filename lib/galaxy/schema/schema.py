@@ -3801,6 +3801,34 @@ class ChatResponse(BaseModel):
     )
 
 
+class AnalysisFeedbackPayload(BaseModel):
+    question: str = Field(
+        ...,
+        title="Question",
+        description="The question that was asked",
+    )
+    answer: str = Field(
+        ...,
+        title="Answer",
+        description="The answer that was provided",
+    )
+    feedback: bool = Field(
+        ...,
+        title="Feedback",
+        description="Whether the feedback was positive",
+    )
+    comment: Optional[str] = Field(
+        None,
+        title="Comment",
+        description="Additional comments about the analysis",
+    )
+    dataset_id: Optional[str] = Field(
+        None,
+        title="Dataset ID",
+        description="Optional dataset identifier",
+    )
+
+
 class CreatePagePayload(PageSummaryBase):
     content_format: PageContentFormat = ContentFormatField
     content: Optional[str] = ContentField

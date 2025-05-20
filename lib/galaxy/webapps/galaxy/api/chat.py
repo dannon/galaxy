@@ -4,21 +4,27 @@ API Controller providing Chat functionality
 
 import logging
 from typing import (
+    Dict,
     Optional,
     Union,
 )
 
-from fastapi import Path
+from fastapi import (
+    Body,
+    Path,
+)
 from typing_extensions import Annotated
 
 from galaxy.config import GalaxyAppConfiguration
 from galaxy.exceptions import ConfigurationError
+from galaxy.managers.analysis_feedback import AnalysisFeedbackManager
 from galaxy.managers.chat import ChatManager
 from galaxy.managers.context import ProvidesUserContext
 from galaxy.managers.jobs import JobManager
 from galaxy.model import User
 from galaxy.schema.fields import DecodedDatabaseIdField
 from galaxy.schema.schema import (
+    AnalysisFeedbackPayload,
     ChatPayload,
     ChatResponse,
 )
@@ -55,6 +61,7 @@ class ChatAPI:
     config: GalaxyAppConfiguration = depends(GalaxyAppConfiguration)
     chat_manager: ChatManager = depends(ChatManager)
     job_manager: JobManager = depends(JobManager)
+    feedback_manager: AnalysisFeedbackManager = depends(AnalysisFeedbackManager)
 
     @router.post("/api/chat")
     def query(
@@ -119,6 +126,41 @@ class ChatAPI:
         job = self.job_manager.get_accessible_job(trans, job_id)
         chat_response = self.chat_manager.set_feedback_for_job(trans, job.id, feedback)
         return chat_response.messages[0].feedback
+
+    @router.post("/api/chat/analysis_feedback")
+    def analysis_feedback(
+        self,
+        payload: AnalysisFeedbackPayload,
+        trans: ProvidesUserContext = DependsOnTrans,
+        user: User = DependsOnUser,
+    ) -> Dict:
+        """
+        Save feedback for an analysis.
+
+        This endpoint accepts JSON with the following structure:
+        {
+            "question": "What does this dataset show?",
+            "answer": "The dataset shows gene expression levels...",
+            "feedback": true,    # Boolean indicating if feedback was positive
+            "comment": "Very helpful explanation",   # Optional
+            "dataset_id": "dataset_123"    # Optional
+        }
+
+        Returns the ID of the saved feedback record.
+        """
+        try:
+            # Convert Pydantic model to dict
+            feedback_data = payload.model_dump()
+
+            # Store feedback data in external SQLite database
+            feedback_id = self.feedback_manager.save_feedback(feedback_data)
+            return {"feedback_id": feedback_id, "status": "success"}
+        except ValueError as e:
+            # Handle validation errors
+            return {"status": "error", "message": str(e)}
+        except Exception as e:
+            log.error(f"Error saving analysis feedback: {e}")
+            return {"status": "error", "message": "An error occurred while saving feedback"}
 
     def _ensure_openai_configured(self):
         """Ensure OpenAI is available and configured with an API key."""
