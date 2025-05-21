@@ -12,10 +12,11 @@ const props = defineProps<{
 }>();
 
 const dataset = computed(() => datasetStore.getDataset(props.datasetId));
+
 const contentState = computed(() => {
-    const state = dataset.value && dataset.value.state;
-    return state && STATES[state] ? STATES[state] : null;
+    return dataset.value && STATES[dataset.value.state] ? STATES[dataset.value.state] : null;
 });
+
 const contentCls = computed(() => {
     const status = contentState.value && contentState.value.status;
     if (!status) {
