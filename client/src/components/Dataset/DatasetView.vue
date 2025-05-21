@@ -5,6 +5,7 @@ import { computed, ref, watch } from "vue";
 import { usePersistentToggle } from "@/composables/persistentToggle";
 import { useDatasetStore } from "@/stores/datasetStore";
 import { useDatatypeVisualizationsStore } from "@/stores/datatypeVisualizationsStore";
+import { bytesToString } from "@/utils/utils";
 
 import DatasetError from "../DatasetInformation/DatasetError.vue";
 import LoadingSpan from "../LoadingSpan.vue";
@@ -87,7 +88,7 @@ watch(() => dataset.value?.file_ext, checkPreferredVisualization, { immediate: t
                     <table class="dataset-metadata-table">
                         <tr v-if="dataset.file_size" class="metadata-row">
                             <td v-localize class="prompt">size</td>
-                            <td class="value font-weight-bold">{{ dataset.file_size }}</td>
+                            <td class="value font-weight-bold">{{ bytesToString(dataset.file_size) }}</td>
                         </tr>
                         <tr v-if="dataset.file_ext" class="metadata-row">
                             <td v-localize class="prompt">format</td>
