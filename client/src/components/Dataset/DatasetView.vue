@@ -84,22 +84,27 @@ watch(() => dataset.value?.file_ext, checkPreferredVisualization, { immediate: t
             </div>
             <transition v-if="dataset" name="header">
                 <div v-show="headerState === 'open'" class="header-details">
-                    <div v-if="dataset.misc_blurb" class="blurb">
-                        <span class="value">{{ dataset.misc_blurb }}</span>
-                    </div>
-                    <span v-if="dataset.file_ext" class="datatype">
-                        <span v-localize class="prompt">format</span>
-                        <span class="value font-weight-bold">{{ dataset.file_ext }}</span>
-                    </span>
-                    <span v-if="dataset.genome_build" class="dbkey">
-                        <span v-localize class="prompt">database</span>
-                        <BLink
-                            class="value font-weight-bold"
-                            data-label="Database/Build"
-                            :to="`/datasets/${datasetId}/edit`">
-                            {{ dataset.genome_build }}
-                        </BLink>
-                    </span>
+                    <table class="dataset-metadata-table">
+                        <tr v-if="dataset.file_size" class="metadata-row">
+                            <td v-localize class="prompt">size</td>
+                            <td class="value font-weight-bold">{{ dataset.file_size }}</td>
+                        </tr>
+                        <tr v-if="dataset.file_ext" class="metadata-row">
+                            <td v-localize class="prompt">format</td>
+                            <td class="value font-weight-bold">{{ dataset.file_ext }}</td>
+                        </tr>
+                        <tr v-if="dataset.genome_build" class="metadata-row">
+                            <td v-localize class="prompt">database</td>
+                            <td class="value">
+                                <BLink
+                                    class="font-weight-bold"
+                                    data-label="Database/Build"
+                                    :to="`/datasets/${datasetId}/edit`">
+                                    {{ dataset.genome_build }}
+                                </BLink>
+                            </td>
+                        </tr>
+                    </table>
                 </div>
             </transition>
         </header>
@@ -172,5 +177,29 @@ watch(() => dataset.value?.file_ext, checkPreferredVisualization, { immediate: t
 .dataset-state-header {
     font-size: $h5-font-size;
     vertical-align: middle;
+}
+
+.dataset-metadata-table {
+    border-spacing: 0;
+    margin-top: 0.5rem;
+}
+
+.metadata-row {
+    line-height: 1.8;
+}
+
+.prompt {
+    color: $text-muted;
+    font-size: 0.9rem;
+    padding-right: 1rem;
+    text-align: right;
+    white-space: nowrap;
+    &::after {
+        content: ":";
+    }
+}
+
+.value {
+    padding-left: 0.25rem;
 }
 </style>
