@@ -43,8 +43,16 @@ const props = withDefaults(defineProps<Props>(), {
     position: absolute;
     text-align: center;
     width: 100%;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
 }
 .progress-container {
     position: relative;
+
+    // Adjust container height when text wraps
+    &:has(.progress-note) {
+        min-height: 2rem;
+    }
 }
 </style>

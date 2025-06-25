@@ -295,12 +295,12 @@ async function onCancel() {
                         v-else-if="invocationState == 'cancelled'"
                         note="Invocation scheduling cancelled - expected jobs and outputs may not be generated."
                         :error-count="1"
-                        class="steps-progress" />
+                        class="steps-progress error-state" />
                     <ProgressBar
                         v-else-if="invocationState == 'failed'"
                         note="Invocation scheduling failed - Galaxy administrator may have additional details in logs."
                         :error-count="1"
-                        class="steps-progress" />
+                        class="steps-progress error-state" />
                     <ProgressBar
                         v-else
                         :note="stepStatesStr"
@@ -413,9 +413,15 @@ async function onCancel() {
 
     .steps-progress,
     .jobs-progress {
-        // truncate text in progress bars
+        // truncate text in progress bars by default
         white-space: nowrap;
         overflow: hidden;
+
+        // Allow wrapping for error states with long messages
+        &.error-state {
+            white-space: normal;
+            overflow: visible;
+        }
     }
 }
 </style>
