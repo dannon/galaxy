@@ -59,8 +59,16 @@ const textTooLong = computed(() => {
         <component
             :is="props.component"
             :ref="props.maxLines === 1 ? 'refOneLineSummary' : 'refMultiLineSummary'"
+            v-b-tooltip.hover="textTooLong && props.noExpand ? props.description : null"
             :style="useLineTruncation && props.maxLines !== 1 && !showDetails ? { '--max-lines': props.maxLines } : {}">
-            <div class="html-paragraph d-inline-block overflow-hidden w-100" v-html="props.description" />
+            <div
+                :class="[
+                    'html-paragraph',
+                    'overflow-hidden',
+                    'w-100',
+                    useLineTruncation && !showDetails ? '' : 'd-inline-block',
+                ]"
+                v-html="props.description" />
         </component>
 
         <span

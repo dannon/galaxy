@@ -261,5 +261,4 @@ function selectText() {
         display: none;
     }
 }
-
 </style>

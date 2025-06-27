@@ -19,6 +19,7 @@ const emit = defineEmits<{
 }>();
 
 const clickToEditInput = ref<HTMLInputElement | null>(null);
+const clickToEditLabel = ref<HTMLElement | null>(null);
 const editable = ref(false);
 const localValue = ref(props.value);
 
@@ -30,6 +31,18 @@ const labelClasses = computed(() => {
         classes.push("click-to-edit-line-clamp");
     }
     return classes;
+});
+
+const isTextTruncated = computed(() => {
+    if (!props.maxLines || !clickToEditLabel.value) {
+        return false;
+    }
+
+    if (props.maxLines === 1) {
+        return clickToEditLabel.value.scrollWidth > clickToEditLabel.value.clientWidth;
+    } else {
+        return clickToEditLabel.value.scrollHeight > clickToEditLabel.value.clientHeight;
+    }
 });
 
 watch(
@@ -92,6 +105,8 @@ function revertToOriginal() {
     <component
         :is="props.component || 'label'"
         v-else
+        ref="clickToEditLabel"
+        v-b-tooltip.hover="isTextTruncated ? computedValue || title : null"
         role="button"
         for="click-to-edit-input"
         :class="labelClasses"
