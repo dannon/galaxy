@@ -8,9 +8,8 @@ interface Props {
     maxLength?: number;
     /** The text to summarize */
     description: string;
-    /** If `true`, doesn't let unexpanded text go beyond height of one line
-     * and ignores `maxLength` */
-    oneLineSummary?: boolean;
+    /** Number of lines to show when using line-based truncation */
+    maxLines?: number;
     /** If `true`, doesn't show expand/collapse buttons */
     noExpand?: boolean;
     /** The component to use for the summary, default = `<p>` */
@@ -27,21 +26,40 @@ const props = withDefaults(defineProps<Props>(), {
 
 const showDetails = ref(false);
 const refOneLineSummary = ref<HTMLElement | null>(null);
+const refMultiLineSummary = ref<HTMLElement | null>(null);
+
+const useLineTruncation = computed(() => !!props.maxLines);
 
 const textTooLong = computed(() => {
-    if (!props.oneLineSummary) {
-        return props.description.length > props.maxLength;
-    } else if (refOneLineSummary.value) {
-        return refOneLineSummary.value.scrollWidth > refOneLineSummary.value.clientWidth;
-    } else {
+    if (useLineTruncation.value) {
+        // Line-based truncation using maxLines
+        const ref = props.maxLines === 1 ? refOneLineSummary.value : refMultiLineSummary.value;
+        if (ref) {
+            if (props.maxLines === 1) {
+                return ref.scrollWidth > ref.clientWidth;
+            } else {
+                return ref.scrollHeight > ref.clientHeight;
+            }
+        }
         return false;
+    } else {
+        // Character-based truncation (default behavior)
+        return props.description.length > props.maxLength;
     }
 });
 </script>
 
 <template>
-    <div class="text-summary" :class="{ 'text-summary-short': !showDetails || props.oneLineSummary }">
-        <component :is="props.component" ref="refOneLineSummary">
+    <div
+        class="text-summary"
+        :class="{
+            'text-summary-short': !showDetails && props.maxLines === 1,
+            'text-summary-multi-line': !showDetails && useLineTruncation && props.maxLines !== 1,
+        }">
+        <component
+            :is="props.component"
+            :ref="props.maxLines === 1 ? 'refOneLineSummary' : 'refMultiLineSummary'"
+            :style="useLineTruncation && props.maxLines !== 1 && !showDetails ? { '--max-lines': props.maxLines } : {}">
             <div class="html-paragraph d-inline-block overflow-hidden w-100" v-html="props.description" />
         </component>
 
@@ -90,6 +108,27 @@ const textTooLong = computed(() => {
 
         &:not(:first-child) {
             display: none;
+        }
+    }
+
+    &.text-summary-multi-line {
+        .html-paragraph {
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: var(--max-lines, 2);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: normal;
+
+            :deep(p) {
+                white-space: normal;
+                margin: 0;
+                display: block;
+
+                &:not(:first-child) {
+                    display: block;
+                }
+            }
         }
     }
 }

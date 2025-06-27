@@ -129,10 +129,15 @@ function selectText() {
                     title="..."
                     data-description="name display"
                     no-save-on-blur
+                    :max-lines="2"
                     class="my-2 w-100" />
-                <h3 v-else class="my-2 w-100">
-                    {{ props.name || "..." }}
-                </h3>
+                <TextSummary
+                    v-else
+                    component="h3"
+                    class="my-2 w-100"
+                    :description="props.name || '...'"
+                    :max-lines="2"
+                    no-expand />
             </template>
             <div v-else style="max-width: 80%">
                 <TextSummary
@@ -140,7 +145,7 @@ function selectText() {
                     data-description="name display"
                     class="my-2"
                     component="h3"
-                    one-line-summary
+                    :max-lines="2"
                     no-expand />
             </div>
 
@@ -172,7 +177,7 @@ function selectText() {
                     v-if="annotation"
                     :description="annotation"
                     data-description="annotation value"
-                    one-line-summary
+                    :max-lines="1"
                     no-expand />
             </div>
             <StatelessTags
@@ -256,4 +261,5 @@ function selectText() {
         display: none;
     }
 }
+
 </style>

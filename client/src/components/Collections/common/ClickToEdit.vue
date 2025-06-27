@@ -9,6 +9,7 @@ interface Props {
     title?: string;
     component?: string;
     noSaveOnBlur?: boolean;
+    maxLines?: number;
 }
 
 const props = defineProps<Props>();
@@ -22,6 +23,14 @@ const editable = ref(false);
 const localValue = ref(props.value);
 
 const computedValue = computed(() => props.value);
+
+const labelClasses = computed(() => {
+    const classes = ["click-to-edit-label", "text-break"];
+    if (props.maxLines) {
+        classes.push("click-to-edit-line-clamp");
+    }
+    return classes;
+});
 
 watch(
     () => editable.value,
@@ -85,7 +94,8 @@ function revertToOriginal() {
         v-else
         role="button"
         for="click-to-edit-input"
-        class="click-to-edit-label text-break"
+        :class="labelClasses"
+        :style="props.maxLines ? { '--max-lines': props.maxLines } : {}"
         tabindex="0"
         @keyup.enter="editable = true"
         @click.stop="editable = true">
@@ -99,6 +109,19 @@ function revertToOriginal() {
     cursor: text;
     &:hover > * {
         text-decoration: underline;
+    }
+
+    &.click-to-edit-line-clamp {
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: var(--max-lines, 2);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: normal;
+
+        span {
+            display: block;
+        }
     }
 }
 

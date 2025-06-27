@@ -278,7 +278,7 @@ async function loadMore(noScroll = false) {
                                         (currently pinned)
                                     </i>
                                 </div>
-                                <TextSummary v-else component="h4" :description="history.name" one-line-summary />
+                                <TextSummary v-else component="h4" :description="history.name" :max-lines="1" />
                                 <HistoryIndicators :history="history" include-count />
                             </div>
 
