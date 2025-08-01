@@ -38,6 +38,27 @@ const stateClasses: Record<string, string> = {
     failed: "error",
 };
 
+// TODO: put these elsewhere.
+const stateDisplayNames: Record<string, string> = {
+    new: "new",
+    requires_materialization: "materializing",
+    ready: "ready",
+    scheduled: "scheduled",
+    cancelled: "cancelled",
+    cancelling: "cancelling",
+    failed: "failed",
+};
+
+const stateDescriptions: Record<string, string> = {
+    new: "Workflow invocation has been created",
+    requires_materialization: "Workflow invocation requires materialization of datasets",
+    ready: "Workflow invocation is ready to be scheduled",
+    scheduled: "Workflow invocation has been scheduled and is running",
+    cancelled: "Workflow invocation has been cancelled",
+    cancelling: "Workflow invocation is being cancelled",
+    failed: "Workflow invocation has failed",
+};
+
 async function loadInvocations(offset: number, limit: number) {
     if (!currentUser.value || currentUser.value.isAnonymous) {
         return { items: [], total: 0 };
@@ -81,11 +102,14 @@ function cardClicked(invocation: WorkflowInvocation) {
 }
 
 function getInvocationBadges(invocation: WorkflowInvocation) {
+    const displayName = stateDisplayNames[invocation.state] || invocation.state;
+    const description = stateDescriptions[invocation.state] || invocation.state;
+
     return [
         {
             id: "state",
-            label: invocation.state,
-            title: invocation.state,
+            label: displayName,
+            title: description,
             class: stateClass(invocation.state),
             visible: true,
         },
