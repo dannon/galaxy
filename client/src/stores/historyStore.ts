@@ -279,7 +279,7 @@ export const useHistoryStore = defineStore("historyStore", () => {
                 (storedHistories.value[history.id] as any)[key] = value;
             });
         } else {
-            storedHistories.value[history.id] = history;
+            storedHistories.value[history.id] = history as AnyHistory;
         }
     }
 
