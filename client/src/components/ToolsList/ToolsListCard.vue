@@ -347,7 +347,7 @@ const {
             </GButton>
             <GPopover
                 v-if="props.version || !props.workflowCompatible"
-                :show.sync="showPopover"
+                v-model:show="showPopover"
                 custom-class="tool-info-popover"
                 boundary="window"
                 placement="topleft"
