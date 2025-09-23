@@ -6,6 +6,7 @@ on:
       - dev
       - master
       - 'release_*'
+      - 'release-drafter-integration'  # Add our test branch
   pull_request:
     types: [opened, reopened, synchronize]
   pull_request_target:
@@ -16,20 +17,39 @@ permissions:
 
 jobs:
   update_release_draft:
+    # Temporarily enabled for testing on dannon's fork
+    if: github.repository == 'dannon/galaxy'
     permissions:
       contents: write
       pull-requests: write
     runs-on: ubuntu-latest
     steps:
-      - name: Calculate Year Version
-        id: year
-        run: |
-          # Get current year in YY format
-          YEAR=$(date +%y)
-          echo "year=${YEAR}" >> $GITHUB_OUTPUT
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-          # Get the latest release to check if year transition is needed
-          # This is optional and can be enhanced with actual API calls
+      - name: Calculate Version Context
+        id: version
+        run: |
+          # Get current year in YY format for reference
+          CURRENT_YEAR=$(date +%y)
+          echo "current_year=${CURRENT_YEAR}" >> $GITHUB_OUTPUT
+
+          # Get the latest release to understand current version
+          LATEST_RELEASE=$(gh release list --limit 1 --json tagName --jq '.[0].tagName' || echo "v25.0.0")
+          echo "latest_release=${LATEST_RELEASE}" >> $GITHUB_OUTPUT
+
+          # Extract components for debugging
+          VERSION_WITHOUT_V=${LATEST_RELEASE#v}
+          MAJOR_VERSION=${VERSION_WITHOUT_V%%.*}
+          echo "current_major=${MAJOR_VERSION}" >> $GITHUB_OUTPUT
+
+          # Log for debugging
+          echo "Current year: ${CURRENT_YEAR}"
+          echo "Latest release: ${LATEST_RELEASE}"
+          echo "Major version: ${MAJOR_VERSION}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: release-drafter/release-drafter@v6
         with:

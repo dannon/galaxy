@@ -1,24 +1,34 @@
 # Release Drafter Configuration for Galaxy
 # Implements YY.N.P versioning scheme using existing Galaxy labels
+#
+# IMPORTANT: Galaxy's versioning scheme is YY.N.P where:
+# - YY = Two-digit year (25 for 2025)
+# - N = Feature release number (0, 1, 2... - typically 2-3 per year)
+# - P = Patch/point release number (0, 1, 2, 3...)
+#
+# Note: Release Drafter treats this as MAJOR.MINOR.PATCH, so:
+# - MAJOR = YY (year)
+# - MINOR = N (feature number)
+# - PATCH = P (patch number)
+#
+# Year transitions (24→25) must be handled manually when creating releases.
 
 # Version configuration
 version-template: '$MAJOR.$MINOR.$PATCH'
 name-template: 'Galaxy $RESOLVED_VERSION'
 tag-template: 'v$RESOLVED_VERSION'
 
-# Version resolver based on existing Galaxy labels
+# Version resolver based on Galaxy's existing labels
+# NOTE: Galaxy's 'major' label is used for highlighting, NOT version bumps
 version-resolver:
-  major:
-    labels:
-      - 'major'
   minor:
     labels:
-      - 'minor'
       - 'kind/feature'
-      - 'kind/enhancement'
+      - 'minor'  # Explicit minor version bump
   patch:
     labels:
       - 'kind/bug'
+      - 'kind/enhancement'
       - 'kind/refactoring'
   default: patch
 
