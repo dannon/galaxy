@@ -21,8 +21,23 @@ jobs:
     if: github.repository == 'dannon/galaxy'
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: dev
+          sparse-checkout: |
+            lib/galaxy/version.py
+
+      - name: Read Galaxy version
+        id: galaxy-version
+        run: |
+          # Extract VERSION_MAJOR from version.py
+          VERSION_MAJOR=$(grep "VERSION_MAJOR" lib/galaxy/version.py | cut -d'"' -f2)
+          echo "version=${VERSION_MAJOR}.0" >> $GITHUB_OUTPUT
+          echo "Galaxy version: ${VERSION_MAJOR}.0"
+
       - uses: release-drafter/release-drafter@v6
         with:
           config-name: release-drafter.yml
+          version: ${{ steps.galaxy-version.outputs.version }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

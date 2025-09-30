@@ -71,19 +71,8 @@ change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
 # Characters to escape in titles
 change-title-escapes: '\<*_&'
 
-# Version resolver based on Galaxy's existing labels
-# NOTE: Galaxy's 'major' label is used for highlighting, NOT version bumps
-version-resolver:
-  minor:
-    labels:
-      - 'kind/feature'
-      - 'minor'
-  patch:
-    labels:
-      - 'kind/bug'
-      - 'kind/enhancement'
-      - 'kind/refactoring'
-  default: patch
+# Version is read from lib/galaxy/version.py by the workflow
+# No version-resolver needed since Galaxy manages versions manually
 
 # Template for the release body
 template: |
