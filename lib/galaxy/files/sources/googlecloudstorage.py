@@ -1,6 +1,7 @@
 try:
     from fs_gcsfs import GCSFS
     from google.cloud.storage import Client
+    from google.oauth2 import service_account
     from google.oauth2.credentials import Credentials
 except ImportError:
     GCSFS = None
@@ -22,6 +23,7 @@ class GoogleCloudStorageFilesSourceProperties(FilesSourceProperties, total=False
     root_path: str
     project: str
     anonymous: bool
+    service_account_json: str
 
 
 class GoogleCloudStorageFilesSource(PyFilesystem2FilesSource):
@@ -37,9 +39,13 @@ class GoogleCloudStorageFilesSource(PyFilesystem2FilesSource):
         bucket_name = props.pop("bucket_name", None)
         root_path = props.pop("root_path", None)
         project = props.pop("project", None)
+        service_account_json = props.pop("service_account_json", None)
         args = {}
         if props.get("anonymous"):
             args["client"] = Client.create_anonymous_client()
+        elif service_account_json:
+            credentials = service_account.Credentials.from_service_account_file(service_account_json)
+            args["client"] = Client(project=project, credentials=credentials)
         elif props.get("token"):
             args["client"] = Client(project=project, credentials=Credentials(**props))
         handle = GCSFS(bucket_name, root_path=root_path, retry=0, **{**args, **extra_props})
