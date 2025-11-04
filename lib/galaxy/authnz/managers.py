@@ -1,6 +1,8 @@
 import builtins
 import logging
 
+from sqlalchemy.inspection import inspect
+
 from galaxy import (
     exceptions,
     model,
@@ -305,10 +307,24 @@ class AuthnzManager:
         user = trans.user or user
         if not isinstance(user, model.User):
             return
-        for auth in user.custos_auth or []:
-            self.refresh_expiring_oidc_tokens_for_provider(trans, auth)
-        for auth in user.social_auth or []:
-            self.refresh_expiring_oidc_tokens_for_provider(trans, auth)
+
+        # Inspect the user object to check which relationships are already loaded
+        # to avoid triggering lazy loads during request initialization which can cause deadlocks
+        user_state = inspect(user)
+
+        # Only process custos_auth if it's already loaded
+        if "custos_auth" in user_state.unloaded:
+            log.debug("Skipping custos_auth refresh: relationship not loaded")
+        else:
+            for auth in user.custos_auth or []:
+                self.refresh_expiring_oidc_tokens_for_provider(trans, auth)
+
+        # Only process social_auth if it's already loaded
+        if "social_auth" in user_state.unloaded:
+            log.debug("Skipping social_auth refresh: relationship not loaded")
+        else:
+            for auth in user.social_auth or []:
+                self.refresh_expiring_oidc_tokens_for_provider(trans, auth)
 
     def authenticate(self, provider, trans, idphint=None):
         """
