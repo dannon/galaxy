@@ -12,6 +12,7 @@ from .base import (
 )
 from .custom_tool import CustomToolAgent
 from .error_analysis import ErrorAnalysisAgent
+from .history_analyzer import HistoryAnalyzerAgent
 from .orchestrator import WorkflowOrchestratorAgent
 from .registry import AgentRegistry
 from .router import QueryRouterAgent
@@ -25,6 +26,7 @@ __all__ = [
     "ErrorAnalysisAgent",
     "CustomToolAgent",
     "WorkflowOrchestratorAgent",
+    "HistoryAnalyzerAgent",
 ]
 
 # Global agent registry instance
@@ -35,3 +37,4 @@ agent_registry.register(AgentType.ROUTER, QueryRouterAgent)
 agent_registry.register(AgentType.ERROR_ANALYSIS, ErrorAnalysisAgent)
 agent_registry.register(AgentType.CUSTOM_TOOL, CustomToolAgent)
 agent_registry.register(AgentType.ORCHESTRATOR, WorkflowOrchestratorAgent)
+agent_registry.register(AgentType.HISTORY_ANALYZER, HistoryAnalyzerAgent)

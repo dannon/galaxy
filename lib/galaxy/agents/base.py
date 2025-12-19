@@ -98,6 +98,7 @@ class AgentType:
     ERROR_ANALYSIS = "error_analysis"
     CUSTOM_TOOL = "custom_tool"
     ORCHESTRATOR = "orchestrator"
+    HISTORY_ANALYZER = "history_analyzer"
 
 
 # Internal agent response model (simplified for internal use)
