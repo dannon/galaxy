@@ -73,6 +73,7 @@ __all__ = [
     "BaseGalaxyAgent",
     "ConfidenceLevel",
     "extract_result_content",
+    "extract_structured_output",
     "GalaxyAgentDependencies",
     "SimpleGalaxyAgent",
 ]
@@ -88,6 +89,49 @@ def extract_result_content(result: Any) -> str:
     elif hasattr(result, "data"):
         return str(result.data)
     return str(result)
+
+
+def extract_structured_output(result: Any, expected_type: type, logger: Optional[logging.Logger] = None) -> Any:
+    """Extract structured output from a pydantic-ai result.
+
+    Checks if result.data or result.output is the expected type.
+    Returns None if extraction fails - caller should handle the error visibly.
+
+    Args:
+        result: The pydantic-ai AgentRunResult
+        expected_type: The Pydantic model class expected (e.g., HistoryAnalysis)
+        logger: Optional logger for debug output
+
+    Returns:
+        Instance of expected_type if found, None otherwise
+    """
+    _log = logger or log
+
+    # Check result.data (pydantic-ai structured output)
+    if hasattr(result, "data") and isinstance(result.data, expected_type):
+        _log.debug(f"Extracted {expected_type.__name__} from result.data")
+        return result.data
+
+    # Check result.output (pydantic-ai alternate location)
+    if hasattr(result, "output") and isinstance(result.output, expected_type):
+        _log.debug(f"Extracted {expected_type.__name__} from result.output")
+        return result.output
+
+    # Extraction failed - log details for debugging
+    _log.warning(
+        f"Could not extract {expected_type.__name__} from result. "
+        f"Result type: {type(result).__name__}, "
+        f"data type: {type(getattr(result, 'data', None)).__name__}, "
+        f"output type: {type(getattr(result, 'output', None)).__name__}"
+    )
+
+    # Log the actual values at debug level to help diagnose issues
+    if hasattr(result, "data") and result.data is not None:
+        _log.debug(f"result.data value: {str(result.data)[:500]}")
+    if hasattr(result, "output") and result.output is not None:
+        _log.debug(f"result.output value: {str(result.output)[:500]}")
+
+    return None
 
 
 # Agent type constants
