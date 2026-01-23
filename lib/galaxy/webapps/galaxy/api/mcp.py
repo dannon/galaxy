@@ -129,8 +129,7 @@ def get_mcp_app(gx_app):
         """
         if not api_key:
             raise ValueError(
-                "API key required. You can create an API key in Galaxy "
-                "under User -> Preferences -> Manage API Key."
+                "API key required. You can create an API key in Galaxy " "under User -> Preferences -> Manage API Key."
             )
 
         # Look up user from API key

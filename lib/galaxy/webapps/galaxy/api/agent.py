@@ -132,9 +132,7 @@ class FastAPIAgent:
 
         except Exception as e:
             log.error(f"Agent query failed: {str(e)}")
-            return AgentQueryResponse(
-                result=f"Error: {str(e)}", operations_used=operations_used, success=False
-            )
+            return AgentQueryResponse(result=f"Error: {str(e)}", operations_used=operations_used, success=False)
 
         # ============================================================================
         # PYDANTIC-AI INTEGRATION EXAMPLE (commented out - requires pydantic-ai)
