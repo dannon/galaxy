@@ -106,17 +106,9 @@ class QueryRouterAgent(BaseGalaxyAgent):
             try:
                 agent = ErrorAnalysisAgent(ctx.deps)
 
-                # Pass conversation history if available
-                message_history = ctx.messages[:-1] if hasattr(ctx, "messages") and ctx.messages else None
-
-                result = await agent.agent.run(
-                    task,
-                    deps=ctx.deps,
-                    usage=ctx.usage,
-                    message_history=message_history,
-                )
-
-                return extract_result_content(result)
+                # Use agent.process() to get properly formatted response
+                response = await agent.process(task)
+                return response.content
             except Exception as e:
                 log.error(f"Error analysis handoff failed: {e}")
                 return (
@@ -153,17 +145,9 @@ class QueryRouterAgent(BaseGalaxyAgent):
             try:
                 agent = CustomToolAgent(ctx.deps)
 
-                # Pass conversation history if available
-                message_history = ctx.messages[:-1] if hasattr(ctx, "messages") and ctx.messages else None
-
-                result = await agent.agent.run(
-                    request,
-                    deps=ctx.deps,
-                    usage=ctx.usage,
-                    message_history=message_history,
-                )
-
-                return extract_result_content(result)
+                # Use agent.process() to get properly formatted response
+                response = await agent.process(request)
+                return response.content
             except Exception as e:
                 log.error(f"Custom tool handoff failed: {e}")
                 return (
