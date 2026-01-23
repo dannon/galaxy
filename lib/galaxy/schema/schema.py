@@ -17,6 +17,7 @@ from typing import (
 from uuid import UUID
 
 from pydantic import (
+    UUID4,
     AnyHttpUrl,
     AnyUrl,
     BaseModel,
@@ -25,9 +26,8 @@ from pydantic import (
     Field,
     HttpUrl,
     Json,
-    model_validator,
     RootModel,
-    UUID4,
+    model_validator,
 )
 from pydantic_core import core_schema
 from typing_extensions import (
@@ -40,10 +40,10 @@ from galaxy.schema.fields import (
     DecodedDatabaseIdField,
     EncodedDatabaseIdField,
     EncodedLibraryFolderDatabaseIdField,
-    is_optional,
     LibraryFolderDatabaseIdField,
-    literal_to_value,
     ModelClassField,
+    is_optional,
+    literal_to_value,
 )
 from galaxy.schema.tours import TourDetails
 from galaxy.schema.types import (
@@ -148,7 +148,9 @@ class DatasetCollectionPopulatedState(str, Enum):
 
 # we use TypedDicts in the model layer and I don't know how to type with that enum
 # in the dict - it doesn't have the enum value magic that pydantic has.
-DatasetSourceTransformActionTypeLiteral = Literal["to_posix_lines", "spaces_to_tabs", "datatype_groom"]
+DatasetSourceTransformActionTypeLiteral = Literal[
+    "to_posix_lines", "spaces_to_tabs", "datatype_groom"
+]
 
 
 class DatasetSourceTransformActionType(str, Enum):
@@ -188,10 +190,16 @@ AccessibleField: bool = Field(
     description="Whether this item is accessible to the current user due to permissions.",
 )
 
-DatasetCollectionId = Annotated[EncodedDatabaseIdField, Field(..., title="Dataset Collection ID")]
-DatasetCollectionElementId = Annotated[EncodedDatabaseIdField, Field(..., title="Dataset Collection Element ID")]
+DatasetCollectionId = Annotated[
+    EncodedDatabaseIdField, Field(..., title="Dataset Collection ID")
+]
+DatasetCollectionElementId = Annotated[
+    EncodedDatabaseIdField, Field(..., title="Dataset Collection Element ID")
+]
 HistoryID = Annotated[EncodedDatabaseIdField, Field(..., title="History ID")]
-HistoryDatasetAssociationId = Annotated[EncodedDatabaseIdField, Field(..., title="History Dataset Association ID")]
+HistoryDatasetAssociationId = Annotated[
+    EncodedDatabaseIdField, Field(..., title="History Dataset Association ID")
+]
 JobId = Annotated[EncodedDatabaseIdField, Field(..., title="Job ID")]
 
 
@@ -298,12 +306,18 @@ ContentsUrlField = Annotated[
     ),
 ]
 
-UserId = Annotated[EncodedDatabaseIdField, Field(title="ID", description="Encoded ID of the user")]
+UserId = Annotated[
+    EncodedDatabaseIdField, Field(title="ID", description="Encoded ID of the user")
+]
 UserEmailField = Field(title="Email", description="Email of the user")
 UserDescriptionField = Field(title="Description", description="Description of the user")
-UserNameField = Field(default=..., title="user_name", description="The name of the user.")
+UserNameField = Field(
+    default=..., title="user_name", description="The name of the user."
+)
 QuotaPercentField = Field(
-    default=None, title="Quota percent", description="Percentage of the storage quota applicable to the user."
+    default=None,
+    title="Quota percent",
+    description="Percentage of the storage quota applicable to the user.",
 )
 UserDeletedField = Field(default=..., title="Deleted", description=" User is deleted")
 PreferredObjectStoreIdField = Field(
@@ -328,7 +342,9 @@ FlexibleUserIdType = Union[DecodedDatabaseIdField, Literal["current"]]
 class Model(BaseModel):
     """Base model definition with common configuration used by all derived models."""
 
-    model_config = ConfigDict(populate_by_name=True, use_enum_values=True, protected_namespaces=())
+    model_config = ConfigDict(
+        populate_by_name=True, use_enum_values=True, protected_namespaces=()
+    )
 
 
 class RequireOneSetOption(Model):
@@ -368,7 +384,9 @@ class UserModel(BaseUserModel, WithModelClass):
 
     active: bool = Field(title="Active", description="User is active")
     model_class: USER_MODEL_CLASS = ModelClassField(USER_MODEL_CLASS)
-    last_password_change: Optional[datetime] = Field(title="Last password change", description="")
+    last_password_change: Optional[datetime] = Field(
+        title="Last password change", description=""
+    )
 
 
 class LimitedUserModel(Model):
@@ -398,22 +416,35 @@ class AnonUserModel(DiskUsageUserModel):
 class DetailedUserModel(BaseUserModel, AnonUserModel):
     is_admin: bool = Field(default=..., title="Is admin", description="User is admin")
     purged: bool = Field(default=..., title="Purged", description="User is purged")
-    preferences: dict[Any, Any] = Field(default=..., title="Preferences", description="Preferences of the user")
+    preferences: dict[Any, Any] = Field(
+        default=..., title="Preferences", description="Preferences of the user"
+    )
     preferred_object_store_id: Optional[str] = PreferredObjectStoreIdField
-    quota: str = Field(default=..., title="Quota", description="Quota applicable to the user")
+    quota: str = Field(
+        default=..., title="Quota", description="Quota applicable to the user"
+    )
     quota_bytes: Optional[int] = Field(
-        default=None, title="Quota in bytes", description="Quota applicable to the user in bytes."
+        default=None,
+        title="Quota in bytes",
+        description="Quota applicable to the user in bytes.",
     )
 
 
 class UserUpdatePayload(Model):
-    active: Annotated[Optional[bool], Field(None, title="Active", description="User is active")]
-    username: Annotated[Optional[str], Field(None, title="Username", description="The name of the user.")]
+    active: Annotated[
+        Optional[bool], Field(None, title="Active", description="User is active")
+    ]
+    username: Annotated[
+        Optional[str],
+        Field(None, title="Username", description="The name of the user."),
+    ]
     preferred_object_store_id: Annotated[Optional[str], PreferredObjectStoreIdField]
 
 
 class UserCreationPayload(Model):
-    password: str = Field(default=..., title="user_password", description="The password of the user.")
+    password: str = Field(
+        default=..., title="user_password", description="The password of the user."
+    )
     email: str = UserEmailField
     username: str = UserNameField
 
@@ -433,12 +464,18 @@ class UserDeletionPayload(Model):
 
 class FavoriteObject(Model):
     object_id: str = Field(
-        default=..., title="Object ID", description="The id of an object the user wants to favorite."
+        default=...,
+        title="Object ID",
+        description="The id of an object the user wants to favorite.",
     )
 
 
 class FavoriteObjectsSummary(Model):
-    tools: list[str] = Field(default=..., title="Favorite tools", description="The name of the tools the user favored.")
+    tools: list[str] = Field(
+        default=...,
+        title="Favorite tools",
+        description="The name of the tools the user favored.",
+    )
 
 
 class FavoriteObjectType(str, Enum):
@@ -447,12 +484,16 @@ class FavoriteObjectType(str, Enum):
 
 class DeletedCustomBuild(Model):
     message: str = Field(
-        default=..., title="Deletion message", description="Confirmation of the custom build deletion."
+        default=...,
+        title="Deletion message",
+        description="Confirmation of the custom build deletion.",
     )
 
 
 class CustomBuildBaseModel(Model):
-    name: str = Field(default=..., title="Name", description="The name of the custom build.")
+    name: str = Field(
+        default=..., title="Name", description="The name of the custom build."
+    )
 
 
 class CustomBuildLenType(str, Enum):
@@ -478,13 +519,21 @@ class CustomBuildCreationPayload(CustomBuildBaseModel):
 
 
 class CreatedCustomBuild(CustomBuildBaseModel):
-    len: EncodedDatabaseIdField = Field(default=..., title="Length", description="The primary id of the len file.")
-    count: Optional[str] = Field(default=None, title="Count", description="The number of chromosomes/contigs.")
+    len: EncodedDatabaseIdField = Field(
+        default=..., title="Length", description="The primary id of the len file."
+    )
+    count: Optional[str] = Field(
+        default=None, title="Count", description="The number of chromosomes/contigs."
+    )
     fasta: Optional[EncodedDatabaseIdField] = Field(
-        default=None, title="Fasta", description="The primary id of the fasta file from a history."
+        default=None,
+        title="Fasta",
+        description="The primary id of the fasta file from a history.",
     )
     linecount: Optional[EncodedDatabaseIdField] = Field(
-        default=None, title="Line count", description="The primary id of a linecount dataset."
+        default=None,
+        title="Line count",
+        description="The primary id of a linecount dataset.",
     )
 
 
@@ -494,7 +543,9 @@ class CustomBuildModel(CreatedCustomBuild):
 
 class CustomBuildsCollection(RootModel):
     root: list[CustomBuildModel] = Field(
-        default=..., title="Custom builds collection", description="The custom builds associated with the user."
+        default=...,
+        title="Custom builds collection",
+        description="The custom builds associated with the user.",
     )
 
 
@@ -615,9 +666,15 @@ class Hyperlink(Model):
     """Represents some text with an Hyperlink."""
 
     target: str = Field(
-        ..., title="Target", description="Specifies where to open the linked document.", examples=["_blank"]
+        ...,
+        title="Target",
+        description="Specifies where to open the linked document.",
+        examples=["_blank"],
     )
-    href: Annotated[RelativeUrl, Field(..., title="Href", description="The URL of the linked document.")]
+    href: Annotated[
+        RelativeUrl,
+        Field(..., title="Href", description="The URL of the linked document."),
+    ]
     text: str = Field(
         ...,
         title="Text",
@@ -807,9 +864,15 @@ class DatasetSource(Model):
         title="ID",
         description="Encoded ID of the dataset source.",
     )
-    source_uri: Annotated[RelativeUrl, Field(..., title="Source URI", description="The URI of the dataset source.")]
+    source_uri: Annotated[
+        RelativeUrl,
+        Field(..., title="Source URI", description="The URI of the dataset source."),
+    ]
     extra_files_path: Annotated[
-        Optional[str], Field(None, title="Extra Files Path", description="The path to the extra files.")
+        Optional[str],
+        Field(
+            None, title="Extra Files Path", description="The path to the extra files."
+        ),
     ]
     transform: Annotated[
         Optional[list[DatasetSourceTransform]],
@@ -965,10 +1028,12 @@ class HDADetailed(HDASummary, WithModelClass):
         ),
     ]
     copied_from_history_dataset_association_id: Annotated[
-        Optional[EncodedDatabaseIdField], Field(None, description="ID of HDA this HDA was copied from.")
+        Optional[EncodedDatabaseIdField],
+        Field(None, description="ID of HDA this HDA was copied from."),
     ]
     copied_from_library_dataset_dataset_association_id: Annotated[
-        Optional[EncodedDatabaseIdField], Field(None, description="ID of LDDA this HDA was copied from.")
+        Optional[EncodedDatabaseIdField],
+        Field(None, description="ID of LDDA this HDA was copied from."),
     ]
 
 
@@ -1033,7 +1098,8 @@ class DCObject(Model, WithModelClass):
     contents_url: Optional[ContentsUrlField] = None
     elements: list["DCESummary"] = ElementsField
     elements_states: ElementsStatesDict = Field(
-        ..., description="A dictionary containing counts for each dataset state in the collection."
+        ...,
+        description="A dictionary containing counts for each dataset state in the collection.",
     )
     elements_deleted: int = Field(
         ...,
@@ -1041,7 +1107,8 @@ class DCObject(Model, WithModelClass):
         description="The number of elements in the collection that are marked as deleted.",
     )
     elements_datatypes: set[str] = Field(
-        ..., description="A set containing all the different element datatypes in the collection."
+        ...,
+        description="A set containing all the different element datatypes in the collection.",
     )
     column_definitions: Optional[SampleSheetColumnDefinitions] = Field(
         None, description="Column definitions for sample sheet collections."
@@ -1207,10 +1274,12 @@ class HDCASummary(HDCACommon, WithModelClass):
     populated_state_message: Optional[str] = PopulatedStateMessageField
     element_count: ElementCountField
     elements_datatypes: set[str] = Field(
-        ..., description="A set containing all the different element datatypes in the collection."
+        ...,
+        description="A set containing all the different element datatypes in the collection.",
     )
     elements_states: ElementsStatesDict = Field(
-        ..., description="A dictionary containing counts for each dataset state in the collection."
+        ...,
+        description="A dictionary containing counts for each dataset state in the collection.",
     )
     elements_deleted: int = Field(
         ...,
@@ -1466,7 +1535,9 @@ HistoryContentStates = Union[DatasetState, DatasetCollectionPopulatedState]
 HistoryContentStateCounts = dict[HistoryContentStates, int]
 
 
-class HistoryDetailed(HistorySummary):  # Equivalent to 'dev-detailed' view, which seems the default
+class HistoryDetailed(
+    HistorySummary
+):  # Equivalent to 'dev-detailed' view, which seems the default
     """History detailed information."""
 
     contents_url: ContentsUrlField
@@ -1538,7 +1609,9 @@ class CustomHistoryView(HistoryDetailed):
     contents_active: Optional[HistoryActiveContentCounts] = Field(
         default=None,
         title="Contents Active",
-        description=("Contains the number of active, deleted or hidden items in a History."),
+        description=(
+            "Contains the number of active, deleted or hidden items in a History."
+        ),
     )
     contents_states: Optional[HistoryContentStateCounts] = Field(
         default=None,
@@ -1618,16 +1691,22 @@ class WorkflowIndexQueryPayload(Model):
     show_hidden: bool = False
     show_published: Optional[bool] = None
     show_shared: Optional[bool] = None
-    sort_by: Optional[WorkflowSortByEnum] = Field(None, title="Sort By", description="Sort workflows by this attribute")
+    sort_by: Optional[WorkflowSortByEnum] = Field(
+        None, title="Sort By", description="Sort workflows by this attribute"
+    )
     sort_desc: Optional[bool] = Field(
-        None, title="Sort descending", description="Explicitly sort by descending if sort_by is specified."
+        None,
+        title="Sort descending",
+        description="Explicitly sort by descending if sort_by is specified.",
     )
     limit: Optional[int] = Field(
         default=None,
         lt=1000,
     )
     offset: Optional[int] = Field(default=0, description="Number of workflows to skip")
-    search: Optional[str] = Field(default=None, title="Filter text", description="Freetext to search.")
+    search: Optional[str] = Field(
+        default=None, title="Filter text", description="Freetext to search."
+    )
     skip_step_counts: bool = False
 
 
@@ -1663,23 +1742,35 @@ class InvocationSortByEnum(str, Enum):
 
 class InvocationIndexQueryPayload(Model):
     workflow_id: Optional[int] = Field(
-        None, title="Workflow ID", description="Return only invocations for this Workflow ID"
+        None,
+        title="Workflow ID",
+        description="Return only invocations for this Workflow ID",
     )
     history_id: Optional[int] = Field(
-        None, title="History ID", description="Return only invocations for this History ID"
+        None,
+        title="History ID",
+        description="Return only invocations for this History ID",
     )
-    job_id: Optional[int] = Field(None, title="Job ID", description="Return only invocations for this Job ID")
-    user_id: Optional[int] = Field(None, title="User ID", description="Return invocations for this User ID")
+    job_id: Optional[int] = Field(
+        None, title="Job ID", description="Return only invocations for this Job ID"
+    )
+    user_id: Optional[int] = Field(
+        None, title="User ID", description="Return invocations for this User ID"
+    )
     sort_by: Optional[InvocationSortByEnum] = Field(
         None, title="Sort By", description="Sort Workflow Invocations by this attribute"
     )
     sort_desc: bool = Field(default=False, description="Sort in descending order?")
-    include_terminal: bool = Field(default=True, description="Set to false to only include terminal Invocations.")
+    include_terminal: bool = Field(
+        default=True, description="Set to false to only include terminal Invocations."
+    )
     limit: Optional[int] = Field(
         default=100,
         lt=1000,
     )
-    offset: Optional[int] = Field(default=0, description="Number of invocations to skip")
+    offset: Optional[int] = Field(
+        default=0, description="Number of invocations to skip"
+    )
     include_nested_invocations: bool = True
 
 
@@ -1688,14 +1779,27 @@ PageSortByEnum = Literal["create_time", "title", "update_time", "username"]
 
 class PageIndexQueryPayload(Model):
     deleted: bool = False
-    limit: Optional[int] = Field(default=100, lt=1000, title="Limit", description="Maximum number of pages to return.")
-    offset: Optional[int] = Field(default=0, title="Offset", description="Number of pages to skip.")
+    limit: Optional[int] = Field(
+        default=100,
+        lt=1000,
+        title="Limit",
+        description="Maximum number of pages to return.",
+    )
+    offset: Optional[int] = Field(
+        default=0, title="Offset", description="Number of pages to skip."
+    )
     show_own: Optional[bool] = None
     show_published: Optional[bool] = None
     show_shared: Optional[bool] = None
-    search: Optional[str] = Field(default=None, title="Filter text", description="Freetext to search.")
-    sort_by: PageSortByEnum = Field("update_time", title="Sort By", description="Sort pages by this attribute.")
-    sort_desc: Optional[bool] = Field(default=False, title="Sort descending", description="Sort in descending order.")
+    search: Optional[str] = Field(
+        default=None, title="Filter text", description="Freetext to search."
+    )
+    sort_by: PageSortByEnum = Field(
+        "update_time", title="Sort By", description="Sort pages by this attribute."
+    )
+    sort_desc: Optional[bool] = Field(
+        default=False, title="Sort descending", description="Sort in descending order."
+    )
     user_id: Optional[DecodedDatabaseIdField] = None
 
 
@@ -1722,7 +1826,9 @@ class CreateHistoryPayload(Model):
     archive_source: Optional[str] = Field(
         default=None,
         title="Archive Source",
-        description=("The URL that will generate the archive to import when `archive_type='url'`. "),
+        description=(
+            "The URL that will generate the archive to import when `archive_type='url'`. "
+        ),
     )
     archive_type: Optional[HistoryImportArchiveSourceType] = Field(
         default=HistoryImportArchiveSourceType.url,
@@ -1894,7 +2000,8 @@ class ShortTermStoreExportPayload(StoreExportPayload):
 
 class BcoGenerationParametersMixin(BaseModel):
     bco_merge_history_metadata: bool = Field(
-        default=False, description="When reading tags/annotations to generate BCO object include history metadata."
+        default=False,
+        description="When reading tags/annotations to generate BCO object include history metadata.",
     )
     bco_override_environment_variables: Optional[dict[str, str]] = Field(
         default=None,
@@ -2187,7 +2294,11 @@ class ItemStateSummary(Model):
     id: EncodedDatabaseIdField
     populated_state: DatasetCollectionPopulatedState = PopulatedStateField
     states: dict[JobState, int] = Field(
-        {}, title="States", description=("A dictionary of job states and the number of jobs in that state.")
+        {},
+        title="States",
+        description=(
+            "A dictionary of job states and the number of jobs in that state."
+        ),
     )
 
 
@@ -2196,11 +2307,15 @@ class JobStateSummary(ItemStateSummary):
 
 
 class ImplicitCollectionJobsStateSummary(ItemStateSummary):
-    model: Literal["ImplicitCollectionJobs"] = ModelClassField(Literal["ImplicitCollectionJobs"])
+    model: Literal["ImplicitCollectionJobs"] = ModelClassField(
+        Literal["ImplicitCollectionJobs"]
+    )
 
 
 class WorkflowInvocationStateSummary(ItemStateSummary):
-    model: Literal["WorkflowInvocation"] = ModelClassField(Literal["WorkflowInvocation"])
+    model: Literal["WorkflowInvocation"] = ModelClassField(
+        Literal["WorkflowInvocation"]
+    )
 
 
 class JobSummary(JobBaseModel):
@@ -2346,7 +2461,9 @@ class JobMetric(Model):
 class WorkflowJobMetric(JobMetric):
     tool_id: str
     job_id: str
-    step_index: Union[int, str]  # int for top-level steps, str for subworkflow steps (e.g., "1.0")
+    step_index: Union[
+        int, str
+    ]  # int for top-level steps, str for subworkflow steps (e.g., "1.0")
     step_label: Optional[str]
 
 
@@ -2408,7 +2525,9 @@ class JobFullDetails(JobDetails):
 
 class StoredWorkflowSummary(Model, WithModelClass):
     id: EncodedDatabaseIdField
-    model_class: STORED_WORKFLOW_MODEL_CLASS = ModelClassField(STORED_WORKFLOW_MODEL_CLASS)
+    model_class: STORED_WORKFLOW_MODEL_CLASS = ModelClassField(
+        STORED_WORKFLOW_MODEL_CLASS
+    )
     create_time: datetime = CreateTimeField
     update_time: datetime = UpdateTimeField
     name: str = Field(
@@ -2527,7 +2646,9 @@ class WorkflowStepBase(Model):
     # TODO: these should move to ToolStep, however we might be breaking scripts that iterate over steps and
     # assume tool_id is a valid key for every step.
     tool_id: Optional[str] = Field(
-        None, title="Tool ID", description="The unique name of the tool associated with this step."
+        None,
+        title="Tool ID",
+        description="The unique name of the tool associated with this step.",
     )
     tool_uuid: Optional[UUID4] = Field(
         None,
@@ -2535,7 +2656,9 @@ class WorkflowStepBase(Model):
         description="The universal unique identifier of the tool associated with this step. Takes precedence over tool_id if set.",
     )
     tool_version: Optional[str] = Field(
-        None, title="Tool Version", description="The version of the tool associated with this step."
+        None,
+        title="Tool Version",
+        description="The version of the tool associated with this step.",
     )
     tool_inputs: Any = Field(None, title="Tool Inputs", description="TODO")
 
@@ -2563,13 +2686,22 @@ class ToolStep(WorkflowStepBase):
 class SubworkflowStep(WorkflowStepBase):
     type: Literal["subworkflow"]
     workflow_id: EncodedDatabaseIdField = Field(
-        ..., title="Workflow ID", description="The encoded ID of the workflow that will be run on this step."
+        ...,
+        title="Workflow ID",
+        description="The encoded ID of the workflow that will be run on this step.",
     )
 
 
 class Creator(Model):
-    class_: str = Field(..., alias="class", title="Class", description="The class representing this creator.")
-    name: Optional[str] = Field(None, title="Name", description="The name of the creator.")
+    class_: str = Field(
+        ...,
+        alias="class",
+        title="Class",
+        description="The class representing this creator.",
+    )
+    name: Optional[str] = Field(
+        None, title="Name", description="The name of the creator."
+    )
     address: Optional[str] = Field(
         None,
         title="Address",
@@ -2588,7 +2720,9 @@ class Creator(Model):
         alias="faxNumber",
         title="Fax Number",
     )
-    identifier: Optional[str] = Field(None, title="Identifier", description="Identifier (typically an orcid.org ID)")
+    identifier: Optional[str] = Field(
+        None, title="Identifier", description="Identifier (typically an orcid.org ID)"
+    )
     image: Optional[AnyHttpUrl] = Field(
         None,
         title="Image URL",
@@ -2632,7 +2766,10 @@ class Person(Creator):
         description="Honorific Prefix (e.g. Dr/Mrs/Mr)",
     )
     honorific_suffix: Optional[str] = Field(
-        None, alias="honorificSuffix", title="Honorific Suffix", description="Honorific Suffix (e.g. M.D.)"
+        None,
+        alias="honorificSuffix",
+        title="Honorific Suffix",
+        description="Honorific Suffix (e.g. M.D.)",
     )
     job_title: Optional[str] = Field(
         None,
@@ -2643,7 +2780,11 @@ class Person(Creator):
 
 class Input(Model):
     name: str = Field(..., title="Name", description="The name of the input.")
-    description: str = Field(..., title="Description", description="The annotation or description of the input.")
+    description: str = Field(
+        ...,
+        title="Description",
+        description="The annotation or description of the input.",
+    )
 
 
 class Output(Model):
@@ -2668,12 +2809,30 @@ class InputConnection(Model):
 class WorkflowStepLayoutPosition(Model):
     """Position and dimensions of the workflow step represented by a box on the graph."""
 
-    bottom: int = Field(..., title="Bottom", description="Position in pixels of the bottom of the box.")
-    top: int = Field(..., title="Top", description="Position in pixels of the top of the box.")
-    left: int = Field(..., title="Left", description="Left margin or left-most position of the box.")
-    right: int = Field(..., title="Right", description="Right margin or right-most position of the box.")
-    x: int = Field(..., title="X", description="Horizontal pixel coordinate of the top right corner of the box.")
-    y: int = Field(..., title="Y", description="Vertical pixel coordinate of the top right corner of the box.")
+    bottom: int = Field(
+        ..., title="Bottom", description="Position in pixels of the bottom of the box."
+    )
+    top: int = Field(
+        ..., title="Top", description="Position in pixels of the top of the box."
+    )
+    left: int = Field(
+        ..., title="Left", description="Left margin or left-most position of the box."
+    )
+    right: int = Field(
+        ...,
+        title="Right",
+        description="Right margin or right-most position of the box.",
+    )
+    x: int = Field(
+        ...,
+        title="X",
+        description="Horizontal pixel coordinate of the top right corner of the box.",
+    )
+    y: int = Field(
+        ...,
+        title="Y",
+        description="Vertical pixel coordinate of the top right corner of the box.",
+    )
     height: int = Field(..., title="Height", description="Height of the box in pixels.")
     width: int = Field(..., title="Width", description="Width of the box in pixels.")
 
@@ -2688,10 +2847,14 @@ class WorkflowStepToExportBase(Model):
         description="The identifier of the step. It matches the index order of the step inside the workflow.",
     )
     type: str = Field(..., title="Type", description="The type of workflow module.")
-    name: str = Field(..., title="Name", description="The descriptive name of the module or step.")
+    name: str = Field(
+        ..., title="Name", description="The descriptive name of the module or step."
+    )
     annotation: Optional[str] = AnnotationField
     tool_id: Optional[str] = Field(  # Duplicate of `content_id` or viceversa?
-        None, title="Tool ID", description="The unique name of the tool associated with this step."
+        None,
+        title="Tool ID",
+        description="The unique name of the tool associated with this step.",
     )
     uuid: UUID4 = Field(
         ...,
@@ -2723,7 +2886,9 @@ class WorkflowStepToExportBase(Model):
         description="Layout position of this step in the graph",
     )
     workflow_outputs: list[WorkflowOutput] = Field(
-        [], title="Workflow Outputs", description="Workflow outputs associated with this step."
+        [],
+        title="Workflow Outputs",
+        description="Workflow outputs associated with this step.",
     )
 
 
@@ -2732,7 +2897,9 @@ class WorkflowStepToExport(WorkflowStepToExportBase):
         None, title="Content ID", description="TODO"
     )
     tool_version: Optional[str] = Field(
-        None, title="Tool Version", description="The version of the tool associated with this step."
+        None,
+        title="Tool Version",
+        description="The version of the tool associated with this step.",
     )
     tool_state: Json = Field(
         ...,
@@ -2789,22 +2956,30 @@ class PostJobAction(Model):
 
 class WorkflowToolStepToExport(WorkflowStepToExportBase):
     tool_shed_repository: ToolShedRepositorySummary = Field(
-        ..., title="Tool Shed Repository", description="Information about the origin repository of this tool."
+        ...,
+        title="Tool Shed Repository",
+        description="Information about the origin repository of this tool.",
     )
     post_job_actions: dict[str, PostJobAction] = Field(
-        ..., title="Post-job Actions", description="Set of actions that will be run when the job finish."
+        ...,
+        title="Post-job Actions",
+        description="Set of actions that will be run when the job finish.",
     )
 
 
 class SubworkflowStepToExport(WorkflowStepToExportBase):
     subworkflow: "WorkflowToExport" = Field(
-        ..., title="Subworkflow", description="Full information about the subworkflow associated with this step."
+        ...,
+        title="Subworkflow",
+        description="Full information about the subworkflow associated with this step.",
     )
 
 
 class WorkflowToExport(Model):
     a_galaxy_workflow: str = Field(  # Is this meant to be a bool instead?
-        "true", title="Galaxy Workflow", description="Whether this workflow is a Galaxy Workflow."
+        "true",
+        title="Galaxy Workflow",
+        description="Whether this workflow is a Galaxy Workflow.",
     )
     format_version: str = Field(
         "0.1",
@@ -2823,24 +2998,39 @@ class WorkflowToExport(Model):
     creator: Optional[list[Union[Person, CreatorOrganization]]] = Field(
         None,
         title="Creator",
-        description=("Additional information about the creator (or multiple creators) of this workflow."),
+        description=(
+            "Additional information about the creator (or multiple creators) of this workflow."
+        ),
     )
     license: Optional[str] = Field(
-        None, title="License", description="SPDX Identifier of the license associated with this workflow."
+        None,
+        title="License",
+        description="SPDX Identifier of the license associated with this workflow.",
     )
     version: int = Field(
-        ..., title="Version", description="The version of the workflow represented by an incremental number."
+        ...,
+        title="Version",
+        description="The version of the workflow represented by an incremental number.",
     )
-    steps: dict[int, Union[SubworkflowStepToExport, WorkflowToolStepToExport, WorkflowStepToExport]] = Field(
-        {}, title="Steps", description="A dictionary with information about all the steps of the workflow."
+    steps: dict[
+        int,
+        Union[SubworkflowStepToExport, WorkflowToolStepToExport, WorkflowStepToExport],
+    ] = Field(
+        {},
+        title="Steps",
+        description="A dictionary with information about all the steps of the workflow.",
     )
 
 
 # Roles -----------------------------------------------------------------
 
-RoleIdField = Annotated[EncodedDatabaseIdField, Field(title="ID", description="Encoded ID of the role")]
+RoleIdField = Annotated[
+    EncodedDatabaseIdField, Field(title="ID", description="Encoded ID of the role")
+]
 RoleNameField = Annotated[str, Field(title="Name", description="Name of the role")]
-RoleDescriptionField = Annotated[str, Field(title="Description", description="Description of the role")]
+RoleDescriptionField = Annotated[
+    str, Field(title="Description", description="Description of the role")
+]
 
 
 class BasicRoleModel(Model):
@@ -2858,8 +3048,12 @@ class RoleModelResponse(BasicRoleModel, WithModelClass):
 class RoleDefinitionModel(Model):
     name: RoleNameField
     description: RoleDescriptionField
-    user_ids: Optional[list[DecodedDatabaseIdField]] = Field(title="User IDs", default=[])
-    group_ids: Optional[list[DecodedDatabaseIdField]] = Field(title="Group IDs", default=[])
+    user_ids: Optional[list[DecodedDatabaseIdField]] = Field(
+        title="User IDs", default=[]
+    )
+    group_ids: Optional[list[DecodedDatabaseIdField]] = Field(
+        title="Group IDs", default=[]
+    )
     role_type: Literal["admin", "user_tool_create", "user_tool_execute"] = "admin"
 
 
@@ -2900,7 +3094,10 @@ class GroupUserListResponse(RootModel):
 
 
 class ImportToolDataBundleUriSource(Model):
-    src: Literal["uri"] = Field(title="src", description="Indicates that the tool data should be resolved by a URI.")
+    src: Literal["uri"] = Field(
+        title="src",
+        description="Indicates that the tool data should be resolved by a URI.",
+    )
     uri: str = Field(
         title="uri",
         description="URI to fetch tool data bundle from (file:// URIs are fine because this is an admin-only operation)",
@@ -2909,17 +3106,22 @@ class ImportToolDataBundleUriSource(Model):
 
 class ImportToolDataBundleDatasetSource(Model):
     src: Literal["hda", "ldda"] = Field(
-        title="src", description="Indicates that the tool data should be resolved from a dataset."
+        title="src",
+        description="Indicates that the tool data should be resolved from a dataset.",
     )
     id: DecodedDatabaseIdField
 
 
-ImportToolDataBundleSource = Union[ImportToolDataBundleDatasetSource, ImportToolDataBundleUriSource]
+ImportToolDataBundleSource = Union[
+    ImportToolDataBundleDatasetSource, ImportToolDataBundleUriSource
+]
 
 
 class ToolShedRepository(Model):
     tool_shed_url: str = Field(
-        title="Tool Shed URL", default="https://toolshed.g2.bx.psu.edu/", description="Tool Shed target"
+        title="Tool Shed URL",
+        default="https://toolshed.g2.bx.psu.edu/",
+        description="Tool Shed target",
     )
     name: str = Field(title="Name", description="Name of repository")
     owner: str = Field(title="Owner", description="Owner of repository")
@@ -2933,17 +3135,23 @@ class InstalledRepositoryToolShedStatus(Model):
     # See https://github.com/galaxyproject/galaxy/issues/10453 , bad booleans
     # See https://github.com/galaxyproject/galaxy/issues/16135 , optional fields
     latest_installable_revision: Optional[str] = Field(
-        None, title="Latest installed revision", description="Most recent version available on the tool shed"
+        None,
+        title="Latest installed revision",
+        description="Most recent version available on the tool shed",
     )
     revision_update: str
     revision_upgrade: Optional[str] = None
     repository_deprecated: Optional[str] = Field(
-        None, title="Repository deprecated", description="Repository has been depreciated on the tool shed"
+        None,
+        title="Repository deprecated",
+        description="Repository has been depreciated on the tool shed",
     )
 
 
 class InstalledToolShedRepository(Model, WithModelClass):
-    model_class: Literal["ToolShedRepository"] = ModelClassField(Literal["ToolShedRepository"])
+    model_class: Literal["ToolShedRepository"] = ModelClassField(
+        Literal["ToolShedRepository"]
+    )
     id: EncodedDatabaseIdField = Field(
         ...,
         title="ID",
@@ -2958,16 +3166,22 @@ class InstalledToolShedRepository(Model, WithModelClass):
         title="Changeset revision number",
         description="The linearized 0-based index of the changeset on the tool shed (0, 1, 2,...)",
     )
-    error_message: str = Field("Installation error message, the empty string means no error was recorded")
+    error_message: str = Field(
+        "Installation error message, the empty string means no error was recorded"
+    )
     installed_changeset_revision: str = Field(
         title="Installed changeset revision",
         description="Initially installed changeset revision. Used to construct path to repository within Galaxies filesystem. Does not change if a repository is updated.",
     )
-    tool_shed: str = Field(title="Tool shed", description="Hostname of the tool shed this was installed from")
+    tool_shed: str = Field(
+        title="Tool shed",
+        description="Hostname of the tool shed this was installed from",
+    )
     dist_to_shed: bool
     uninstalled: bool
     changeset_revision: str = Field(
-        title="Changeset revision", description="Changeset revision of the repository - a mercurial commit hash"
+        title="Changeset revision",
+        description="Changeset revision of the repository - a mercurial commit hash",
     )
     tool_shed_status: Optional[InstalledRepositoryToolShedStatus] = Field(
         None, title="Latest updated status from the tool shed"
@@ -2982,9 +3196,12 @@ CheckForUpdatesResponseStatusT = Literal["ok", "error"]
 
 
 class CheckForUpdatesResponse(Model):
-    status: CheckForUpdatesResponseStatusT = Field(title="Status", description="'ok' or 'error'")
+    status: CheckForUpdatesResponseStatusT = Field(
+        title="Status", description="'ok' or 'error'"
+    )
     message: str = Field(
-        title="Message", description="Unstructured description of tool shed updates discovered or failure"
+        title="Message",
+        description="Unstructured description of tool shed updates discovered or failure",
     )
 
 
@@ -3172,7 +3389,9 @@ class LegacyLibraryPermissionsPayload(RequireOneSetOption):
 
 class LibraryPermissionAction(str, Enum):
     set_permissions = "set_permissions"
-    remove_restrictions = "remove_restrictions"  # name inconsistency? should be `make_public`?
+    remove_restrictions = (
+        "remove_restrictions"  # name inconsistency? should be `make_public`?
+    )
 
 
 class DatasetPermissionAction(str, Enum):
@@ -3340,7 +3559,9 @@ class LibraryFolderCurrentPermissions(Model):
     )
 
 
-LibraryFolderContentsIndexSortByEnum = Literal["name", "description", "type", "size", "update_time"]
+LibraryFolderContentsIndexSortByEnum = Literal[
+    "name", "description", "type", "size", "update_time"
+]
 
 
 class LibraryFolderContentsIndexQueryPayload(Model):
@@ -3383,7 +3604,9 @@ class FileLibraryFolderItem(LibraryFolderItemBase):
     message: Optional[str] = None
 
 
-AnyLibraryFolderItem = Annotated[Union[FileLibraryFolderItem, FolderLibraryFolderItem], Field(discriminator="type")]
+AnyLibraryFolderItem = Annotated[
+    Union[FileLibraryFolderItem, FolderLibraryFolderItem], Field(discriminator="type")
+]
 
 
 class LibraryFolderMetadata(Model):
@@ -3489,9 +3712,15 @@ ModifyIdsField = Annotated[
 
 
 class UpdateDatasetPermissionsPayload(UpdateDatasetPermissionsPayloadBase):
-    access_ids: Annotated[Optional[RoleIdList], Field(default=None, alias="access_ids[]")] = None
-    manage_ids: Annotated[Optional[RoleIdList], Field(default=None, alias="manage_ids[]")] = None
-    modify_ids: Annotated[Optional[RoleIdList], Field(default=None, alias="modify_ids[]")] = None
+    access_ids: Annotated[
+        Optional[RoleIdList], Field(default=None, alias="access_ids[]")
+    ] = None
+    manage_ids: Annotated[
+        Optional[RoleIdList], Field(default=None, alias="manage_ids[]")
+    ] = None
+    modify_ids: Annotated[
+        Optional[RoleIdList], Field(default=None, alias="modify_ids[]")
+    ] = None
 
 
 class UpdateDatasetPermissionsPayloadAliasB(UpdateDatasetPermissionsPayloadBase):
@@ -3609,7 +3838,9 @@ class HistoryContentStats(Model):
     total_matches: int = Field(
         ...,
         title="Total Matches",
-        description=("The total number of items that match the search query without any pagination"),
+        description=(
+            "The total number of items that match the search query without any pagination"
+        ),
     )
 
 
@@ -3779,7 +4010,9 @@ class ShareHistoryExtra(ShareWithExtra):
     accessible_count: int = Field(
         0,
         title="Accessible Count",
-        description=("The number of datasets in the history that are public or accessible by all the target users."),
+        description=(
+            "The number of datasets in the history that are public or accessible by all the target users."
+        ),
     )
 
 
@@ -3905,6 +4138,16 @@ class ChatResponse(BaseModel):
         title="Error Message",
         description="The error message, if any, for the chat query.",
     )
+    exchange_id: Optional[int] = Field(
+        default=None,
+        title="Exchange ID",
+        description="The ID of the chat exchange, for continuing conversations.",
+    )
+    agent_response: Optional[dict[str, Any]] = Field(
+        default=None,
+        title="Agent Response",
+        description="Full agent response including metadata and suggestions.",
+    )
 
 
 class GenerateTourResponse(Model):
@@ -3999,7 +4242,9 @@ class ToolRequestImplicitCollectionReference(Model):
 
 class ToolRequestDetailedModel(ToolRequestModel):
     jobs: list[ToolRequestJobReference] = Field(default=[])
-    implicit_collections: list[ToolRequestImplicitCollectionReference] = Field(default=[])
+    implicit_collections: list[ToolRequestImplicitCollectionReference] = Field(
+        default=[]
+    )
 
 
 class AsyncFile(Model):
@@ -4080,7 +4325,9 @@ class OAuth2State(BaseModel):
 
     @staticmethod
     def decode(base64_param: str) -> "OAuth2State":
-        return OAuth2State.model_validate_json(base64.b64decode(base64_param.encode("utf-8")))
+        return OAuth2State.model_validate_json(
+            base64.b64decode(base64_param.encode("utf-8"))
+        )
 
 
 class PageDetails(PageSummary):
@@ -4112,8 +4359,12 @@ class LandingRequestState(str, Enum):
     CLAIMED = "claimed"
 
 
-ToolLandingRequestIdField = Field(title="ID", description="Encoded ID of the tool landing request")
-WorkflowLandingRequestIdField = Field(title="ID", description="Encoded ID of the workflow landing request")
+ToolLandingRequestIdField = Field(
+    title="ID", description="Encoded ID of the tool landing request"
+)
+WorkflowLandingRequestIdField = Field(
+    title="ID", description="Encoded ID of the workflow landing request"
+)
 
 
 class CreateToolLandingRequestPayload(Model):
@@ -4122,7 +4373,9 @@ class CreateToolLandingRequestPayload(Model):
     request_state: Optional[dict[str, Any]] = None
     client_secret: Optional[str] = None
     public: bool = False
-    origin: Optional[HttpUrl] = Field(None, description="The origin of the landing request.")
+    origin: Optional[HttpUrl] = Field(
+        None, description="The origin of the landing request."
+    )
 
 
 class CreateWorkflowLandingRequestPayload(Model):
@@ -4134,7 +4387,9 @@ class CreateWorkflowLandingRequestPayload(Model):
         False,
         description="If workflow landing request is public anyone with the uuid can use the landing request. If not public the request must be claimed before use and additional verification might occur.",
     )
-    origin: Optional[HttpUrl] = Field(None, description="The origin of the landing request.")
+    origin: Optional[HttpUrl] = Field(
+        None, description="The origin of the landing request."
+    )
 
 
 class ClaimLandingPayload(Model):

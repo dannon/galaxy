@@ -4,6 +4,73 @@
  */
 
 export interface paths {
+    "/api/agent/analyze-history/{history_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Analyze a Galaxy history
+         * @description Analyze a Galaxy history and generate a summary or methods section.
+         *
+         *     This endpoint uses the HistoryAnalyzerAgent to examine all datasets and tools
+         *     used in a history, then generates a comprehensive analysis including:
+         *     - Summary of what was done
+         *     - Tools used and their versions
+         *     - Input and output data descriptions
+         *     - Publication-ready methods section (when focus="methods")
+         *
+         *     Args:
+         *         history_id: The Galaxy history ID to analyze
+         *         focus: Analysis focus - "summary" (default), "methods", or "detailed"
+         *         trans: User session context
+         *
+         *     Returns:
+         *         Analysis results including title, summary, tools used, citations, etc.
+         */
+        post: operations["analyze_history_api_agent_analyze_history__history_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/agent/query": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Query AI agent
+         * @description Run an AI agent query with access to Galaxy operations.
+         *
+         *     The agent runs as the authenticated user and can perform Galaxy operations
+         *     like searching tools, listing histories, and running tools on their behalf.
+         *
+         *     **NOTE**: This is an example endpoint. To use it, you need to:
+         *     1. Install pydantic-ai: `pip install pydantic-ai`
+         *     2. Configure your AI model credentials (e.g., OPENAI_API_KEY)
+         *     3. Uncomment the pydantic-ai code below
+         *
+         *     Args:
+         *         request: Agent query request
+         *         trans: User session context
+         */
+        post: operations["query_agent_api_agent_query_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/ai/agents": {
         parameters: {
             query?: never;
@@ -6970,33 +7037,16 @@ export interface components {
         };
         /**
          * AgentQueryRequest
-         * @description Request to query an AI agent.
+         * @description Request model for agent queries.
          */
         AgentQueryRequest: {
             /**
-             * Agent Type
-             * @description Preferred agent type ('auto' for routing)
-             * @default auto
+             * Model
+             * @default openai:gpt-4
              */
-            agent_type: string;
-            /**
-             * Context
-             * @description Additional context for the query
-             */
-            context?: {
-                [key: string]: unknown;
-            };
-            /**
-             * Query
-             * @description The user's question or request
-             */
+            model: string;
+            /** Query */
             query: string;
-            /**
-             * Stream
-             * @description Whether to stream the response
-             * @default false
-             */
-            stream: boolean;
         };
         /**
          * AgentQueryResponse
@@ -7941,6 +7991,13 @@ export interface components {
         /** ChatResponse */
         ChatResponse: {
             /**
+             * Agent Response
+             * @description Full agent response including metadata and suggestions.
+             */
+            agent_response?: {
+                [key: string]: unknown;
+            } | null;
+            /**
              * Error Code
              * @description The error code, if any, for the chat query.
              */
@@ -7950,6 +8007,11 @@ export interface components {
              * @description The error message, if any, for the chat query.
              */
             error_message: string | null;
+            /**
+             * Exchange ID
+             * @description The ID of the chat exchange, for continuing conversations.
+             */
+            exchange_id?: number | null;
             /**
              * Response
              * @description The response to the chat query.
@@ -25048,6 +25110,48 @@ export interface components {
             /** name */
             name?: string | null;
         };
+        /**
+         * AgentQueryRequest
+         * @description Request to query an AI agent.
+         */
+        galaxy__schema__agents__AgentQueryRequest: {
+            /**
+             * Agent Type
+             * @description Preferred agent type ('auto' for routing)
+             * @default auto
+             */
+            agent_type: string;
+            /**
+             * Context
+             * @description Additional context for the query
+             */
+            context?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Query
+             * @description The user's question or request
+             */
+            query: string;
+            /**
+             * Stream
+             * @description Whether to stream the response
+             * @default false
+             */
+            stream: boolean;
+        };
+        /**
+         * AgentQueryResponse
+         * @description Response model for agent queries.
+         */
+        galaxy__webapps__galaxy__api__agent__AgentQueryResponse: {
+            /** Operations Used */
+            operations_used: string[];
+            /** Result */
+            result: string;
+            /** Success */
+            success: boolean;
+        };
     };
     responses: never;
     parameters: never;
@@ -25057,6 +25161,98 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    analyze_history_api_agent_analyze_history__history_id__post: {
+        parameters: {
+            query?: {
+                focus?: string;
+            };
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
+            path: {
+                history_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Request Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+            /** @description Server Error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+        };
+    };
+    query_agent_api_agent_query_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentQueryRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["galaxy__webapps__galaxy__api__agent__AgentQueryResponse"];
+                };
+            };
+            /** @description Request Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+            /** @description Server Error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+        };
+    };
     list_agents_api_ai_agents_get: {
         parameters: {
             query?: never;
@@ -25200,7 +25396,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["AgentQueryRequest"];
+                "application/json": components["schemas"]["galaxy__schema__agents__AgentQueryRequest"];
             };
         };
         responses: {
