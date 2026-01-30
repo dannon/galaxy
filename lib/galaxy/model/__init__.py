@@ -32,10 +32,12 @@ from typing import (
     cast,
     ClassVar,
     Generic,
+    Literal,
     NamedTuple,
     Optional,
     overload,
     TYPE_CHECKING,
+    TypeAlias,
     TypeVar,
     Union,
 )
@@ -132,10 +134,8 @@ from sqlalchemy.orm.session import Session
 from sqlalchemy.sql.expression import FromClause
 from typing_extensions import (
     deprecated,
-    Literal,
     NotRequired,
     Protocol,
-    TypeAlias,
     TypedDict,
 )
 
@@ -182,8 +182,6 @@ from galaxy.schema.schema import (
     DatasetValidatedState,
     InvocationsStateCounts,
     JobState,
-    SampleSheetColumnDefinitions,
-    SampleSheetRow,
     ToolRequestState,
 )
 from galaxy.schema.workflow.comments import WorkflowCommentModel
@@ -191,6 +189,10 @@ from galaxy.security import get_permitted_actions
 from galaxy.security.idencoding import IdEncodingHelper
 from galaxy.security.validate_user_input import validate_password_str
 from galaxy.tool_util.output_checker import AnyJobMessage
+from galaxy.tool_util_models.sample_sheet import (
+    SampleSheetColumnDefinitions,
+    SampleSheetRow,
+)
 from galaxy.util import (
     directory_hash_id,
     enum_values,
@@ -1091,38 +1093,50 @@ WHERE user_id = :user_id and quota_source_label = :label
 
     total_disk_usage = property(get_disk_usage, set_disk_usage)
 
-    def adjust_total_disk_usage(self, amount, quota_source_label):
+    def adjust_total_disk_usage(self, amount, quota_source_label, preserve_update_time: bool = False):
         assert amount is not None
         if amount != 0:
             if quota_source_label is None:
-                self.disk_usage = (self.disk_usage or 0) + amount
+                if preserve_update_time:
+                    # Use explicit SQL UPDATE to preserve update_time (avoids triggering onupdate=now)
+                    session = required_object_session(self)
+                    session.execute(
+                        update(User)
+                        .where(User.id == self.id)
+                        .values(
+                            disk_usage=User.disk_usage + amount,
+                            update_time=self.update_time,
+                        )
+                    )
+                else:
+                    self.disk_usage = (self.disk_usage or 0) + amount
             else:
                 # else would work on newer sqlite - 3.24.0
-                engine = required_object_session(self).bind
-                if "sqlite" in engine.dialect.name:
+                sa_session = required_object_session(self)
+                assert sa_session.bind is not None
+                if "sqlite" in sa_session.bind.dialect.name:
                     # hacky alternative for older sqlite
-                    statement = """
+                    sql = """
 WITH new (user_id, quota_source_label) AS ( VALUES(:user_id, :label) )
 INSERT OR REPLACE INTO user_quota_source_usage (id, user_id, quota_source_label, disk_usage)
 SELECT old.id, new.user_id, new.quota_source_label, COALESCE(old.disk_usage + :amount, :amount)
 FROM new LEFT JOIN user_quota_source_usage AS old ON new.user_id = old.user_id AND NEW.quota_source_label = old.quota_source_label;
 """
                 else:
-                    statement = """
+                    sql = """
 INSERT INTO user_quota_source_usage(user_id, disk_usage, quota_source_label)
 VALUES(:user_id, :amount, :label)
 ON CONFLICT
     ON constraint uqsu_unique_label_per_user
     DO UPDATE SET disk_usage = user_quota_source_usage.disk_usage + :amount
 """
-                statement = text(statement)
+                statement = text(sql)
                 params = {
                     "user_id": self.id,
                     "amount": int(amount),
                     "label": quota_source_label,
                 }
-                with engine.connect() as conn, conn.begin():
-                    conn.execute(statement, params)
+                sa_session.execute(statement, params)
 
     def _get_social_auth(self, provider_backend):
         if not self.social_auth:
@@ -1134,8 +1148,7 @@ ON CONFLICT
 
     def get_oidc_tokens(self, provider_backend):
         tokens = {"id": None, "access": None, "refresh": None}
-        auth = self._get_social_auth(provider_backend)
-        if auth:
+        if auth := self._get_social_auth(provider_backend):
             tokens["access"] = auth.extra_data.get("access_token", None)
             tokens["refresh"] = auth.extra_data.get("refresh_token", None)
             tokens["id"] = auth.extra_data.get("id_token", None)
@@ -1719,6 +1732,22 @@ class Job(Base, JobLike, UsesCreateAndUpdateTime, Dictifiable, Serializable):
     def finished(self):
         return self.state in self.finished_states
 
+    @property
+    def is_terminal(self) -> bool:
+        """Check if job is in a terminal state for workflow completion purposes.
+
+        Terminal states are those where the job will not change further without
+        external intervention. This includes ok, error, deleted, skipped, paused, and stopped.
+        """
+        return self.state in (
+            self.states.OK,
+            self.states.ERROR,
+            self.states.DELETED,
+            self.states.SKIPPED,
+            self.states.PAUSED,
+            self.states.STOPPED,
+        )
+
     def copy_from_job(self, job: "Job", copy_outputs: bool = False):
         self.copied_from_job_id = job.id
         for metric in job.numeric_metrics + job.text_metrics:
@@ -2288,13 +2317,11 @@ class Job(Base, JobLike, UsesCreateAndUpdateTime, Dictifiable, Serializable):
     def set_final_state(self, final_state):
         self.set_state(final_state)
         # TODO: migrate to where-in subqueries?
-        statement = text(
-            """
+        statement = text("""
             UPDATE workflow_invocation_step
             SET update_time = :update_time
             WHERE job_id = :job_id;
-        """
-        )
+        """)
         sa_session = required_object_session(self)
         update_time = now()
         self.update_hdca_update_time_for_job(update_time=update_time, sa_session=sa_session)
@@ -2324,18 +2351,15 @@ class Job(Base, JobLike, UsesCreateAndUpdateTime, Dictifiable, Serializable):
     def update_output_states(self, supports_skip_locked):
         # TODO: migrate to where-in subqueries?
         statements = [
-            text(
-                """
+            text("""
             UPDATE dataset
             SET
                 state = :state,
                 update_time = :update_time
             WHERE
                 dataset.job_id = :job_id
-        """
-            ),
-            text(
-                """
+        """),
+            text("""
             UPDATE history_dataset_association
             SET
                 info = :info,
@@ -2344,10 +2368,8 @@ class Job(Base, JobLike, UsesCreateAndUpdateTime, Dictifiable, Serializable):
             WHERE
                 history_dataset_association.dataset_id = dataset.id
                 AND dataset.job_id = :job_id;
-        """
-            ),
-            text(
-                """
+        """),
+            text("""
             UPDATE library_dataset_dataset_association
             SET
                 info = :info,
@@ -2356,8 +2378,7 @@ class Job(Base, JobLike, UsesCreateAndUpdateTime, Dictifiable, Serializable):
             WHERE
                 library_dataset_dataset_association.dataset_id = dataset.id
                 AND dataset.job_id = :job_id;
-        """
-            ),
+        """),
         ]
         sa_session = required_object_session(self)
         update_time = now()
@@ -3109,7 +3130,7 @@ class StoreExportAssociation(Base, RepresentById):
     create_time: Mapped[datetime] = mapped_column(default=now, nullable=True)
     object_type: Mapped[Optional[str]] = mapped_column(TrimmedString(32))
     object_id: Mapped[Optional[int]]
-    export_metadata: Mapped[Optional[bytes]] = mapped_column(JSONType)
+    export_metadata: Mapped[Optional[dict]] = mapped_column(JSONType)
 
 
 class JobContainerAssociation(Base, RepresentById):
@@ -6443,10 +6464,8 @@ class LibraryDataset(Base, Serializable):
     )
     expired_datasets: Mapped[list["LibraryDatasetDatasetAssociation"]] = relationship(
         foreign_keys=[id, library_dataset_dataset_association_id],
-        primaryjoin=(
-            "and_(LibraryDataset.id == LibraryDatasetDatasetAssociation.library_dataset_id, \
-             not_(LibraryDataset.library_dataset_dataset_association_id == LibraryDatasetDatasetAssociation.id))"
-        ),
+        primaryjoin=("and_(LibraryDataset.id == LibraryDatasetDatasetAssociation.library_dataset_id, \
+             not_(LibraryDataset.library_dataset_dataset_association_id == LibraryDatasetDatasetAssociation.id))"),
         viewonly=True,
         uselist=True,
     )
@@ -6697,8 +6716,7 @@ class LibraryDatasetDatasetAssociation(DatasetInstance, HasName, Serializable):
         # sets the update_time for all continaing folders up the tree
         ldda = self
 
-        sql = text(
-            """
+        sql = text("""
                 WITH RECURSIVE parent_folders_of(folder_id) AS
                     (SELECT folder_id
                     FROM library_dataset
@@ -6714,8 +6732,7 @@ class LibraryDatasetDatasetAssociation(DatasetInstance, HasName, Serializable):
                     WHERE id = :ldda_id)
                 WHERE exists (SELECT 1 FROM parent_folders_of
                     WHERE library_folder.id = parent_folders_of.folder_id)
-            """
-        )
+            """)
 
         with required_object_session(self).bind.connect() as conn, conn.begin():
             ret = conn.execute(sql, {"library_dataset_id": ldda.library_dataset_id, "ldda_id": ldda.id})
@@ -6766,7 +6783,7 @@ class LibraryInfoAssociation(Base, RepresentById):
         primaryjoin=(
             lambda: and_(
                 LibraryInfoAssociation.library_id == Library.id,
-                not_(LibraryInfoAssociation.deleted),  # type:ignore[arg-type]
+                not_(LibraryInfoAssociation.deleted),  # type: ignore[arg-type]
             )
         ),
     )
@@ -7208,6 +7225,12 @@ class DatasetCollection(Base, Dictifiable, UsesAnnotations, Serializable):
 
     def expire_populated_state(self):
         required_object_session(self).expire(self, ("populated_state",))
+        # Clear the cached populated_optimized value so it will be recomputed
+        # on the next access with fresh database state. This prevents a race
+        # condition where the cached value becomes stale while nested
+        # collections are being populated.
+        if hasattr(self, "_populated_optimized"):
+            delattr(self, "_populated_optimized")
 
     @property
     def allow_implicit_mapping(self):
@@ -7420,7 +7443,7 @@ class DatasetCollection(Base, Dictifiable, UsesAnnotations, Serializable):
                 else:
                     element.hda = replacement.hda.copy(copy_hid=False, flush=False)
                     history.stage_addition(element.hda)
-            if replacement.child_collection:
+            elif replacement.child_collection:
                 if element.child_collection:
                     element.child_collection.replace_elements_with_copies(
                         replacement.child_collection.elements, history=history
@@ -7430,7 +7453,7 @@ class DatasetCollection(Base, Dictifiable, UsesAnnotations, Serializable):
                         flush=False, element_destination=history
                     )
             else:
-                raise ValueError("Cannot replace {type(replacement.element_object)}")
+                raise ValueError(f"Cannot replace {type(replacement.element_object)}")
 
     def replace_failed_elements(self, replacements):
         stmt = self._build_nested_collection_attributes_stmt(
@@ -7807,7 +7830,7 @@ class HistoryDatasetCollectionAssociation(
     def to_dict(self, view="collection"):
         original_dict_value = super().to_dict(view=view)
         if view == "dbkeysandextensions":
-            (dbkeys, extensions, *_) = self.dataset_dbkeys_and_extensions_summary
+            dbkeys, extensions, *_ = self.dataset_dbkeys_and_extensions_summary
             dict_value = dict(
                 dbkey=dbkeys.pop() if len(dbkeys) == 1 else "?",
                 extension=extensions.pop() if len(extensions) == 1 else "auto",
@@ -8453,7 +8476,7 @@ class StoredWorkflow(Base, HasTags, Dictifiable, RepresentById, UsesCreateAndUpd
             .where(StoredWorkflow.id == self.id)
         )
         rows = sa_session.execute(stmt).all()
-        rows_as_dict = dict(r for r in rows if r[0] is not None)  # type:ignore[arg-type, var-annotated]
+        rows_as_dict = dict(r for r in rows if r[0] is not None)  # type: ignore[arg-type, var-annotated]
         return InvocationsStateCounts(rows_as_dict)
 
     def to_dict(self, view="collection", value_mapper=None):
@@ -9297,6 +9320,7 @@ class WorkflowInvocation(Base, UsesCreateAndUpdateTime, Dictifiable, Serializabl
     handler: Mapped[Optional[str]] = mapped_column(TrimmedString(255), index=True)
     uuid: Mapped[Optional[Union[UUID]]] = mapped_column(UUIDType())
     history_id: Mapped[Optional[int]] = mapped_column(ForeignKey("history.id"), index=True)
+    on_complete: Mapped[Optional[list]] = mapped_column(JSONType)
 
     history = relationship("History", back_populates="workflow_invocations")
     input_parameters = relationship("WorkflowRequestInputParameter", back_populates="workflow_invocation")
@@ -9332,6 +9356,11 @@ class WorkflowInvocation(Base, UsesCreateAndUpdateTime, Dictifiable, Serializabl
     messages = relationship("WorkflowInvocationMessage", back_populates="workflow_invocation")
     landing_request: Mapped[Optional["LandingRequestToWorkflowInvocationAssociation"]] = relationship(
         "LandingRequestToWorkflowInvocationAssociation",
+        back_populates="workflow_invocation",
+        uselist=False,
+    )
+    completion: Mapped[Optional["WorkflowInvocationCompletion"]] = relationship(
+        "WorkflowInvocationCompletion",
         back_populates="workflow_invocation",
         uselist=False,
     )
@@ -9408,6 +9437,50 @@ class WorkflowInvocation(Base, UsesCreateAndUpdateTime, Dictifiable, Serializabl
         """
         states = WorkflowInvocation.states
         return self.state in [states.NEW, states.READY]
+
+    @property
+    def is_complete(self) -> bool:
+        """Check if all jobs in this workflow invocation have reached terminal states.
+
+        This property checks whether the workflow has finished executing, meaning all steps
+        have completed (jobs are in terminal states like ok, error, deleted, skipped, paused, or stopped).
+        """
+        # Must be in SCHEDULED state first (all steps have been scheduled)
+        if self.state != InvocationState.SCHEDULED.value:
+            return False
+
+        return all(step.is_complete for step in self.steps)
+
+    def compute_recursive_job_state_summary(self) -> dict[str, int]:
+        """
+        Compute summary of job states for this invocation, including subworkflows.
+
+        Recursively collects job states from all steps, including nested subworkflows.
+
+        Returns:
+            A dictionary mapping job state strings to counts.
+            Example: {"ok": 5, "error": 1, "skipped": 2}
+        """
+        summary: dict[str, int] = {}
+
+        def collect_jobs(inv: "WorkflowInvocation") -> None:
+            for step in inv.steps:
+                if step.workflow_step.type == "subworkflow":
+                    # Recursively collect from subworkflow
+                    subworkflow_assoc = next(
+                        (s for s in inv.subworkflow_invocations if s.workflow_step_id == step.workflow_step_id),
+                        None,
+                    )
+                    if subworkflow_assoc:
+                        collect_jobs(subworkflow_assoc.subworkflow_invocation)
+                else:
+                    # Collect job states from this step
+                    for job in step.jobs:
+                        state = str(job.state)
+                        summary[state] = summary.get(state, 0) + 1
+
+        collect_jobs(self)
+        return summary
 
     def set_state(self, state: InvocationState):
         session = object_session(self)
@@ -9687,6 +9760,18 @@ class WorkflowInvocation(Base, UsesCreateAndUpdateTime, Dictifiable, Serializabl
             output_values.append(output_value.serialize(id_encoder, serialization_options))
         invocation_attrs["output_values"] = output_values
 
+        subworkflow_invocations = []
+        for subworkflow_invocation_assoc in self.subworkflow_invocations:
+            subworkflow_invocations.append(
+                {
+                    "order_index": subworkflow_invocation_assoc.workflow_step.order_index,
+                    "subworkflow_invocation": subworkflow_invocation_assoc.subworkflow_invocation.serialize(
+                        id_encoder, serialization_options, for_link=True
+                    ),
+                }
+            )
+        invocation_attrs["subworkflow_invocations"] = subworkflow_invocations
+
         serialization_options.attach_identifier(id_encoder, self, invocation_attrs)
         return invocation_attrs
 
@@ -9702,6 +9787,10 @@ class WorkflowInvocation(Base, UsesCreateAndUpdateTime, Dictifiable, Serializabl
             rval["landing_uuid"] = str(self.landing_request.landing_request.uuid)
         else:
             rval["landing_uuid"] = None
+
+        # Add on_complete actions
+        rval["on_complete"] = self.on_complete
+
         if view == "element":
             steps = []
             for step in self.steps:
@@ -9874,15 +9963,18 @@ class WorkflowInvocation(Base, UsesCreateAndUpdateTime, Dictifiable, Serializabl
         return inputs, inputs_by
 
     def add_message(self, message: "InvocationMessageUnion"):
+
+        message_dict = message.dict(
+            exclude_unset=True,
+            exclude={"history_id"},  # history_id comes in through workflow_invocation and isn't persisted in database
+        )
+        # Convert workflow_step_index_path list to JSON string for database storage
+        if "workflow_step_index_path" in message_dict and message_dict["workflow_step_index_path"] is not None:
+            message_dict["workflow_step_index_path"] = message_dict["workflow_step_index_path"]
         self.messages.append(
-            WorkflowInvocationMessage(  # type:ignore[abstract]
+            WorkflowInvocationMessage(  # type: ignore[abstract]
                 workflow_invocation_id=self.id,
-                **message.dict(
-                    exclude_unset=True,
-                    exclude={
-                        "history_id"
-                    },  # history_id comes in through workflow_invocation and isn't persisted in database
-                ),
+                **message_dict,
             )
         )
 
@@ -9962,6 +10054,7 @@ class WorkflowInvocationMessage(Base, Dictifiable, Serializable):
     job_id: Mapped[Optional[int]] = mapped_column(ForeignKey("job.id"))
     hda_id: Mapped[Optional[int]] = mapped_column(ForeignKey("history_dataset_association.id"))
     hdca_id: Mapped[Optional[int]] = mapped_column(ForeignKey("history_dataset_collection_association.id"))
+    workflow_step_index_path: Mapped[Optional[list[int]]] = mapped_column(JSON)
 
     workflow_invocation: Mapped["WorkflowInvocation"] = relationship(back_populates="messages", lazy=True)
     workflow_step: Mapped[Optional["WorkflowStep"]] = relationship(foreign_keys=workflow_step_id, lazy=True)
@@ -9980,6 +10073,22 @@ class WorkflowInvocationMessage(Base, Dictifiable, Serializable):
     @property
     def history_id(self):
         return self.workflow_invocation.history_id
+
+
+class WorkflowInvocationCompletion(Base, RepresentById):
+    """Records workflow invocation completion details."""
+
+    __tablename__ = "workflow_invocation_completion"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    workflow_invocation_id: Mapped[int] = mapped_column(ForeignKey("workflow_invocation.id"), index=True, unique=True)
+    completion_time: Mapped[datetime] = mapped_column(default=now)
+    # Summary of final job states: {"ok": 5, "error": 1, "skipped": 2}
+    job_state_summary: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON)
+    # Hooks that have been executed (for idempotency)
+    hooks_executed: Mapped[Optional[list[str]]] = mapped_column(JSON)
+
+    workflow_invocation: Mapped["WorkflowInvocation"] = relationship(back_populates="completion")
 
 
 class EffectiveOutput(TypedDict):
@@ -10066,6 +10175,16 @@ class WorkflowInvocationStep(Base, Dictifiable, Serializable):
     order_index: Mapped[int] = column_property(
         select(WorkflowStep.order_index).where(WorkflowStep.id == workflow_step_id).scalar_subquery()
     )
+    subworkflow_invocation_id: Mapped[Optional[int]] = column_property(
+        select(WorkflowInvocationToSubworkflowInvocationAssociation.subworkflow_invocation_id)
+        .where(
+            and_(
+                WorkflowInvocationToSubworkflowInvocationAssociation.workflow_invocation_id == workflow_invocation_id,
+                WorkflowInvocationToSubworkflowInvocationAssociation.workflow_step_id == workflow_step_id,
+            )
+        )
+        .scalar_subquery(),
+    )
 
     dict_collection_visible_keys = [
         "id",
@@ -10118,6 +10237,51 @@ class WorkflowInvocationStep(Base, Dictifiable, Serializable):
             return self.implicit_collection_jobs.job_list
         else:
             return []
+
+    @property
+    def is_complete(self) -> bool:
+        """Check if this step is complete for workflow completion purposes.
+
+        For subworkflow steps, checks the subworkflow's completion state.
+        For tool steps, checks that all associated jobs are in terminal states.
+        """
+        # Subworkflow step - check subworkflow's completion state
+        if self.workflow_step.type == "subworkflow":
+            return self._is_subworkflow_step_complete()
+
+        # Tool/module step - check job states
+        jobs = self.jobs
+        if not jobs:
+            # Steps without jobs (e.g., input steps, pause steps, parameter steps)
+            # are considered complete once they're in SCHEDULED state
+            return self.state == self.states.SCHEDULED
+
+        return all(job.is_terminal for job in jobs)
+
+    def _is_subworkflow_step_complete(self) -> bool:
+        """Check if a subworkflow step is complete."""
+        # Find the subworkflow invocation associated with this step
+        subworkflow_assoc = next(
+            (
+                s
+                for s in self.workflow_invocation.subworkflow_invocations
+                if s.workflow_step_id == self.workflow_step_id
+            ),
+            None,
+        )
+
+        if not subworkflow_assoc:
+            # No subworkflow invocation found - step may not have been executed yet
+            return False
+
+        sub_invocation = subworkflow_assoc.subworkflow_invocation
+
+        # Leverage subworkflow's completion state if available
+        if sub_invocation.state == InvocationState.COMPLETED.value:
+            return True
+
+        # Otherwise check the subworkflow
+        return sub_invocation.is_complete
 
     @property
     def preferred_object_stores(self) -> WorkflowInvocationStepObjectStores:
@@ -10571,7 +10735,7 @@ class MetadataFile(Base, StorableObject, Serializable):
             object_store = da.dataset.object_store
             store_by = object_store.get_store_by(da.dataset)
             if store_by == "id" and self.id is None:
-                self.flush()  # type:ignore[unreachable]
+                self.flush()  # type: ignore[unreachable]
             identifier = getattr(self, store_by)
             alt_name = f"metadata_{identifier}.dat"
             if not object_store.exists(self, extra_dir="_metadata_files", extra_dir_at_root=True, alt_name=alt_name):
@@ -10755,11 +10919,11 @@ class PSAAssociation(Base, AssociationMixin, RepresentById):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     server_url: Mapped[Optional[str]] = mapped_column(VARCHAR(255))  # type: ignore[assignment]  # needed for social-auth-core Mixin class attributes
-    handle: Mapped[Optional[str]] = mapped_column(VARCHAR(255))  # type:ignore[assignment]
-    secret: Mapped[Optional[str]] = mapped_column(VARCHAR(255))  # type:ignore[assignment]
-    issued: Mapped[Optional[int]]  # type:ignore[assignment]
-    lifetime: Mapped[Optional[int]]  # type:ignore[assignment]
-    assoc_type: Mapped[Optional[str]] = mapped_column(VARCHAR(64))  # type:ignore[assignment]
+    handle: Mapped[Optional[str]] = mapped_column(VARCHAR(255))  # type: ignore[assignment]
+    secret: Mapped[Optional[str]] = mapped_column(VARCHAR(255))  # type: ignore[assignment]
+    issued: Mapped[Optional[int]]  # type: ignore[assignment]
+    lifetime: Mapped[Optional[int]]  # type: ignore[assignment]
+    assoc_type: Mapped[Optional[str]] = mapped_column(VARCHAR(64))  # type: ignore[assignment]
 
     # This static property is set at: galaxy.authnz.psa_authnz.PSAAuthnz
     sa_session = None
@@ -10816,8 +10980,8 @@ class PSACode(Base, CodeMixin, RepresentById):
     __table_args__ = (UniqueConstraint("code", "email"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    email: Mapped[Optional[str]] = mapped_column(VARCHAR(200))  # type:ignore[assignment]
-    code: Mapped[Optional[str]] = mapped_column(VARCHAR(32))  # type:ignore[assignment]
+    email: Mapped[Optional[str]] = mapped_column(VARCHAR(200))  # type: ignore[assignment]
+    code: Mapped[Optional[str]] = mapped_column(VARCHAR(32))  # type: ignore[assignment]
 
     # This static property is set at: galaxy.authnz.psa_authnz.PSAAuthnz
     sa_session = None
@@ -10843,9 +11007,9 @@ class PSANonce(Base, NonceMixin, RepresentById):
     __tablename__ = "psa_nonce"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    server_url: Mapped[Optional[str]] = mapped_column(VARCHAR(255))  # type:ignore[assignment]
-    timestamp: Mapped[Optional[int]]  # type:ignore[assignment]
-    salt: Mapped[Optional[str]] = mapped_column(VARCHAR(40))  # type:ignore[assignment]
+    server_url: Mapped[Optional[str]] = mapped_column(VARCHAR(255))  # type: ignore[assignment]
+    timestamp: Mapped[Optional[int]]  # type: ignore[assignment]
+    salt: Mapped[Optional[str]] = mapped_column(VARCHAR(40))  # type: ignore[assignment]
 
     # This static property is set at: galaxy.authnz.psa_authnz.PSAAuthnz
     sa_session = None
@@ -10879,10 +11043,10 @@ class PSAPartial(Base, PartialMixin, RepresentById):
     __tablename__ = "psa_partial"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    token: Mapped[Optional[str]] = mapped_column(VARCHAR(32))  # type:ignore[assignment]
-    data: Mapped[Optional[str]] = mapped_column(TEXT)  # type:ignore[assignment]
-    next_step: Mapped[Optional[int]]  # type:ignore[assignment]
-    backend: Mapped[Optional[str]] = mapped_column(VARCHAR(32))  # type:ignore[assignment]
+    token: Mapped[Optional[str]] = mapped_column(VARCHAR(32))  # type: ignore[assignment]
+    data: Mapped[Optional[str]] = mapped_column(TEXT)  # type: ignore[assignment]
+    next_step: Mapped[Optional[int]]  # type: ignore[assignment]
+    backend: Mapped[Optional[str]] = mapped_column(VARCHAR(32))  # type: ignore[assignment]
 
     # This static property is set at: galaxy.authnz.psa_authnz.PSAAuthnz
     sa_session = None
@@ -10922,14 +11086,14 @@ class UserAuthnzToken(Base, UserMixin, RepresentById):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("galaxy_user.id"), index=True)
-    uid: Mapped[Optional[str]] = mapped_column(VARCHAR(255))  # type:ignore[assignment]
-    provider: Mapped[Optional[str]] = mapped_column(VARCHAR(32))  # type:ignore[assignment]
-    extra_data: Mapped[Optional[dict[str, Any]]] = mapped_column(  # type:ignore[assignment, unused-ignore]
+    uid: Mapped[Optional[str]] = mapped_column(VARCHAR(255))  # type: ignore[assignment]
+    provider: Mapped[Optional[str]] = mapped_column(VARCHAR(32))  # type: ignore[assignment]
+    extra_data: Mapped[Optional[dict[str, Any]]] = mapped_column(  # type: ignore[assignment, unused-ignore]
         MutableJSONType
     )
     lifetime: Mapped[Optional[int]]
     assoc_type: Mapped[Optional[str]] = mapped_column(VARCHAR(64))
-    user: Mapped[Optional["User"]] = relationship(  # type:ignore[assignment, unused-ignore]
+    user: Mapped[Optional["User"]] = relationship(  # type: ignore[assignment, unused-ignore]
         back_populates="social_auth"
     )
 
@@ -12573,14 +12737,14 @@ mapper_registry.map_imperatively(
 # ----------------------------------------------------------------------------------------
 # The following statements must not precede the mapped models defined above.
 
-History.average_rating = column_property(  # type:ignore[assignment]
+History.average_rating = column_property(  # type: ignore[assignment]
     select(func.avg(HistoryRatingAssociation.rating))
     .where(HistoryRatingAssociation.history_id == History.id)
     .scalar_subquery(),
     deferred=True,
 )
 
-History.users_shared_with_count = column_property(  # type:ignore[assignment]
+History.users_shared_with_count = column_property(  # type: ignore[assignment]
     select(func.count(HistoryUserShareAssociation.id))
     .where(History.id == HistoryUserShareAssociation.history_id)
     .scalar_subquery(),
@@ -12592,35 +12756,22 @@ Page.average_rating = column_property(
     deferred=True,
 )
 
-StoredWorkflow.average_rating = column_property(  # type:ignore[assignment]
+StoredWorkflow.average_rating = column_property(  # type: ignore[assignment]
     select(func.avg(StoredWorkflowRatingAssociation.rating))
     .where(StoredWorkflowRatingAssociation.stored_workflow_id == StoredWorkflow.id)
     .scalar_subquery(),
     deferred=True,
 )
 
-Visualization.average_rating = column_property(  # type:ignore[assignment]
+Visualization.average_rating = column_property(  # type: ignore[assignment]
     select(func.avg(VisualizationRatingAssociation.rating))
     .where(VisualizationRatingAssociation.visualization_id == Visualization.id)
     .scalar_subquery(),
     deferred=True,
 )
 
-Workflow.step_count = column_property(  # type:ignore[assignment]
+Workflow.step_count = column_property(  # type: ignore[assignment]
     select(func.count(WorkflowStep.id)).where(Workflow.id == WorkflowStep.workflow_id).scalar_subquery(), deferred=True
-)
-
-WorkflowInvocationStep.subworkflow_invocation_id = column_property(
-    select(WorkflowInvocationToSubworkflowInvocationAssociation.subworkflow_invocation_id)
-    .where(
-        and_(
-            WorkflowInvocationToSubworkflowInvocationAssociation.workflow_invocation_id
-            == WorkflowInvocationStep.workflow_invocation_id,
-            WorkflowInvocationToSubworkflowInvocationAssociation.workflow_step_id
-            == WorkflowInvocationStep.workflow_step_id,
-        )
-    )
-    .scalar_subquery(),
 )
 
 # Set up proxy so that this syntax is possible:

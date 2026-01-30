@@ -7,12 +7,16 @@ for some activity such as queuing up jobs or scheduling workflows.
 import logging
 import os
 import random
-from collections.abc import Sequence
+from collections.abc import (
+    Callable,
+    Iterable,
+    Sequence,
+)
 from enum import Enum
 from typing import (
     Any,
-    Callable,
-    Iterable,
+    Concatenate,
+    Literal,
     Protocol,
     TYPE_CHECKING,
     TypeVar,
@@ -20,10 +24,6 @@ from typing import (
 )
 
 from sqlalchemy.orm import object_session
-from typing_extensions import (
-    Concatenate,
-    Literal,
-)
 
 from galaxy.exceptions import HandlerAssignmentError
 from galaxy.util import (

@@ -22,6 +22,7 @@ from fastapi import (
     Path,
     Query,
 )
+from fastapi.responses import PlainTextResponse
 from pydantic import Field
 
 from galaxy import exceptions
@@ -338,7 +339,7 @@ class FastAPIJobs:
         for job_input_assoc in job.input_datasets:
             input_dataset_instance = job_input_assoc.dataset
             if input_dataset_instance is None:
-                continue  # type:ignore[unreachable]  # TODO if job_input_assoc.dataset is indeed never None, remove the above check
+                continue  # type: ignore[unreachable]  # TODO if job_input_assoc.dataset is indeed never None, remove the above check
             if input_dataset_instance.get_total_size() == 0:
                 has_empty_inputs = True
             input_instance_id = input_dataset_instance.id
@@ -613,6 +614,36 @@ class FastAPIJobs:
             return ShowFullJobResponse(**self.service.show(trans, job_id, bool(full)))
         else:
             return EncodedJobDetails(**self.service.show(trans, job_id, bool(full)))
+
+    @router.get(
+        "/api/jobs/{job_id}/stdout",
+        name="get_job_stdout",
+        summary="Return stdout from job execution",
+        response_class=PlainTextResponse,
+    )
+    def stdout(
+        self,
+        job_id: JobIdPathParam,
+        trans: ProvidesUserContext = DependsOnTrans,
+    ) -> str:
+        """Return job stdout as plain text."""
+        job = self.service.get_job(trans=trans, job_id=job_id)
+        return job.stdout or ""
+
+    @router.get(
+        "/api/jobs/{job_id}/stderr",
+        name="get_job_stderr",
+        summary="Return stderr from job execution",
+        response_class=PlainTextResponse,
+    )
+    def stderr(
+        self,
+        job_id: JobIdPathParam,
+        trans: ProvidesUserContext = DependsOnTrans,
+    ) -> str:
+        """Return job stderr as plain text."""
+        job = self.service.get_job(trans=trans, job_id=job_id)
+        return job.stderr or ""
 
     @router.delete(
         "/api/jobs/{job_id}",

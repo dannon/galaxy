@@ -41,7 +41,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
         matrix:
-            python-version: ['3.9']
+            python-version: ['3.10']
     steps:
       - uses: actions/checkout@v6
         with:
@@ -82,11 +82,11 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: ${{ steps.node-version.outputs.version }}
-          cache: 'yarn'
-          cache-dependency-path: 'client/yarn.lock'
           registry-url: 'https://registry.npmjs.org'
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
       - name: build client
-        run: yarn && yarn build-production
+        run: pnpm install && pnpm build-production
         working-directory: 'client'
       # Ensure npm 11.5.1 or later for trusted publishing
       - run: npm install -g npm@latest
@@ -95,3 +95,13 @@ jobs:
         if: (github.event_name == 'workflow_dispatch' && inputs.release_type == 'release') || (github.event_name == 'release' && !github.event.release.prerelease)
         run: npm publish --provenance --access public
         working-directory: 'client'
+      - name: sync client-api version
+        run: npm run sync-version
+        working-directory: 'client-api'
+      - name: build client-api
+        run: npm install && npm run build
+        working-directory: 'client-api'
+      - name: publish client-api
+        if: (github.event_name == 'workflow_dispatch' && inputs.release_type == 'release') || (github.event_name == 'release' && !github.event.release.prerelease)
+        run: npm publish --provenance --access public
+        working-directory: 'client-api'

@@ -1252,6 +1252,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/exports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get recent exports for the current user.
+         * @description Returns a list of recent exports (to remote file sources) for the current user.
+         */
+        get: operations["index_api_exports_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/file_landings": {
         parameters: {
             query?: never;
@@ -2997,6 +3017,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/invocations/{invocation_id}/completion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get workflow invocation completion details.
+         * @description Get completion details for a workflow invocation.
+         *
+         *     Returns None if the invocation has not completed yet.
+         *     Completion occurs when all jobs have reached terminal states
+         *     (ok, error, deleted, skipped, paused, stopped).
+         */
+        get: operations["show_invocation_completion_api_invocations__invocation_id__completion_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/invocations/{invocation_id}/error": {
         parameters: {
             query?: never;
@@ -3439,6 +3483,46 @@ export interface paths {
         get?: never;
         /** Resumes a paused job. */
         put: operations["resume_paused_job_api_jobs__job_id__resume_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/{job_id}/stderr": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Return stderr from job execution
+         * @description Return job stderr as plain text.
+         */
+        get: operations["get_job_stderr_api_jobs__job_id__stderr_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/{job_id}/stdout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Return stdout from job execution
+         * @description Return job stdout as plain text.
+         */
+        get: operations["get_job_stdout_api_jobs__job_id__stdout_get"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -4215,6 +4299,66 @@ export interface paths {
          */
         put: operations["unpublish_api_pages__id__unpublish_put"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/plugins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Index
+         * @description List available visualization plugins.
+         */
+        get: operations["index_api_plugins_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/plugins/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Show
+         * @description Get details of a specific visualization plugin.
+         */
+        get: operations["show_api_plugins__id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/plugins/{plugin_name}/chat/completions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Plugins Chat Adapter
+         * @description **Warning**: This API is unstable and may change without notice.
+         */
+        post: operations["plugins_chat_adapter_api_plugins__plugin_name__chat_completions_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6681,6 +6825,154 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/ga4gh/wes/v1/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Runs
+         * @description List workflow runs.
+         */
+        get: operations["list_runs_ga4gh_wes_v1_runs_get"];
+        put?: never;
+        /**
+         * Submit Run
+         * @description Submit a new workflow run.
+         *
+         *     Accepts multipart/form-data with workflow and parameters.
+         */
+        post: operations["submit_run_ga4gh_wes_v1_runs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ga4gh/wes/v1/runs/{run_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Run
+         * @description Get workflow run details.
+         */
+        get: operations["get_run_ga4gh_wes_v1_runs__run_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ga4gh/wes/v1/runs/{run_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel Run
+         * @description Cancel a workflow run.
+         */
+        post: operations["cancel_run_ga4gh_wes_v1_runs__run_id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ga4gh/wes/v1/runs/{run_id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Run Status
+         * @description Get workflow run status.
+         */
+        get: operations["get_run_status_ga4gh_wes_v1_runs__run_id__status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ga4gh/wes/v1/runs/{run_id}/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Run Tasks
+         * @description Get paginated list of tasks for a workflow run.
+         */
+        get: operations["get_run_tasks_ga4gh_wes_v1_runs__run_id__tasks_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ga4gh/wes/v1/runs/{run_id}/tasks/{task_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Run Task
+         * @description Get details for a specific task.
+         *
+         *     Task ID format: order_index or order_index.job_index for collection mapping jobs.
+         */
+        get: operations["get_run_task_ga4gh_wes_v1_runs__run_id__tasks__task_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ga4gh/wes/v1/service-info": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Service Info
+         * @description Get WES service information.
+         */
+        get: operations["service_info_ga4gh_wes_v1_service_info_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/oauth2_callback": {
         parameters: {
             query?: never;
@@ -7595,6 +7887,27 @@ export interface components {
             /** Targets */
             targets: unknown;
         };
+        /** Body_submit_run_ga4gh_wes_v1_runs_post */
+        Body_submit_run_ga4gh_wes_v1_runs_post: {
+            /** Tags */
+            tags?: string | null;
+            /** Workflow Attachment */
+            workflow_attachment?: string | null;
+            /** Workflow Engine */
+            workflow_engine?: string | null;
+            /** Workflow Engine Parameters */
+            workflow_engine_parameters?: string | null;
+            /** Workflow Engine Version */
+            workflow_engine_version?: string | null;
+            /** Workflow Params */
+            workflow_params?: string | null;
+            /** Workflow Type */
+            workflow_type: string;
+            /** Workflow Type Version */
+            workflow_type_version: string;
+            /** Workflow Url */
+            workflow_url?: string | null;
+        };
         /** BooleanParameterModel */
         BooleanParameterModel: {
             /**
@@ -7865,6 +8178,40 @@ export interface components {
              */
             type: "change_dbkey";
         };
+        /** ChatCompletionRequest */
+        ChatCompletionRequest: {
+            /** Max Tokens */
+            max_tokens?: number | null;
+            /** Messages */
+            messages: components["schemas"]["ChatMessage"][];
+            /**
+             * Stream
+             * @default false
+             */
+            stream: boolean | null;
+            /** Tools */
+            tools?: components["schemas"]["ChatTool"][] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** ChatMessage */
+        ChatMessage: {
+            /** Content */
+            content?: string | null;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "assistant" | "system" | "tool" | "user";
+            /** Tool Calls */
+            tool_calls?:
+                | {
+                      [key: string]: unknown;
+                  }[]
+                | null;
+        } & {
+            [key: string]: unknown;
+        };
         /** ChatPayload */
         ChatPayload: {
             /**
@@ -7901,6 +8248,24 @@ export interface components {
              * @description The response to the chat query.
              */
             response: string;
+        };
+        /** ChatTool */
+        ChatTool: {
+            function: components["schemas"]["ChatToolFunction"];
+            /**
+             * Type
+             * @constant
+             */
+            type: "function";
+        } & {
+            [key: string]: unknown;
+        };
+        /** ChatToolFunction */
+        ChatToolFunction: {
+            /** Name */
+            name: string;
+        } & {
+            [key: string]: unknown;
         };
         /** CheckForUpdatesResponse */
         CheckForUpdatesResponse: {
@@ -8671,6 +9036,12 @@ export interface components {
         };
         /** CreateHistoryContentFromStore */
         CreateHistoryContentFromStore: {
+            /**
+             * Discarded Data
+             * @description How to handle datasets with unavailable data. 'forbid': mark as deleted, 'allow': import as discarded but not deleted, 'force': import all datasets as discarded regardless of whether file data is available (useful for importing metadata only).
+             * @default allow
+             */
+            discarded_data: components["schemas"]["DiscardedDataType"];
             model_store_format?: components["schemas"]["ModelStoreFormat"] | null;
             /** Store Content Uri */
             store_content_uri?: string | null;
@@ -8772,6 +9143,12 @@ export interface components {
         };
         /** CreateHistoryFromStore */
         CreateHistoryFromStore: {
+            /**
+             * Discarded Data
+             * @description How to handle datasets with unavailable data. 'forbid': mark as deleted, 'allow': import as discarded but not deleted, 'force': import all datasets as discarded regardless of whether file data is available (useful for importing metadata only).
+             * @default allow
+             */
+            discarded_data: components["schemas"]["DiscardedDataType"];
             model_store_format?: components["schemas"]["ModelStoreFormat"] | null;
             /** Store Content Uri */
             store_content_uri?: string | null;
@@ -8803,6 +9180,12 @@ export interface components {
         };
         /** CreateInvocationsFromStorePayload */
         CreateInvocationsFromStorePayload: {
+            /**
+             * Discarded Data
+             * @description How to handle datasets with unavailable data. 'forbid': mark as deleted, 'allow': import as discarded but not deleted, 'force': import all datasets as discarded regardless of whether file data is available (useful for importing metadata only).
+             * @default allow
+             */
+            discarded_data: components["schemas"]["DiscardedDataType"];
             /**
              * History ID
              * @description The ID of the history associated with the invocations.
@@ -8841,6 +9224,12 @@ export interface components {
         };
         /** CreateLibrariesFromStore */
         CreateLibrariesFromStore: {
+            /**
+             * Discarded Data
+             * @description How to handle datasets with unavailable data. 'forbid': mark as deleted, 'allow': import as discarded but not deleted, 'force': import all datasets as discarded regardless of whether file data is available (useful for importing metadata only).
+             * @default allow
+             */
+            discarded_data: components["schemas"]["DiscardedDataType"];
             model_store_format?: components["schemas"]["ModelStoreFormat"] | null;
             /** Store Content Uri */
             store_content_uri?: string | null;
@@ -9257,7 +9646,7 @@ export interface components {
              * Workflow Target Type
              * @enum {string}
              */
-            workflow_target_type: "stored_workflow" | "workflow" | "trs_url";
+            workflow_target_type: "stored_workflow" | "workflow" | "trs_url" | "url";
         };
         /** CreatedEntryResponse */
         CreatedEntryResponse: {
@@ -9330,6 +9719,38 @@ export interface components {
              * @description The name of the user.
              */
             username: string;
+        };
+        /** CreatorOrganization */
+        CreatorOrganization: {
+            /** Address */
+            address?: string | null;
+            /** Alternate Name */
+            alternateName?: string | null;
+            /**
+             * Class
+             * @default Organization
+             */
+            class: string;
+            /** Email */
+            email?: string | null;
+            /** Fax Number */
+            faxNumber?: string | null;
+            /**
+             * Identifier
+             * @description Identifier (typically an orcid.org ID)
+             */
+            identifier?: string | null;
+            /** Image URL */
+            image?: string | null;
+            /**
+             * Name
+             * @description The name of the creator.
+             */
+            name?: string | null;
+            /** Telephone */
+            telephone?: string | null;
+            /** URL */
+            url?: string | null;
         };
         /** CredentialPayload */
         CredentialPayload: {
@@ -10042,6 +10463,11 @@ export interface components {
              * @description The type of the collection, can be `list`, `paired`, or define subcollections using `:` as separator like `list:paired` or `list:list`.
              */
             collection_type: string;
+            /**
+             * Column Definitions
+             * @description Column definitions for sample sheet collections.
+             */
+            column_definitions?: components["schemas"]["SampleSheetColumnDefinition"][] | null;
             /** Contents Url */
             contents_url?: string | null;
             /**
@@ -10352,6 +10778,8 @@ export interface components {
             class: "Collection";
             /** Collection Type */
             collection_type: string;
+            /** Column Definitions */
+            column_definitions?: components["schemas"]["SampleSheetColumnDefinition"][] | null;
             /**
              * Deferred
              * @default false
@@ -10364,6 +10792,10 @@ export interface components {
             )[];
             /** Name */
             name?: string | null;
+            /** Rows */
+            rows?: {
+                [key: string]: (number | boolean | string | null)[];
+            } | null;
             /** Src */
             src?: null;
         };
@@ -10874,6 +11306,24 @@ export interface components {
          * @enum {string}
          */
         DefaultQuotaValues: "unregistered" | "registered" | "no";
+        /** DefaultWorkflowEngineParameter */
+        DefaultWorkflowEngineParameter: {
+            /**
+             * Default Value
+             * @description The stringified version of the default parameter. e.g. "2.45".
+             */
+            default_value?: string | null;
+            /**
+             * Name
+             * @description The name of the parameter
+             */
+            name?: string | null;
+            /**
+             * Type
+             * @description Describes the type of the parameter, e.g. float.
+             */
+            type?: string | null;
+        };
         /** DeleteDatasetBatchPayload */
         DeleteDatasetBatchPayload: {
             /**
@@ -11109,6 +11559,12 @@ export interface components {
                 | components["schemas"]["EmptyFieldParameterValidatorModel"]
             )[];
         };
+        /**
+         * DiscardedDataType
+         * @description Options for handling discarded datasets on import.
+         * @enum {string}
+         */
+        DiscardedDataType: "forbid" | "allow" | "force";
         /** DisconnectAction */
         DisconnectAction: {
             /**
@@ -12633,6 +13089,10 @@ export interface components {
             items_from?: components["schemas"]["ElementsFromType"] | null;
             /** Name */
             name?: string | null;
+            /** Rows */
+            rows?: {
+                [key: string]: (number | boolean | string | null)[];
+            } | null;
             /**
              * Src
              * @constant
@@ -14362,6 +14822,10 @@ export interface components {
             name?: string | null;
             /** Path */
             path?: string | null;
+            /** Rows */
+            rows?: {
+                [key: string]: (number | boolean | string | null)[];
+            } | null;
             /** Server Dir */
             server_dir?: string | null;
             src: components["schemas"]["ItemsFromSrc"];
@@ -14400,6 +14864,10 @@ export interface components {
             )[];
             /** Name */
             name?: string | null;
+            /** Rows */
+            rows?: {
+                [key: string]: (number | boolean | string | null)[];
+            } | null;
             /** Tags */
             tags?: string[] | null;
         };
@@ -15646,6 +16114,11 @@ export interface components {
              * @enum {string}
              */
             reason: "history_deleted";
+            /**
+             * Workflow Step Index Path
+             * @description Path of workflow step IDs from parent workflow through subworkflows (excludes the failing step itself).
+             */
+            workflow_step_index_path?: number[] | null;
         };
         /** InvocationCancellationReviewFailedResponse */
         InvocationCancellationReviewFailedResponse: {
@@ -15659,6 +16132,11 @@ export interface components {
              * @description Workflow step id of paused step that did not pass review.
              */
             workflow_step_id: number;
+            /**
+             * Workflow Step Index Path
+             * @description Path of workflow step IDs from parent workflow through subworkflows (excludes the failing step itself).
+             */
+            workflow_step_index_path?: number[] | null;
         };
         /** InvocationCancellationUserRequestResponse */
         InvocationCancellationUserRequestResponse: {
@@ -15667,6 +16145,11 @@ export interface components {
              * @enum {string}
              */
             reason: "user_request";
+            /**
+             * Workflow Step Index Path
+             * @description Path of workflow step IDs from parent workflow through subworkflows (excludes the failing step itself).
+             */
+            workflow_step_index_path?: number[] | null;
         };
         /** InvocationEvaluationWarningWorkflowOutputNotFoundResponse */
         InvocationEvaluationWarningWorkflowOutputNotFoundResponse: {
@@ -15682,6 +16165,11 @@ export interface components {
             reason: "workflow_output_not_found";
             /** Workflow step id of step that caused a warning. */
             workflow_step_id: number;
+            /**
+             * Workflow Step Index Path
+             * @description Path of workflow step IDs from parent workflow through subworkflows (excludes the failing step itself).
+             */
+            workflow_step_index_path?: number[] | null;
         };
         /** InvocationFailureCollectionFailedResponse */
         InvocationFailureCollectionFailedResponse: {
@@ -15706,6 +16194,11 @@ export interface components {
              * @description Workflow step id of step that failed.
              */
             workflow_step_id: number;
+            /**
+             * Workflow Step Index Path
+             * @description Path of workflow step IDs from parent workflow through subworkflows (excludes the failing step itself).
+             */
+            workflow_step_index_path?: number[] | null;
         };
         /** InvocationFailureDatasetFailedResponse */
         InvocationFailureDatasetFailedResponse: {
@@ -15730,6 +16223,11 @@ export interface components {
              * @description Workflow step id of step that failed.
              */
             workflow_step_id: number;
+            /**
+             * Workflow Step Index Path
+             * @description Path of workflow step IDs from parent workflow through subworkflows (excludes the failing step itself).
+             */
+            workflow_step_index_path?: number[] | null;
         };
         /** InvocationFailureExpressionEvaluationFailedResponse */
         InvocationFailureExpressionEvaluationFailedResponse: {
@@ -15748,6 +16246,11 @@ export interface components {
              * @description Workflow step id of step that failed.
              */
             workflow_step_id: number;
+            /**
+             * Workflow Step Index Path
+             * @description Path of workflow step IDs from parent workflow through subworkflows (excludes the failing step itself).
+             */
+            workflow_step_index_path?: number[] | null;
         };
         /** InvocationFailureJobFailedResponse */
         InvocationFailureJobFailedResponse: {
@@ -15772,6 +16275,11 @@ export interface components {
              * @description Workflow step id of step that failed.
              */
             workflow_step_id: number;
+            /**
+             * Workflow Step Index Path
+             * @description Path of workflow step IDs from parent workflow through subworkflows (excludes the failing step itself).
+             */
+            workflow_step_index_path?: number[] | null;
         };
         /** InvocationFailureOutputNotFoundResponse */
         InvocationFailureOutputNotFoundResponse: {
@@ -15792,6 +16300,11 @@ export interface components {
              * @description Workflow step id of step that failed.
              */
             workflow_step_id: number;
+            /**
+             * Workflow Step Index Path
+             * @description Path of workflow step IDs from parent workflow through subworkflows (excludes the failing step itself).
+             */
+            workflow_step_index_path?: number[] | null;
         };
         /** InvocationFailureWhenNotBooleanResponse */
         InvocationFailureWhenNotBooleanResponse: {
@@ -15810,6 +16323,11 @@ export interface components {
              * @description Workflow step id of step that failed.
              */
             workflow_step_id: number;
+            /**
+             * Workflow Step Index Path
+             * @description Path of workflow step IDs from parent workflow through subworkflows (excludes the failing step itself).
+             */
+            workflow_step_index_path?: number[] | null;
         };
         /** InvocationFailureWorkflowParameterInvalidResponse */
         InvocationFailureWorkflowParameterInvalidResponse: {
@@ -15825,6 +16343,11 @@ export interface components {
             reason: "workflow_parameter_invalid";
             /** Workflow parameter step that failed validation */
             workflow_step_id: number;
+            /**
+             * Workflow Step Index Path
+             * @description Path of workflow step IDs from parent workflow through subworkflows (excludes the failing step itself).
+             */
+            workflow_step_index_path?: number[] | null;
         };
         /** InvocationInput */
         InvocationInput: {
@@ -15957,9 +16480,11 @@ export interface components {
              * Errors
              * @description Errors associated with the invocation.
              */
-            errors?: {
-                [key: string]: unknown;
-            } | null;
+            errors?:
+                | {
+                      [key: string]: unknown;
+                  }[]
+                | null;
             /**
              * Galaxy Version
              * @description The version of Galaxy this object was generated with.
@@ -16073,7 +16598,8 @@ export interface components {
             | "scheduled"
             | "cancelled"
             | "cancelling"
-            | "failed";
+            | "failed"
+            | "completed";
         /**
          * InvocationStep
          * @description Information about workflow invocation step
@@ -16301,6 +16827,11 @@ export interface components {
              * @description Workflow step id of step that failed.
              */
             workflow_step_id?: number | null;
+            /**
+             * Workflow Step Index Path
+             * @description Path of workflow step IDs from parent workflow through subworkflows (excludes the failing step itself).
+             */
+            workflow_step_index_path?: number[] | null;
         };
         /** InvocationUpdatePayload */
         InvocationUpdatePayload: {
@@ -16390,6 +16921,15 @@ export interface components {
              * @default false
              */
             no_add_to_history: boolean | null;
+            /**
+             * On Complete Actions
+             * @description List of actions to execute when the workflow invocation completes. Each action is an object with the action name as key and configuration as value. Available actions: 'send_notification' (notify user, no config required), 'export_to_file_source' (export results, requires target_uri). Example: [{'send_notification': {}}, {'export_to_file_source': {'target_uri': 'gxfiles://my_storage/exports/', 'format': 'rocrate.zip'}}]
+             */
+            on_complete?:
+                | {
+                      [key: string]: unknown;
+                  }[]
+                | null;
             /**
              * Legacy Step Parameters
              * @description Parameters specified per-step for the workflow invocation, this is legacy and you should generally use inputs and only specify the formal parameters of a workflow instead.
@@ -18146,6 +18686,56 @@ export interface components {
          * @default []
          */
         ListUriResponse: (components["schemas"]["RemoteFile"] | components["schemas"]["RemoteDirectory"])[];
+        /** Log */
+        Log: {
+            /**
+             * Cmd
+             * @description The command line that was executed
+             */
+            cmd?: string[] | null;
+            /**
+             * End Time
+             * @description When the command stopped executing (completed, failed, or cancelled), in ISO 8601 format "%Y-%m-%dT%H:%M:%SZ"
+             */
+            end_time?: string | null;
+            /**
+             * Exit Code
+             * @description Exit code of the program
+             */
+            exit_code?: number | null;
+            /**
+             * Name
+             * @description The task or workflow name
+             */
+            name?: string | null;
+            /**
+             * Start Time
+             * @description When the command started executing, in ISO 8601 format "%Y-%m-%dT%H:%M:%SZ"
+             */
+            start_time?: string | null;
+            /**
+             * Stderr
+             * @description A URL to retrieve standard error logs of the workflow run or task.  This URL may change between status requests, or may not be available until the task or workflow has finished execution.  Should be available using the same credentials used to access the WES endpoint.
+             */
+            stderr?: string | null;
+            /**
+             * Stdout
+             * @description A URL to retrieve standard output logs of the workflow run or task.  This URL may change between status requests, or may not be available until the task or workflow has finished execution.  Should be available using the same credentials used to access the WES endpoint.
+             */
+            stdout?: string | null;
+            /**
+             * System Logs
+             * @description System logs are any logs the system decides are relevant,
+             *     which are not tied directly to a workflow.
+             *     Content is implementation specific: format, size, etc.
+             *
+             *     System logs may be collected here to provide convenient access.
+             *
+             *     For example, the system may include an error message that caused
+             *     a SYSTEM_ERROR state (e.g. disk is full), etc.
+             */
+            system_logs?: string[] | null;
+        };
         /**
          * MandatoryNotificationCategory
          * @description These notification categories cannot be opt-out by the user.
@@ -18785,6 +19375,22 @@ export interface components {
              * @description The oldest creation time of a set of datasets stored in this object store.
              */
             oldest_create_time: string;
+        };
+        /** Organization */
+        Organization: {
+            /**
+             * Name
+             * @description Name of the organization responsible for the service
+             * @example My organization
+             */
+            name: string;
+            /**
+             * Url
+             * Format: uri
+             * @description URL of the website of the organization (RFC 3986 format)
+             * @example https://example.com
+             */
+            url: string;
         };
         /** OutputReferenceByLabel */
         OutputReferenceByLabel: {
@@ -19592,6 +20198,20 @@ export interface components {
              * @enum {string}
              */
             state: "ok" | "not_ok" | "unknown";
+        };
+        /** PluginDatasetEntry */
+        PluginDatasetEntry: {
+            /** Hid */
+            hid: number;
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+        };
+        /** PluginDatasetsResponse */
+        PluginDatasetsResponse: {
+            /** Hdas */
+            hdas: components["schemas"]["PluginDatasetEntry"][];
         };
         /**
          * PluginKind
@@ -20480,6 +21100,131 @@ export interface components {
              */
             type: "rules";
         };
+        /** RunId */
+        RunId: {
+            /**
+             * Run Id
+             * @description workflow run ID
+             */
+            run_id?: string | null;
+        };
+        /** RunListResponse */
+        RunListResponse: {
+            /**
+             * Next Page Token
+             * @description A token which may be supplied as `page_token` in workflow run list request to get the next page of results.  An empty string indicates there are no more items to return.
+             */
+            next_page_token?: string | null;
+            /**
+             * Runs
+             * @description A list of workflow runs that the service has executed or is executing. The list is filtered to only include runs that the caller has permission to see.
+             */
+            runs?: (components["schemas"]["RunStatus"] | components["schemas"]["RunSummary"])[] | null;
+        };
+        /** RunLog */
+        RunLog: {
+            /**
+             * Outputs
+             * @description The outputs from the workflow run.
+             */
+            outputs?: {
+                [key: string]: unknown;
+            } | null;
+            request?: components["schemas"]["RunRequest"] | null;
+            /**
+             * Run Id
+             * @description workflow run ID
+             */
+            run_id?: string | null;
+            run_log?: components["schemas"]["Log"] | null;
+            state?: components["schemas"]["State"] | null;
+            /**
+             * Task Logs
+             * @description The logs, and other key info like timing and exit code, for each step in the workflow run. This field is deprecated and the `task_logs_url` should be used to retrieve a paginated list of steps from the workflow run. This field will be removed in the next major version of the  specification (2.0.0)
+             */
+            task_logs?: (components["schemas"]["Log"] | components["schemas"]["TaskLog"])[] | null;
+            /**
+             * Task Logs Url
+             * @description A reference to the complete url which may be used to obtain a paginated list of task logs for this workflow
+             */
+            task_logs_url?: string | null;
+        };
+        /** RunRequest */
+        RunRequest: {
+            /** Tags */
+            tags?: {
+                [key: string]: string;
+            } | null;
+            /**
+             * Workflow Engine
+             * @description The workflow engine, must be one supported by this WES instance. Required if workflow_engine_version is provided.
+             */
+            workflow_engine?: string | null;
+            /** Workflow Engine Parameters */
+            workflow_engine_parameters?: {
+                [key: string]: string;
+            } | null;
+            /**
+             * Workflow Engine Version
+             * @description The workflow engine version, must be one supported by this WES instance. If workflow_engine is provided, but workflow_engine_version is not, servers can make no assumptions with regard to the engine version the WES instance uses to process the request if  that WES instance supports multiple versions of the requested engine.
+             */
+            workflow_engine_version?: string | null;
+            /**
+             * Workflow Params
+             * @description REQUIRED
+             *     The workflow run parameterizations (JSON encoded), including input and output file locations
+             */
+            workflow_params?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Workflow Type
+             * @description REQUIRED
+             *     The workflow descriptor type, must be "CWL" or "WDL" currently (or another alternative supported by this WES instance)
+             */
+            workflow_type: string;
+            /**
+             * Workflow Type Version
+             * @description REQUIRED
+             *     The workflow descriptor type version, must be one supported by this WES instance
+             */
+            workflow_type_version: string;
+            /**
+             * Workflow Url
+             * @description REQUIRED
+             *     The workflow CWL or WDL document. When `workflow_attachments` is used to attach files, the `workflow_url` may be a relative path to one of the attachments.
+             */
+            workflow_url: string;
+        };
+        /** RunStatus */
+        RunStatus: {
+            /** Run Id */
+            run_id: string;
+            state?: components["schemas"]["State"] | null;
+        };
+        /** RunSummary */
+        RunSummary: {
+            /**
+             * End Time
+             * @description When the run stopped executing (completed, failed, or cancelled), in ISO 8601 format "%Y-%m-%dT%H:%M:%SZ"
+             */
+            end_time?: string | null;
+            /** Run Id */
+            run_id: string;
+            /**
+             * Start Time
+             * @description When the run started executing, in ISO 8601 format "%Y-%m-%dT%H:%M:%SZ"
+             */
+            start_time?: string | null;
+            state?: components["schemas"]["State"] | null;
+            /**
+             * Tags
+             * @description Arbitrary key/value tags added by the client during run creation
+             */
+            tags: {
+                [key: string]: string;
+            };
+        };
         /** SampleSheetColumnDefinition */
         SampleSheetColumnDefinition: {
             /** Default Value */
@@ -20949,66 +21694,6 @@ export interface components {
              */
             to_posix_lines: boolean;
         };
-        /** Service */
-        Service: {
-            /**
-             * Contacturl
-             * @description URL of the contact for the provider of this service, e.g. a link to a contact form (RFC 3986 format), or an email (RFC 2368 format).
-             * @example mailto:support@example.com
-             */
-            contactUrl?: string | null;
-            /**
-             * Createdat
-             * @description Timestamp describing when the service was first deployed and available (RFC 3339 format)
-             * @example 2019-06-04T12:58:19Z
-             */
-            createdAt?: string | null;
-            /**
-             * Description
-             * @description Description of the service. Should be human readable and provide information about the service.
-             * @example This service provides...
-             */
-            description?: string | null;
-            /**
-             * Documentationurl
-             * @description URL of the documentation of this service (RFC 3986 format). This should help someone learn how to use your service, including any specifics required to access data, e.g. authentication.
-             * @example https://docs.myservice.example.com
-             */
-            documentationUrl?: string | null;
-            /**
-             * Environment
-             * @description Environment the service is running in. Use this to distinguish between production, development and testing/staging deployments. Suggested values are prod, test, dev, staging. However this is advised and not enforced.
-             * @example test
-             */
-            environment?: string | null;
-            /**
-             * Id
-             * @description Unique ID of this service. Reverse domain name notation is recommended, though not required. The identifier should attempt to be globally unique so it can be used in downstream aggregator services e.g. Service Registry.
-             * @example org.ga4gh.myservice
-             */
-            id: string;
-            /**
-             * Name
-             * @description Name of this service. Should be human readable.
-             * @example My project
-             */
-            name: string;
-            /** @description Organization providing the service */
-            organization: components["schemas"]["galaxy__schema__drs__Organization"];
-            type: components["schemas"]["ServiceType"];
-            /**
-             * Updatedat
-             * @description Timestamp describing when the service was last updated (RFC 3339 format)
-             * @example 2019-06-04T12:58:19Z
-             */
-            updatedAt?: string | null;
-            /**
-             * Version
-             * @description Version of the service being described. Semantic versioning is recommended, but other identifiers, such as dates or commit hashes, are also allowed. The version should be changed whenever the service is updated.
-             * @example 1.0.0
-             */
-            version: string;
-        };
         /** ServiceCredentialGroupPayload */
         ServiceCredentialGroupPayload: {
             /**
@@ -21097,6 +21782,105 @@ export interface components {
              * @description The version of the service.
              */
             version: string;
+        };
+        /** ServiceInfo */
+        ServiceInfo: {
+            /**
+             * Auth Instructions Url
+             * @description A web page URL with human-readable instructions on how to get an authorization token for use with a specific WES endpoint.
+             */
+            auth_instructions_url: string;
+            /**
+             * Contacturl
+             * @description URL of the contact for the provider of this service, e.g. a link to a contact form (RFC 3986 format), or an email (RFC 2368 format).
+             * @example mailto:support@example.com
+             */
+            contactUrl?: string | null;
+            /**
+             * Createdat
+             * @description Timestamp describing when the service was first deployed and available (RFC 3339 format)
+             * @example 2019-06-04T12:58:19Z
+             */
+            createdAt?: string | null;
+            /**
+             * Default Workflow Engine Parameters
+             * @description Each workflow engine can present additional parameters that can be sent to the workflow engine. This message will list the default values, and their types for each workflow engine.
+             */
+            default_workflow_engine_parameters: components["schemas"]["DefaultWorkflowEngineParameter"][];
+            /**
+             * Description
+             * @description Description of the service. Should be human readable and provide information about the service.
+             * @example This service provides...
+             */
+            description?: string | null;
+            /**
+             * Documentationurl
+             * @description URL of the documentation of this service (RFC 3986 format). This should help someone learn how to use your service, including any specifics required to access data, e.g. authentication.
+             * @example https://docs.myservice.example.com
+             */
+            documentationUrl?: string | null;
+            /**
+             * Environment
+             * @description Environment the service is running in. Use this to distinguish between production, development and testing/staging deployments. Suggested values are prod, test, dev, staging. However this is advised and not enforced.
+             * @example test
+             */
+            environment?: string | null;
+            /**
+             * Id
+             * @description Unique ID of this service. Reverse domain name notation is recommended, though not required. The identifier should attempt to be globally unique so it can be used in downstream aggregator services e.g. Service Registry.
+             * @example org.ga4gh.myservice
+             */
+            id: string;
+            /**
+             * Name
+             * @description Name of this service. Should be human readable.
+             * @example My project
+             */
+            name: string;
+            /** @description Organization providing the service */
+            organization: components["schemas"]["Organization"];
+            /**
+             * Supported Filesystem Protocols
+             * @description The filesystem protocols supported by this service, currently these may include common protocols using the terms 'http', 'https', 'sftp', 's3', 'gs', 'file', or 'synapse', but others  are possible and the terms beyond these core protocols are currently not fixed.   This section reports those protocols (either common or not) supported by this WES service.
+             */
+            supported_filesystem_protocols: string[];
+            /**
+             * Supported Wes Versions
+             * @description The version(s) of the WES schema supported by this service
+             */
+            supported_wes_versions: string[];
+            /**
+             * System State Counts
+             * @description The system statistics, key is the statistic, value is the count of runs in that state. See the State enum for the possible keys.
+             */
+            system_state_counts: {
+                [key: string]: number;
+            };
+            /** Tags */
+            tags: {
+                [key: string]: string;
+            };
+            type: components["schemas"]["ServiceType"];
+            /**
+             * Updatedat
+             * @description Timestamp describing when the service was last updated (RFC 3339 format)
+             * @example 2019-06-04T12:58:19Z
+             */
+            updatedAt?: string | null;
+            /**
+             * Version
+             * @description Version of the service being described. Semantic versioning is recommended, but other identifiers, such as dates or commit hashes, are also allowed. The version should be changed whenever the service is updated.
+             * @example 1.0.0
+             */
+            version: string;
+            /** Workflow Engine Versions */
+            workflow_engine_versions: {
+                [key: string]: components["schemas"]["WorkflowEngineVersion"];
+            };
+            /** Workflow Type Versions */
+            workflow_type_versions: {
+                [key: string]: components["schemas"]["WorkflowTypeVersion"];
+            };
         };
         /** ServiceParameterDefinition */
         ServiceParameterDefinition: {
@@ -21584,6 +22368,22 @@ export interface components {
          * @enum {string}
          */
         Src: "url" | "pasted" | "files" | "path" | "composite" | "ftp_import" | "server_dir";
+        /**
+         * State
+         * @enum {string}
+         */
+        State:
+            | "UNKNOWN"
+            | "QUEUED"
+            | "INITIALIZING"
+            | "RUNNING"
+            | "PAUSED"
+            | "COMPLETE"
+            | "EXECUTOR_ERROR"
+            | "SYSTEM_ERROR"
+            | "CANCELED"
+            | "CANCELING"
+            | "PREEMPTED";
         /** StepReferenceByLabel */
         StepReferenceByLabel: {
             /**
@@ -21695,9 +22495,7 @@ export interface components {
              * Creator
              * @description Additional information about the creator (or multiple creators) of this workflow.
              */
-            creator?:
-                | (components["schemas"]["Person"] | components["schemas"]["galaxy__schema__schema__Organization"])[]
-                | null;
+            creator?: (components["schemas"]["Person"] | components["schemas"]["CreatorOrganization"])[] | null;
             /**
              * Creator deleted
              * @description Whether the creator of this Workflow has been deleted.
@@ -21949,6 +22747,80 @@ export interface components {
             | "Page"
             | "StoredWorkflow"
             | "Visualization";
+        /** TaskListResponse */
+        TaskListResponse: {
+            /**
+             * Next Page Token
+             * @description A token which may be supplied as `page_token` in workflow run task list request to get the next page of results.  An empty string indicates there are no more items to return.
+             */
+            next_page_token?: string | null;
+            /**
+             * Task Logs
+             * @description The logs, and other key info like timing and exit code, for each step in the workflow run.
+             */
+            task_logs?: components["schemas"]["TaskLog"][] | null;
+        };
+        /** TaskLog */
+        TaskLog: {
+            /**
+             * Cmd
+             * @description The command line that was executed
+             */
+            cmd?: string[] | null;
+            /**
+             * End Time
+             * @description When the command stopped executing (completed, failed, or cancelled), in ISO 8601 format "%Y-%m-%dT%H:%M:%SZ"
+             */
+            end_time?: string | null;
+            /**
+             * Exit Code
+             * @description Exit code of the program
+             */
+            exit_code?: number | null;
+            /**
+             * Id
+             * @description A unique identifier which may be used to reference the task
+             */
+            id: string;
+            /**
+             * Name
+             * @description The task or workflow name
+             */
+            name: string;
+            /**
+             * Start Time
+             * @description When the command started executing, in ISO 8601 format "%Y-%m-%dT%H:%M:%SZ"
+             */
+            start_time?: string | null;
+            /**
+             * Stderr
+             * @description A URL to retrieve standard error logs of the workflow run or task.  This URL may change between status requests, or may not be available until the task or workflow has finished execution.  Should be available using the same credentials used to access the WES endpoint.
+             */
+            stderr?: string | null;
+            /**
+             * Stdout
+             * @description A URL to retrieve standard output logs of the workflow run or task.  This URL may change between status requests, or may not be available until the task or workflow has finished execution.  Should be available using the same credentials used to access the WES endpoint.
+             */
+            stdout?: string | null;
+            /**
+             * System Logs
+             * @description System logs are any logs the system decides are relevant,
+             *     which are not tied directly to a task.
+             *     Content is implementation specific: format, size, etc.
+             *
+             *     System logs may be collected here to provide convenient access.
+             *
+             *     For example, the system may include the name of the host
+             *     where the task is executing, an error message that caused
+             *     a SYSTEM_ERROR state (e.g. disk is full), etc.
+             */
+            system_logs?: string[] | null;
+            /**
+             * Tes Uri
+             * @description An optional URL pointing to an extended task definition defined by a [TES api](https://github.com/ga4gh/task-execution-schemas)
+             */
+            tes_uri?: string | null;
+        };
         /**
          * TaskResult
          * @description Contains information about the result of an asynchronous task.
@@ -23247,6 +24119,13 @@ export interface components {
             /** Hashes */
             hashes?: components["schemas"]["FetchDatasetHash"][] | null;
             /**
+             * Headers
+             * @description Optional headers to include in the URL fetch request
+             */
+            headers?: {
+                [key: string]: string;
+            } | null;
+            /**
              * Info
              * @description Free text field that can be used to store arbitrary information about the dataset. This used to be prominently
              *     displayed in the Galaxy user interface, but now is largely unused.
@@ -24018,6 +24897,15 @@ export interface components {
         /** VisualizationPluginResponse */
         VisualizationPluginResponse: {
             /**
+             * Data Sources
+             * @description The data sources of the plugin.
+             */
+            data_sources?:
+                | {
+                      [key: string]: unknown;
+                  }[]
+                | null;
+            /**
              * Description
              * @description The description of the plugin.
              */
@@ -24034,6 +24922,11 @@ export interface components {
             entry_point: {
                 [key: string]: unknown;
             };
+            /**
+             * Help
+             * @description The help text of the plugin.
+             */
+            help?: string | null;
             /**
              * Href
              * @description The href of the plugin.
@@ -24055,6 +24948,13 @@ export interface components {
              */
             name: string;
             /**
+             * Params
+             * @description The parameters of the plugin.
+             */
+            params?: {
+                [key: string]: unknown;
+            } | null;
+            /**
              * Settings
              * @description The settings of the plugin.
              */
@@ -24070,6 +24970,20 @@ export interface components {
             specs?: {
                 [key: string]: unknown;
             } | null;
+            /**
+             * Tags
+             * @description The tags of the plugin.
+             */
+            tags?: string[] | null;
+            /**
+             * Tests
+             * @description The tests of the plugin.
+             */
+            tests?:
+                | {
+                      [key: string]: unknown;
+                  }[]
+                | null;
             /**
              * Title
              * @description The title of the plugin.
@@ -24320,6 +25234,14 @@ export interface components {
              */
             revision: string;
         };
+        /** WorkflowEngineVersion */
+        WorkflowEngineVersion: {
+            /**
+             * Workflow Engine Version
+             * @description An array of one or more acceptable engines versions for the `workflow_engine`
+             */
+            workflow_engine_version?: string[] | null;
+        };
         /** WorkflowInput */
         WorkflowInput: {
             /**
@@ -24370,6 +25292,15 @@ export interface components {
              */
             model_class: "WorkflowInvocation";
             /**
+             * On Complete Actions
+             * @description Actions to be executed when the workflow invocation completes.
+             */
+            on_complete?:
+                | {
+                      [key: string]: unknown;
+                  }[]
+                | null;
+            /**
              * Invocation state
              * @description State of workflow invocation.
              */
@@ -24391,6 +25322,30 @@ export interface components {
              * @example 0123456789ABCDEF
              */
             workflow_id: string;
+        };
+        /**
+         * WorkflowInvocationCompletionResponse
+         * @description Response model for workflow invocation completion details.
+         */
+        WorkflowInvocationCompletionResponse: {
+            /**
+             * Completion Time
+             * Format: date-time
+             * @description The time when the workflow invocation completed.
+             */
+            completion_time: string;
+            /**
+             * Hooks Executed
+             * @description List of completion hook names that have been executed.
+             */
+            hooks_executed?: string[];
+            /**
+             * Job State Summary
+             * @description Summary of job states, mapping state names to counts.
+             */
+            job_state_summary: {
+                [key: string]: number;
+            };
         };
         /** WorkflowInvocationElementView */
         WorkflowInvocationElementView: {
@@ -24442,6 +25397,15 @@ export interface components {
              * @constant
              */
             model_class: "WorkflowInvocation";
+            /**
+             * On Complete Actions
+             * @description Actions to be executed when the workflow invocation completes.
+             */
+            on_complete?:
+                | {
+                      [key: string]: unknown;
+                  }[]
+                | null;
             /**
              * Output collections
              * @description Output dataset collections of the workflow invocation.
@@ -24634,7 +25598,7 @@ export interface components {
              */
             raw_value: string;
             /** Step Index */
-            step_index: number;
+            step_index: number | string;
             /** Step Label */
             step_label: string | null;
             /**
@@ -24671,7 +25635,15 @@ export interface components {
              * Workflow Target Type
              * @enum {string}
              */
-            workflow_target_type: "stored_workflow" | "workflow" | "trs_url";
+            workflow_target_type: "stored_workflow" | "workflow" | "trs_url" | "url";
+        };
+        /** WorkflowTypeVersion */
+        WorkflowTypeVersion: {
+            /**
+             * Workflow Type Version
+             * @description an array of one or more acceptable types for the `workflow_type`
+             */
+            workflow_type_version?: string[] | null;
         };
         /** WriteInvocationStoreToPayload */
         WriteInvocationStoreToPayload: {
@@ -24814,54 +25786,6 @@ export interface components {
             filename?: string | null;
             /** name */
             name?: string | null;
-        };
-        /** Organization */
-        galaxy__schema__drs__Organization: {
-            /**
-             * Name
-             * @description Name of the organization responsible for the service
-             * @example My organization
-             */
-            name: string;
-            /**
-             * Url
-             * Format: uri
-             * @description URL of the website of the organization (RFC 3986 format)
-             * @example https://example.com
-             */
-            url: string;
-        };
-        /** Organization */
-        galaxy__schema__schema__Organization: {
-            /** Address */
-            address?: string | null;
-            /** Alternate Name */
-            alternateName?: string | null;
-            /**
-             * Class
-             * @default Organization
-             */
-            class: string;
-            /** Email */
-            email?: string | null;
-            /** Fax Number */
-            faxNumber?: string | null;
-            /**
-             * Identifier
-             * @description Identifier (typically an orcid.org ID)
-             */
-            identifier?: string | null;
-            /** Image URL */
-            image?: string | null;
-            /**
-             * Name
-             * @description The name of the creator.
-             */
-            name?: string | null;
-            /** Telephone */
-            telephone?: string | null;
-            /** URL */
-            url?: string | null;
         };
     };
     responses: never;
@@ -28195,6 +29119,52 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Request Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+            /** @description Server Error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+        };
+    };
+    index_api_exports_get: {
+        parameters: {
+            query?: {
+                /** @description Maximum number of exports to return. */
+                limit?: number | null;
+                /** @description Number of days to look back. */
+                days?: number;
+            };
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExportTaskListResponse"];
                 };
             };
             /** @description Request Error */
@@ -34546,6 +35516,50 @@ export interface operations {
             };
         };
     };
+    show_invocation_completion_api_invocations__invocation_id__completion_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
+            path: {
+                /** @description The encoded database identifier of the Invocation. */
+                invocation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowInvocationCompletionResponse"] | null;
+                };
+            };
+            /** @description Request Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+            /** @description Server Error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+        };
+    };
     report_error_api_invocations__invocation_id__error_post: {
         parameters: {
             query?: never;
@@ -35902,6 +36916,94 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+        };
+    };
+    get_job_stderr_api_jobs__job_id__stderr_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
+            path: {
+                /** @description The ID of the job */
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Request Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+            /** @description Server Error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+        };
+    };
+    get_job_stdout_api_jobs__job_id__stdout_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
+            path: {
+                /** @description The ID of the job */
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Request Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+            /** @description Server Error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["MessageExceptionModel"];
                 };
             };
         };
@@ -38519,6 +39621,151 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SharingStatus"];
+                };
+            };
+            /** @description Request Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+            /** @description Server Error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+        };
+    };
+    index_api_plugins_get: {
+        parameters: {
+            query?: {
+                /** @description Filter to visualizations compatible with this dataset. */
+                dataset_id?: string | null;
+                /** @description Filter to embeddable visualizations only. */
+                embeddable?: boolean | null;
+            };
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+            /** @description Request Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+            /** @description Server Error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+        };
+    };
+    show_api_plugins__id__get: {
+        parameters: {
+            query?: {
+                /** @description Filter datasets compatible with this plugin from the specified history. */
+                history_id?: string | null;
+            };
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
+            path: {
+                /** @description The visualization plugin identifier. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json":
+                        | components["schemas"]["PluginDatasetsResponse"]
+                        | components["schemas"]["VisualizationPluginResponse"];
+                };
+            };
+            /** @description Request Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+            /** @description Server Error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+        };
+    };
+    plugins_chat_adapter_api_plugins__plugin_name__chat_completions_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
+            path: {
+                /** @description Visualization plugin name used to resolve the AI prompt. */
+                plugin_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatCompletionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Request Error */
@@ -46224,7 +47471,361 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Service"];
+                    "application/json": unknown;
+                };
+            };
+            /** @description Request Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+            /** @description Server Error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+        };
+    };
+    list_runs_ga4gh_wes_v1_runs_get: {
+        parameters: {
+            query?: {
+                /** @description Number of results per page */
+                page_size?: number;
+                /** @description Token for pagination */
+                page_token?: string;
+            };
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunListResponse"];
+                };
+            };
+            /** @description Request Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+            /** @description Server Error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+        };
+    };
+    submit_run_ga4gh_wes_v1_runs_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_submit_run_ga4gh_wes_v1_runs_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunId"];
+                };
+            };
+            /** @description Request Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+            /** @description Server Error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+        };
+    };
+    get_run_ga4gh_wes_v1_runs__run_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunLog"];
+                };
+            };
+            /** @description Request Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+            /** @description Server Error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+        };
+    };
+    cancel_run_ga4gh_wes_v1_runs__run_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunId"];
+                };
+            };
+            /** @description Request Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+            /** @description Server Error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+        };
+    };
+    get_run_status_ga4gh_wes_v1_runs__run_id__status_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunStatus"];
+                };
+            };
+            /** @description Request Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+            /** @description Server Error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+        };
+    };
+    get_run_tasks_ga4gh_wes_v1_runs__run_id__tasks_get: {
+        parameters: {
+            query?: {
+                /** @description Number of results per page */
+                page_size?: number;
+                /** @description Token for pagination */
+                page_token?: string;
+            };
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskListResponse"];
+                };
+            };
+            /** @description Request Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+            /** @description Server Error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+        };
+    };
+    get_run_task_ga4gh_wes_v1_runs__run_id__tasks__task_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
+            path: {
+                run_id: string;
+                /** @description Task identifier: step order_index, or order_index.job_index for collection mapping jobs */
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskLog"];
+                };
+            };
+            /** @description Request Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+            /** @description Server Error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+        };
+    };
+    service_info_ga4gh_wes_v1_service_info_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceInfo"];
                 };
             };
             /** @description Request Error */

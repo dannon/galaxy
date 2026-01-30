@@ -1,12 +1,12 @@
 import datetime
 import json
 import shutil
+from collections.abc import Callable
 from concurrent.futures import TimeoutError
 from functools import lru_cache
 from pathlib import Path
 from typing import (
     Any,
-    Callable,
     Optional,
 )
 
@@ -37,6 +37,7 @@ from galaxy.managers.markdown_util import generate_branded_pdf
 from galaxy.managers.model_stores import ModelStoreManager
 from galaxy.managers.notification import NotificationManager
 from galaxy.managers.tool_data import ToolDataImportManager
+from galaxy.managers.workflow_completion import WorkflowCompletionManager
 from galaxy.metadata.set_metadata import set_metadata_portable
 from galaxy.model import (
     Job,
@@ -70,6 +71,7 @@ from galaxy.tools import create_tool_from_representation
 from galaxy.tools.data_fetch import do_fetch
 from galaxy.util import galaxy_directory
 from galaxy.util.custom_logging import get_logger
+from galaxy.workflow.completion_hooks import WorkflowCompletionHookRegistry
 
 log = get_logger(__name__)
 
@@ -101,9 +103,11 @@ def recalculate_user_disk_usage(
 
 
 @galaxy_task(ignore_result=True, action="purge a history dataset")
-def purge_hda(hda_manager: HDAManager, hda_id: int, task_user_id: Optional[int] = None):
+def purge_hda(
+    hda_manager: HDAManager, hda_id: int, task_user_id: Optional[int] = None, preserve_owner_update_time: bool = False
+):
     hda = hda_manager.by_id(hda_id)
-    hda_manager._purge(hda)
+    hda_manager._purge(hda, preserve_owner_update_time=preserve_owner_update_time)
 
 
 @galaxy_task(ignore_result=True, action="completely removes a set of datasets from the object_store")
@@ -563,3 +567,34 @@ def cleanup_jwds(sa_session: galaxy_scoped_session, object_store: BaseObjectStor
     for job in failed_jobs:
         delete_jwd(job)
         log.info("Deleted job working directory for job %s", job.id)
+
+
+@galaxy_task(action="execute workflow completion hook")
+def execute_workflow_completion_hook(
+    invocation_id: int,
+    hook_name: str,
+    workflow_completion_manager: WorkflowCompletionManager,
+    app: MinimalManagerApp,
+):
+    """Execute a workflow completion hook asynchronously."""
+    # Get the completion record
+    completion = workflow_completion_manager.get_completion(invocation_id)
+    if not completion:
+        log.warning(f"No completion record found for invocation {invocation_id}")
+        return
+
+    # Check if hook already executed (idempotency)
+    if workflow_completion_manager.is_hook_executed(invocation_id, hook_name):
+        log.debug(f"Hook '{hook_name}' already executed for invocation {invocation_id}")
+        return
+
+    # Get the hook registry and execute the hook
+    hook_registry = WorkflowCompletionHookRegistry(app)
+    success = hook_registry.execute_hook(hook_name, completion)
+
+    if success:
+        # Mark the hook as executed
+        workflow_completion_manager.mark_hook_executed(invocation_id, hook_name)
+        log.info(f"Successfully executed hook '{hook_name}' for invocation {invocation_id}")
+    else:
+        log.error(f"Failed to execute hook '{hook_name}' for invocation {invocation_id}")

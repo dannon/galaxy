@@ -263,10 +263,7 @@ class ConditionalDependencies:
     def check_fs_googledrivefs(self):
         return "googledrive" in self.file_sources
 
-    def check_fs_gcsfs(self):
-        return "googlecloudstorage" in self.file_sources
-
-    def check_google_cloud_storage(self):
+    def check_gcsfs(self):
         return "googlecloudstorage" in self.file_sources
 
     def check_onedatafilerestclient(self):
@@ -304,6 +301,10 @@ class ConditionalDependencies:
         return (
             self.config.get("ai_api_key", None) is not None or self.config.get("inference_services", None) is not None
         )
+
+    def check_dspy_ai(self):
+        # Install DSPy support when any AI backend is configured.
+        return self.check_pydantic_ai()
 
     def check_weasyprint(self):
         # See notes in ./conditional-requirements.txt for more information.

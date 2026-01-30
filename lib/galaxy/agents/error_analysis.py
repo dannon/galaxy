@@ -7,8 +7,6 @@ import re
 from pathlib import Path
 from typing import (
     Any,
-    Dict,
-    List,
     Literal,
     Optional,
 )
@@ -22,7 +20,10 @@ from .base import (
     AgentResponse,
     AgentType,
     BaseGalaxyAgent,
+    extract_result_content,
+    extract_structured_output,
     GalaxyAgentDependencies,
+    normalize_llm_text,
 )
 
 log = logging.getLogger(__name__)
@@ -38,8 +39,8 @@ class ErrorAnalysisResult(BaseModel):
     error_category: str  # e.g., "tool_configuration", "input_data", "parameters"
     error_severity: str  # "low", "medium", "high", "critical"
     likely_cause: str
-    solution_steps: List[str]
-    alternative_approaches: List[str] = []
+    solution_steps: list[str]
+    alternative_approaches: list[str] = []
     confidence: ConfidenceLiteral
     requires_admin: bool = False
 
@@ -78,7 +79,7 @@ class ErrorAnalysisAgent(BaseGalaxyAgent):
         prompt_path = Path(__file__).parent / "prompts" / "error_analysis.md"
         return prompt_path.read_text()
 
-    async def get_job_details(self, job_id: int) -> Dict[str, Any]:
+    async def get_job_details(self, job_id: int) -> dict[str, Any]:
         """
         Get comprehensive job information for error analysis.
 
@@ -115,7 +116,7 @@ class ErrorAnalysisAgent(BaseGalaxyAgent):
             log.warning(f"Error getting job details for {job_id}: {e}")
             return {"error": f"Failed to retrieve job details: {str(e)}"}
 
-    async def get_tool_info(self, tool_id: str) -> Dict[str, Any]:
+    async def get_tool_info(self, tool_id: str) -> dict[str, Any]:
         """Get tool metadata and documentation."""
         if not self.deps.toolbox:
             return {"error": "Toolbox not available"}
@@ -137,7 +138,7 @@ class ErrorAnalysisAgent(BaseGalaxyAgent):
             log.warning(f"Error getting tool info for {tool_id}: {e}")
             return {"error": f"Failed to retrieve tool info: {str(e)}"}
 
-    async def search_error_patterns(self, error_text: str) -> List[Dict[str, Any]]:
+    async def search_error_patterns(self, error_text: str) -> list[dict[str, Any]]:
         """
         Search for similar error patterns using keyword-based heuristics.
 
@@ -196,7 +197,7 @@ class ErrorAnalysisAgent(BaseGalaxyAgent):
             log.warning(f"Error searching patterns: {e}")
             return []
 
-    async def process(self, query: str, context: Optional[Dict[str, Any]] = None) -> AgentResponse:
+    async def process(self, query: str, context: Optional[dict[str, Any]] = None) -> AgentResponse:
         """
         Process an error analysis request.
 
@@ -220,13 +221,19 @@ class ErrorAnalysisAgent(BaseGalaxyAgent):
 
             # Handle different response formats based on model capabilities
             if self._supports_structured_output():
-                # Handle structured output
-                if hasattr(result, "data"):
-                    analysis_result = result.data
-                elif hasattr(result, "output"):
-                    analysis_result = result.output
-                else:
-                    analysis_result = result
+                # Try to extract structured output
+                analysis_result = extract_structured_output(result, ErrorAnalysisResult, log)
+
+                if analysis_result is None:
+                    # Model returned text instead of structured output
+                    content = extract_result_content(result)
+                    return AgentResponse(
+                        content=content,
+                        confidence="medium",
+                        agent_type=self.agent_type,
+                        suggestions=[],
+                        metadata={"method": "text_fallback"},
+                    )
 
                 content = self._format_analysis_response(analysis_result)
                 suggestions = self._create_suggestions(analysis_result)
@@ -245,7 +252,7 @@ class ErrorAnalysisAgent(BaseGalaxyAgent):
                 )
             else:
                 # Handle simple text output from DeepSeek
-                response_text = str(result.data) if hasattr(result, "data") else str(result)
+                response_text = extract_result_content(result)
                 parsed_result = self._parse_simple_response(response_text)
 
                 return AgentResponse(
@@ -266,7 +273,7 @@ class ErrorAnalysisAgent(BaseGalaxyAgent):
             log.warning(f"Error analysis value error: {e}")
             return self._get_fallback_response(query, str(e))
 
-    def _format_job_context(self, job_details: Dict[str, Any]) -> str:
+    def _format_job_context(self, job_details: dict[str, Any]) -> str:
         """Format job details for context."""
         parts = []
 
@@ -310,7 +317,7 @@ class ErrorAnalysisAgent(BaseGalaxyAgent):
 
         return "\n".join(parts)
 
-    def _create_suggestions(self, analysis: ErrorAnalysisResult) -> List[ActionSuggestion]:
+    def _create_suggestions(self, analysis: ErrorAnalysisResult) -> list[ActionSuggestion]:
         """Create action suggestions from analysis result."""
         suggestions = []
 
@@ -369,17 +376,20 @@ class ErrorAnalysisAgent(BaseGalaxyAgent):
         CONFIDENCE: high
         """
 
-    def _parse_simple_response(self, response_text: str) -> Dict[str, Any]:
+    def _parse_simple_response(self, response_text: str) -> dict[str, Any]:
         """Parse simple text response into structured format."""
+        # Normalize text for consistent parsing
+        normalized_text = normalize_llm_text(response_text)
+
         # Extract structured information from text
-        error_type = re.search(r"ERROR_TYPE:\s*([^\n]+)", response_text, re.IGNORECASE)
-        cause = re.search(r"CAUSE:\s*([^\n]+)", response_text, re.IGNORECASE)
+        error_type = re.search(r"ERROR_TYPE:\s*([^\n]+)", normalized_text, re.IGNORECASE)
+        cause = re.search(r"CAUSE:\s*([^\n]+)", normalized_text, re.IGNORECASE)
         solution = re.search(
             r"SOLUTION:\s*([^\n]+(?:\n\s*\d+\..*)?)",
-            response_text,
+            normalized_text,
             re.IGNORECASE | re.DOTALL,
         )
-        confidence = re.search(r"CONFIDENCE:\s*(\w+)", response_text, re.IGNORECASE)
+        confidence = re.search(r"CONFIDENCE:\s*(\w+)", normalized_text, re.IGNORECASE)
 
         # Build content
         content_parts = []
@@ -390,7 +400,7 @@ class ErrorAnalysisAgent(BaseGalaxyAgent):
             content_parts.append(f"**Solution:**\n{solution.group(1).strip()}")
 
         if not content_parts:
-            content_parts = [response_text]  # Fallback to full response
+            content_parts = [normalized_text]  # Fallback to full response
 
         return {
             "content": "\n\n".join(content_parts),

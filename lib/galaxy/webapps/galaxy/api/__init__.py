@@ -3,13 +3,16 @@ This module *does not* contain API routes. It exclusively contains dependencies 
 """
 
 import inspect
-from collections.abc import AsyncGenerator
+from collections.abc import (
+    AsyncGenerator,
+    Callable,
+)
 from enum import Enum
 from string import Template
 from typing import (
     Any,
-    Callable,
     cast,
+    Literal,
     NamedTuple,
     Optional,
     TypeVar,
@@ -50,13 +53,15 @@ from routes import (
     Mapper,
     request_config,
 )
-from starlette.datastructures import Headers
+from starlette.datastructures import (
+    Headers,
+    URL,
+)
 from starlette.routing import (
     Match,
     NoMatchFound,
 )
 from starlette.types import Scope
-from typing_extensions import Literal
 
 try:
     from starlette_context import context as request_context
@@ -252,6 +257,10 @@ class GalaxyASGIRequest(GalaxyAbstractRequest):
         if root_path := scope.get("root_path"):
             url = urljoin(url, root_path)
         return url
+
+    @property
+    def url(self) -> URL:
+        return self.__request.url
 
     @property
     def host(self) -> str:
@@ -655,8 +664,7 @@ async def try_get_request_body_as_json(request: Request) -> Optional[Any]:
     return None
 
 
-search_description_template = Template(
-    """A mix of free text and GitHub-style tags used to filter the index operation.
+search_description_template = Template("""A mix of free text and GitHub-style tags used to filter the index operation.
 
 ## Query Structure
 
@@ -681,8 +689,7 @@ ${tags}
 Free text search terms will be searched against the following attributes of the
 ${model_name}s: ${freetext}.
 
-"""
-)
+""")
 
 
 class IndexQueryTag(NamedTuple):

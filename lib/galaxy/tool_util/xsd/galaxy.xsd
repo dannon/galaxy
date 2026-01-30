@@ -1996,6 +1996,16 @@ This is available in Galaxy since release 17.05 and was introduced in [pull requ
         <xs:documentation xml:lang="en">Number or datasets for this output. Should be used for outputs with ``discover_datasets``</xs:documentation>
       </xs:annotation>
     </xs:attribute>
+    <xs:attribute name="min" type="xs:integer" gxdocs:added="26.0">
+      <xs:annotation>
+        <xs:documentation xml:lang="en">Minimum number or datasets for this output. Should be used for outputs with ``discover_datasets``</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="max" type="xs:integer" gxdocs:added="26.0">
+      <xs:annotation>
+        <xs:documentation xml:lang="en">Maximum number or datasets for this output. Should be used for outputs with ``discover_datasets``</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
     <xs:attribute name="location" type="xs:anyURI" gxdocs:added="23.1">
       <xs:annotation>
         <xs:documentation xml:lang="en">URL that points to a remote output file that will downloaded and used for output comparison.
@@ -2346,6 +2356,16 @@ This value is the same as the value of the ``name`` attribute of the
     <xs:attribute name="count" type="xs:integer">
       <xs:annotation>
         <xs:documentation xml:lang="en">Number of elements in output collection.</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="min" type="xs:integer" gxdocs:added="26.0">
+      <xs:annotation>
+        <xs:documentation xml:lang="en">Minimum number of elements in output collection.</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="max" type="xs:integer" gxdocs:added="26.0">
+      <xs:annotation>
+        <xs:documentation xml:lang="en">Maximum number of elements in output collection.</xs:documentation>
       </xs:annotation>
     </xs:attribute>
   </xs:complexType>
@@ -5663,7 +5683,7 @@ For use with validator ``dataset_metadata_in_file``</xs:documentation>
       <xs:documentation xml:lang="en"><![CDATA[
 
 See
-[/tools/filters/grep.xml](https://github.com/galaxyproject/galaxy/blob/dev/tools/filters/grep.xml)
+[/tools/stats/filtering.xml](https://github.com/galaxyproject/galaxy/blob/dev/tools/stats/filtering.xml)
 for a typical example of how to use this tag set. This tag set is used to
 replace the basic parameter sanitization with custom directives. This tag set is
 contained within the ``<param>`` tag set - it contains a set of ``<valid>`` and

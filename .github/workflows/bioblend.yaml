@@ -31,8 +31,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        tox_env: [py313]
-        galaxy_python_version: ['3.9']
+        tox_env: [py314]
+        galaxy_python_version: ['3.10']
     steps:
       - name: Checkout Galaxy
         uses: actions/checkout@v6

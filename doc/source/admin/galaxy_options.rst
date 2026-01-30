@@ -2465,7 +2465,7 @@
 :Description:
     The BibTeX citation for Galaxy, to be displayed in the History
     Tool Reference List
-:Default: ``@article{Galaxy2024, title={The Galaxy platform for accessible, reproducible, and collaborative data analyses: 2024 update}, author={{The Galaxy Community}}, journal={Nucleic Acids Research}, year={2024}, doi={10.1093/nar/gkae410}, url={https://doi.org/10.1093/nar/gkae410}}``
+:Default: ``@article{Galaxy2024, title="The Galaxy platform for accessible, reproducible, and collaborative data analyses: 2024 update", author="{The Galaxy Community}", journal="Nucleic Acids Research", year="2024", doi="10.1093/nar/gkae410", url="https://doi.org/10.1093/nar/gkae410"}``
 :Type: str
 
 
@@ -3816,9 +3816,9 @@
 :Type: bool
 
 
-~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
 ``prefer_oidc_login``
-~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
 
 :Description:
     Controls the order of the login page to prefer OIDC-based login
@@ -3834,7 +3834,7 @@
 :Description:
     Allow unregistered users to create new local (non-OIDC) accounts
     (otherwise, they will have to be created by an admin). This option
-    will be overridden to false in case disable_local_accounts  is set
+    will be overridden to false in case disable_local_accounts is set
     to true.
 :Default: ``true``
 :Type: bool
@@ -3846,7 +3846,7 @@
 
 :Description:
     Disable local accounts. If this option is set to true, at least
-    one OIDC provider needs  to be configured and will serve as the
+    one OIDC provider needs to be configured and will serve as the
     account provider. If this option is set to true,
     allow_local_account creation will be overridden with false.
 :Default: ``false``
@@ -5635,6 +5635,26 @@
     The value of this option will be resolved with respect to
     <config_dir>.
 :Default: ``vault_conf.yml``
+:Type: str
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``url_headers_config_file``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:Description:
+    Configuration file for URL request headers allow-list with URL
+    pattern matching. This file defines which HTTP headers are allowed
+    in URL fetch requests based on URL patterns, and whether they
+    should be treated as sensitive (encrypted in the vault) or not. If
+    no allow-list is specified, no headers will be allowed in URL
+    requests. This provides fine-grained security control over what
+    headers can be sent when Galaxy fetches external URLs on behalf of
+    users, allowing different headers for different target domains or
+    services.
+    The value of this option will be resolved with respect to
+    <config_dir>.
+:Default: ``url_headers_conf.yml``
 :Type: str
 
 

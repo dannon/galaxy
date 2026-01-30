@@ -512,7 +512,7 @@ class GalaxyInternalMarkdownDirectiveHandler(metaclass=abc.ABCMeta):
 
 class ReadyForExportMarkdownDirectiveHandler(GalaxyInternalMarkdownDirectiveHandler):
     def __init__(self, trans, extra_rendering_data=None):
-        extra_rendering_data = extra_rendering_data or {}
+        extra_rendering_data = extra_rendering_data if extra_rendering_data is not None else {}
         self.trans = trans
         self.extra_rendering_data = extra_rendering_data
 
@@ -1283,7 +1283,7 @@ def _remap_galaxy_markdown_containers(func, markdown):
         match = re.search(GALAXY_FENCED_BLOCK, from_markdown)
         if match is not None:
             replace = match.group(1)
-            (replacement, whole_block) = func(replace)
+            replacement, whole_block = func(replace)
             if whole_block:
                 start_pos = match.start()
                 end_pos = match.end()

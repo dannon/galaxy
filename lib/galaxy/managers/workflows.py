@@ -9,6 +9,7 @@ from typing import (
     NamedTuple,
     Optional,
     TYPE_CHECKING,
+    TypeAlias,
     Union,
 )
 
@@ -41,15 +42,13 @@ from sqlalchemy.orm import (
     joinedload,
     subqueryload,
 )
-from typing_extensions import (
-    TypeAlias,
-)
 
 from galaxy import (
     exceptions,
     model,
     util,
 )
+from galaxy.files.uris import stream_url_to_str
 from galaxy.job_execution.actions.post import ActionBox
 from galaxy.managers import (
     deletable,
@@ -203,7 +202,7 @@ class WorkflowsManager(sharable.SharableModelManager[model.StoredWorkflow], dele
 
         latest_workflow_load = joinedload(StoredWorkflow.latest_workflow)
         if not payload.skip_step_counts:
-            latest_workflow_load = latest_workflow_load.undefer(Workflow.step_count)  # type:ignore[arg-type]
+            latest_workflow_load = latest_workflow_load.undefer(Workflow.step_count)  # type: ignore[arg-type]
         latest_workflow_load = latest_workflow_load.lazyload(Workflow.steps)
 
         stmt = stmt.options(joinedload(StoredWorkflow.annotations))
@@ -649,7 +648,6 @@ class WorkflowContentsManager(UsesAnnotations):
                 )
             except yaml.scanner.ScannerError as e:
                 raise exceptions.MalformedContents(str(e))
-
         return RawWorkflowDescription(as_dict, workflow_path)
 
     def build_workflow_from_raw_description(
@@ -1986,7 +1984,7 @@ class WorkflowContentsManager(UsesAnnotations):
         for step in steps:
             # Input connections
             if step.temp_input_connections:  # populated by __module_from_dict
-                for input_name, conn_list in step.temp_input_connections.items():  # type:ignore[unreachable]
+                for input_name, conn_list in step.temp_input_connections.items():  # type: ignore[unreachable]
                     if not conn_list:
                         continue
                     if not isinstance(conn_list, list):  # Older style singleton connection
@@ -2124,6 +2122,32 @@ class WorkflowContentsManager(UsesAnnotations):
                 trs_url=trs_url,
                 trs_server=trs_server,
                 archive_source="trs_url",
+            ),
+        )
+        return created_workflow.stored_workflow
+
+    def get_or_create_workflow_from_url(self, trans: ProvidesUserContext, url: str) -> StoredWorkflow:
+        """Fetch and import a workflow from an arbitrary URL.
+
+        Supports various URL schemes including http://, https://, and base64://.
+        """
+        user_id = trans.user and trans.user.id
+        assert user_id, "Cannot create workflow for anonymous user"
+
+        # Fetch the workflow content from the URL
+        file_sources = trans.app.file_sources
+        workflow_content = stream_url_to_str(url, file_sources=file_sources)
+
+        # Parse the workflow content
+        as_dict = yaml.safe_load(workflow_content)
+        raw_workflow_description = self.normalize_workflow_format(trans, as_dict)
+
+        # Create the workflow
+        created_workflow = self.build_workflow_from_raw_description(
+            trans,
+            raw_workflow_description,
+            WorkflowCreateOptions(
+                archive_source="url",
             ),
         )
         return created_workflow.stored_workflow

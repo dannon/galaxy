@@ -5,8 +5,6 @@ Pydantic schemas for AI agent responses and requests.
 from enum import Enum
 from typing import (
     Any,
-    Dict,
-    List,
     Optional,
 )
 
@@ -33,6 +31,7 @@ class ActionType(str, Enum):
     VIEW_EXTERNAL = "view_external"
     SAVE_TOOL = "save_tool"
     REFINE_QUERY = "refine_query"
+    PYODIDE_EXECUTE = "pyodide_execute"
 
 
 class ActionSuggestion(BaseModel):
@@ -40,7 +39,7 @@ class ActionSuggestion(BaseModel):
 
     action_type: ActionType = Field(description="Type of action to take")
     description: str = Field(description="Human-readable description of the action")
-    parameters: Dict[str, Any] = Field(default_factory=dict, description="Parameters for the action")
+    parameters: dict[str, Any] = Field(default_factory=dict, description="Parameters for the action")
     confidence: ConfidenceLevel = Field(description="Confidence in this suggestion")
     priority: int = Field(default=1, description="Priority level (1=high, 2=medium, 3=low)")
 
@@ -51,9 +50,40 @@ class AgentResponse(BaseModel):
     content: str = Field(description="Main response content")
     confidence: ConfidenceLevel = Field(description="Confidence in the response")
     agent_type: str = Field(description="Type of agent that generated this response")
-    suggestions: List[ActionSuggestion] = Field(default_factory=list, description="Actionable suggestions")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
+    suggestions: list[ActionSuggestion] = Field(default_factory=list, description="Actionable suggestions")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
     reasoning: Optional[str] = Field(default=None, description="Explanation of the agent's reasoning")
+
+
+class Artifact(BaseModel):
+    """Artifact generated during execution of agent-produced code."""
+
+    name: str = Field(description="Human readable artifact name")
+    mime_type: str = Field(description="Artifact MIME type")
+    size: int = Field(description="Artifact size in bytes")
+    content_base64: Optional[str] = Field(default=None, description="Base64 content when small enough to inline")
+    temp_path: Optional[str] = Field(default=None, description="Temporary server-side path for larger artifacts")
+
+
+class ExecutionTask(BaseModel):
+    """Code execution request emitted by an agent."""
+
+    code: str = Field(description="Python code to execute")
+    requirements: List[str] = Field(default_factory=list, description="List of packages required")
+    inputs: Dict[str, Any] = Field(default_factory=dict, description="Additional inputs for the execution environment")
+    timeout_seconds: int = Field(default=120, description="Max execution time in seconds")
+    task_id: Optional[str] = Field(default=None, description="Optional task identifier provided by agent")
+
+
+class ExecutionResult(BaseModel):
+    """Result returned after executing a task."""
+
+    task_id: Optional[str] = Field(default=None, description="Identifier correlating to ExecutionTask")
+    stdout: str = Field(default="", description="Captured standard output")
+    stderr: str = Field(default="", description="Captured standard error")
+    artifacts: List[Artifact] = Field(default_factory=list, description="Artifacts generated during execution")
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional execution metadata")
+    success: bool = Field(default=True, description="Whether execution completed successfully")
 
 
 class AgentQueryRequest(BaseModel):
@@ -61,7 +91,7 @@ class AgentQueryRequest(BaseModel):
 
     query: str = Field(description="The user's question or request")
     agent_type: str = Field(default="auto", description="Preferred agent type ('auto' for routing)")
-    context: Dict[str, Any] = Field(default_factory=dict, description="Additional context for the query")
+    context: dict[str, Any] = Field(default_factory=dict, description="Additional context for the query")
     stream: bool = Field(default=False, description="Whether to stream the response")
 
 
@@ -69,7 +99,7 @@ class AgentQueryResponse(BaseModel):
     """Response from an AI agent query."""
 
     response: AgentResponse = Field(description="The agent's response")
-    routing_info: Optional[Dict[str, Any]] = Field(
+    routing_info: Optional[dict[str, Any]] = Field(
         default=None, description="Information about how the query was routed"
     )
     processing_time: Optional[float] = Field(default=None, description="Time taken to process the query in seconds")
@@ -83,13 +113,13 @@ class AvailableAgent(BaseModel):
     description: str = Field(description="Description of the agent's capabilities")
     enabled: bool = Field(description="Whether the agent is currently enabled")
     model: Optional[str] = Field(default=None, description="LLM model used by the agent")
-    specialties: List[str] = Field(default_factory=list, description="Areas of specialization")
+    specialties: list[str] = Field(default_factory=list, description="Areas of specialization")
 
 
 class AgentListResponse(BaseModel):
     """Response listing available agents."""
 
-    agents: List[AvailableAgent] = Field(description="List of available agents")
+    agents: list[AvailableAgent] = Field(description="List of available agents")
     total_count: int = Field(description="Total number of agents")
 
 
@@ -97,7 +127,7 @@ class RoutingDecision(BaseModel):
     """Decision made by the router agent."""
 
     primary_agent: str = Field(description="Primary agent to handle the query")
-    secondary_agents: List[str] = Field(default_factory=list, description="Additional agents that might help")
+    secondary_agents: list[str] = Field(default_factory=list, description="Additional agents that might help")
     complexity: str = Field(description="Query complexity assessment")
     confidence: ConfidenceLevel = Field(description="Confidence in the routing decision")
     reasoning: str = Field(description="Explanation for the routing choice")
@@ -126,10 +156,10 @@ class ErrorAnalysisResponse(BaseModel):
 
     error_category: ErrorCategory = Field(description="Classification of the error")
     likely_cause: str = Field(description="Most probable cause of the error")
-    solution_steps: List[str] = Field(description="Step-by-step solution")
-    alternative_approaches: List[str] = Field(default_factory=list, description="Alternative solutions")
+    solution_steps: list[str] = Field(description="Step-by-step solution")
+    alternative_approaches: list[str] = Field(default_factory=list, description="Alternative solutions")
     confidence: ConfidenceLevel = Field(description="Confidence in the analysis")
-    related_documentation: List[str] = Field(default_factory=list, description="Relevant documentation links")
+    related_documentation: list[str] = Field(default_factory=list, description="Relevant documentation links")
     requires_admin: bool = Field(default=False, description="Whether admin intervention is needed")
 
 
@@ -138,7 +168,7 @@ class DatasetAnalysisRequest(BaseModel):
 
     dataset_id: str = Field(description="Galaxy dataset identifier")
     analysis_type: str = Field(default="comprehensive", description="Type of analysis to perform")
-    focus_areas: List[str] = Field(default_factory=list, description="Specific areas to focus on")
+    focus_areas: list[str] = Field(default_factory=list, description="Specific areas to focus on")
 
 
 class QualityIssue(BaseModel):
@@ -155,9 +185,9 @@ class DatasetAnalysisResponse(BaseModel):
     """Response from dataset quality analysis."""
 
     quality_score: float = Field(description="Overall quality score (0.0 to 1.0)")
-    issues_found: List[QualityIssue] = Field(description="List of quality issues detected")
-    recommendations: List[str] = Field(description="General recommendations for improvement")
-    preprocessing_steps: List[str] = Field(description="Suggested preprocessing steps")
+    issues_found: list[QualityIssue] = Field(description="List of quality issues detected")
+    recommendations: list[str] = Field(description="General recommendations for improvement")
+    preprocessing_steps: list[str] = Field(description="Suggested preprocessing steps")
     confidence: ConfidenceLevel = Field(description="Confidence in the analysis")
 
 
@@ -165,8 +195,8 @@ class WorkflowOptimizationRequest(BaseModel):
     """Request for workflow optimization."""
 
     workflow_id: Optional[str] = Field(default=None, description="Galaxy workflow identifier")
-    workflow_structure: Optional[Dict[str, Any]] = Field(default=None, description="Workflow structure data")
-    performance_goals: List[str] = Field(default_factory=list, description="Optimization goals")
+    workflow_structure: Optional[dict[str, Any]] = Field(default=None, description="Workflow structure data")
+    performance_goals: list[str] = Field(default_factory=list, description="Optimization goals")
 
 
 class OptimizationSuggestion(BaseModel):
@@ -182,9 +212,9 @@ class OptimizationSuggestion(BaseModel):
 class WorkflowOptimizationResponse(BaseModel):
     """Response from workflow optimization analysis."""
 
-    optimization_suggestions: List[OptimizationSuggestion] = Field(description="List of optimization suggestions")
-    performance_improvements: List[str] = Field(description="Expected performance improvements")
-    bottlenecks_identified: List[str] = Field(description="Identified bottlenecks")
+    optimization_suggestions: list[OptimizationSuggestion] = Field(description="List of optimization suggestions")
+    performance_improvements: list[str] = Field(description="Expected performance improvements")
+    bottlenecks_identified: list[str] = Field(description="Identified bottlenecks")
     estimated_time_savings: Optional[str] = Field(default=None, description="Estimated time savings")
     confidence: ConfidenceLevel = Field(description="Confidence in the analysis")
 
@@ -196,7 +226,7 @@ class AgentMetrics(BaseModel):
     total_queries: int = Field(description="Total number of queries processed")
     success_rate: float = Field(description="Success rate (0.0 to 1.0)")
     average_response_time: float = Field(description="Average response time in seconds")
-    confidence_distribution: Dict[str, int] = Field(description="Distribution of confidence levels")
+    confidence_distribution: dict[str, int] = Field(description="Distribution of confidence levels")
     last_update: str = Field(description="Last update timestamp")
 
 
@@ -208,7 +238,7 @@ class AgentStatus(BaseModel):
     health_status: str = Field(description="Health status (healthy, degraded, unavailable)")
     last_response_time: Optional[float] = Field(default=None, description="Last response time in seconds")
     error_rate: float = Field(description="Recent error rate")
-    model_info: Dict[str, Any] = Field(default_factory=dict, description="Information about the underlying model")
+    model_info: dict[str, Any] = Field(default_factory=dict, description="Information about the underlying model")
 
 
 class SystemStatus(BaseModel):
@@ -216,6 +246,6 @@ class SystemStatus(BaseModel):
 
     total_agents: int = Field(description="Total number of registered agents")
     healthy_agents: int = Field(description="Number of healthy agents")
-    agent_statuses: List[AgentStatus] = Field(description="Status of each agent")
+    agent_statuses: list[AgentStatus] = Field(description="Status of each agent")
     system_health: str = Field(description="Overall system health")
     last_check: str = Field(description="Last health check timestamp")

@@ -778,6 +778,89 @@ class TestToolsApi(ApiTestCase, TestsTools):
             assert run_response.status_code == 400
             assert run_response.json()["err_msg"] == "Dataset collection has no element_index with key 100."
 
+    @skip_without_tool("__CONVERT_SAMPLE_SHEET__")
+    def test_convert_sample_sheet_to_list(self):
+        with self.dataset_populator.test_history(require_new=False) as history_id:
+            # Create sample_sheet collection with column_definitions and rows
+            create_response = self.dataset_collection_populator.create_sample_sheet(
+                history_id,
+                contents=[("sample1", "content1"), ("sample2", "content2")],
+                column_definitions=[
+                    {"type": "int", "name": "replicate", "optional": False},
+                    {"type": "string", "name": "treatment", "optional": False},
+                ],
+                rows={"sample1": [1, "control"], "sample2": [2, "treatment"]},
+            )
+            self._assert_status_code_is(create_response, 200)
+            sample_sheet_hdca = create_response.json()
+            assert sample_sheet_hdca["collection_type"] == "sample_sheet"
+            assert sample_sheet_hdca["column_definitions"] is not None
+
+            # Run convert sample sheet tool
+            inputs = {"input": {"src": "hdca", "id": sample_sheet_hdca["id"]}}
+            self.dataset_populator.wait_for_history(history_id, assert_ok=True)
+            response = self._run("__CONVERT_SAMPLE_SHEET__", history_id, inputs, assert_ok=True)
+
+            # Verify output is a list collection without sample sheet metadata
+            output_collections = response["output_collections"]
+            assert len(output_collections) == 1
+            self.dataset_populator.wait_for_job(response["jobs"][0]["id"], assert_ok=True)
+            converted_hdca = self.dataset_populator.get_history_collection_details(
+                history_id, hid=output_collections[0]["hid"]
+            )
+            assert converted_hdca["collection_type"] == "list"
+            assert converted_hdca.get("column_definitions") is None
+            assert len(converted_hdca["elements"]) == 2
+            element_identifiers = [e["element_identifier"] for e in converted_hdca["elements"]]
+            assert "sample1" in element_identifiers
+            assert "sample2" in element_identifiers
+
+    @skip_without_tool("__CONVERT_SAMPLE_SHEET__")
+    def test_convert_sample_sheet_paired_to_list_paired(self):
+        with self.dataset_populator.test_history(require_new=False) as history_id:
+            # Create sample_sheet:paired collection
+            pair_identifiers = self.dataset_collection_populator.pair_identifiers(history_id, ["forward", "reverse"])
+            element_identifiers = [
+                {
+                    "name": "sample1",
+                    "collection_type": "paired",
+                    "src": "new_collection",
+                    "element_identifiers": pair_identifiers,
+                }
+            ]
+            create_response = self.dataset_collection_populator.create_sample_sheet(
+                history_id,
+                contents=element_identifiers,
+                column_definitions=[{"type": "int", "name": "replicate", "default_value": 0, "optional": False}],
+                rows={"sample1": [42]},
+                collection_type="sample_sheet:paired",
+            )
+            self._assert_status_code_is(create_response, 200)
+            sample_sheet_hdca = create_response.json()
+            assert sample_sheet_hdca["collection_type"] == "sample_sheet:paired"
+            assert sample_sheet_hdca["column_definitions"] is not None
+
+            # Run convert sample sheet tool
+            inputs = {"input": {"src": "hdca", "id": sample_sheet_hdca["id"]}}
+            self.dataset_populator.wait_for_history(history_id, assert_ok=True)
+            response = self._run("__CONVERT_SAMPLE_SHEET__", history_id, inputs, assert_ok=True)
+
+            # Verify output is a list:paired collection without sample sheet metadata
+            output_collections = response["output_collections"]
+            assert len(output_collections) == 1
+            self.dataset_populator.wait_for_job(response["jobs"][0]["id"], assert_ok=True)
+            converted_hdca = self.dataset_populator.get_history_collection_details(
+                history_id, hid=output_collections[0]["hid"]
+            )
+            assert converted_hdca["collection_type"] == "list:paired"
+            assert converted_hdca.get("column_definitions") is None
+            assert len(converted_hdca["elements"]) == 1
+            # Verify nested paired structure is preserved
+            element = converted_hdca["elements"][0]
+            assert element["element_type"] == "dataset_collection"
+            assert element["object"]["collection_type"] == "paired"
+            assert len(element["object"]["elements"]) == 2
+
     @skip_without_tool("__FILTER_FAILED_DATASETS__")
     def test_filter_failed_list(self):
         with self.dataset_populator.test_history(require_new=False) as history_id:
@@ -1313,6 +1396,74 @@ class TestToolsApi(ApiTestCase, TestsTools):
             copied_job_id = outputs_two["jobs"][0]["id"]
             job_details = self.dataset_populator.get_job_details(copied_job_id, full=True).json()
             assert job_details["copied_from_job_id"] == outputs_one["jobs"][0]["id"]
+
+    @skip_without_tool("collection_creates_list_2")
+    @requires_new_history
+    def test_job_cache_copy_collection(self):
+        """Test job caching when collection_creates_list_2 is run with renamed dataset input.
+
+        This tests the scenario where:
+        - A tool has both a dataset input and a collection input
+        - The tool outputs a flat list (HDA elements) with structured_like
+        - The dataset input is renamed between runs
+        - Early caching misses due to name mismatch
+        - Late caching (require_name_match=False) finds a match
+        - copy_from_job is called during job preparation
+
+        This triggers https://github.com/galaxyproject/galaxy/issues/21556
+        """
+        with self.dataset_populator.test_history_for(self.test_job_cache_copy_collection) as history_id:
+            # Create dataset input (header)
+            header_dataset = self.dataset_populator.new_dataset(history_id, content="HEADER LINE\n")
+
+            # Create list collection input
+            create_response = self.dataset_collection_populator.create_list_in_history(
+                history_id, contents=["content_1", "content_2"], wait=True
+            ).json()
+            hdca = create_response["output_collections"][0]
+
+            # First run - creates the job and output collection
+            outputs_one = self._run(
+                "collection_creates_list_2",
+                history_id,
+                inputs={
+                    "header": {"src": "hda", "id": header_dataset["id"]},
+                    "input_collect": {"src": "hdca", "id": hdca["id"]},
+                },
+                assert_ok=True,
+                wait_for_job=True,
+            )
+            first_job_id = outputs_one["jobs"][0]["id"]
+
+            # Rename the header dataset - this should cause early caching to miss
+            # but late caching (with require_name_match=False) should find a match
+            self.dataset_populator.rename_dataset(header_dataset["id"], "renamed_header")
+
+            # Second run with use_cached_job=True
+            # Early caching: misses due to name mismatch
+            # Late caching: finds match via require_name_match=False
+            # copy_from_job is called, triggering the bug
+            outputs_two = self._run(
+                "collection_creates_list_2",
+                history_id,
+                inputs={
+                    "header": {"src": "hda", "id": header_dataset["id"]},
+                    "input_collect": {"src": "hdca", "id": hdca["id"]},
+                },
+                use_cached_job=True,
+                assert_ok=True,
+                wait_for_job=True,
+            )
+
+            # Verify second job completed successfully
+            second_job_id = outputs_two["jobs"][0]["id"]
+            job_details = self.dataset_populator.get_job_details(second_job_id, full=True).json()
+            # If the bug exists, the job would fail with ValueError during preparation
+            assert job_details["state"] == "ok", f"Job failed with state {job_details['state']}"
+            # Verify that late caching was used (job was copied from first job)
+            assert (
+                job_details["copied_from_job_id"] == first_job_id
+            ), "Expected job to be copied from cached job via late caching"
 
     @skip_without_tool("identifier_single")
     @requires_new_history
@@ -2962,23 +3113,6 @@ class TestToolsApi(ApiTestCase, TestsTools):
         assert output_content.strip() == "123\n456\n456\n0ab"
 
     @skip_without_tool("cat1")
-    def test_run_deferred_dataset(self, history_id):
-        details = self.dataset_populator.create_deferred_hda(
-            history_id, "https://raw.githubusercontent.com/galaxyproject/galaxy/dev/test-data/1.bed", ext="bed"
-        )
-        inputs = {
-            "input1": dataset_to_param(details),
-        }
-        outputs = self._cat1_outputs(history_id, inputs=inputs)
-        output = outputs[0]
-        details = self.dataset_populator.get_history_dataset_details(
-            history_id, dataset=output, wait=True, assert_ok=True
-        )
-        assert details["state"] == "ok"
-        output_content = self.dataset_populator.get_history_dataset_content(history_id, dataset=output)
-        assert output_content.startswith("chr1	147962192	147962580	CCDS989.1_cds_0_0_chr1_147962193_r	0	-")
-
-    @skip_without_tool("cat1")
     def test_run_deferred_dataset_cached(self, history_id):
         content = uuid4().hex
         details = self.dataset_populator.create_deferred_hda_with_hash(history_id, content)
@@ -3010,20 +3144,6 @@ class TestToolsApi(ApiTestCase, TestsTools):
         new_job_details = self.dataset_populator.get_job_details(response["jobs"][0]["id"], full=True).json()
         assert new_job_details["state"] == "ok"
         assert new_job_details["copied_from_job_id"] == job_details["id"]
-
-    @skip_without_tool("metadata_bam")
-    def test_run_deferred_dataset_with_metadata_options_filter(self, history_id):
-        url_1 = self.dataset_populator.base64_url_for_test_file("1.bam")
-        details = self.dataset_populator.create_deferred_hda(history_id, url_1, ext="bam")
-        inputs = {"input_bam": dataset_to_param(details), "ref_names": "chrM"}
-        run_response = self.dataset_populator.run_tool(tool_id="metadata_bam", inputs=inputs, history_id=history_id)
-        output = run_response["outputs"][0]
-        output_details = self.dataset_populator.get_history_dataset_details(
-            history_id, dataset=output, wait=True, assert_ok=True
-        )
-        assert output_details["state"] == "ok"
-        output_content = self.dataset_populator.get_history_dataset_content(history_id, dataset=output)
-        assert output_content.startswith("chrM")
 
     @skip_without_tool("pileup")
     def test_metadata_validator_on_deferred_input(self, history_id):

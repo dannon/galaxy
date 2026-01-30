@@ -8,8 +8,6 @@ import re
 from pathlib import Path
 from typing import (
     Any,
-    Dict,
-    List,
     Optional,
 )
 
@@ -21,6 +19,7 @@ from .base import (
     AgentResponse,
     AgentType,
     BaseGalaxyAgent,
+    extract_result_content,
     GalaxyAgentDependencies,
 )
 
@@ -41,7 +40,7 @@ def _create_error_response(agent_name: str, error_msg: str, is_timeout: bool = F
 class AgentPlan(BaseModel):
     """Simple plan for which agents to call."""
 
-    agents: List[str]  # List of agent names to call
+    agents: list[str]  # List of agent names to call
     sequential: bool = False  # True if agents should run in sequence
     reasoning: str
 
@@ -83,7 +82,7 @@ class WorkflowOrchestratorAgent(BaseGalaxyAgent):
         prompt_path = Path(__file__).parent / "prompts" / "orchestrator.md"
         return prompt_path.read_text()
 
-    async def process(self, query: str, context: Optional[Dict[str, Any]] = None) -> AgentResponse:
+    async def process(self, query: str, context: Optional[dict[str, Any]] = None) -> AgentResponse:
         """
         Process an orchestration request and coordinate multiple agents.
 
@@ -135,15 +134,15 @@ class WorkflowOrchestratorAgent(BaseGalaxyAgent):
             result = await self._run_with_retry(query)
 
             if self._supports_structured_output():
-                if hasattr(result, "data"):
-                    return result.data
-                elif hasattr(result, "output"):
+                if hasattr(result, "output"):
                     return result.output
+                elif hasattr(result, "data"):
+                    return result.data
                 else:
                     return result
             else:
                 # Parse simple text response for models without structured output
-                response_text = str(result.data) if hasattr(result, "data") else str(result)
+                response_text = extract_result_content(result)
                 return self._parse_simple_plan(response_text)
 
         except OSError as e:
@@ -189,8 +188,8 @@ class WorkflowOrchestratorAgent(BaseGalaxyAgent):
         return self._get_agent_config("agent_timeout", 60.0)
 
     async def _execute_sequential(
-        self, agents: List[str], query: str, context: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, AgentResponse]:
+        self, agents: list[str], query: str, context: Optional[dict[str, Any]] = None
+    ) -> dict[str, AgentResponse]:
         """Execute agents sequentially with timeout protection."""
         from galaxy.agents import agent_registry
 
@@ -223,8 +222,8 @@ class WorkflowOrchestratorAgent(BaseGalaxyAgent):
         return responses
 
     async def _execute_parallel(
-        self, agents: List[str], query: str, context: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, AgentResponse]:
+        self, agents: list[str], query: str, context: Optional[dict[str, Any]] = None
+    ) -> dict[str, AgentResponse]:
         """Execute agents in parallel with timeout protection."""
         from galaxy.agents import agent_registry
 
@@ -253,7 +252,7 @@ class WorkflowOrchestratorAgent(BaseGalaxyAgent):
 
         return dict(results)
 
-    def _combine_responses(self, responses: Dict[str, AgentResponse], reasoning: str) -> str:
+    def _combine_responses(self, responses: dict[str, AgentResponse], reasoning: str) -> str:
         """Combine multiple agent responses into a single coherent response."""
         if not responses:
             return "No agent responses received."
@@ -277,7 +276,7 @@ class WorkflowOrchestratorAgent(BaseGalaxyAgent):
         return """
         You coordinate multiple Galaxy agents. Determine which agents to call and in what order.
 
-        Available agents: error_analysis, custom_tool
+        Available agents: error_analysis, custom_tool, data_analysis
 
         Respond in this format:
         AGENTS: [agent1, agent2]
@@ -285,7 +284,7 @@ class WorkflowOrchestratorAgent(BaseGalaxyAgent):
         REASONING: explanation
 
         Example:
-        AGENTS: [error_analysis, custom_tool]
+        AGENTS: [error_analysis, custom_tool, data_analysis]
         SEQUENTIAL: true
         REASONING: Analyze error first, then suggest creating a tool
         """

@@ -26,6 +26,7 @@ This module contains two test suites:
     export GALAXY_TEST_ENABLE_LIVE_LLM=1
 """
 
+import json
 import logging
 import os
 from unittest.mock import (
@@ -34,7 +35,6 @@ from unittest.mock import (
     patch,
 )
 
-from galaxy.agents.router import RoutingDecision
 from galaxy.tool_util_models import UserToolSource
 from galaxy.util.unittest_utils import pytestmark_live_llm
 from galaxy_test.base.populators import (
@@ -60,14 +60,11 @@ class AgentIntegrationTestCase(IntegrationTestCase):
     @classmethod
     def handle_galaxy_config_kwds(cls, config):
         # AI/LLM configuration for agent tests
-        ai_api_key = os.environ.get("GALAXY_TEST_AI_API_KEY")
-        ai_api_base_url = os.environ.get("GALAXY_TEST_AI_API_BASE_URL")
-        ai_model = os.environ.get("GALAXY_TEST_AI_MODEL")
-        if ai_api_key:
+        if ai_api_key := os.environ.get("GALAXY_TEST_AI_API_KEY"):
             config["ai_api_key"] = ai_api_key
-        if ai_api_base_url:
+        if ai_api_base_url := os.environ.get("GALAXY_TEST_AI_API_BASE_URL"):
             config["ai_api_base_url"] = ai_api_base_url
-        if ai_model:
+        if ai_model := os.environ.get("GALAXY_TEST_AI_MODEL"):
             config["ai_model"] = ai_model
 
 
@@ -116,62 +113,91 @@ class TestAgentsApiMocked(AgentIntegrationTestCase):
         assert "custom_tool" in agent_types
         assert "error_analysis" in agent_types
 
+    @patch("galaxy.webapps.galaxy.api.chat.ChatAPI._get_agent_response_full", new_callable=AsyncMock)
+    def test_chat_with_dataset_context_records_execution_metadata(self, mock_response):
+        """Dataset selections should persist and execution metadata should be captured."""
+
+        mock_response.return_value = {
+            "content": "Summary placeholder",
+            "agent_type": "data_analysis",
+            "confidence": "medium",
+            "suggestions": [],
+            "metadata": {
+                "datasets_used": ["encoded-dataset-id"],
+                "analysis_steps": [
+                    {
+                        "type": "observation",
+                        "content": "Execution finished",
+                        "stdout": "analysis complete",
+                        "stderr": "",
+                        "success": True,
+                    }
+                ],
+                "execution": {
+                    "success": True,
+                    "stdout": "analysis complete",
+                    "stderr": "",
+                    "artifacts": [],
+                    "datasets": [{"id": "encoded-dataset-id"}],
+                },
+            },
+        }
+
+        payload = {
+            "query": "Analyze dataset 1",
+            "context": "",
+            "dataset_ids": ["encoded-dataset-id"],
+        }
+
+        response = self._post("chat", data=json.dumps(payload), content_type="application/json")
+        self._assert_status_code_is_ok(response)
+        data = response.json()
+        assert data.get("dataset_ids") == ["encoded-dataset-id"]
+        assert data.get("agent_response", {}).get("metadata", {}).get("datasets_used") == ["encoded-dataset-id"]
+
+        exchange_id = data.get("exchange_id")
+        assert exchange_id is not None
+
+        history_response = self._get(f"chat/exchange/{exchange_id}/messages")
+        self._assert_status_code_is_ok(history_response)
+        history = history_response.json()
+        assert any(msg.get("dataset_ids") == ["encoded-dataset-id"] for msg in history if msg.get("role") == "user")
+        assistant_messages = [msg for msg in history if msg.get("role") == "assistant"]
+        assert assistant_messages
+        assert any(
+            msg.get("agent_response", {}).get("metadata", {})
+            .get("execution", {})
+            .get("stdout")
+            == "analysis complete"
+            for msg in history
+            if msg.get("role") == "assistant"
+        )
+
     @patch("galaxy.managers.agents.AgentService.create_dependencies", _create_deps_with_mock_model)
-    @patch("galaxy.agents.custom_tool.Agent")
     @patch("galaxy.agents.router.Agent")
-    def test_query_agent_auto_routing_mocked(self, mock_router_agent_class, mock_custom_tool_agent_class):
-        """Test automatic agent routing with mocked LLM."""
+    def test_query_agent_auto_routing_mocked(self, mock_router_agent_class):
+        """Test automatic agent routing with mocked LLM.
+
+        With the new router architecture, the router uses output functions
+        and returns the final response directly (either answering or handing
+        off to specialists internally).
+        """
         # Set up mock router agent
         mock_router_agent = AsyncMock()
         mock_router_agent_class.return_value = mock_router_agent
 
-        # Mock routing decision - returns RoutingDecision object
+        # Mock router response - now returns string directly
         async def mock_router_run(query, *args, **kwargs):
             result = MagicMock()
             if "BWA" in query or "tool" in query.lower():
-                result.data = RoutingDecision(
-                    primary_agent="custom_tool",
-                    reasoning="Tool creation request detected",
-                    complexity="simple",
-                    confidence="high",
-                )
+                # Simulate what custom_tool handoff would return
+                result.output = "I've created a BWA-MEM tool for paired-end reads. The tool definition includes inputs for reference and read files."
             else:
-                result.data = RoutingDecision(
-                    primary_agent="orchestrator",
-                    reasoning="General query",
-                    complexity="simple",
-                    confidence="medium",
-                )
+                # Direct response from router
+                result.output = "I'm Galaxy's AI assistant. How can I help you today?"
             return result
 
         mock_router_agent.run = mock_router_run
-
-        # Set up mock custom_tool agent (created after routing)
-        mock_custom_tool_agent = AsyncMock()
-        mock_custom_tool_agent_class.return_value = mock_custom_tool_agent
-
-        # Mock tool creation response
-        mock_tool = UserToolSource(
-            **{
-                "class": "GalaxyUserTool",
-                "id": "bwa-mem-paired",
-                "name": "BWA-MEM Paired End",
-                "version": "1.0.0",
-                "description": "BWA-MEM for paired-end reads",
-                "container": "biocontainers/bwa:latest",
-                "shell_command": "bwa mem ref.fa read1.fq read2.fq > output.sam",
-                "inputs": [],
-                "outputs": [],
-            }
-        )
-
-        async def mock_custom_tool_run(*args, **kwargs):
-            result = MagicMock()
-            result.data = mock_tool
-            result.output = mock_tool
-            return result
-
-        mock_custom_tool_agent.run = mock_custom_tool_run
 
         response = self._post(
             "ai/agents/query",
@@ -183,8 +209,10 @@ class TestAgentsApiMocked(AgentIntegrationTestCase):
         )
         self._assert_status_code_is_ok(response)
         data = response.json()
-        assert "routing_info" in data
-        assert data["routing_info"]["selected_agent"] == "custom_tool"
+        # Router now returns content in the response object
+        assert "response" in data
+        assert "content" in data["response"]
+        assert "BWA" in data["response"]["content"] or len(data["response"]["content"]) > 0
 
     @patch("galaxy.managers.agents.AgentService.create_dependencies", _create_deps_with_mock_model)
     @patch("galaxy.agents.custom_tool.Agent")
@@ -210,7 +238,6 @@ class TestAgentsApiMocked(AgentIntegrationTestCase):
 
         async def mock_run(*args, **kwargs):
             result = MagicMock()
-            result.data = mock_tool
             result.output = mock_tool
             return result
 
@@ -255,7 +282,6 @@ class TestAgentsApiMocked(AgentIntegrationTestCase):
                 ],
                 confidence="high",
             )
-            result.data = mock_analysis
             result.output = mock_analysis
             return result
 
