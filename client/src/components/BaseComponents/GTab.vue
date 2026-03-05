@@ -56,7 +56,7 @@ const shouldRender = computed(() => {
 
 function titleRenderer() {
     if (slots.title) {
-        return slots.title();
+        return slots.title() ?? [];
     }
     return props.title ? [h("span", props.title)] : [];
 }

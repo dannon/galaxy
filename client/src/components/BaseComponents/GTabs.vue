@@ -168,6 +168,7 @@ const TabTitleContent = defineComponent({
                     href="#"
                     :aria-selected="index === activeIndex"
                     :aria-disabled="tab.disabled"
+                    :aria-controls="tab.id"
                     v-bind="tab.titleLinkAttributes"
                     @click.prevent="!tab.disabled && setActive(index)">
                     <TabTitleContent :tab="tab" />
