@@ -6,6 +6,9 @@ Uses pydantic-ai output functions to either:
 - Hand off to error_analysis for job debugging
 - Hand off to custom_tool for explicit tool creation requests
 - Hand off to tool_recommendation for tool discovery
+- Hand off to gtn_training for tutorial and learning requests
+- Hand off to history for history analysis and summarization
+- Hand off to orchestrator for multi-agent coordination
 """
 
 import json
@@ -52,6 +55,7 @@ class QueryRouterAgent(BaseGalaxyAgent):
         error_handoff = self._create_error_analysis_handoff()
         tool_handoff = self._create_custom_tool_handoff()
         tool_rec_handoff = self._create_tool_recommendation_handoff()
+        gtn_handoff = self._create_gtn_training_handoff()
         history_handoff = self._create_history_handoff()
         next_step_handoff = self._create_next_step_advisor_handoff()
         orchestrator_handoff = self._create_orchestrator_handoff()
@@ -63,6 +67,7 @@ class QueryRouterAgent(BaseGalaxyAgent):
                 error_handoff,
                 tool_handoff,
                 tool_rec_handoff,
+                gtn_handoff,
                 history_handoff,
                 next_step_handoff,
                 orchestrator_handoff,
@@ -197,6 +202,43 @@ class QueryRouterAgent(BaseGalaxyAgent):
                 return f"I encountered an issue while searching for tools. Please try again or browse the tool panel directly. Error: {e}"
 
         return hand_off_to_tool_recommendation
+
+    def _create_gtn_training_handoff(self):
+        """Create output function for GTN training handoff."""
+
+        async def hand_off_to_gtn_training(
+            ctx: RunContext[GalaxyAgentDependencies],
+            query: str,
+        ) -> str:
+            """Route to GTN training agent for tutorial searches and learning guidance.
+
+            Use this when the user:
+            - Asks how to perform a specific type of analysis (RNA-seq, variant calling, etc.)
+            - Wants to learn how to use Galaxy or specific tools
+            - Is looking for tutorials, training materials, or learning resources
+            - Asks about best practices for an analysis workflow
+            - Wants step-by-step guidance for a bioinformatics task
+
+            Args:
+                query: The user's question about training, tutorials, or how to do analysis
+            """
+            from .gtn_training import GTNTrainingAgent
+
+            log.info(f"Router handing off to gtn_training: '{query[:100]}...'")
+
+            try:
+                agent = GTNTrainingAgent(ctx.deps)
+                response = await agent.process(query)
+                return self._serialize_handoff(response, "gtn_training")
+            except Exception as e:
+                log.error(f"GTN training handoff failed: {e}")
+                return (
+                    f"I encountered an issue while searching training materials. "
+                    f"You can browse tutorials directly at: https://training.galaxyproject.org/training-material/\n"
+                    f"Error: {e}"
+                )
+
+        return hand_off_to_gtn_training
 
     def _create_history_handoff(self):
         async def hand_off_to_history_agent(
@@ -411,6 +453,8 @@ For job failures or errors: Explain what might have gone wrong and suggest solut
 For tool creation requests: Explain that you can help design Galaxy tools and provide guidance.
 
 For history analysis requests: Explain that you can help summarize their analysis, generate methods sections, or describe what was done in a history.
+
+For training/tutorial requests: Search the Galaxy Training Network for relevant tutorials.
 
 For off-topic questions: Politely explain you can only help with Galaxy and scientific analysis.
 

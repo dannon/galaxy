@@ -150,6 +150,7 @@ class AgentType:
     CUSTOM_TOOL = "custom_tool"
     ORCHESTRATOR = "orchestrator"
     TOOL_RECOMMENDATION = "tool_recommendation"
+    GTN_TRAINING = "gtn_training"
     HISTORY = "history"
 
 

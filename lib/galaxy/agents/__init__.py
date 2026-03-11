@@ -11,6 +11,7 @@ from .base import (
 )
 from .custom_tool import CustomToolAgent
 from .error_analysis import ErrorAnalysisAgent
+from .gtn_training import GTNTrainingAgent
 from .history import HistoryAgent
 from .orchestrator import WorkflowOrchestratorAgent
 from .registry import AgentRegistry
@@ -27,6 +28,7 @@ __all__ = [
     "CustomToolAgent",
     "WorkflowOrchestratorAgent",
     "ToolRecommendationAgent",
+    "GTNTrainingAgent",
     "HistoryAgent",
 ]
 
@@ -37,4 +39,5 @@ agent_registry.register(AgentType.ERROR_ANALYSIS, ErrorAnalysisAgent)
 agent_registry.register(AgentType.CUSTOM_TOOL, CustomToolAgent)
 agent_registry.register(AgentType.ORCHESTRATOR, WorkflowOrchestratorAgent)
 agent_registry.register(AgentType.TOOL_RECOMMENDATION, ToolRecommendationAgent)
+agent_registry.register(AgentType.GTN_TRAINING, GTNTrainingAgent)
 agent_registry.register(AgentType.HISTORY, HistoryAgent)
