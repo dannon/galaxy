@@ -1,0 +1,107 @@
+<tool id="interactive_tool_celljourney" tool_type="interactive" name="Interactive CellJourney Environment" version="0.1.0">
+    <description>for 3D single-cell trajectory exploration</description>
+    <requirements>
+        <container type="docker">galaxy/celljourney:0.1.0</container>
+    </requirements>
+    <entry_points>
+        <entry_point name="CellJourney 3D Trajectory Explorer on $infile.display_name" requires_domain="True">
+            <port>8080</port>
+        </entry_point>
+    </entry_points>
+    <stdio>
+        <regex match="WARNING"
+               source="both"
+               level="warning"
+               description="CellJourney warnings"
+               />
+    </stdio>
+    <environment_variables>
+        <environment_variable name="HOST">0.0.0.0</environment_variable>
+    </environment_variables>
+    <command><![CDATA[
+    #import re
+    #set $safe_name = re.sub('[^\w\-_.]', '_', str($infile.element_identifier))
+
+    #if str($infile.ext) == 'h5ad'
+        #set $input_path = '/tmp/galaxy_celljourney_' + $safe_name + '.h5ad'
+    #else
+        #set $input_path = '/tmp/galaxy_celljourney_' + $safe_name + '.csv'
+    #end if
+
+    cp '${infile}' '${input_path}'
+    &&
+    mkdir -p export_dir
+    &&
+    python /app/celljourney.py
+        --file '${input_path}'
+        --port 8080
+        --suppressbrowser
+    ]]>
+    </command>
+    <inputs>
+        <param name="infile" type="data" format="h5ad,csv,tabular" label="Single-cell dataset"
+               help="Provide an AnnData (h5ad) or CSV file containing single-cell data with 3D embeddings for trajectory analysis." />
+    </inputs>
+    <outputs>
+        <data name="out_file1" format="txt" label="CellJourney session log" />
+        <collection name="exported_figures" type="list" label="CellJourney exported figures">
+            <discover_datasets pattern="__name_and_ext__" directory="export_dir" />
+        </collection>
+    </outputs>
+    <tests>
+    </tests>
+    <help><![CDATA[
+CellJourney - Interactive 3D Single-Cell Trajectory Explorer
+============================================================
+
+Purpose
+-------
+CellJourney enables interactive exploration and analysis of single-cell
+trajectories in three-dimensional space. It provides tools for visualizing
+and analyzing biological datasets at both the dataset and individual cell
+levels.
+
+For more information, visit the `CellJourney documentation
+<https://tabakalab.github.io/CellJourney/>`_.
+
+Docker Image
+------------
+This tool requires building the CellJourney Docker image. To build it::
+
+    git clone https://github.com/TabakaLab/CellJourney.git
+    cd CellJourney
+    docker build -t galaxy/celljourney:0.1.0 .
+
+Input Data
+----------
+CellJourney accepts single-cell datasets in the following formats:
+
+- **H5AD**: HDF5-based AnnData format (recommended, used by Scanpy)
+- **CSV**: Comma-separated values with cell coordinates and metadata
+
+The dataset should contain 3D embedding coordinates (e.g., from UMAP, PCA,
+or diffusion maps) for trajectory visualization.
+
+Features
+--------
+- **3D Scatter Plots**: Visualize cells in 3D embedding space
+- **Cone Plots**: Show velocity or directionality information
+- **Streamlines & Streamlets**: Visualize RNA velocity or trajectory flow
+- **Volume Plots**: Represent feature activity values in 3D embeddings
+- **Trajectory Analysis**: Interactive cell journey trajectory computation
+- **Differential Expression**: Automated differential gene expression analysis
+  for calculated trajectories
+- **Export**: Save publication-ready figures as raster graphics, vector
+  graphics, or standalone interactive HTML files
+
+Outputs
+-------
+When you stop the interactive environment, any exported figures will be
+available in the "CellJourney exported figures" output collection.
+
+References
+----------
+- GitHub: https://github.com/TabakaLab/CellJourney
+- Documentation: https://tabakalab.github.io/CellJourney/
+    ]]></help>
+</tool>
