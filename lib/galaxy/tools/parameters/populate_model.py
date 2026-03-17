@@ -47,10 +47,7 @@ def populate_model(request_context, inputs, state_inputs, group_inputs: list[dic
                         tool_dict["cases"][i]["inputs"],
                         other_values,
                     )
-        elif input.type == "section":
-            tool_dict = input.to_dict(request_context)
-            populate_model(request_context, input.inputs, group_state, tool_dict["inputs"], other_values)
-        elif input.type == "upload_dataset":
+        elif input.type in ("section", "upload_dataset"):
             tool_dict = input.to_dict(request_context)
             populate_model(request_context, input.inputs, group_state, tool_dict["inputs"], other_values)
         else:
