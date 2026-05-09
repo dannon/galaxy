@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import (
     Any,
     Optional,
+    TYPE_CHECKING,
 )
 
 import anyio
@@ -26,6 +27,12 @@ from pydantic import ValidationError
 from pydantic_ai import (
     Agent,
     RunContext,
+)
+from pydantic_ai.messages import (
+    FunctionToolCallEvent,
+    FunctionToolResultEvent,
+    PartDeltaEvent,
+    TextPartDelta,
 )
 
 from galaxy.agents.operations import AgentOperationsManager
@@ -38,6 +45,9 @@ from .base import (
     extract_result_content,
     GalaxyAgentDependencies,
 )
+
+if TYPE_CHECKING:
+    from galaxy.agents.streaming import StreamingEventEmitter
 
 log = logging.getLogger(__name__)
 
@@ -384,6 +394,87 @@ class QueryRouterAgent(BaseGalaxyAgent):
             return await self._execute_handoff(ctx, AgentType.ORCHESTRATOR, request)
 
         return hand_off_to_orchestrator
+
+    async def process_streaming(
+        self,
+        query: str,
+        emitter: "StreamingEventEmitter",
+        context: Optional[dict[str, Any]] = None,
+    ) -> AgentResponse:
+        """Stream token deltas from the router using pydantic-ai's ``agent.iter()``.
+
+        Translates ``PartDeltaEvent`` text deltas into ``delta`` frames and
+        function tool call/result events into ``tool_call_start`` /
+        ``tool_call_end`` frames. Specialists keep the default single-delta
+        impl from ``BaseGalaxyAgent`` until they migrate.
+        """
+        validation_error = self._validate_query(query)
+        if validation_error:
+            response = self._validation_error_response(validation_error)
+            await emitter.delta(response.content)
+            await emitter.done(final_content=response.content)
+            return response
+
+        ctx = context or {}
+        message_history = self._extract_message_history(ctx)
+        full_prompt = self._prepare_prompt(query, self._strip_history_from_context(ctx))
+        model_settings = {
+            "temperature": self._get_temperature(),
+            "max_tokens": self._get_max_tokens(),
+        }
+
+        accumulated: list[str] = []
+        try:
+            async with self.agent.iter(
+                full_prompt,
+                deps=self.deps,
+                model_settings=model_settings,
+                message_history=message_history,
+            ) as agent_run:
+                async for node in agent_run:
+                    # Call the helpers via the agent instance so test fakes
+                    # can override them; on real Agents these are static
+                    # methods that delegate to isinstance() checks.
+                    if self.agent.is_model_request_node(node):
+                        async with node.stream(agent_run.ctx) as request_stream:
+                            async for event in request_stream:
+                                if isinstance(event, PartDeltaEvent) and isinstance(event.delta, TextPartDelta):
+                                    text = event.delta.content_delta
+                                    if text:
+                                        accumulated.append(text)
+                                        await emitter.delta(text)
+                    elif self.agent.is_call_tools_node(node):
+                        async with node.stream(agent_run.ctx) as tool_stream:
+                            async for event in tool_stream:
+                                if isinstance(event, FunctionToolCallEvent):
+                                    args = None
+                                    if hasattr(event.part, "args_as_dict"):
+                                        try:
+                                            args = event.part.args_as_dict()
+                                        except Exception:
+                                            args = None
+                                    await emitter.tool_call_start(
+                                        tool_name=event.part.tool_name,
+                                        tool_call_id=event.part.tool_call_id,
+                                        args=args,
+                                    )
+                                elif isinstance(event, FunctionToolResultEvent):
+                                    await emitter.tool_call_end(
+                                        tool_call_id=event.tool_call_id,
+                                        ok=True,
+                                    )
+            final = "".join(accumulated) or getattr(agent_run.result, "output", "")
+            response = AgentResponse(
+                content=final,
+                agent_type=self.agent_type,
+                confidence=ConfidenceLevel.HIGH,
+            )
+            await emitter.done(final_content=response.content)
+            return response
+        except Exception as e:
+            log.exception("Router streaming run failed")
+            await emitter.error(str(e))
+            raise
 
     async def process(self, query: str, context: Optional[dict[str, Any]] = None) -> AgentResponse:
         validation_error = self._validate_query(query)

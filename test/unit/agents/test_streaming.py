@@ -1,12 +1,17 @@
 import asyncio
 
 import pytest
+from pydantic_ai.messages import (
+    PartDeltaEvent,
+    TextPartDelta,
+)
 
 from galaxy.agents.base import (
     AgentResponse,
     AgentType,
     BaseGalaxyAgent,
 )
+from galaxy.agents.router import QueryRouterAgent
 from galaxy.agents.streaming import (
     ChatRunRegistry,
     ChatStreamEvent,
@@ -125,3 +130,78 @@ async def test_default_process_streaming_emits_single_delta_then_done():
     done_payload = dispatcher.calls[1][1]
     assert delta_payload["text"] == "the answer"
     assert done_payload["final_content"] == "the answer"
+
+
+@pytest.mark.asyncio
+async def test_router_streams_token_deltas():
+    """QueryRouterAgent's process_streaming should emit one delta per text chunk."""
+    chunks = ["Hel", "lo, ", "world"]
+
+    class _FakeRequestStream:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_):
+            return False
+
+        async def __aiter__(self):
+            for c in chunks:
+                yield PartDeltaEvent(index=0, delta=TextPartDelta(content_delta=c))
+
+    class _FakeNode:
+        def stream(self, ctx):
+            return _FakeRequestStream()
+
+    class _FakeAgentRun:
+        ctx = None
+        result = type("R", (), {"output": "Hello, world"})()
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_):
+            return False
+
+        def __aiter__(self):
+            self._yielded = False
+            return self
+
+        async def __anext__(self):
+            if self._yielded:
+                raise StopAsyncIteration
+            self._yielded = True
+            return _FakeNode()
+
+    class _FakeAgent:
+        @staticmethod
+        def is_model_request_node(node):
+            return isinstance(node, _FakeNode)
+
+        @staticmethod
+        def is_call_tools_node(node):
+            return False
+
+        def iter(self, *a, **kw):
+            return _FakeAgentRun()
+
+    # Build a QueryRouterAgent shell whose self.agent is our fake. We give
+    # `deps` a minimal stand-in so that helper methods like _validate_query
+    # and _get_temperature can read inference config without crashing.
+    class _StubConfig:
+        inference_services: dict = {}
+
+    class _StubDeps:
+        config = _StubConfig()
+
+    router = QueryRouterAgent.__new__(QueryRouterAgent)
+    router.agent = _FakeAgent()
+    router.agent_type = AgentType.ROUTER
+    router.deps = _StubDeps()
+
+    dispatcher = FakeDispatcher()
+    emitter = StreamingEventEmitter(dispatcher=dispatcher, user_id=1, run_id="r", exchange_id="e")
+    await router.process_streaming("hi", emitter, context=None)
+
+    deltas = [p for _, p in dispatcher.calls if p["kind"] == ChatStreamKind.DELTA]
+    assert [d["text"] for d in deltas] == chunks
+    assert dispatcher.calls[-1][1]["kind"] == ChatStreamKind.DONE
