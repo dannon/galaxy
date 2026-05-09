@@ -22479,6 +22479,43 @@ export interface components {
              */
             version: number;
         };
+        /**
+         * StreamingChatResponse
+         * @description Returned from POST /api/chat?stream=true.
+         *
+         *     The actual assistant response is delivered via SSE chat_event frames
+         *     keyed by run_id; this body just acknowledges the run started.
+         */
+        StreamingChatResponse: {
+            /**
+             * Error Code
+             * @description The error code, if any, for the chat query.
+             * @default 0
+             */
+            error_code: number | null;
+            /**
+             * Error Message
+             * @description The error message, if any, for the chat query.
+             * @default
+             */
+            error_message: string | null;
+            /**
+             * Exchange ID
+             * @description The ID of the chat exchange the streaming run will persist to.
+             */
+            exchange_id?: string | null;
+            /**
+             * Run ID
+             * @description Identifier used to correlate streaming events with this request.
+             */
+            run_id: string;
+            /**
+             * Streaming
+             * @description Always true for a streaming chat response.
+             * @default true
+             */
+            streaming: boolean;
+        };
         /** SubworkflowStep */
         SubworkflowStep: {
             /**
@@ -30386,6 +30423,8 @@ export interface operations {
                 query?: string | null;
                 /** @description Agent type to use for the query */
                 agent_type?: string;
+                /** @description If true and chat streaming is enabled on the server, kick off an async agent run and return immediately with a run_id; the assistant response is delivered via SSE chat_event frames. */
+                stream?: boolean;
             };
             header?: {
                 /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
@@ -30406,7 +30445,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ChatResponse"];
+                    "application/json":
+                        | components["schemas"]["ChatResponse"]
+                        | components["schemas"]["StreamingChatResponse"];
                 };
             };
             /** @description Request Error */

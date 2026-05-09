@@ -7,7 +7,9 @@ import { nextTick, onMounted, ref, watch } from "vue";
 import { GalaxyApi } from "@/api";
 import { getGalaxyInstance } from "@/app";
 import { type AgentResponse, useAgentActions } from "@/composables/agentActions";
+import { useConfig } from "@/composables/config";
 import { useMarkdown } from "@/composables/markdown";
+import { useChatStream } from "@/composables/useChatStream";
 import { errorMessageAsString } from "@/utils/simple-error";
 
 import { getAgentIcon } from "./ChatGXY/agentTypes";
@@ -39,6 +41,11 @@ const hasLoadedInitialChat = ref(false);
 
 const { renderMarkdown } = useMarkdown({ openLinksInNewPage: true, removeNewlinesAfterList: true });
 const { processingAction, handleAction } = useAgentActions();
+const { config } = useConfig();
+// One SSE subscription router per component instance. ``useChatStream``
+// connects eagerly and tears down via ``onScopeDispose`` so per-run
+// ``subscribe`` calls inside ``submitQuery`` don't churn the EventSource.
+const chatStream = useChatStream();
 
 onMounted(async () => {
     if (props.exchangeId) {
@@ -103,6 +110,14 @@ async function submitQuery() {
 
     busy.value = true;
 
+    if (config.value?.enable_chat_streaming) {
+        await submitQueryStreaming(currentQuery);
+    } else {
+        await submitQueryLegacy(currentQuery);
+    }
+}
+
+async function submitQueryLegacy(currentQuery: string) {
     try {
         const { data, error } = await GalaxyApi().POST("/api/chat", {
             params: {
@@ -133,11 +148,19 @@ async function submitQuery() {
             await nextTick();
             scrollToBottom(chatContainer.value);
         } else if (data) {
-            const agentResponse = data.agent_response as AgentResponse | undefined;
-            const content = data.response || "No response received";
+            // The endpoint now returns ChatResponse | StreamingChatResponse;
+            // narrow to the legacy synchronous shape (the streaming branch is
+            // handled in submitQueryStreaming and never lands here).
+            const legacy = data as {
+                response?: string;
+                agent_response?: AgentResponse;
+                exchange_id?: string | null;
+            };
+            const agentResponse = legacy.agent_response;
+            const content = legacy.response || "No response received";
 
-            if (data.exchange_id) {
-                currentChatId.value = data.exchange_id;
+            if (legacy.exchange_id) {
+                currentChatId.value = legacy.exchange_id;
             }
 
             const assistantMessage: ChatMessage = {
@@ -174,6 +197,125 @@ async function submitQuery() {
         await nextTick();
         scrollToBottom(chatContainer.value);
     } finally {
+        busy.value = false;
+        await nextTick();
+        scrollToBottom(chatContainer.value);
+    }
+}
+
+async function submitQueryStreaming(currentQuery: string) {
+    // Pre-insert an in-progress assistant message so each ``delta`` frame can
+    // append to the same reactive object rather than allocating new entries.
+    const placeholder: ChatMessage = {
+        id: generateId(),
+        role: "assistant",
+        content: "",
+        timestamp: new Date(),
+        agentType: selectedAgentType.value === "auto" ? "router" : selectedAgentType.value,
+        confidence: "medium",
+        feedback: null,
+        inProgress: true,
+        activeTool: null,
+    };
+    messages.value.push(placeholder);
+
+    await nextTick();
+    scrollToBottom(chatContainer.value);
+
+    try {
+        const { data, error } = await GalaxyApi().POST("/api/chat", {
+            params: {
+                query: {
+                    agent_type: selectedAgentType.value,
+                    stream: true,
+                },
+            },
+            body: {
+                query: currentQuery,
+                context: null,
+                exchange_id: currentChatId.value,
+            },
+        });
+
+        if (error) {
+            const errorText = errorMessageAsString(error, "Failed to start streaming chat run.");
+            placeholder.content = `Error: ${errorText}`;
+            placeholder.inProgress = false;
+            placeholder.activeTool = null;
+            placeholder.confidence = "low";
+            busy.value = false;
+            await nextTick();
+            scrollToBottom(chatContainer.value);
+            return;
+        }
+
+        // Backwards compat: if the server didn't actually return a streaming
+        // body (e.g. the flag flipped off between page load and submit), fall
+        // through to the legacy synchronous shape.
+        const streamingData = data as { streaming?: boolean; run_id?: string; exchange_id?: string | null } | undefined;
+        if (!streamingData?.streaming || !streamingData.run_id) {
+            const legacy = data as
+                | { response?: string; agent_response?: AgentResponse; exchange_id?: string | null }
+                | undefined;
+            placeholder.content = legacy?.response || "No response received";
+            placeholder.inProgress = false;
+            placeholder.activeTool = null;
+            if (legacy?.agent_response) {
+                placeholder.agentResponse = legacy.agent_response;
+                placeholder.agentType = legacy.agent_response.agent_type ?? placeholder.agentType;
+                placeholder.confidence = legacy.agent_response.confidence ?? placeholder.confidence;
+                placeholder.suggestions = legacy.agent_response.suggestions ?? [];
+            }
+            if (legacy?.exchange_id) {
+                currentChatId.value = legacy.exchange_id;
+            }
+            busy.value = false;
+            await nextTick();
+            scrollToBottom(chatContainer.value);
+            return;
+        }
+
+        if (streamingData.exchange_id) {
+            currentChatId.value = streamingData.exchange_id;
+        }
+
+        chatStream.subscribe(streamingData.run_id, {
+            onDelta: (text) => {
+                placeholder.content += text;
+                nextTick(() => scrollToBottom(chatContainer.value));
+            },
+            onToolCallStart: ({ tool_name }) => {
+                placeholder.activeTool = tool_name;
+            },
+            onToolCallEnd: () => {
+                placeholder.activeTool = null;
+            },
+            onDone: (finalContent) => {
+                if (finalContent) {
+                    placeholder.content = finalContent;
+                }
+                placeholder.inProgress = false;
+                placeholder.activeTool = null;
+                busy.value = false;
+                nextTick(() => scrollToBottom(chatContainer.value));
+            },
+            onError: (message) => {
+                placeholder.content = placeholder.content
+                    ? `${placeholder.content}\n\nError: ${message}`
+                    : `Error: ${message}`;
+                placeholder.inProgress = false;
+                placeholder.activeTool = null;
+                placeholder.confidence = "low";
+                busy.value = false;
+                nextTick(() => scrollToBottom(chatContainer.value));
+            },
+        });
+    } catch (e) {
+        console.error("Unexpected streaming chat error:", e);
+        placeholder.content = "Unexpected error occurred. Please try again.";
+        placeholder.inProgress = false;
+        placeholder.activeTool = null;
+        placeholder.confidence = "low";
         busy.value = false;
         await nextTick();
         scrollToBottom(chatContainer.value);
@@ -365,8 +507,10 @@ function popOutToWindowManager() {
                 @feedback="sendFeedback"
                 @handle-action="handleAction" />
 
-            <!-- Loading state -->
-            <div v-if="busy" class="loading-entry">
+            <!-- Loading state: legacy synchronous path renders a skeleton while
+                 the request is in flight. Streaming uses an inline placeholder
+                 with a typing caret instead, so suppress the skeleton there. -->
+            <div v-if="busy && !config?.enable_chat_streaming" class="loading-entry">
                 <div class="loading-gutter">
                     <span class="loading-indicator">
                         <FontAwesomeIcon :icon="getAgentIcon(selectedAgentType)" fixed-width />

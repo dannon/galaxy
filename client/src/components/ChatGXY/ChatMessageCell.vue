@@ -50,6 +50,13 @@ const emit = defineEmits<{
                     <!-- eslint-disable-next-line vue/no-v-html -->
                     <div class="response-content" v-html="props.renderMarkdown(props.message.content)" />
 
+                    <div v-if="props.message.inProgress" class="streaming-indicator">
+                        <span v-if="props.message.activeTool" class="tool-call-indicator">
+                            Calling <code>{{ props.message.activeTool }}</code>
+                        </span>
+                        <span v-else class="typing-caret" aria-label="Assistant is typing">&#x2588;</span>
+                    </div>
+
                     <ActionCard
                         v-if="props.message.suggestions?.length"
                         :suggestions="props.message.suggestions"
@@ -61,7 +68,9 @@ const emit = defineEmits<{
 
                     <slot name="after-content" />
 
-                    <div v-if="!props.message.content.startsWith('❌')" class="response-meta">
+                    <div
+                        v-if="!props.message.inProgress && !props.message.content.startsWith('❌')"
+                        class="response-meta">
                         <div class="meta-left">
                             <button
                                 class="feedback-btn"
@@ -259,6 +268,46 @@ const emit = defineEmits<{
         padding-left: 0.75rem;
         color: $text-muted;
         margin: 0.625rem 0;
+    }
+}
+
+// --- Streaming indicator: typing caret + active tool call ---
+.streaming-indicator {
+    margin-top: 0.375rem;
+    font-size: 0.8rem;
+    color: $text-light;
+    line-height: 1;
+}
+
+.typing-caret {
+    display: inline-block;
+    color: $brand-primary;
+    animation: typingBlink 1s steps(1) infinite;
+}
+
+.tool-call-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+
+    code {
+        background: rgba($brand-dark, 0.06);
+        padding: 0.05rem 0.3rem;
+        border-radius: $border-radius-base;
+        font-family: $font-family-monospace;
+        font-size: 0.85em;
+    }
+}
+
+@keyframes typingBlink {
+    50% {
+        opacity: 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .typing-caret {
+        animation: none;
     }
 }
 
