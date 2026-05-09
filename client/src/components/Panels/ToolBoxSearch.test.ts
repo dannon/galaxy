@@ -141,7 +141,7 @@ describe("ToolBox search", () => {
         expect(discoverButton.exists()).toBe(true);
         expect(discoverButton.text()).toBe("Discover Tools");
 
-        const labels = wrapper.findAll(".tool-panel-label").wrappers.map((item) => item.text());
+        const labels = wrapper.findAll(".tool-panel-label").map((item) => item.text());
         expect(labels).toEqual(["Favorites"]);
     });
 
@@ -154,10 +154,10 @@ describe("ToolBox search", () => {
         vi.advanceTimersByTime(250);
         await flushPromises();
 
-        const labels = wrapper.findAll(".tool-panel-label").wrappers.map((item) => item.text());
+        const labels = wrapper.findAll(".tool-panel-label").map((item) => item.text());
         expect(labels).toEqual(["Favorites", "Search results"]);
 
-        const toolIds = wrapper.findAll("a[data-tool-id]").wrappers.map((item) => item.attributes("data-tool-id"));
+        const toolIds = wrapper.findAll("a[data-tool-id]").map((item) => item.attributes("data-tool-id"));
         expect(toolIds).toEqual(["__FILTER_FAILED_DATASETS__", "__FILTER_EMPTY_DATASETS__"]);
 
         expect(wrapper.find('.tool-favorite-button[data-tool-id="__FILTER_EMPTY_DATASETS__"]').exists()).toBe(true);
@@ -212,9 +212,7 @@ describe("ToolBox search", () => {
         expect(wrapper.find('[data-tool-id="__FILTER_FAILED_DATASETS__"]').exists()).toBe(true);
         expect(wrapper.find('[data-tool-id="__FILTER_EMPTY_DATASETS__"]').exists()).toBe(true);
 
-        const favoritesLabel = wrapper
-            .findAll(".tool-panel-label")
-            .wrappers.find((item) => item.text().includes("Favorites"));
+        const favoritesLabel = wrapper.findAll(".tool-panel-label").find((item) => item.text().includes("Favorites"));
         expect(favoritesLabel).toBeTruthy();
         await favoritesLabel?.trigger("click");
         await flushPromises();
@@ -230,10 +228,10 @@ describe("ToolBox search", () => {
         });
         await flushPromises();
 
-        const labels = wrapper.findAll(".tool-panel-label").wrappers.map((item) => item.text());
+        const labels = wrapper.findAll(".tool-panel-label").map((item) => item.text());
         expect(labels).toEqual(EXPECTED_LABELS);
 
-        const toolIds = wrapper.findAll("a[data-tool-id]").wrappers.map((item) => item.attributes("data-tool-id"));
+        const toolIds = wrapper.findAll("a[data-tool-id]").map((item) => item.attributes("data-tool-id"));
         expect(toolIds).toEqual(["__ZIP_COLLECTION__", "__FILTER_EMPTY_DATASETS__", "__FILTER_FAILED_DATASETS__"]);
         expect(wrapper.find('.tool-favorite-button[data-tool-id="__ZIP_COLLECTION__"]').exists()).toBe(true);
 
@@ -392,9 +390,7 @@ describe("ToolBox search", () => {
         expect(wrapper.find('[data-tool-id="__FILTER_FAILED_DATASETS__"]').exists()).toBe(true);
         expect(wrapper.find('[data-tool-id="__ZIP_COLLECTION__"]').exists()).toBe(true);
 
-        const favoritesLabel = wrapper
-            .findAll(".tool-panel-label")
-            .wrappers.find((item) => item.text().includes("Favorites"));
+        const favoritesLabel = wrapper.findAll(".tool-panel-label").find((item) => item.text().includes("Favorites"));
         expect(favoritesLabel).toBeTruthy();
         await favoritesLabel?.trigger("click");
         await flushPromises();
@@ -407,9 +403,7 @@ describe("ToolBox search", () => {
                 .wrappers.some((item) => item.text().trim() === "genome_coordinates"),
         ).toBe(false);
 
-        const recentLabel = wrapper
-            .findAll(".tool-panel-label")
-            .wrappers.find((item) => item.text().includes("Recent tools"));
+        const recentLabel = wrapper.findAll(".tool-panel-label").find((item) => item.text().includes("Recent tools"));
         expect(recentLabel).toBeTruthy();
         await recentLabel?.trigger("click");
         await flushPromises();
@@ -424,7 +418,7 @@ describe("ToolBox search", () => {
         const emptyState = wrapper.find(".tool-panel-empty");
         expect(emptyState.exists()).toBe(true);
         expect(emptyState.text()).toContain("You haven't favorited any tools yet.");
-        const labels = wrapper.findAll(".tool-panel-label").wrappers.map((item) => item.text());
+        const labels = wrapper.findAll(".tool-panel-label").map((item) => item.text());
         expect(labels).toEqual(EXPECTED_LABELS);
     });
 
