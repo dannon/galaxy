@@ -34,6 +34,7 @@ from galaxy.schema.agents import (
 )
 
 if TYPE_CHECKING:
+    from galaxy.agents.streaming import StreamingEventEmitter
     from galaxy.config import GalaxyAppConfiguration
     from galaxy.managers.datasets import DatasetManager
     from galaxy.managers.jobs import JobManager
@@ -376,6 +377,27 @@ class BaseGalaxyAgent(ABC):
         except (UnexpectedModelBehavior, OSError, ValueError) as e:
             log.warning(f"Error in {self.agent_type} agent: {e}")
             return self._get_fallback_response(query, str(e))
+
+    async def process_streaming(
+        self,
+        query: str,
+        emitter: "StreamingEventEmitter",
+        context: Optional[dict[str, Any]] = None,
+    ) -> AgentResponse:
+        """Default streaming impl: run synchronously, emit one delta + done.
+
+        Token-level streaming is opt-in per subclass (see Router). Specialists
+        keep this default until they need finer-grained UX.
+        """
+        try:
+            response = await self.process(query, context)
+        except Exception as e:
+            log.exception("Streaming agent run failed")
+            await emitter.error(str(e))
+            raise
+        await emitter.delta(response.content)
+        await emitter.done(final_content=response.content)
+        return response
 
     @staticmethod
     def _extract_message_history(
