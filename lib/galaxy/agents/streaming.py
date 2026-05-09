@@ -45,14 +45,14 @@ class StreamingEventEmitter:
     user_id: int
     run_id: str
     exchange_id: Optional[str]
-    _seq: int = 0
-    _terminal: bool = False
-    _lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    _seq: int = field(init=False, default=0)
+    _terminal: bool = field(init=False, default=False)
+    _lock: asyncio.Lock = field(init=False, default_factory=asyncio.Lock)
 
     async def delta(self, text: str) -> None:
         await self._emit(ChatStreamKind.DELTA, {"text": text})
 
-    async def tool_call_start(self, tool_name: str, tool_call_id: str, args: Optional[dict] = None) -> None:
+    async def tool_call_start(self, tool_name: str, tool_call_id: str, args: Optional[dict[str, Any]] = None) -> None:
         await self._emit(
             ChatStreamKind.TOOL_CALL_START,
             {"tool_name": tool_name, "tool_call_id": tool_call_id, "args": args or {}},
@@ -67,7 +67,7 @@ class StreamingEventEmitter:
     async def handoff(self, target_agent: str) -> None:
         await self._emit(ChatStreamKind.HANDOFF, {"target_agent": target_agent})
 
-    async def done(self, final_content: str, agent_response: Optional[dict] = None) -> None:
+    async def done(self, final_content: str, agent_response: Optional[dict[str, Any]] = None) -> None:
         await self._emit(
             ChatStreamKind.DONE,
             {"final_content": final_content, "agent_response": agent_response},
