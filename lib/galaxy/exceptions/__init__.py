@@ -257,6 +257,11 @@ class DeprecatedMethod(MessageException):
     err_code = error_codes_by_name["DEPRECATED_API_CALL"]
 
 
+class TooManyConcurrentRequestsException(MessageException):
+    status_code = 429
+    err_code = error_codes_by_name["TOO_MANY_CONCURRENT_REQUESTS"]
+
+
 class ConfigurationError(Exception):
     status_code = 500
     err_code = error_codes_by_name["CONFIG_ERROR"]

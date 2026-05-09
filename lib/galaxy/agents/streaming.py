@@ -28,6 +28,8 @@ from typing import (
 )
 from uuid import uuid4
 
+from galaxy.exceptions import TooManyConcurrentRequestsException
+
 log = logging.getLogger(__name__)
 
 
@@ -127,7 +129,6 @@ class ChatRunRegistry:
         self._max_per_user = max_per_user
         self._by_run: dict[str, asyncio.Task] = {}
         self._by_user: dict[int, set[str]] = defaultdict(set)
-        self._lock = asyncio.Lock()
 
     def start(
         self,
@@ -136,7 +137,9 @@ class ChatRunRegistry:
         coro_factory: Callable[[], Awaitable[None]],
     ) -> asyncio.Task:
         if len(self._by_user[user_id]) >= self._max_per_user:
-            raise RuntimeError(f"Too many concurrent ChatGXY runs for user {user_id} (max {self._max_per_user}).")
+            raise TooManyConcurrentRequestsException(
+                f"Too many concurrent ChatGXY runs for user {user_id} (max {self._max_per_user})."
+            )
         task = asyncio.create_task(coro_factory(), name=f"chatgxy-{run_id}")
         self._by_run[run_id] = task
         self._by_user[user_id].add(run_id)

@@ -8,6 +8,7 @@ from galaxy.agents.streaming import (
     ChatStreamKind,
     StreamingEventEmitter,
 )
+from galaxy.exceptions import TooManyConcurrentRequestsException
 
 
 class FakeDispatcher:
@@ -88,5 +89,5 @@ async def test_registry_enforces_per_user_cap():
         await asyncio.sleep(0.05)
 
     registry.start(user_id=9, run_id="a", coro_factory=work)
-    with pytest.raises(RuntimeError, match="Too many concurrent"):
+    with pytest.raises(TooManyConcurrentRequestsException, match="Too many concurrent"):
         registry.start(user_id=9, run_id="b", coro_factory=work)

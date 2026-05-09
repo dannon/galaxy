@@ -175,6 +175,11 @@
         "message": "This API method or call signature has been deprecated and is no longer available"
     },
     {
+        "name": "TOO_MANY_CONCURRENT_REQUESTS",
+        "code": 429001,
+        "message": "Too many concurrent requests; please slow down and try again."
+    },
+    {
         "name": "INTERNAL_SERVER_ERROR",
         "code": 500001,
         "message": "Internal server error."
