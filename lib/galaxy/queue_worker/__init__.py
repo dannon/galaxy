@@ -92,7 +92,7 @@ class ChatEventPayload(TypedDict, total=False):
     """Wire contract for the ``chat_event`` control-task kwargs.
 
     ``payload`` is the already-encoded ChatGXY streaming event body (e.g.
-    delta/tool/final) — the worker handler JSON-serializes it onto the SSE
+    delta/tool/final) -- the worker handler JSON-serializes it onto the SSE
     frame as-is.
     """
 
