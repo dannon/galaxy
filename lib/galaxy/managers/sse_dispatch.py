@@ -183,6 +183,27 @@ class SSEEventDispatcher:
             kwargs["session_id"] = session_id
         self._send("unsubscribe_history_viewer", kwargs)
 
+    def chat_event(
+        self,
+        user_id: int,
+        payload: dict[str, Any],
+        event_id: Optional[str] = None,
+    ) -> None:
+        """Push a single ChatGXY streaming event to one user.
+
+        Fan-out shape mirrors ``notify_users``: every webapp worker receives
+        the control task, only the worker that owns the user's SSE queue
+        puts the frame on the wire.
+        """
+        self._send(
+            "chat_event",
+            {
+                "user_id": user_id,
+                "payload": payload,
+                "event_id": event_id or make_event_id(),
+            },
+        )
+
     def entry_point_update(self, user_id: int, event_id: Optional[str] = None) -> None:
         """Fan out a wake-up ``entry_point_update`` event for one user.
 

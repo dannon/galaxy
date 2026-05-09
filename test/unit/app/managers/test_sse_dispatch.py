@@ -234,3 +234,49 @@ def test_dispatcher_no_statsd_means_no_instrumentation(application_stack, queue_
     assert len(fake_control_task.instances) == 1
     assert len(fake_control_task.instances[0].sent) == 1
     assert fake_control_task.instances[0].sent[0].payload["task"] == "notify_broadcast"
+
+
+def test_chat_event_publishes_via_control_task(application_stack, queue_worker, statsd, fake_control_task):
+    """``chat_event`` rides the same control-task fan-out as ``notify_users``."""
+    dispatcher = _dispatcher_with_fakes(
+        queue_worker=queue_worker,
+        application_stack=application_stack,
+        statsd=statsd,
+        control_task_factory=fake_control_task,
+    )
+    dispatcher.chat_event(
+        user_id=11,
+        payload={"kind": "delta", "run_id": "r1", "exchange_id": "e1", "seq": 0, "text": "hi"},
+    )
+
+    assert len(fake_control_task.instances) == 1
+    sent = fake_control_task.instances[0].sent
+    assert len(sent) == 1
+    assert sent[0].payload["task"] == "chat_event"
+    kwargs = sent[0].payload["kwargs"]
+    assert kwargs["user_id"] == 11
+    assert kwargs["payload"]["text"] == "hi"
+    assert kwargs["payload"]["kind"] == "delta"
+    assert "event_id" in kwargs and kwargs["event_id"]
+    assert sent[0].routing_key == "control.*"
+    assert sent[0].expiration == 10
+
+    assert statsd.counter("galaxy.sse.dispatch.count", {"task": "chat_event"}) == 1
+
+
+def test_chat_event_uses_provided_event_id(application_stack, queue_worker, statsd, fake_control_task):
+    """An explicit ``event_id`` is forwarded verbatim instead of generating a new one."""
+    dispatcher = _dispatcher_with_fakes(
+        queue_worker=queue_worker,
+        application_stack=application_stack,
+        statsd=statsd,
+        control_task_factory=fake_control_task,
+    )
+    dispatcher.chat_event(
+        user_id=11,
+        payload={"kind": "delta", "text": "hi"},
+        event_id="evt-explicit",
+    )
+
+    sent = fake_control_task.instances[0].sent[0]
+    assert sent.payload["kwargs"]["event_id"] == "evt-explicit"

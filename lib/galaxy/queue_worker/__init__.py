@@ -88,6 +88,19 @@ class EntryPointUpdatePayload(TypedDict, total=False):
     event_id: Optional[str]
 
 
+class ChatEventPayload(TypedDict, total=False):
+    """Wire contract for the ``chat_event`` control-task kwargs.
+
+    ``payload`` is the already-encoded ChatGXY streaming event body (e.g.
+    delta/tool/final) — the worker handler JSON-serializes it onto the SSE
+    frame as-is.
+    """
+
+    user_id: int
+    payload: dict[str, Any]
+    event_id: Optional[str]
+
+
 class HistoryViewerSubscriptionPayload(TypedDict, total=False):
     """Wire contract for the (un)subscribe_history_viewer control-task kwargs.
 
@@ -520,6 +533,23 @@ def unsubscribe_history_viewer(app: "MinimalManagerApp", **kwargs) -> None:
         sse_manager.unsubscribe_session_viewer(int(payload["session_id"]), history_id)
 
 
+def chat_event(app: "MinimalManagerApp", **kwargs) -> None:
+    """Push a ChatGXY streaming event to one user on this worker process.
+
+    Mirrors ``notify_users``/``entry_point_update``: fanned out to every
+    webapp worker via the control queue, but only the worker holding the
+    user's live SSE queue actually writes a frame to the EventSource.
+    """
+    payload = cast(ChatEventPayload, kwargs)
+    sse_manager = app[SSEConnectionManager]
+    event = SSEEvent(
+        event="chat_event",
+        data=json.dumps(payload.get("payload", {})),
+        id=payload.get("event_id"),
+    )
+    sse_manager.push_to_user(int(payload["user_id"]), event)
+
+
 def entry_point_update(app: "MinimalManagerApp", **kwargs) -> None:
     """Push a wake-up SSE event to a single connected user.
 
@@ -555,6 +585,7 @@ control_message_to_task = {
     "entry_point_update": entry_point_update,
     "subscribe_history_viewer": subscribe_history_viewer,
     "unsubscribe_history_viewer": unsubscribe_history_viewer,
+    "chat_event": chat_event,
 }
 
 
