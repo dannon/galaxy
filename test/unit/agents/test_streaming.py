@@ -19,6 +19,8 @@ from galaxy.agents.streaming import (
     StreamingEventEmitter,
 )
 from galaxy.exceptions import TooManyConcurrentRequestsException
+from galaxy.managers.agents import AgentService
+from galaxy.managers.sse_dispatch import SSEEventDispatcher
 
 
 class FakeDispatcher:
@@ -205,3 +207,148 @@ async def test_router_streams_token_deltas():
     deltas = [p for _, p in dispatcher.calls if p["kind"] == ChatStreamKind.DELTA]
     assert [d["text"] for d in deltas] == chunks
     assert dispatcher.calls[-1][1]["kind"] == ChatStreamKind.DONE
+
+
+class _StubUser:
+    def __init__(self, user_id: int):
+        self.id = user_id
+
+
+class _StubApp:
+    def __init__(self, dispatcher):
+        self._dispatcher = dispatcher
+        self.toolbox = None
+
+    def resolve_or_none(self, cls):
+        if cls is SSEEventDispatcher:
+            return self._dispatcher
+        return None
+
+
+class _StubTrans:
+    def __init__(self, dispatcher):
+        self.app = _StubApp(dispatcher)
+
+
+def _make_agent_service(agent_instance):
+    """Build an AgentService whose registry returns the given agent."""
+
+    class _StubRegistry:
+        def get_agent(self, agent_type, deps):
+            return agent_instance
+
+    service = AgentService.__new__(AgentService)
+    service.config = None
+    service.job_manager = None
+    service.registry = _StubRegistry()
+    return service
+
+
+@pytest.mark.asyncio
+async def test_start_streaming_run_returns_run_id_and_invokes_on_complete(monkeypatch):
+    dispatcher = FakeDispatcher()
+
+    response = AgentResponse(content="ok", agent_type=AgentType.ROUTER, confidence="high")
+
+    class _StubAgent:
+        async def process_streaming(self, query, emitter, context):
+            await emitter.delta("ok")
+            await emitter.done(final_content="ok")
+            return response
+
+    service = _make_agent_service(_StubAgent())
+    trans = _StubTrans(dispatcher)
+    user = _StubUser(user_id=123)
+
+    # Use a per-test registry so this is isolated from concurrent tests.
+    fresh_registry = ChatRunRegistry(max_per_user=2)
+    monkeypatch.setattr("galaxy.managers.agents.get_run_registry", lambda: fresh_registry)
+
+    completed: list[tuple[str, AgentResponse]] = []
+
+    async def on_complete(run_id, agent_response):
+        completed.append((run_id, agent_response))
+
+    run_id = await service.start_streaming_run(
+        trans=trans,
+        user=user,
+        query="hello",
+        agent_type="router",
+        context=None,
+        exchange_id="exch-1",
+        on_complete=on_complete,
+    )
+
+    assert isinstance(run_id, str) and run_id.startswith("chatrun-")
+    # Run was registered synchronously.
+    task = fresh_registry.get(run_id)
+    assert task is not None
+    await task
+    # Yield once so the registry done-callback runs.
+    await asyncio.sleep(0)
+    assert completed == [(run_id, response)]
+
+
+@pytest.mark.asyncio
+async def test_start_streaming_run_calls_on_complete_with_none_on_failure(monkeypatch):
+    dispatcher = FakeDispatcher()
+
+    class _BoomAgent:
+        async def process_streaming(self, query, emitter, context):
+            raise RuntimeError("boom")
+
+    service = _make_agent_service(_BoomAgent())
+    trans = _StubTrans(dispatcher)
+    user = _StubUser(user_id=7)
+
+    fresh_registry = ChatRunRegistry(max_per_user=2)
+    monkeypatch.setattr("galaxy.managers.agents.get_run_registry", lambda: fresh_registry)
+
+    completed: list[tuple[str, object]] = []
+
+    async def on_complete(run_id, agent_response):
+        completed.append((run_id, agent_response))
+
+    run_id = await service.start_streaming_run(
+        trans=trans,
+        user=user,
+        query="hi",
+        agent_type="router",
+        context=None,
+        exchange_id=None,
+        on_complete=on_complete,
+    )
+
+    task = fresh_registry.get(run_id)
+    assert task is not None
+    await task
+    await asyncio.sleep(0)
+    assert completed == [(run_id, None)]
+
+
+@pytest.mark.asyncio
+async def test_start_streaming_run_raises_when_dispatcher_missing(monkeypatch):
+    class _StubAgent:
+        async def process_streaming(self, query, emitter, context):
+            return None
+
+    service = _make_agent_service(_StubAgent())
+    trans = _StubTrans(dispatcher=None)
+    user = _StubUser(user_id=1)
+
+    fresh_registry = ChatRunRegistry(max_per_user=2)
+    monkeypatch.setattr("galaxy.managers.agents.get_run_registry", lambda: fresh_registry)
+
+    async def on_complete(run_id, agent_response):
+        pass
+
+    with pytest.raises(RuntimeError, match="SSEEventDispatcher"):
+        await service.start_streaming_run(
+            trans=trans,
+            user=user,
+            query="q",
+            agent_type="router",
+            context=None,
+            exchange_id=None,
+            on_complete=on_complete,
+        )

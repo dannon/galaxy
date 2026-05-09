@@ -1,17 +1,28 @@
 """Agent service layer for AI agent management."""
 
 import logging
+from collections.abc import (
+    Awaitable,
+    Callable,
+)
 from typing import (
     Any,
     Optional,
 )
 
 from galaxy.agents import GalaxyAgentDependencies
+from galaxy.agents.base import BaseGalaxyAgent
 from galaxy.agents.registry import AgentRegistry
 from galaxy.agents.router import QueryRouterAgent
+from galaxy.agents.streaming import (
+    get_run_registry,
+    new_run_id,
+    StreamingEventEmitter,
+)
 from galaxy.config import GalaxyAppConfiguration
 from galaxy.managers.context import ProvidesUserContext
 from galaxy.managers.jobs import JobManager
+from galaxy.managers.sse_dispatch import SSEEventDispatcher
 from galaxy.model import User
 from galaxy.schema.agents import AgentResponse
 
@@ -43,6 +54,15 @@ class AgentService:
             get_agent=self.registry.get_agent,
         )
 
+    def _resolve_agent(self, agent_type: str, deps: GalaxyAgentDependencies) -> BaseGalaxyAgent:
+        """Resolve an agent_type to an agent instance via the registry.
+
+        Centralized so both ``execute_agent`` and ``start_streaming_run`` agree
+        on lookup semantics; raises ``ValueError`` for unknown types so callers
+        can fall back to the router.
+        """
+        return self.registry.get_agent(agent_type, deps)
+
     async def execute_agent(
         self,
         agent_type: str,
@@ -59,7 +79,7 @@ class AgentService:
 
         try:
             log.info(f"Executing {agent_type} agent for query: '{query[:100]}...'")
-            agent = self.registry.get_agent(agent_type, deps)
+            agent = self._resolve_agent(agent_type, deps)
             response = await agent.process(query, context)
 
             return AgentResponse(
@@ -124,3 +144,49 @@ class AgentService:
 
     def get_agent_info(self, agent_type: str) -> dict:
         return self.registry.get_agent_info(agent_type)
+
+    async def start_streaming_run(
+        self,
+        trans: ProvidesUserContext,
+        user: User,
+        query: str,
+        agent_type: str,
+        context: Optional[dict[str, Any]],
+        exchange_id: Optional[str],
+        on_complete: Callable[[str, Optional[AgentResponse]], Awaitable[None]],
+    ) -> str:
+        """Schedule a streaming agent run.
+
+        Returns the run_id immediately. The actual ``agent.iter()`` loop runs
+        on the worker's event loop and emits SSE events via
+        ``StreamingEventEmitter``. ``on_complete`` is awaited after the run
+        finishes (success or error) so the caller can persist the final
+        message via ``chat_manager``.
+        """
+        run_id = new_run_id()
+        deps = self.create_dependencies(trans, user)
+        try:
+            agent = self._resolve_agent(agent_type, deps)
+        except ValueError as e:
+            log.warning(f"Unknown agent type {agent_type} for streaming run, falling back to router: {e}")
+            agent = QueryRouterAgent(deps)
+        dispatcher = trans.app.resolve_or_none(SSEEventDispatcher)
+        if dispatcher is None:
+            raise RuntimeError("SSEEventDispatcher is not registered; cannot start streaming run.")
+        emitter = StreamingEventEmitter(
+            dispatcher=dispatcher,
+            user_id=user.id,
+            run_id=run_id,
+            exchange_id=exchange_id,
+        )
+
+        async def _run() -> None:
+            try:
+                response = await agent.process_streaming(query, emitter, context)
+                await on_complete(run_id, response)
+            except Exception as e:
+                log.warning("Streaming run %s failed: %s", run_id, e)
+                await on_complete(run_id, None)
+
+        get_run_registry().start(user_id=user.id, run_id=run_id, coro_factory=_run)
+        return run_id
