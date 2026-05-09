@@ -3962,6 +3962,40 @@ class ChatResponse(BaseModel):
     )
 
 
+class StreamingChatResponse(BaseModel):
+    """Returned from POST /api/chat?stream=true.
+
+    The actual assistant response is delivered via SSE chat_event frames
+    keyed by run_id; this body just acknowledges the run started.
+    """
+
+    streaming: bool = Field(
+        default=True,
+        title="Streaming",
+        description="Always true for a streaming chat response.",
+    )
+    run_id: str = Field(
+        ...,
+        title="Run ID",
+        description="Identifier used to correlate streaming events with this request.",
+    )
+    exchange_id: Optional[EncodedDatabaseIdField] = Field(
+        default=None,
+        title="Exchange ID",
+        description="The ID of the chat exchange the streaming run will persist to.",
+    )
+    error_code: Optional[int] = Field(
+        default=0,
+        title="Error Code",
+        description="The error code, if any, for the chat query.",
+    )
+    error_message: Optional[str] = Field(
+        default="",
+        title="Error Message",
+        description="The error message, if any, for the chat query.",
+    )
+
+
 class ChatExchangeBatchDeletePayload(Model):
     ids: list[DecodedDatabaseIdField] = Field(
         ...,

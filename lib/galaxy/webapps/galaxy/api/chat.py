@@ -37,6 +37,7 @@ from galaxy.schema.schema import (
     ChatExchangeBatchDeletePayload,
     ChatPayload,
     ChatResponse,
+    StreamingChatResponse,
 )
 from galaxy.webapps.galaxy.api import (
     depends,
@@ -113,9 +114,17 @@ class ChatAPI:
         payload: Optional[ChatPayload] = None,
         query: Optional[str] = Query(default=None, description="Query string for general chat"),
         agent_type: str = Query(default="auto", description="Agent type to use for the query"),
+        stream: bool = Query(
+            default=False,
+            description=(
+                "If true and chat streaming is enabled on the server, kick off an async "
+                "agent run and return immediately with a run_id; the assistant response "
+                "is delivered via SSE chat_event frames."
+            ),
+        ),
         trans: ProvidesUserContext = DependsOnTrans,
         user: User = DependsOnUser,
-    ) -> ChatResponse:
+    ) -> Union[ChatResponse, StreamingChatResponse]:
         """ChatGXY endpoint - handles both job-based and general chat queries
 
         Backwards compatible with both formats:
@@ -171,6 +180,19 @@ class ChatAPI:
         exchange_id = None
         if payload is not None and hasattr(payload, "exchange_id") and payload.exchange_id:
             exchange_id = payload.exchange_id
+
+        # Streaming path: only for general chat (no job_id) when the server has
+        # opted in via ``enable_chat_streaming``. The legacy synchronous path
+        # below is otherwise unchanged.
+        if stream and HAS_AGENTS and job is None and getattr(self.config, "enable_chat_streaming", False):
+            return await self._start_streaming_run(
+                trans=trans,
+                user=user,
+                query_text=query_text,
+                agent_type=agent_type,
+                exchange_id=exchange_id,
+                query_context=query_context,
+            )
 
         # Use new agent system if available, otherwise fallback to legacy
         try:
@@ -429,6 +451,74 @@ class ChatAPI:
                 )
 
         return messages
+
+    async def _start_streaming_run(
+        self,
+        trans: ProvidesUserContext,
+        user: User,
+        query_text: str,
+        agent_type: str,
+        exchange_id: Optional[int],
+        query_context: dict[str, Any],
+    ) -> StreamingChatResponse:
+        """Pre-create the exchange row, kick off a streaming agent run, and
+        return the run_id. Persistence happens in the on_complete callback
+        once the agent loop finishes.
+        """
+        # Build full_context the same way the synchronous path does so the
+        # router sees prior turns as ``conversation_history``.
+        full_context: dict[str, Any] = query_context.copy() if query_context else {}
+        if exchange_id:
+            db_history = await anyio.to_thread.run_sync(
+                partial(self.chat_manager.get_chat_history, trans, exchange_id, format_for_pydantic_ai=True)
+            )
+            full_context["conversation_history"] = db_history or []
+        else:
+            full_context["conversation_history"] = []
+
+            # No existing exchange -- create a placeholder row now so the
+            # streaming run has somewhere to persist when it finishes.
+            placeholder = {"response": "", "agent_response": None}
+            exchange = await anyio.to_thread.run_sync(
+                partial(
+                    self.chat_manager.create_general_chat,
+                    trans,
+                    query_text,
+                    placeholder,
+                    agent_type,
+                )
+            )
+            exchange_id = exchange.id
+
+        # Capture exchange_id in the closure -- mypy needs the local rebinding.
+        persisted_exchange_id: int = exchange_id
+
+        async def _persist(run_id: str, response: Optional[AgentResponse]) -> None:
+            if response is None:
+                # Streaming run failed; the error event has already been
+                # emitted, and the placeholder row stays as-is.
+                return
+            conversation_data = {
+                "query": query_text,
+                "response": response.content,
+                "agent_type": agent_type,
+                "agent_response": response.model_dump(),
+            }
+            message_content = json.dumps(conversation_data)
+            await anyio.to_thread.run_sync(
+                partial(self.chat_manager.add_message, trans, persisted_exchange_id, message_content)
+            )
+
+        run_id = await self.agent_service.start_streaming_run(
+            trans=trans,
+            user=user,
+            query=query_text,
+            agent_type=agent_type,
+            context=full_context,
+            exchange_id=str(persisted_exchange_id),
+            on_complete=_persist,
+        )
+        return StreamingChatResponse(run_id=run_id, exchange_id=str(persisted_exchange_id))
 
     def _ensure_ai_configured(self):
         """Ensure AI is configured"""
