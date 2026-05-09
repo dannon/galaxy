@@ -1,6 +1,9 @@
+import asyncio
+
 import pytest
 
 from galaxy.agents.streaming import (
+    ChatRunRegistry,
     ChatStreamEvent,
     ChatStreamKind,
     StreamingEventEmitter,
@@ -57,3 +60,33 @@ def test_chat_stream_event_dataclass_shape():
     )
     assert event.kind == ChatStreamKind.DELTA
     assert event.body == {"text": "hi"}
+
+
+@pytest.mark.asyncio
+async def test_registry_tracks_runs_until_completion():
+    registry = ChatRunRegistry(max_per_user=2)
+
+    async def work():
+        await asyncio.sleep(0.01)
+
+    handle1 = registry.start(user_id=7, run_id="a", coro_factory=work)
+    handle2 = registry.start(user_id=7, run_id="b", coro_factory=work)
+    assert registry.active_count(user_id=7) == 2
+
+    await handle1
+    await handle2
+    # Yield once so the tasks' done callbacks (which deregister) get to run.
+    await asyncio.sleep(0)
+    assert registry.active_count(user_id=7) == 0
+
+
+@pytest.mark.asyncio
+async def test_registry_enforces_per_user_cap():
+    registry = ChatRunRegistry(max_per_user=1)
+
+    async def work():
+        await asyncio.sleep(0.05)
+
+    registry.start(user_id=9, run_id="a", coro_factory=work)
+    with pytest.raises(RuntimeError, match="Too many concurrent"):
+        registry.start(user_id=9, run_id="b", coro_factory=work)

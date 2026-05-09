@@ -11,6 +11,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections import defaultdict
+from collections.abc import (
+    Awaitable,
+    Callable,
+)
 from dataclasses import (
     dataclass,
     field,
@@ -109,3 +114,56 @@ class ChatStreamEvent:
 
 def new_run_id() -> str:
     return f"chatrun-{uuid4().hex}"
+
+
+class ChatRunRegistry:
+    """Per-worker map of active streaming chat runs.
+
+    Each ``start`` call wraps the coroutine in an ``asyncio.Task`` and tracks
+    it; the task self-deregisters on completion via ``add_done_callback``.
+    """
+
+    def __init__(self, max_per_user: int = 3) -> None:
+        self._max_per_user = max_per_user
+        self._by_run: dict[str, asyncio.Task] = {}
+        self._by_user: dict[int, set[str]] = defaultdict(set)
+        self._lock = asyncio.Lock()
+
+    def start(
+        self,
+        user_id: int,
+        run_id: str,
+        coro_factory: Callable[[], Awaitable[None]],
+    ) -> asyncio.Task:
+        if len(self._by_user[user_id]) >= self._max_per_user:
+            raise RuntimeError(f"Too many concurrent ChatGXY runs for user {user_id} (max {self._max_per_user}).")
+        task = asyncio.create_task(coro_factory(), name=f"chatgxy-{run_id}")
+        self._by_run[run_id] = task
+        self._by_user[user_id].add(run_id)
+        task.add_done_callback(lambda _t, uid=user_id, rid=run_id: self._cleanup(uid, rid))
+        return task
+
+    def _cleanup(self, user_id: int, run_id: str) -> None:
+        self._by_run.pop(run_id, None)
+        users = self._by_user.get(user_id)
+        if users is not None:
+            users.discard(run_id)
+            if not users:
+                self._by_user.pop(user_id, None)
+
+    def active_count(self, user_id: int) -> int:
+        return len(self._by_user.get(user_id, set()))
+
+    def get(self, run_id: str) -> Optional[asyncio.Task]:
+        return self._by_run.get(run_id)
+
+
+_REGISTRY: Optional[ChatRunRegistry] = None
+
+
+def get_run_registry() -> ChatRunRegistry:
+    """Module-level singleton; one registry per worker process."""
+    global _REGISTRY
+    if _REGISTRY is None:
+        _REGISTRY = ChatRunRegistry()
+    return _REGISTRY
