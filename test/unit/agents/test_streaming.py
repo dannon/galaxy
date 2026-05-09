@@ -214,10 +214,25 @@ class _StubUser:
         self.id = user_id
 
 
+class _StubModelRegistry:
+    """Captures set/unset_request_id calls so tests can assert scope cleanup."""
+
+    def __init__(self):
+        self.scopes: list[str] = []
+        self.unset: list[str] = []
+
+    def set_request_id(self, request_id: str) -> None:
+        self.scopes.append(request_id)
+
+    def unset_request_id(self, request_id: str) -> None:
+        self.unset.append(request_id)
+
+
 class _StubApp:
     def __init__(self, dispatcher):
         self._dispatcher = dispatcher
         self.toolbox = None
+        self.model = _StubModelRegistry()
 
     def resolve_or_none(self, cls):
         if cls is SSEEventDispatcher:
@@ -324,6 +339,51 @@ async def test_start_streaming_run_calls_on_complete_with_none_on_failure(monkey
     await task
     await asyncio.sleep(0)
     assert completed == [(run_id, None)]
+    # Even when the run errors, the per-task DB scope is cleaned up.
+    assert trans.app.model.scopes == trans.app.model.unset
+
+
+@pytest.mark.asyncio
+async def test_start_streaming_run_scopes_a_fresh_request_id(monkeypatch):
+    """Background runs must own a fresh DB session scope and clean it up.
+
+    The originating HTTP request's scope is closed by the FastAPI cleanup
+    middleware once the POST returns; the background task would otherwise
+    leak a session under the stale request_id. Mirrors the Celery /
+    job-runner pattern.
+    """
+    dispatcher = FakeDispatcher()
+    response = AgentResponse(content="ok", agent_type=AgentType.ROUTER, confidence="high")
+
+    class _StubAgent:
+        async def process_streaming(self, query, emitter, context):
+            return response
+
+    service = _make_agent_service(_StubAgent())
+    trans = _StubTrans(dispatcher)
+    user = _StubUser(user_id=1)
+
+    fresh_registry = ChatRunRegistry(max_per_user=2)
+    monkeypatch.setattr("galaxy.managers.agents.get_run_registry", lambda: fresh_registry)
+
+    async def on_complete(run_id, agent_response):
+        pass
+
+    run_id = await service.start_streaming_run(
+        trans=trans,
+        user=user,
+        query="hi",
+        agent_type="router",
+        context=None,
+        exchange_id=None,
+        on_complete=on_complete,
+    )
+    await fresh_registry.get(run_id)
+    await asyncio.sleep(0)
+
+    # Exactly one set/unset, with matching ids -- no leak.
+    assert len(trans.app.model.scopes) == 1
+    assert trans.app.model.scopes == trans.app.model.unset
 
 
 @pytest.mark.asyncio

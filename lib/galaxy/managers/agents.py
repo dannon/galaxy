@@ -1,6 +1,7 @@
 """Agent service layer for AI agent management."""
 
 import logging
+import uuid
 from collections.abc import (
     Awaitable,
     Callable,
@@ -180,13 +181,25 @@ class AgentService:
             exchange_id=exchange_id,
         )
 
+        # Background task lives past the originating HTTP request, so it must
+        # own its own SQLAlchemy session scope -- the request-cleanup
+        # middleware closes the session keyed on the original request_id once
+        # the POST returns. Mirrors the pattern used by Celery tasks
+        # (lib/galaxy/celery/__init__.py) and job runners
+        # (lib/galaxy/jobs/runners/__init__.py).
+        app = trans.app
+
         async def _run() -> None:
+            scoped_id = str(uuid.uuid4())
+            app.model.set_request_id(scoped_id)
             try:
                 response = await agent.process_streaming(query, emitter, context)
                 await on_complete(run_id, response)
             except Exception as e:
                 log.warning("Streaming run %s failed: %s", run_id, e)
                 await on_complete(run_id, None)
+            finally:
+                app.model.unset_request_id(scoped_id)
 
         get_run_registry().start(user_id=user.id, run_id=run_id, coro_factory=_run)
         return run_id
