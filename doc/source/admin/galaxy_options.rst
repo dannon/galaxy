@@ -5604,6 +5604,19 @@
 :Type: any
 
 
+~~~~~~~~~~~~~~~~~~~~~~~~~
+``enable_chat_streaming``
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:Description:
+    Enable server-sent-event streaming for ChatGXY responses. When
+    true, POST /api/chat?stream=true kicks off an async agent run and
+    pushes token-level updates to the client over the existing SSE
+    channel. The synchronous (non-streaming) chat path is unaffected.
+:Default: ``false``
+:Type: bool
+
+
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ``enable_tool_recommendations``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -6099,6 +6112,3 @@
     for user defined tools.
 :Default: ``false``
 :Type: bool
-
-
-

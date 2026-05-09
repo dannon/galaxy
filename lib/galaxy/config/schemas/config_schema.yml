@@ -4148,6 +4148,16 @@ mapping:
           deterministic responses for testing:
           inference_services: { static_responses: test/integration/static_agents.yml }
 
+      enable_chat_streaming:
+        type: bool
+        default: false
+        required: false
+        desc: |
+          Enable server-sent-event streaming for ChatGXY responses. When true,
+          POST /api/chat?stream=true kicks off an async agent run and pushes
+          token-level updates to the client over the existing SSE channel.
+          The synchronous (non-streaming) chat path is unaffected.
+
       enable_tool_recommendations:
         type: bool
         default: false
