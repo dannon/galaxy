@@ -1,23 +1,26 @@
 <template>
-    <BButton
+    <GButton
         v-g-tooltip="tooltipOptions"
         class="border-0 m-1 px-1 py-0"
         :class="{ active, 'cell-button-hide': !show }"
         :title="title"
-        :variant="active ? 'outline-secondary' : 'outline-primary'"
+        v-bind="variantToColor(active ? 'outline-secondary' : 'outline-primary')"
         :aria-pressed="active"
         @click="$emit('click')"
         @mouseleave="onMouseLeave"
         @blur="onMouseLeave">
         <FontAwesomeIcon :icon="icon" fixed-width />
-    </BButton>
+    </GButton>
 </template>
 
 <script setup lang="ts">
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
-import { BButton } from "bootstrap-vue";
 import type { IconDefinition } from "font-awesome-6";
 import { computed } from "vue";
+
+import { variantToColor } from "@/components/BaseComponents/variantToColor";
+
+import GButton from "@/components/BaseComponents/GButton.vue";
 
 const props = withDefaults(
     defineProps<{
