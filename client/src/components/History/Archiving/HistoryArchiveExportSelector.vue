@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { BAlert, BButton, BFormCheckbox, BModal } from "bootstrap-vue";
+import { BAlert, BFormCheckbox, BModal } from "bootstrap-vue";
 import { computed, onMounted, ref, watch } from "vue";
 import { RouterLink } from "vue-router";
 
@@ -10,6 +10,7 @@ import { DEFAULT_EXPORT_PARAMS } from "@/composables/shortTermStorage";
 import { useTaskMonitor } from "@/composables/taskMonitor";
 
 import ExportRecordCard from "./ExportRecordCard.vue";
+import GButton from "@/components/BaseComponents/GButton.vue";
 import GTab from "@/components/BaseComponents/GTab.vue";
 import GTabs from "@/components/BaseComponents/GTabs.vue";
 import ExportToFileSourceForm from "@/components/Common/ExportForm.vue";
@@ -177,13 +178,13 @@ function onArchiveHistoryWithExport() {
                     </b>
                 </p>
                 <p>Use the button below to create a new export record before archiving the history.</p>
-                <BButton
+                <GButton
                     id="create-export-record-btn"
                     :disabled="!canCreateExportRecord"
-                    variant="primary"
+                    color="blue"
                     @click="onCreateExportRecord">
                     Create export record
-                </BButton>
+                </GButton>
             </BAlert>
         </div>
         <p v-if="!isDeleteContentsConfirmed" class="mt-3 mb-0">
@@ -198,14 +199,14 @@ function onArchiveHistoryWithExport() {
             Remember that you cannot undo this action. Once you archive and delete the history, you can only recover it
             by importing it as a new copy from the export record.
         </BAlert>
-        <BButton
+        <GButton
             id="archive-history-btn"
             class="mt-3"
             :disabled="!canArchiveHistory"
-            variant="primary"
+            color="blue"
             @click="onArchiveHistoryWithExport">
             Archive (and purge) history
-        </BButton>
+        </GButton>
 
         <BModal v-model="isExportDialogOpen" title="Export history to permanent storage" size="lg" hide-footer>
             <GTabs card vertical lazy class="export-option-tabs">

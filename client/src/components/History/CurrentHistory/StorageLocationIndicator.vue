@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { faHdd } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
-import { BButton } from "bootstrap-vue";
 import { storeToRefs } from "pinia";
 import { computed, ref } from "vue";
 
@@ -11,6 +10,7 @@ import { useObjectStoreStore } from "@/stores/objectStoreStore";
 import { useUserStore } from "@/stores/userStore";
 
 import SelectPreferredStore from "./SelectPreferredStore.vue";
+import GButton from "@/components/BaseComponents/GButton.vue";
 
 const props = defineProps<{
     history: HistorySummary;
@@ -53,7 +53,7 @@ function toggleSelectPreferredStore() {
 
 <template>
     <div class="storage-location-indicator">
-        <BButton
+        <GButton
             v-g-tooltip.hover
             class="ui-link"
             :title="storageLocationButtonTitle"
@@ -61,7 +61,7 @@ function toggleSelectPreferredStore() {
             @click="toggleSelectPreferredStore">
             <FontAwesomeIcon :icon="faHdd" />
             {{ objectStoreStore.getObjectStoreNameById(preferredObjectStoreId) ?? "Default Storage" }}
-        </BButton>
+        </GButton>
 
         <SelectPreferredStore
             :show-modal.sync="showSelectPreferredStore"
