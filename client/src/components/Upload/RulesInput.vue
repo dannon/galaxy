@@ -1,10 +1,11 @@
 <script setup>
 import { faEdit, faFile, faFolderOpen, faLock } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
-import { BAlert, BButton } from "bootstrap-vue";
+import { BAlert } from "bootstrap-vue";
 import { computed, ref } from "vue";
 
 import { getGalaxyInstance } from "@/app";
+import { variantToColor } from "@/components/BaseComponents/variantToColor";
 import { buildCollectionFromRules } from "@/components/Collections/common/buildCollectionModal";
 import { getRemoteEntries, getRemoteEntriesAt } from "@/components/Upload/utils";
 import { filesDialog } from "@/utils/dataModals";
@@ -150,14 +151,14 @@ function inputRemote() {
                 <FontAwesomeIcon :icon="faFolderOpen" />
                 <span v-localize>Choose from repository</span>
             </GButton>
-            <BButton
+            <GButton
                 id="btn-build"
                 :disabled="!sourceContent"
                 title="Build"
-                :variant="sourceContent ? 'primary' : ''"
+                v-bind="variantToColor(sourceContent ? 'primary' : '')"
                 @click="eventBuild">
                 <span v-localize>Build</span>
-            </BButton>
+            </GButton>
             <GButton id="btn-reset" title="Reset" :disabled="!sourceContent" @click="eventReset">
                 <span v-localize>Reset</span>
             </GButton>

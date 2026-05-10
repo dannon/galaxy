@@ -1,13 +1,14 @@
 <script setup>
-import { BButton } from "bootstrap-vue";
 import Vue, { computed, ref } from "vue";
 
+import { variantToColor } from "@/components/BaseComponents/variantToColor";
 import { buildLegacyPayload, submitUpload } from "@/utils/upload";
 
 import { defaultModel } from "./model";
 
 import CompositeRow from "./CompositeRow.vue";
 import UploadSelect from "./UploadSelect.vue";
+import GButton from "@/components/BaseComponents/GButton.vue";
 
 const props = defineProps({
     defaultDbKey: {
@@ -207,21 +208,21 @@ defineExpose({
                 @input="inputDbkey" />
         </div>
         <div class="upload-buttons d-flex justify-content-end">
-            <BButton
+            <GButton
                 id="btn-start"
                 :disabled="!enableStart"
                 title="Start"
-                :variant="enableStart ? 'primary' : null"
+                v-bind="variantToColor(enableStart ? 'primary' : null)"
                 @click="eventStart">
                 <span v-localize>Start</span>
-            </BButton>
-            <BButton id="btn-reset" title="Reset" @click="eventReset">
+            </GButton>
+            <GButton id="btn-reset" title="Reset" @click="eventReset">
                 <span v-localize>Reset</span>
-            </BButton>
-            <BButton id="btn-close" title="Close" @click="$emit('dismiss')">
+            </GButton>
+            <GButton id="btn-close" title="Close" @click="$emit('dismiss')">
                 <span v-if="hasCallback" v-localize>Close</span>
                 <span v-else v-localize>Cancel</span>
-            </BButton>
+            </GButton>
         </div>
     </div>
 </template>
