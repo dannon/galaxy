@@ -7,8 +7,8 @@
         v-bind="variantToColor(active ? 'outline-secondary' : 'outline-primary')"
         :aria-pressed="active"
         @click="$emit('click')"
-        @mouseleave="onMouseLeave"
-        @blur="onMouseLeave">
+        @mouseleave.native="onMouseLeave"
+        @blur.native="onMouseLeave">
         <FontAwesomeIcon :icon="icon" fixed-width />
     </GButton>
 </template>
