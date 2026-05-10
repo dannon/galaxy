@@ -40,7 +40,7 @@ function getWrapper() {
 describe("Composite", () => {
     it("rendering", async () => {
         const wrapper = getWrapper();
-        expect(wrapper.find("#btn-start").classes()).toEqual(expect.arrayContaining(["disabled"]));
+        expect(wrapper.find("#btn-start").classes()).toEqual(expect.arrayContaining(["g-disabled"]));
         expect(wrapper.vm.showHelper).toBe(true);
         expect(wrapper.vm.enableStart).toBe(false);
         const extensions = wrapper.vm.listExtensions;

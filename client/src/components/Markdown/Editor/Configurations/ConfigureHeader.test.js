@@ -19,7 +19,7 @@ function mountComponent(props = {}) {
         localVue,
         propsData: { hasChanged: undefined, ...props },
         stubs: {
-            BButton: {
+            GButton: {
                 template: "<button @click=\"$emit('click')\"><slot /></button>",
             },
             FontAwesomeIcon: true,

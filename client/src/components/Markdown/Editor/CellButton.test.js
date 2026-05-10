@@ -25,10 +25,14 @@ describe("CellButton.vue", () => {
         expect(wrapper.find("[icon='button-icon']").exists()).toBeTruthy();
         expect(wrapper.attributes()["title"]).toBe("button-title");
         expect(wrapper.classes()).not.toContain("active");
-        expect(wrapper.classes()).toContain("btn-outline-primary");
+        // outline-primary maps to color="blue" outline=true via variantToColor
+        expect(wrapper.classes()).toContain("g-blue");
+        expect(wrapper.classes()).toContain("g-outline");
         await wrapper.setProps({ active: true });
         expect(wrapper.classes()).toContain("active");
-        expect(wrapper.classes()).toContain("btn-outline-secondary");
+        // outline-secondary maps to outline=true (no color, defaults to grey)
+        expect(wrapper.classes()).toContain("g-grey");
+        expect(wrapper.classes()).toContain("g-outline");
         await wrapper.trigger("click");
         expect(wrapper.emitted("click")).toBeTruthy();
         expect(wrapper.emitted("click")?.length).toBe(1);

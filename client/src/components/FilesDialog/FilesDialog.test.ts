@@ -452,11 +452,12 @@ class Utils {
     }
 
     expectOkButtonDisabled() {
-        expect(this.getOkButton().attributes("disabled")).toBeTruthy();
+        // GButton uses aria-disabled instead of the native disabled attribute
+        expect(this.getOkButton().attributes("aria-disabled")).toBeTruthy();
     }
 
     expectOkButtonEnabled() {
-        expect(this.getOkButton().attributes("disabled")).toBeFalsy();
+        expect(this.getOkButton().attributes("aria-disabled")).toBeFalsy();
     }
 
     expectSelectAllIconStatusToBe(status: string) {
