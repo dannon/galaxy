@@ -20,10 +20,10 @@
                     </FormElementLabel>
                 </template>
             </FormCard>
-            <BButton id="page-submit" class="my-2" variant="primary" @click="onSubmit">
+            <GButton id="page-submit" class="my-2" color="blue" @click="onSubmit">
                 <FontAwesomeIcon :icon="faSave" class="mr-1" />
                 <span v-localize>{{ buttonText }}</span>
-            </BButton>
+            </GButton>
         </div>
     </div>
 </template>
@@ -31,7 +31,7 @@
 <script setup lang="ts">
 import { faSave } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
-import { BAlert, BButton } from "bootstrap-vue";
+import { BAlert } from "bootstrap-vue";
 import { ref, watch } from "vue";
 import { useRouter } from "vue-router/composables";
 
@@ -40,6 +40,7 @@ import { fetchInvocationReport } from "@/api/invocations";
 import { FORM_LABELS } from "@/components/Page/constants";
 import pageTemplate from "@/components/PageDisplay/pageTemplate.yml";
 
+import GButton from "@/components/BaseComponents/GButton.vue";
 import FormInput from "@/components/Form/Elements/FormInput.vue";
 import FormCard from "@/components/Form/FormCard.vue";
 import FormElementLabel from "@/components/Form/FormElementLabel.vue";
