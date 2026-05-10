@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { faBurn, faCheckCircle, faTrash } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
-import { BAlert, BButton, BPagination } from "bootstrap-vue";
+import { BAlert, BPagination } from "bootstrap-vue";
 import { computed, onMounted, ref } from "vue";
 
 import type { HDASummary } from "@/api";
@@ -15,6 +15,7 @@ import localize from "@/utils/localization";
 
 import { useDatasetTableActions } from "./useDatasetTableActions";
 
+import GButton from "@/components/BaseComponents/GButton.vue";
 import BreadcrumbHeading from "@/components/Common/BreadcrumbHeading.vue";
 import DelayedInput from "@/components/Common/DelayedInput.vue";
 import GTable from "@/components/Common/GTable.vue";
@@ -335,16 +336,16 @@ onMounted(() => {
 
         <div class="d-flex mt-1 align-items-center mt-2">
             <div v-if="selectedItemIds.length > 0" class="d-flex gap-1 w-100 position-absolute">
-                <BButton
+                <GButton
                     v-g-tooltip.hover
-                    size="sm"
-                    variant="primary"
+                    size="small"
+                    color="blue"
                     :disabled="bulkDeleteOrRestoreLoading"
                     :title="bulkDeleteOrRestoreLoading ? 'Deleting datasets' : 'Delete selected datasets'"
                     @click="onBulkDelete">
                     <FontAwesomeIcon :icon="faTrash" />
                     {{ localize("Delete Selected") }} ({{ selectedItemIds.length }})
-                </BButton>
+                </GButton>
             </div>
 
             <BPagination

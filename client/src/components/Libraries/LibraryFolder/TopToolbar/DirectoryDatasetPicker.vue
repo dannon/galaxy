@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { BAlert, BButton, BFormCheckbox, BFormCheckboxGroup, BFormGroup, BFormTextarea, BModal } from "bootstrap-vue";
+import { BAlert, BFormCheckbox, BFormCheckboxGroup, BFormGroup, BFormTextarea, BModal } from "bootstrap-vue";
 import { computed, ref, watch } from "vue";
 
 import { GalaxyApi } from "@/api";
@@ -9,6 +9,7 @@ import { Toast } from "@/composables/toast";
 import { useDbKeyStore } from "@/stores/dbKeyStore";
 import { errorMessageAsString } from "@/utils/simple-error";
 
+import GButton from "@/components/BaseComponents/GButton.vue";
 import GTab from "@/components/BaseComponents/GTab.vue";
 import GTabs from "@/components/BaseComponents/GTabs.vue";
 import FormDrilldown from "@/components/Form/Elements/FormDrilldown/FormDrilldown.vue";
@@ -332,10 +333,10 @@ watch(
             multiple />
 
         <template v-slot:modal-footer>
-            <BButton size="sm" variant="secondary" :disabled="importing" @click="emit('onClose')">Close</BButton>
-            <BButton size="sm" variant="primary" :disabled="importDisable" @click="onImport">
+            <GButton size="small" :disabled="importing" @click="emit('onClose')">Close</GButton>
+            <GButton size="small" color="blue" :disabled="importDisable" @click="onImport">
                 {{ okButtonText }}
-            </BButton>
+            </GButton>
         </template>
     </BModal>
 </template>
