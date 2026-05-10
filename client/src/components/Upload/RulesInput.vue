@@ -13,6 +13,7 @@ import { urlData } from "@/utils/url";
 import { RULES_TYPES } from "./utils.js";
 
 import UploadSelect from "./UploadSelect.vue";
+import GButton from "@/components/BaseComponents/GButton.vue";
 
 const props = defineProps({
     hasCallback: {
@@ -133,22 +134,22 @@ function inputRemote() {
             <UploadSelect v-model="dataType" class="rule-data-type" :options="RULES_TYPES" :searchable="false" />
         </div>
         <div class="upload-buttons d-flex justify-content-end">
-            <BButton @click="inputPaste">
+            <GButton @click="inputPaste">
                 <FontAwesomeIcon :icon="faEdit" />
                 <span v-localize>Paste data</span>
-            </BButton>
-            <BButton data-description="rules dataset dialog" @click="inputDialog">
+            </GButton>
+            <GButton data-description="rules dataset dialog" @click="inputDialog">
                 <FontAwesomeIcon :icon="faFile" />
                 <span v-localize>Choose dataset</span>
-            </BButton>
-            <BButton v-if="ftpUploadSite" @click="inputFtp">
+            </GButton>
+            <GButton v-if="ftpUploadSite" @click="inputFtp">
                 <FontAwesomeIcon :icon="faFolderOpen" />
                 <span v-localize>Import FTP files</span>
-            </BButton>
-            <BButton @click="inputRemote">
+            </GButton>
+            <GButton @click="inputRemote">
                 <FontAwesomeIcon :icon="faFolderOpen" />
                 <span v-localize>Choose from repository</span>
-            </BButton>
+            </GButton>
             <BButton
                 id="btn-build"
                 :disabled="!sourceContent"
@@ -157,12 +158,12 @@ function inputRemote() {
                 @click="eventBuild">
                 <span v-localize>Build</span>
             </BButton>
-            <BButton id="btn-reset" title="Reset" :disabled="!sourceContent" @click="eventReset">
+            <GButton id="btn-reset" title="Reset" :disabled="!sourceContent" @click="eventReset">
                 <span v-localize>Reset</span>
-            </BButton>
-            <BButton id="btn-close" title="Close" @click="$emit('dismiss')">
+            </GButton>
+            <GButton id="btn-close" title="Close" @click="$emit('dismiss')">
                 <span v-localize>Close</span>
-            </BButton>
+            </GButton>
         </div>
     </div>
 </template>

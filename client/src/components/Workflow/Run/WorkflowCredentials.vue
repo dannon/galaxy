@@ -24,7 +24,7 @@
 
 import { faCaretRight, faCheck, faExclamation, faKey, faWrench } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon, FontAwesomeLayers } from "@fortawesome/vue-fontawesome";
-import { BAlert, BBadge, BButton } from "bootstrap-vue";
+import { BAlert, BBadge } from "bootstrap-vue";
 import { storeToRefs } from "pinia";
 import { computed, onMounted, ref } from "vue";
 
@@ -33,6 +33,7 @@ import { useUserMultiToolCredentials } from "@/composables/userMultiToolCredenti
 import { useUserStore } from "@/stores/userStore";
 import { useUserToolsServiceCredentialsStore } from "@/stores/userToolsServiceCredentialsStore";
 
+import GButton from "@/components/BaseComponents/GButton.vue";
 import LoadingSpan from "@/components/LoadingSpan.vue";
 import WorkflowCredentialsManagement from "@/components/Workflow/Run/WorkflowCredentialsManagement.vue";
 
@@ -196,9 +197,9 @@ onMounted(async () => {
                     </span>
                 </div>
 
-                <BButton variant="primary" size="sm" @click="toggleDialog">
+                <GButton color="blue" size="small" @click="toggleDialog">
                     {{ provideCredentialsButtonTitle }}
-                </BButton>
+                </GButton>
             </div>
 
             <div v-if="!isAnonymous && currentWorkflowServiceGroups" class="d-flex flex-wrap flex-gapx-1 flex-gapy-1">
