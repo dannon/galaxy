@@ -2,7 +2,6 @@
 import axios from "axios";
 import {
     BAlert,
-    BButton,
     BCard,
     BCardGroup,
     BFormSelect,
@@ -23,6 +22,7 @@ import { useUserStore } from "@/stores/userStore";
 import { assertArray } from "@/utils/assertions";
 
 import Heading from "../Common/Heading.vue";
+import GButton from "@/components/BaseComponents/GButton.vue";
 
 const props = defineProps<{
     item: AnyShareableItemWithStatus;
@@ -211,10 +211,10 @@ defineExpose({
                 </Multiselect>
 
                 <div class="share-with-card-buttons mt-2 w-100 d-flex justify-content-end flex-gapx-1">
-                    <BButton class="cancel-sharing-with" :disabled="noChanges" @click="onCancel"> Cancel </BButton>
-                    <BButton variant="primary" class="submit-sharing-with" :disabled="noChanges" @click="onSubmit">
+                    <GButton class="cancel-sharing-with" :disabled="noChanges" @click="onCancel"> Cancel </GButton>
+                    <GButton color="blue" class="submit-sharing-with" :disabled="noChanges" @click="onSubmit">
                         {{ currentSearch ? `Add` : `Save` }}
-                    </BButton>
+                    </GButton>
                 </div>
             </div>
         </div>

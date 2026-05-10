@@ -3,7 +3,7 @@ import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import { faCheckSquare, faMinusSquare, faSquare } from "@fortawesome/free-regular-svg-icons";
 import { faCaretLeft, faCheck, faFolder, faSpinner, faTimes } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
-import { BAlert, BButton, BLink, BPagination, BTable } from "bootstrap-vue";
+import { BAlert, BLink, BPagination, BTable } from "bootstrap-vue";
 import { computed, ref, watch } from "vue";
 
 import { type ItemsProvider, SELECTION_STATES, type SelectionState } from "@/components/SelectionDialog/selectionTypes";
@@ -11,6 +11,7 @@ import type Filtering from "@/utils/filtering";
 
 import type { FieldEntry, SelectionItem } from "./selectionTypes";
 
+import GButton from "../BaseComponents/GButton.vue";
 import GModal from "../BaseComponents/GModal.vue";
 import Heading from "../Common/Heading.vue";
 import FilterMenu from "@/components/Common/FilterMenu.vue";
@@ -281,10 +282,14 @@ defineExpose({
         <template v-slot:footer>
             <div class="d-flex justify-content-between w-100">
                 <div>
-                    <BButton v-if="undoShow" data-description="selection dialog undo" size="sm" @click="emit('onUndo')">
+                    <GButton
+                        v-if="undoShow"
+                        data-description="selection dialog undo"
+                        size="small"
+                        @click="emit('onUndo')">
                         <FontAwesomeIcon :icon="faCaretLeft" />
                         Back
-                    </BButton>
+                    </GButton>
                     <slot v-if="!errorMessage" name="buttons" />
                 </div>
                 <BPagination
@@ -295,24 +300,20 @@ defineExpose({
                     :per-page="perPage"
                     :total-rows="totalItems" />
                 <div>
-                    <BButton
-                        data-description="selection dialog cancel"
-                        size="sm"
-                        variant="secondary"
-                        @click="emit('onCancel')">
+                    <GButton data-description="selection dialog cancel" size="small" @click="emit('onCancel')">
                         <FontAwesomeIcon :icon="faTimes" />
                         Cancel
-                    </BButton>
-                    <BButton
+                    </GButton>
+                    <GButton
                         v-if="multiple || !fileMode"
                         data-description="selection dialog ok"
-                        size="sm"
-                        variant="primary"
+                        size="small"
+                        color="blue"
                         :disabled="disableOk"
                         @click="emit('onOk')">
                         <FontAwesomeIcon :icon="faCheck" />
                         {{ okButtonText }}
-                    </BButton>
+                    </GButton>
                 </div>
             </div>
         </template>

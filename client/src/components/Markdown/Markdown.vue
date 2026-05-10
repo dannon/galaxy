@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { faDownload, faEdit } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
-import { BButton } from "bootstrap-vue";
 import { computed, onMounted, ref, watch } from "vue";
 
 import { parseMarkdown } from "./parse";
@@ -123,18 +122,19 @@ onMounted(() => {
                                 outline />
                         </template>
 
-                        <BButton
+                        <GButton
                             v-if="!readOnly"
                             v-g-tooltip.hover
                             class="markdown-edit"
                             role="button"
-                            size="sm"
+                            size="small"
                             title="Edit Markdown"
-                            variant="outline-primary"
+                            color="blue"
+                            outline
                             @click="$emit('onEdit')">
                             Edit
                             <FontAwesomeIcon :icon="faEdit" />
-                        </BButton>
+                        </GButton>
                     </div>
                 </div>
             </div>
