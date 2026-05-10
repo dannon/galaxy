@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { faPen } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
-import { BButton, BFormInput, BFormTextarea, BInputGroup, BInputGroupAppend } from "bootstrap-vue";
+import { BFormInput, BFormTextarea, BInputGroup, BInputGroupAppend } from "bootstrap-vue";
 import { computed, ref } from "vue";
 
 import { markup } from "@/components/ObjectStore/configurationMarkdown";
+
+import GButton from "@/components/BaseComponents/GButton.vue";
 
 interface Props {
     name: string;
@@ -45,10 +47,10 @@ async function onOk() {
                     <BInputGroup>
                         <BFormInput type="password" value="*****************************" disabled @click="onClick" />
                         <BInputGroupAppend>
-                            <BButton @click="onClick">
+                            <GButton @click="onClick">
                                 <FontAwesomeIcon :icon="faPen" />
                                 Update
-                            </BButton>
+                            </GButton>
                         </BInputGroupAppend>
                     </BInputGroup>
                 </div>
