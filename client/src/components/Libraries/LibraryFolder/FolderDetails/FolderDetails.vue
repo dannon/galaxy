@@ -1,13 +1,13 @@
 <template>
     <div>
-        <BButton
-            v-b-modal.details-modal
+        <GButton
             class="details-btn"
             title="Show location details"
-            data-testid="loc-details-btn">
+            data-testid="loc-details-btn"
+            @click="$bvModal.show('details-modal')">
             <FontAwesomeIcon :icon="faInfoCircle" />
             {{ detailsCaption }}
-        </BButton>
+        </GButton>
 
         <BModal
             id="details-modal"
@@ -70,21 +70,22 @@
 import { faInfoCircle } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import axios from "axios";
-import { BAlert, BButton, BModal } from "bootstrap-vue";
+import { BAlert, BModal } from "bootstrap-vue";
 
 import { buildFields } from "@/components/Libraries/library-utils";
 import { getAppRoot } from "@/onload/loadConfig";
 import _l from "@/utils/localization";
 
+import GButton from "@/components/BaseComponents/GButton.vue";
 import GTable from "@/components/Common/GTable.vue";
 import UtcDate from "@/components/UtcDate.vue";
 
 export default {
     components: {
         BAlert,
-        BButton,
         BModal,
         FontAwesomeIcon,
+        GButton,
         GTable,
         UtcDate,
     },
