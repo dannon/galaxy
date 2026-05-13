@@ -1,13 +1,13 @@
 <template>
     <span class="workflow-storage-indicators">
-        <b-button
+        <GButton
             id="workflow-storage-indicator-primary"
             class="workflow-storage-indicator workflow-storage-indicator-primary"
             v-bind="buttonProps"
             @click="showPreferredObjectStoreModal = true">
             <span class="fa fa-hdd" />
             Primary Storage
-        </b-button>
+        </GButton>
         <WorkflowTargetPreferredObjectStorePopover
             target="workflow-storage-indicator-primary"
             :title-suffix="suffixPrimary"
@@ -26,7 +26,7 @@
                 :invocation-preferred-object-store-id="selectedObjectStoreId"
                 @updated="onUpdate" />
         </b-modal>
-        <b-button
+        <GButton
             v-if="splitObjectStore"
             id="workflow-storage-indicator-intermediate"
             v-bind="buttonProps"
@@ -34,7 +34,7 @@
             @click="showIntermediatePreferredObjectStoreModal = true">
             <span class="fa fa-hdd" />
             Intermediate Storage
-        </b-button>
+        </GButton>
         <WorkflowTargetPreferredObjectStorePopover
             v-if="splitObjectStore"
             target="workflow-storage-indicator-intermediate"
@@ -63,10 +63,12 @@ import { mapState } from "pinia";
 import { useConfigStore } from "@/stores/configurationStore";
 
 import WorkflowSelectPreferredObjectStore from "./WorkflowSelectPreferredObjectStore.vue";
+import GButton from "@/components/BaseComponents/GButton.vue";
 import WorkflowTargetPreferredObjectStorePopover from "@/components/Workflow/Run/WorkflowTargetPreferredObjectStorePopover.vue";
 
 export default {
     components: {
+        GButton,
         WorkflowSelectPreferredObjectStore,
         WorkflowTargetPreferredObjectStorePopover,
     },
@@ -124,8 +126,8 @@ export default {
         buttonProps() {
             return {
                 // size: 'sm',
-                role: "button",
-                variant: "link",
+                transparent: true,
+                type: "button",
             };
         },
     },
