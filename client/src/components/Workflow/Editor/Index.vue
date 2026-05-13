@@ -140,15 +140,15 @@
                         <FontAwesomeIcon :icon="faMagic" />
                     </GButton>
 
-                    <b-button
+                    <GButton
                         id="workflow-canvas-button"
                         v-g-tooltip.hover.bottom
                         title="Return to Workflow"
-                        variant="link"
-                        role="button"
+                        transparent
+                        icon-only
                         @click="showAttributes">
                         <FontAwesomeIcon :icon="faTimes" />
-                    </b-button>
+                    </GButton>
                 </template>
             </MarkdownEditor>
         </template>
@@ -163,7 +163,7 @@
                         </span>
                     </span>
 
-                    <b-button-group>
+                    <GButtonGroup>
                         <BDropdown
                             v-if="credentialSteps.length > 0"
                             no-caret
@@ -194,30 +194,31 @@
                             </BDropdownItem>
                         </BDropdown>
 
-                        <b-button
+                        <GButton
                             :title="undoRedoStore.undoText + ' (Ctrl + Z)'"
-                            variant="secondary"
+                            icon-only
                             :disabled="!undoRedoStore.hasUndo"
                             @click="undoRedoStore.undo()">
                             <FontAwesomeIcon :icon="faUndo" />
-                        </b-button>
-                        <b-button
+                        </GButton>
+                        <GButton
                             :title="undoRedoStore.redoText + ' (Ctrl + Shift + Z)'"
-                            variant="secondary"
+                            icon-only
                             :disabled="!undoRedoStore.hasRedo"
                             @click="undoRedoStore.redo()">
                             <FontAwesomeIcon :icon="faRedo" />
-                        </b-button>
-                        <b-button
+                        </GButton>
+                        <GButton
                             id="workflow-save-button"
                             class="py-1 px-2"
-                            variant="link"
+                            transparent
+                            icon-only
                             :disabled="!hasChanges"
                             :title="saveWorkflowTitle"
                             @click="saveOrCreate">
                             <FontAwesomeIcon :icon="faSave" />
-                        </b-button>
-                    </b-button-group>
+                        </GButton>
+                    </GButtonGroup>
                 </div>
 
                 <ReadmeEditor
@@ -327,6 +328,7 @@ import GForm from "@/components/BaseComponents/Form/GForm.vue";
 import GFormInput from "@/components/BaseComponents/Form/GFormInput.vue";
 import GFormLabel from "@/components/BaseComponents/Form/GFormLabel.vue";
 import GButton from "@/components/BaseComponents/GButton.vue";
+import GButtonGroup from "@/components/BaseComponents/GButtonGroup.vue";
 import GModal from "@/components/BaseComponents/GModal.vue";
 import MarkdownEditor from "@/components/Markdown/MarkdownEditor.vue";
 import InputPanel from "@/components/Panels/InputPanel.vue";
@@ -364,6 +366,7 @@ export default {
         GForm,
         GFormLabel,
         GFormInput,
+        GButtonGroup,
         GModal,
     },
     props: {

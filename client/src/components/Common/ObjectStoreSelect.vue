@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ConcreteObjectStoreModel } from "@/api";
 
+import GButtonGroup from "@/components/BaseComponents/GButtonGroup.vue";
 import ObjectStoreSelectButton from "@/components/ObjectStore/ObjectStoreSelectButton.vue";
 import ObjectStoreSelectButtonDescribePopover from "@/components/ObjectStore/ObjectStoreSelectButtonDescribePopover.vue";
 
@@ -20,7 +21,7 @@ const toWhat = "Datasets will be filtered to those stored in";
 <template>
     <div>
         <p>Select a storage source to filter by</p>
-        <b-button-group vertical size="lg" class="select-button-group">
+        <GButtonGroup vertical class="select-button-group">
             <ObjectStoreSelectButton
                 v-for="objectStore in objectStores"
                 :key="objectStore.object_store_id"
@@ -29,7 +30,7 @@ const toWhat = "Datasets will be filtered to those stored in";
                 variant="outline-primary"
                 :object-store="objectStore"
                 @click="emit('select', objectStore.object_store_id ?? null)" />
-        </b-button-group>
+        </GButtonGroup>
         <ObjectStoreSelectButtonDescribePopover
             v-for="objectStore in objectStores"
             :key="objectStore.object_store_id"

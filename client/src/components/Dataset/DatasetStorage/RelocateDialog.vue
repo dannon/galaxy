@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ConcreteObjectStoreModel, SelectableObjectStore } from "@/api";
 
+import GButtonGroup from "@/components/BaseComponents/GButtonGroup.vue";
 import ObjectStoreSelectButton from "@/components/ObjectStore/ObjectStoreSelectButton.vue";
 import ObjectStoreSelectButtonDescribePopover from "@/components/ObjectStore/ObjectStoreSelectButtonDescribePopover.vue";
 
@@ -27,7 +28,7 @@ const toWhat = "This dataset will be relocated to";
 <template>
     <div>
         <p>Currently the dataset is located in:</p>
-        <b-button-group vertical size="lg" class="select-button-group">
+        <GButtonGroup vertical class="select-button-group">
             <ObjectStoreSelectButton
                 :key="fromObjectStore.object_store_id"
                 id-prefix="swap-target"
@@ -35,9 +36,9 @@ const toWhat = "This dataset will be relocated to";
                 variant="info"
                 :object-store="fromObjectStore"
                 @click="emit('closeModal')" />
-        </b-button-group>
+        </GButtonGroup>
         <p class="relocate-to">Select new Galaxy storage for the dataset:</p>
-        <b-button-group vertical size="lg" class="select-button-group">
+        <GButtonGroup vertical class="select-button-group">
             <ObjectStoreSelectButton
                 v-for="objectStore in targetObjectStores"
                 :key="objectStore.object_store_id"
@@ -46,7 +47,7 @@ const toWhat = "This dataset will be relocated to";
                 variant="outline-primary"
                 :object-store="objectStore"
                 @click="relocate(objectStore.object_store_id)" />
-        </b-button-group>
+        </GButtonGroup>
         <ObjectStoreSelectButtonDescribePopover
             id-prefix="swap-target"
             :what="fromWhat"

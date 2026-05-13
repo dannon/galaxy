@@ -2,7 +2,7 @@
 import { faFolder } from "@fortawesome/free-regular-svg-icons";
 import { faEye, faPlus, faSpinner, faTimes, faUpload } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
-import { BBadge, BButtonGroup, BDropdown, BDropdownItem } from "bootstrap-vue";
+import { BBadge, BDropdown, BDropdownItem } from "bootstrap-vue";
 import { computed } from "vue";
 
 import type { CollectionType } from "@/api/datasetCollections";
@@ -19,6 +19,7 @@ import { buildersForCollectionTypes, unconstrainedCollectionTypeBuilders } from 
 import type { VariantInterface } from "./variants";
 
 import GButton from "@/components/BaseComponents/GButton.vue";
+import GButtonGroup from "@/components/BaseComponents/GButtonGroup.vue";
 
 const props = defineProps<{
     variant?: VariantInterface[];
@@ -102,10 +103,9 @@ const defaultCollectionBuilderType = computed<CollectionBuilderType>(() => {
 </script>
 
 <template>
-    <BButtonGroup :vertical="!props.compact" buttons class="align-self-start">
-        <BButtonGroup
+    <GButtonGroup :vertical="!props.compact" class="align-self-start">
+        <GButtonGroup
             v-if="props.showFieldOptions && props.variant && props.variant.length > 1"
-            buttons
             class="align-self-start">
             <GButton
                 v-for="(v, index) in props.variant"
@@ -129,7 +129,7 @@ const defaultCollectionBuilderType = computed<CollectionBuilderType>(() => {
                 <FontAwesomeIcon v-if="props.loading" :icon="faSpinner" spin />
                 <span v-else class="font-weight-bold">...</span>
             </GButton>
-        </BButtonGroup>
+        </GButtonGroup>
         <GButton
             v-if="props.showViewCreateOptions && props.isPopulated"
             v-g-tooltip.bottom.hover
@@ -201,5 +201,5 @@ const defaultCollectionBuilderType = computed<CollectionBuilderType>(() => {
                 <BBadge variant="warning" class="ml-1">Beta</BBadge>
             </GButton>
         </template>
-    </BButtonGroup>
+    </GButtonGroup>
 </template>
