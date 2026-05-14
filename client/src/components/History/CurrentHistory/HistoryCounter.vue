@@ -214,6 +214,7 @@ onMounted(() => {
                     v-g-tooltip.hover
                     :title="localize('Show active')"
                     transparent
+                    color="blue"
                     size="small"
                     class="rounded-0 text-decoration-none"
                     data-description="show active items button"
@@ -227,6 +228,7 @@ onMounted(() => {
                     v-g-tooltip.hover
                     :title="localize('Include deleted')"
                     transparent
+                    color="blue"
                     size="small"
                     class="rounded-0 text-decoration-none"
                     :pressed="getCurrentFilterVal('deleted') !== false"
@@ -241,6 +243,7 @@ onMounted(() => {
                     v-g-tooltip.hover
                     :title="localize('Include hidden')"
                     transparent
+                    color="blue"
                     size="small"
                     class="rounded-0 text-decoration-none"
                     :pressed="getCurrentFilterVal('visible') !== true"
