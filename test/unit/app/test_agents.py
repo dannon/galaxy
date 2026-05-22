@@ -1438,12 +1438,7 @@ def _mock_run_result(tool: UserToolSource) -> mock.Mock:
 
 
 class TestCustomToolAgentReflection:
-    """Tests for CustomToolAgent's validator-retry and quality-critic loops.
-
-    With #22615's integrated validation, pydantic-ai wraps any UserToolSource
-    ValidationError in UnexpectedModelBehavior; the agent's reflection logic
-    surfaces those as a structured retry prompt or low-confidence response.
-    """
+    """Tests for CustomToolAgent's validator-retry and quality-critic loops."""
 
     def setup_method(self):
         self.mock_config = mock.Mock()

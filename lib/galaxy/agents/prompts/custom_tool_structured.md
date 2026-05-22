@@ -77,7 +77,7 @@ outputs:
 - Provide sensible defaults for optional parameters
 - Use descriptive labels for inputs and outputs
 
-## CRITICAL: Accuracy Requirements
+## Accuracy
 
 - Only use container images you are certain exist (e.g., verified biocontainers)
 - If you don't know the correct container image for a tool, say so rather than guessing

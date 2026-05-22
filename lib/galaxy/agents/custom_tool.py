@@ -73,29 +73,13 @@ class CritiqueReport(BaseModel):
 
 
 class CustomToolAgent(BaseGalaxyAgent):
-    """Agent that creates custom Galaxy tools using UserToolSource schema.
+    """Agent that creates custom Galaxy tools using the UserToolSource schema.
 
-    Requires a model with structured output support. If the configured model
-    doesn't support structured output, returns an error guiding the operator
-    to configure an appropriate model.
-
-    Reflection: ``UserToolSource``'s pydantic validators catch structural
-    issues at construction time. Two opt-in loops handle the remainder:
-
-    - **Validator-driven retry** (default on): if the producer's output
-      fails validation, the producer is re-called once with the structured
-      error list and asked to fix specifically those issues. Cap of one
-      retry.
-    - **Quality critic + refine** (default off): an LLM critic reviews the
-      validated tool for clarity / idiomaticity issues that pydantic can't
-      see. If the critic flags significant issues, the producer is
-      re-rolled once with the critique. Cap of one refine; if refinement
-      breaks validation, the original tool is kept.
-
-    Both loops are gated on per-deployment config under
-    ``inference_services.custom_tool``: ``validator_retry_enabled`` and
-    ``quality_critic_enabled``. Default to validator-only behavior --
-    operators turn the critic on when they're willing to pay for it.
+    Requires a model with structured output support. Two opt-in reflection
+    loops sit on top of the producer: a validator-driven retry (re-call the
+    producer once with the structured pydantic errors, default on) and a
+    quality critic + refine (LLM critic reviews the validated tool and
+    triggers one re-roll if it flags significant issues, default off).
     """
 
     agent_type = AgentType.CUSTOM_TOOL
@@ -131,8 +115,7 @@ class CustomToolAgent(BaseGalaxyAgent):
         return prompt_path.read_text()
 
     def _get_critic_agent(self) -> Agent[GalaxyAgentDependencies, CritiqueReport]:
-        """Lazily build the critic agent. Same model as the producer by default;
-        operators can override via ``inference_services.custom_tool.critic_model``."""
+        """Lazily build the critic agent. Uses the same model as the producer."""
         if self._critic_agent is None:
             self._critic_agent = Agent(
                 self._get_model(),
