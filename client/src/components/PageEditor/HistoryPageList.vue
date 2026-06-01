@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { faChevronRight, faEye, faPlus } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
-import { BButton } from "bootstrap-vue";
 
 import type { HistoryPageSummary } from "@/api/pages";
 import { PAGE_LABELS } from "@/components/Page/constants";
+
+import GButton from "@/components/BaseComponents/GButton.vue";
 
 defineProps<{
     pages: HistoryPageSummary[];
@@ -36,10 +37,10 @@ function formatDate(dateStr: string): string {
     <div class="history-page-list" data-description="history page list">
         <div class="list-header d-flex justify-content-between align-items-center p-3 border-bottom">
             <h4 class="mb-0">{{ labels.entityNamePlural }}</h4>
-            <BButton variant="primary" size="sm" data-description="create page button" @click="$emit('create')">
+            <GButton color="blue" size="small" data-description="create page button" @click="$emit('create')">
                 <FontAwesomeIcon :icon="faPlus" />
                 {{ labels.newButton }}
-            </BButton>
+            </GButton>
         </div>
 
         <div v-if="pages.length === 0" class="empty-state text-center p-4" data-description="page empty state">
@@ -64,15 +65,15 @@ function formatDate(dateStr: string): string {
                         <div class="page-meta text-muted small">Updated {{ formatDate(page.update_time) }}</div>
                     </div>
                     <span class="page-actions d-flex align-items-center">
-                        <BButton
-                            variant="link"
-                            size="sm"
+                        <GButton
+                            icon-only
+                            size="small"
                             class="p-1"
                             :title="labels.viewButton"
                             data-description="page view button"
                             @click.stop="$emit('view', page.id)">
                             <FontAwesomeIcon :icon="faEye" />
-                        </BButton>
+                        </GButton>
                         <FontAwesomeIcon :icon="faChevronRight" class="text-muted" />
                     </span>
                 </div>

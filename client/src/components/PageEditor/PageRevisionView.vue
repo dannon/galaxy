@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { faArrowLeft, faExchangeAlt, faEye, faSpinner, faUndo } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
-import { BButton } from "bootstrap-vue";
 import { computed } from "vue";
 
 import type { PageRevisionDetails } from "@/api/pages";
+import { variantToColor } from "@/components/BaseComponents/variantToColor";
 
 import { computeLineDiff, diffStats } from "./sectionDiffUtils";
 
+import GButton from "@/components/BaseComponents/GButton.vue";
 import Markdown from "@/components/Markdown/Markdown.vue";
 
 type ViewMode = "preview" | "changes_current" | "changes_previous";
@@ -57,50 +58,55 @@ const activeHasNoChanges = computed(() =>
 <template>
     <div class="page-revision-view d-flex flex-column h-100" data-description="page revision view">
         <div class="revision-view-toolbar d-flex align-items-center p-2 border-bottom">
-            <BButton variant="link" size="sm" data-description="revision back button" @click="emit('back')">
+            <GButton
+                transparent
+                color="blue"
+                size="small"
+                data-description="revision back button"
+                @click="emit('back')">
                 <FontAwesomeIcon :icon="faArrowLeft" />
                 Back to revisions
-            </BButton>
+            </GButton>
             <span class="d-flex mx-2" data-description="revision view mode toggle">
-                <BButton
-                    :variant="viewMode === 'preview' ? 'primary' : 'outline-primary'"
-                    size="sm"
+                <GButton
+                    v-bind="variantToColor(viewMode === 'preview' ? 'primary' : 'outline-primary')"
+                    size="small"
                     data-description="revision preview button"
                     @click="emit('update:viewMode', 'preview')">
                     <FontAwesomeIcon :icon="faEye" />
                     Preview
-                </BButton>
-                <BButton
+                </GButton>
+                <GButton
                     v-if="!isNewestRevision"
-                    :variant="viewMode === 'changes_current' ? 'primary' : 'outline-primary'"
-                    size="sm"
+                    v-bind="variantToColor(viewMode === 'changes_current' ? 'primary' : 'outline-primary')"
+                    size="small"
                     class="ml-1"
                     data-description="revision compare current button"
                     @click="emit('update:viewMode', 'changes_current')">
                     <FontAwesomeIcon :icon="faExchangeAlt" />
                     Compare to Current
-                </BButton>
-                <BButton
+                </GButton>
+                <GButton
                     v-if="!isOldestRevision"
-                    :variant="viewMode === 'changes_previous' ? 'primary' : 'outline-primary'"
-                    size="sm"
+                    v-bind="variantToColor(viewMode === 'changes_previous' ? 'primary' : 'outline-primary')"
+                    size="small"
                     class="ml-1"
                     data-description="revision compare previous button"
                     @click="emit('update:viewMode', 'changes_previous')">
                     <FontAwesomeIcon :icon="faExchangeAlt" />
                     Compare to Previous
-                </BButton>
+                </GButton>
             </span>
             <span class="flex-grow-1"></span>
-            <BButton
-                variant="primary"
-                size="sm"
+            <GButton
+                color="blue"
+                size="small"
                 data-description="revision restore button"
                 :disabled="isReverting"
                 @click="emit('restore', revision.id)">
                 <FontAwesomeIcon :icon="isReverting ? faSpinner : faUndo" :spin="isReverting" />
                 Restore this version
-            </BButton>
+            </GButton>
         </div>
         <div class="revision-view-content overflow-auto flex-grow-1">
             <Markdown

@@ -6,7 +6,7 @@
  */
 import { faBook, faHistory, faTrash } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
-import { BAlert, BButton, BSkeleton } from "bootstrap-vue";
+import { BAlert, BSkeleton } from "bootstrap-vue";
 import { computed, nextTick, onMounted, ref, watch } from "vue";
 
 import { GalaxyApi } from "@/api";
@@ -23,6 +23,7 @@ import { applySectionEdit } from "./sectionDiffUtils";
 import PageChatHistoryList from "./PageChatHistoryList.vue";
 import ProposalDiffView from "./ProposalDiffView.vue";
 import SectionPatchView from "./SectionPatchView.vue";
+import GButton from "@/components/BaseComponents/GButton.vue";
 import ChatInput from "@/components/GalaxyAI/ChatInput.vue";
 import ChatMessageCell from "@/components/GalaxyAI/ChatMessageCell.vue";
 import LoadingSpan from "@/components/LoadingSpan.vue";
@@ -412,30 +413,32 @@ function startNewConversation() {
                 <strong>{{ assistantName }}</strong>
             </span>
             <span class="d-flex align-items-center gap-1">
-                <BButton
-                    variant="outline-secondary"
-                    size="sm"
+                <GButton
+                    outline
+                    size="small"
                     :pressed="store.showChatHistory"
                     data-description="chat history button"
                     @click="toggleHistory">
                     <FontAwesomeIcon :icon="faHistory" fixed-width />
-                </BButton>
-                <BButton
+                </GButton>
+                <GButton
                     v-if="currentChatId"
-                    variant="outline-danger"
-                    size="sm"
+                    color="red"
+                    outline
+                    size="small"
                     title="Delete current conversation"
                     data-description="delete conversation button"
                     @click="deleteCurrentExchange">
                     <FontAwesomeIcon :icon="faTrash" fixed-width />
-                </BButton>
-                <BButton
-                    variant="outline-primary"
-                    size="sm"
+                </GButton>
+                <GButton
+                    color="blue"
+                    outline
+                    size="small"
                     data-description="new conversation button"
                     @click="startNewConversation">
                     New Chat
-                </BButton>
+                </GButton>
             </span>
         </div>
 

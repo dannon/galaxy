@@ -10,11 +10,12 @@ import {
     faUsers,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
-import { BAlert, BBadge, BButton } from "bootstrap-vue";
+import { BAlert, BBadge } from "bootstrap-vue";
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRouter } from "vue-router/composables";
 
 import { getGalaxyInstance } from "@/app";
+import { variantToColor } from "@/components/BaseComponents/variantToColor";
 import type { RouterPushOptions } from "@/components/History/Content/router-push-options";
 import { PAGE_LABELS, PERMISSIONS_LABELS } from "@/components/Page/constants";
 import { useConfig } from "@/composables/config";
@@ -26,6 +27,7 @@ import ObjectPermissionsModal from "./ObjectPermissionsModal.vue";
 import PageChatPanel from "./PageChatPanel.vue";
 import PageRevisionList from "./PageRevisionList.vue";
 import PageRevisionView from "./PageRevisionView.vue";
+import GButton from "@/components/BaseComponents/GButton.vue";
 import ClickToEdit from "@/components/ClickToEdit.vue";
 import SplitView from "@/components/Common/SplitView.vue";
 import Markdown from "@/components/Markdown/Markdown.vue";
@@ -192,17 +194,17 @@ function handleRevisionRestore(revisionId: string) {
             <div
                 class="page-display-toolbar d-flex align-items-center p-2 border-bottom"
                 data-description="page display toolbar">
-                <BButton variant="link" size="sm" data-description="page back button" @click="handleBack">
+                <GButton transparent color="blue" size="small" data-description="page back button" @click="handleBack">
                     <FontAwesomeIcon :icon="faArrowLeft" />
                     {{ labels.editorBackLabel }}
-                </BButton>
+                </GButton>
                 <span class="flex-grow-1 text-center font-weight-bold">
                     {{ store.currentTitle || labels.defaultTitle }}
                 </span>
-                <BButton variant="outline-primary" size="sm" data-description="page edit button" @click="handleEdit">
+                <GButton color="blue" outline size="small" data-description="page edit button" @click="handleEdit">
                     <FontAwesomeIcon :icon="faEdit" />
                     Edit
-                </BButton>
+                </GButton>
             </div>
             <div class="page-display-content overflow-auto flex-grow-1" data-description="page rendered view">
                 <Markdown
@@ -233,10 +235,10 @@ function handleRevisionRestore(revisionId: string) {
             <div
                 class="page-toolbar d-flex align-items-center p-2 border-bottom"
                 data-description="page editor toolbar">
-                <BButton variant="link" size="sm" data-description="page back button" @click="handleBack">
+                <GButton transparent color="blue" size="small" data-description="page back button" @click="handleBack">
                     <FontAwesomeIcon :icon="faArrowLeft" />
                     {{ labels.editorBackLabel }}
-                </BButton>
+                </GButton>
                 <ClickToEdit
                     :value="store.currentTitle || labels.defaultTitle"
                     tag-name="span"
@@ -244,9 +246,10 @@ function handleRevisionRestore(revisionId: string) {
                     class="flex-grow-1 text-center font-weight-bold"
                     data-description="page editor title"
                     @input="handleTitleChange" />
-                <BButton
-                    variant="outline-primary"
-                    size="sm"
+                <GButton
+                    color="blue"
+                    outline
+                    size="small"
                     class="mr-2"
                     data-description="page revisions button"
                     @click="store.toggleRevisions">
@@ -255,61 +258,63 @@ function handleRevisionRestore(revisionId: string) {
                     <BBadge v-if="store.revisionCount > 0" variant="light" class="ml-1">
                         {{ store.revisionCount }}
                     </BBadge>
-                </BButton>
-                <BButton
-                    variant="outline-primary"
-                    size="sm"
+                </GButton>
+                <GButton
+                    color="blue"
+                    outline
+                    size="small"
                     class="mr-2"
                     data-description="page preview button"
                     @click="handlePreview">
                     <FontAwesomeIcon :icon="faEye" />
                     Preview
-                </BButton>
-                <BButton
+                </GButton>
+                <GButton
                     v-if="agentsAvailable"
-                    :variant="store.showChatPanel ? 'primary' : 'outline-primary'"
-                    size="sm"
+                    v-bind="variantToColor(store.showChatPanel ? 'primary' : 'outline-primary')"
+                    size="small"
                     class="mr-2"
                     data-description="page chat button"
                     @click="store.toggleChatPanel">
                     <FontAwesomeIcon :icon="faComments" />
                     Chat
-                </BButton>
+                </GButton>
                 <template v-if="isStandalone">
                     <ObjectPermissionsModal
                         id="object-permissions-modal"
                         v-model="showPermissions"
                         :markdown-content="store.currentContent" />
-                    <BButton
+                    <GButton
                         v-b-modal:object-permissions-modal
-                        variant="outline-primary"
-                        size="sm"
+                        color="blue"
+                        outline
+                        size="small"
                         class="mr-2"
                         data-description="page permissions button">
                         <FontAwesomeIcon :icon="faUsers" />
                         Permissions
-                    </BButton>
+                    </GButton>
                 </template>
-                <BButton
-                    variant="primary"
-                    size="sm"
+                <GButton
+                    color="blue"
+                    size="small"
                     :class="{ 'mr-2': isStandalone }"
                     data-description="page save button"
                     :disabled="!store.canSave"
                     @click="handleSave">
                     <FontAwesomeIcon :icon="store.isSaving ? faSpinner : faSave" :spin="store.isSaving" />
                     Save
-                </BButton>
-                <BButton
+                </GButton>
+                <GButton
                     v-if="isStandalone"
-                    variant="primary"
-                    size="sm"
+                    color="blue"
+                    size="small"
                     data-description="page save-view button"
                     :disabled="!store.canSave"
                     @click="handleSaveAndView">
                     <FontAwesomeIcon :icon="faEye" />
                     Save &amp; View
-                </BButton>
+                </GButton>
                 <span v-if="store.isDirty" class="ml-2 text-warning small" data-description="page unsaved indicator">
                     Unsaved
                 </span>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { faArrowLeft, faEdit, faSpinner } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
-import { BAlert, BButton } from "bootstrap-vue";
+import { BAlert } from "bootstrap-vue";
 import { computed, onMounted, onUnmounted, watch } from "vue";
 import { useRouter } from "vue-router/composables";
 
@@ -11,6 +11,7 @@ import { usePageEditorStore } from "@/stores/pageEditorStore";
 
 import HistoryPageList from "./HistoryPageList.vue";
 import PageEditorView from "./PageEditorView.vue";
+import GButton from "@/components/BaseComponents/GButton.vue";
 import Markdown from "@/components/Markdown/Markdown.vue";
 
 const props = defineProps<{
@@ -136,17 +137,22 @@ function handleBack() {
             <div
                 class="page-display-toolbar d-flex align-items-center p-2 border-bottom"
                 data-description="page display toolbar">
-                <BButton variant="link" size="sm" data-description="page manage button" @click="handleBack">
+                <GButton
+                    transparent
+                    color="blue"
+                    size="small"
+                    data-description="page manage button"
+                    @click="handleBack">
                     <FontAwesomeIcon :icon="faArrowLeft" />
                     {{ labels.editorBackLabel }}
-                </BButton>
+                </GButton>
                 <span class="flex-grow-1 text-center font-weight-bold">
                     {{ store.currentTitle || labels.defaultTitle }}
                 </span>
-                <BButton variant="outline-primary" size="sm" data-description="page edit button" @click="handleEdit">
+                <GButton color="blue" outline size="small" data-description="page edit button" @click="handleEdit">
                     <FontAwesomeIcon :icon="faEdit" />
                     Edit
-                </BButton>
+                </GButton>
             </div>
             <div class="page-display-content overflow-auto flex-grow-1" data-description="page rendered view">
                 <Markdown
