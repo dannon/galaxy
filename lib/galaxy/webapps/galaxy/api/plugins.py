@@ -239,8 +239,16 @@ class FastAPIPlugins:
             for tool in original_tools:
                 tool_dict = tool.model_dump()
                 func = tool_dict.get("function", {})
-                if func.get("parameters") is None:
+                params = func.get("parameters")
+                # OpenAI requires the function parameters schema to be a JSON Schema
+                # object. Clients sometimes omit it entirely or send a schema whose
+                # top-level "type" is null/missing, which OpenAI rejects with
+                # "schema must be ... 'type: \"object\"', got 'type: \"None\"'".
+                if params is None:
                     func["parameters"] = {"type": "object", "properties": {}}
+                elif isinstance(params, dict) and params.get("type") is None:
+                    params["type"] = "object"
+                    params.setdefault("properties", {})
                 size = len(json.dumps(tool_dict, separators=(",", ":")).encode("utf-8"))
                 if size > MAX_TOOL_BYTES:
                     return self._create_error("Tool schema too large.")
