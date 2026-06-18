@@ -276,6 +276,63 @@ class TestVisualizationPluginsApi(IntegrationTestCase):
         }
 
     @patch("galaxy.webapps.galaxy.api.plugins.AsyncOpenAI")
+    def test_tool_with_none_type_parameters_normalized(self, mock_client):
+        mock_response = MagicMock()
+        mock_response.model_dump.return_value = {"id": "test", "choices": []}
+        mock_instance = MagicMock()
+        mock_instance.chat.completions.create = AsyncMock(return_value=mock_response)
+        mock_client.return_value = mock_instance
+        payload = _create_chat_payload(
+            {
+                "tools": [
+                    {
+                        "type": "function",
+                        "function": {
+                            "name": "choose_process",
+                            "description": "Select a processing step",
+                            "parameters": {"type": None},
+                        },
+                    }
+                ]
+            }
+        )
+        response = self._post_payload(payload)
+        self._assert_status_code_is(response, 200)
+        call_kwargs = mock_instance.chat.completions.create.call_args.kwargs
+        forwarded_tools = call_kwargs["tools"]
+        assert forwarded_tools[0]["function"]["parameters"]["type"] == "object"
+
+    @patch("galaxy.webapps.galaxy.api.plugins.AsyncOpenAI")
+    def test_tool_with_typeless_parameters_normalized(self, mock_client):
+        mock_response = MagicMock()
+        mock_response.model_dump.return_value = {"id": "test", "choices": []}
+        mock_instance = MagicMock()
+        mock_instance.chat.completions.create = AsyncMock(return_value=mock_response)
+        mock_client.return_value = mock_instance
+        payload = _create_chat_payload(
+            {
+                "tools": [
+                    {
+                        "type": "function",
+                        "function": {
+                            "name": "choose_process",
+                            "description": "Select a processing step",
+                            "parameters": {"properties": {"foo": {"type": "string"}}},
+                        },
+                    }
+                ]
+            }
+        )
+        response = self._post_payload(payload)
+        self._assert_status_code_is(response, 200)
+        call_kwargs = mock_instance.chat.completions.create.call_args.kwargs
+        forwarded_tools = call_kwargs["tools"]
+        forwarded_params = forwarded_tools[0]["function"]["parameters"]
+        assert forwarded_params["type"] == "object"
+        # Existing schema content must be preserved, only the missing type is filled in.
+        assert forwarded_params["properties"] == {"foo": {"type": "string"}}
+
+    @patch("galaxy.webapps.galaxy.api.plugins.AsyncOpenAI")
     def test_provider_error_body_forwarded(self, mock_client):
         class MockOpenAIError(APIError):
             def __init__(self):
