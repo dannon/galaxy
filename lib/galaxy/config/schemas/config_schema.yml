@@ -4295,6 +4295,17 @@ mapping:
           callers will then fall back to lazy on-demand fetching with the
           same hour TTL. Requires celery.
 
+      tutor_allow_tool_execution:
+        type: bool
+        default: false
+        required: false
+        desc: |
+          Allow the teaching assistant (tutor mode) to actually run tools on the
+          user's data when demonstrating a concept. Off by default: with this
+          disabled the tutor describes a tool and its inputs instead of executing
+          it, so demonstrations never create jobs or modify histories without an
+          explicit opt-in. Enable only in trusted or evaluation deployments.
+
       enable_tool_recommendations:
         type: bool
         default: false
