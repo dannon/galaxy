@@ -310,7 +310,8 @@ class TestAgentUnitMocked:
         assert registry.is_registered("history")
         assert registry.is_registered("gtn_training")
         assert registry.is_registered("page_assistant")
-        assert len(registry.list_agents()) == 8
+        assert registry.is_registered("help_forum")
+        assert len(registry.list_agents()) == 9
 
     def test_disabled_agent_not_registered(self):
         """Disabled agent should not be in registry."""
@@ -335,7 +336,7 @@ class TestAgentUnitMocked:
     def test_build_registry_no_config_registers_all(self):
         """Without config, all agents registered (backwards compat)."""
         registry = build_default_registry()
-        assert len(registry.list_agents()) == 8
+        assert len(registry.list_agents()) == 9
 
     def test_disabled_agent_registry_get_agent_raises(self):
         """Registry.get_agent for a disabled agent gives 'Unknown agent type' error."""
@@ -408,6 +409,18 @@ class TestAgentUnitMocked:
 
         assert CustomToolAgent.capability_blurb not in prompt
         assert HistoryAgent.capability_blurb in prompt
+
+    def test_help_forum_registered_by_default(self):
+        config = mock.Mock()
+        config.inference_services = {}
+        registry = build_default_registry(config)
+        assert registry.is_registered("help_forum")
+
+    def test_help_forum_can_be_disabled(self):
+        config = mock.Mock()
+        config.inference_services = {"help_forum": {"enabled": False}}
+        registry = build_default_registry(config)
+        assert not registry.is_registered("help_forum")
 
     def test_agent_registry(self):
         required_agents = [

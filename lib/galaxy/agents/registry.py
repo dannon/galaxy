@@ -106,6 +106,7 @@ def build_default_registry(config=None) -> AgentRegistry:
     from .custom_tool import CustomToolAgent
     from .error_analysis import ErrorAnalysisAgent
     from .gtn_training import GTNTrainingAgent
+    from .help_forum import HelpForumAgent
     from .history import HistoryAgent
     from .orchestrator import WorkflowOrchestratorAgent
     from .page_assistant import PageAssistantAgent
@@ -142,4 +143,5 @@ def build_default_registry(config=None) -> AgentRegistry:
     _register_if_enabled(registry, AgentType.HISTORY, HistoryAgent)
     _register_if_enabled(registry, AgentType.GTN_TRAINING, GTNTrainingAgent)
     _register_if_enabled(registry, AgentType.PAGE_ASSISTANT, PageAssistantAgent)
+    _register_if_enabled(registry, AgentType.HELP_FORUM, HelpForumAgent)
     return registry
