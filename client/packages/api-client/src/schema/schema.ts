@@ -25272,6 +25272,17 @@ export interface components {
             /** Seed In Scope */
             seed_in_scope?: boolean | null;
         };
+        /**
+         * TutorModeToggle
+         * @description Request to toggle tutor mode.
+         */
+        TutorModeToggle: {
+            /**
+             * Enabled
+             * @description Whether to enable or disable tutor mode
+             */
+            enabled: boolean;
+        };
         /** UndeleteHistoriesPayload */
         UndeleteHistoriesPayload: {
             /**
@@ -32427,7 +32438,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": boolean;
+                "application/json": components["schemas"]["TutorModeToggle"];
             };
         };
         responses: {
