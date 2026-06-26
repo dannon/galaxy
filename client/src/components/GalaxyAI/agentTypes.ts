@@ -5,6 +5,7 @@ import {
     faFileContract,
     faGraduationCap,
     faHistory,
+    faLifeRing,
     faMagic,
     faPlus,
     faQuestionCircle,
@@ -39,6 +40,12 @@ export const agentTypes: AgentType[] = [
     { value: "history", label: "History", icon: faHistory, description: "Summarize your analysis" },
     { value: "workflow_report", label: "Workflow Report", icon: faFileContract, description: "Workflow run reports" },
     { value: "gtn_training", label: "GTN Training", icon: faGraduationCap, description: "Find tutorials" },
+    {
+        value: "help_forum",
+        label: "Help Forum",
+        icon: faLifeRing,
+        description: "Search the Galaxy Help community forum",
+    },
     { value: "clarification", label: "Clarification", icon: faQuestionCircle, description: "Needs more info" },
     {
         value: "page_assistant",
