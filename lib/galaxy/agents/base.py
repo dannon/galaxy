@@ -303,6 +303,7 @@ class AgentType:
     TOOL_RECOMMENDATION = "tool_recommendation"
     HISTORY = "history"
     GTN_TRAINING = "gtn_training"
+    HELP_FORUM = "help_forum"
     PAGE_ASSISTANT = "page_assistant"
     WORKFLOW_REPORT = "workflow_report"
 
