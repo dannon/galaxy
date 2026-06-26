@@ -116,3 +116,14 @@ class HelpForumSearchResponse(Model):
     grouped_search_result: Annotated[
         HelpForumGroupedSearchResult | None, Field(description="The grouped search result.")
     ] = None
+
+
+class HelpForumTopicContent(Model):
+    """Condensed content of a single help-forum topic, for agent synthesis."""
+
+    topic_id: Annotated[int, Field(description="The ID of the topic.")]
+    title: Annotated[str, Field(description="The topic title.")]
+    url: Annotated[str, Field(description="Canonical URL of the topic.")]
+    question: Annotated[str, Field(description="Plain-text body of the original post.")]
+    answer: Annotated[str | None, Field(description="Plain-text accepted/top answer, if any.")] = None
+    answer_is_accepted: Annotated[bool, Field(description="True when `answer` is the forum's accepted answer.")] = False

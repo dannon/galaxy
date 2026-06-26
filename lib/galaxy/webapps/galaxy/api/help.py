@@ -3,6 +3,7 @@ from typing import Annotated
 
 from fastapi import Query
 
+from galaxy.exceptions import ServerNotConfiguredForRequest
 from galaxy.managers.context import ProvidesUserContext
 from galaxy.schema.help import HelpForumSearchResponse
 from galaxy.webapps.galaxy.services.help import HelpService
@@ -33,4 +34,8 @@ class HelpAPI:
         trans: ProvidesUserContext = DependsOnTrans,  # Require session or API key, don't make public
     ) -> HelpForumSearchResponse:
         """Search the Galaxy Help forum using the Discourse API."""
+        if not trans.app.config.enable_help_forum_tool_panel_integration:
+            raise ServerNotConfiguredForRequest(
+                "Integration with the Galaxy Help Forum is not enabled in the configuration."
+            )
         return self.service.search_forum(query)

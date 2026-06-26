@@ -4626,6 +4626,24 @@ mapping:
         desc: |
           Enable the integration of the Galaxy Help Forum in the tool panel. This requires the help_forum_api_url to be set.
 
+      help_forum_api_key:
+        type: str
+        required: false
+        default: null
+        per_host: true
+        desc: |
+          Optional Discourse API key for the Galaxy Help Forum. When set together with
+          help_forum_api_username, it is sent as the Api-Key header on forum requests,
+          which raises Discourse's anonymous rate limits. Not required for public search.
+
+      help_forum_api_username:
+        type: str
+        required: false
+        default: null
+        per_host: true
+        desc: |
+          Discourse username paired with help_forum_api_key (sent as the Api-Username header).
+
       file_source_temp_dir:
         type: str
         required: false
