@@ -80,3 +80,33 @@ def test_get_topic_prefers_accepted_answer():
     assert topic.answer == "Use the FTP client."
     assert topic.answer_is_accepted is True
     assert topic.url == "https://help.galaxyproject.org/t/upload-fails-with-ftp/42"
+
+
+def test_get_topic_fallback_picks_most_liked_reply_with_null_like_count():
+    """Fallback to most-liked reply when there is no accepted answer.
+
+    One reply has like_count=None (JSON null) -- the null-guard must coerce it
+    to 0 so max() doesn't raise TypeError, and the genuinely highest-liked
+    reply must be selected.
+    """
+    service = _service()
+    payload = {
+        "title": "Job fails with exit code 1",
+        "slug": "job-fails-with-exit-code-1",
+        "accepted_answer": {},  # no accepted answer
+        "post_stream": {
+            "posts": [
+                {"post_number": 1, "cooked": "<p>My job fails.</p>", "like_count": 0},
+                {"post_number": 2, "cooked": "<p>Try increasing memory.</p>", "like_count": None},
+                {"post_number": 3, "cooked": "<p>Check the stderr log.</p>", "like_count": 7},
+                {"post_number": 4, "cooked": "<p>Reinstall the tool.</p>", "like_count": 2},
+            ]
+        },
+    }
+    response = mock.Mock(ok=True)
+    response.json.return_value = payload
+    with mock.patch("galaxy.webapps.galaxy.services.help.requests.get", return_value=response):
+        topic = service.get_topic(99)
+    assert isinstance(topic, HelpForumTopicContent)
+    assert topic.answer_is_accepted is False
+    assert topic.answer == "Check the stderr log."

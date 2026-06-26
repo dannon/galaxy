@@ -1,7 +1,10 @@
 import html
 import logging
 import re
-from typing import Optional
+from typing import (
+    NoReturn,
+    Optional,
+)
 
 from galaxy.config import GalaxyAppConfiguration
 from galaxy.exceptions import (
@@ -26,7 +29,7 @@ def _compose_search_query(
     *,
     solved_only: bool = False,
     category: Optional[str] = None,
-    tags: Optional[list] = None,
+    tags: Optional[list[str]] = None,
     order: Optional[str] = None,
 ) -> str:
     """Build a Discourse search string from a base query plus optional operators."""
@@ -85,7 +88,7 @@ class HelpService(ServiceBase):
         *,
         solved_only: bool = False,
         category: Optional[str] = None,
-        tags: Optional[list] = None,
+        tags: Optional[list[str]] = None,
         order: Optional[str] = None,
     ) -> HelpForumSearchResponse:
         """Search the Galaxy Help forum using the Discourse API."""
@@ -151,7 +154,7 @@ class HelpService(ServiceBase):
         if answer_text is None:
             replies = [p for p in posts[1:] if p.get("post_number")]
             if replies:
-                top = max(replies, key=lambda p: p.get("like_count", 0))
+                top = max(replies, key=lambda p: p.get("like_count") or 0)
                 answer_text = _html_to_text(top.get("cooked", ""), max_length)
 
         return HelpForumTopicContent(
@@ -163,7 +166,7 @@ class HelpService(ServiceBase):
             answer_is_accepted=answer_is_accepted,
         )
 
-    def _raise_for_status(self, response) -> None:
+    def _raise_for_status(self, response) -> NoReturn:
         if 400 <= response.status_code < 500:
             raise InternalServerError(
                 f"The Galaxy Help Forum returned an error (HTTP {response.status_code}). "
