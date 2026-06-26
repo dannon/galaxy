@@ -306,6 +306,7 @@ class AgentType:
     GTN_TRAINING = "gtn_training"
     PAGE_ASSISTANT = "page_assistant"
     WORKFLOW_REPORT = "workflow_report"
+    TEACHING_ASSISTANT = "teaching_assistant"
 
 
 # For API responses, use galaxy.schema.agents.AgentResponse
