@@ -16,6 +16,7 @@ from galaxy.agents.help_forum import (
     HelpForumResponse,
     HelpThread,
 )
+from galaxy.agents.router import QueryRouterAgent
 from galaxy.schema.agents import ConfidenceLevel
 
 
@@ -88,3 +89,9 @@ async def test_process_always_includes_ask_button():
     assert "/new-topic?" in ask_buttons[0].parameters["url"]
     assert "Set passive mode" in response.content
     assert response.confidence == ConfidenceLevel.HIGH
+
+
+def test_router_exposes_help_forum_handoff():
+    agent = QueryRouterAgent(_deps())
+    handoff = agent._create_help_forum_handoff()
+    assert handoff.__name__ == "hand_off_to_help_forum"

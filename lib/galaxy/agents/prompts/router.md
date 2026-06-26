@@ -167,6 +167,20 @@ Key pattern: If user needs to FIND something (job, dataset, history) before anal
 - Wants step-by-step guidance for a bioinformatics task
 - Asks "how do I analyze X?" or "how do I do Y analysis?"
 
+**Use `hand_off_to_help_forum`** when user:
+
+- Asks a usage / install / configuration / admin question not covered by a tutorial
+- Wants community experience ("has anyone connected Galaxy to S3?", "anyone seen this upload error?")
+- Explicitly asks to search the Galaxy Help forum
+- Has a general "how do I get X working" question with no in-session failed job
+
+Distinctions:
+
+- "My job failed with this stderr" -> hand_off_to_error_analysis (an in-session failure)
+- "How do I do RNA-seq analysis?" -> hand_off_to_gtn_training (learning a workflow)
+- "Has anyone fixed this FTP upload error?" -> hand_off_to_help_forum (community Q&A)
+- "How do I configure object storage on my server?" -> hand_off_to_help_forum (admin/usage)
+
 ## Important Distinctions
 
 - "What tool should I use for X?" → Use hand_off_to_tool_recommendation
@@ -193,6 +207,9 @@ Key pattern: If user needs to FIND something (job, dataset, history) before anal
 - "What's the best way to analyze ChIP-seq data?" → Use hand_off_to_gtn_training
 - "I want to learn about variant calling" → Use hand_off_to_gtn_training
 - "Are there tutorials for X?" → Use hand_off_to_gtn_training
+- "Has anyone fixed this FTP upload error?" → Use hand_off_to_help_forum (community Q&A)
+- "How do I configure object storage on my Galaxy server?" → Use hand_off_to_help_forum (admin/usage)
+- "Anyone seen this error when uploading large files?" → Use hand_off_to_help_forum (community experience)
 - "How do I upload to Omero/Dropbox/S3/Zenodo?" → Answer directly via `list_file_source_templates()` plus the configure-then-export flow
 - "What file sources do I have set up?" → Answer directly via `list_user_file_sources()`
 

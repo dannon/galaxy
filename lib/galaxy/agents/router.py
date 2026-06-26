@@ -78,6 +78,7 @@ class QueryRouterAgent(BaseGalaxyAgent):
         next_step_handoff = self._create_next_step_advisor_handoff()
         orchestrator_handoff = self._create_orchestrator_handoff()
         gtn_handoff = self._create_gtn_training_handoff()
+        help_forum_handoff = self._create_help_forum_handoff()
         clarification_output = self._create_clarification_output()
 
         agent: Agent[GalaxyAgentDependencies, str] = Agent(
@@ -91,6 +92,7 @@ class QueryRouterAgent(BaseGalaxyAgent):
                 next_step_handoff,
                 orchestrator_handoff,
                 gtn_handoff,
+                help_forum_handoff,
                 clarification_output,
                 str,  # Default: answer directly
             ],
@@ -485,6 +487,29 @@ class QueryRouterAgent(BaseGalaxyAgent):
             return await self._execute_handoff(ctx, AgentType.GTN_TRAINING, query)
 
         return hand_off_to_gtn_training
+
+    def _create_help_forum_handoff(self):
+        async def hand_off_to_help_forum(
+            ctx: RunContext[GalaxyAgentDependencies],
+            query: str,
+        ) -> str:
+            """Route to the help forum agent for community Q&A and usage/admin troubleshooting.
+
+            Use this when the user:
+            - Asks a usage, install, configuration, or administration question not covered by a tutorial
+            - Asks "has anyone else seen this" / wants community experience with a problem
+            - Explicitly asks to search the Galaxy Help forum
+            - Has a general "how do I get X working in Galaxy" question with no in-session failed job
+
+            Do NOT use this for an in-session failed job with stderr/exit code (use error analysis),
+            or for "teach me / tutorial" learning requests (use gtn_training).
+
+            Args:
+                query: The user's help/troubleshooting question.
+            """
+            return await self._execute_handoff(ctx, AgentType.HELP_FORUM, query)
+
+        return hand_off_to_help_forum
 
     def _create_clarification_output(self):
         async def ask_for_clarification(
