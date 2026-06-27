@@ -143,14 +143,26 @@ class HelpService(ServiceBase):
 
         answer_text: Optional[str] = None
         answer_is_accepted = False
-        accepted = data.get("accepted_answer") or {}
-        accepted_post_number = accepted.get("post_number")
-        if accepted_post_number:
-            for post in posts:
-                if post.get("post_number") == accepted_post_number:
-                    answer_text = _html_to_text(post.get("cooked", ""), max_length)
-                    answer_is_accepted = True
-                    break
+
+        # Primary: per-post accepted_answer flag (real help.galaxyproject.org shape)
+        for post in posts:
+            if post.get("accepted_answer") is True:
+                answer_text = _html_to_text(post.get("cooked", ""), max_length)
+                answer_is_accepted = True
+                break
+
+        # Secondary (defensive -- other Discourse versions expose it at topic level)
+        if answer_text is None:
+            accepted = data.get("accepted_answer") or {}
+            accepted_post_number = accepted.get("post_number")
+            if accepted_post_number:
+                for post in posts:
+                    if post.get("post_number") == accepted_post_number:
+                        answer_text = _html_to_text(post.get("cooked", ""), max_length)
+                        answer_is_accepted = True
+                        break
+
+        # Fallback: most-liked reply
         if answer_text is None:
             replies = [p for p in posts[1:] if p.get("post_number")]
             if replies:
@@ -167,6 +179,8 @@ class HelpService(ServiceBase):
         )
 
     def _raise_for_status(self, response) -> NoReturn:
+        if response.status_code == 429:
+            raise UpstreamProxyError("The Galaxy Help Forum is rate-limiting requests. Please try again shortly.")
         if 400 <= response.status_code < 500:
             raise InternalServerError(
                 f"The Galaxy Help Forum returned an error (HTTP {response.status_code}). "

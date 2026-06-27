@@ -2,7 +2,10 @@ from unittest import mock
 
 import pytest
 
-from galaxy.exceptions import ServerNotConfiguredForRequest
+from galaxy.exceptions import (
+    ServerNotConfiguredForRequest,
+    UpstreamProxyError,
+)
 from galaxy.schema.help import HelpForumTopicContent
 from galaxy.webapps.galaxy.services.help import (
     _compose_search_query,
@@ -80,6 +83,54 @@ def test_get_topic_prefers_accepted_answer():
     assert topic.answer == "Use the FTP client."
     assert topic.answer_is_accepted is True
     assert topic.url == "https://help.galaxyproject.org/t/upload-fails-with-ftp/42"
+
+
+def test_get_topic_accepted_answer_via_per_post_flag():
+    """Primary path: per-post accepted_answer=True, no topic-level accepted_answer key.
+
+    Mirrors the real help.galaxyproject.org payload shape where the accepted post
+    carries accepted_answer=True and topic_accepted_answer=True (which must be
+    ignored -- it's set on every post to signal the topic is solved).
+    """
+    service = _service()
+    payload = {
+        "title": "How to run FastQC",
+        "slug": "how-to-run-fastqc",
+        "post_stream": {
+            "posts": [
+                {"post_number": 1, "cooked": "<p>How do I run FastQC?</p>", "like_count": None},
+                {
+                    "post_number": 2,
+                    "cooked": "<p>Use the FastQC tool in Galaxy.</p>",
+                    "like_count": None,
+                    "accepted_answer": True,
+                    "topic_accepted_answer": True,
+                },
+                {
+                    "post_number": 3,
+                    "cooked": "<p>You can also try MultiQC.</p>",
+                    "like_count": None,
+                    "topic_accepted_answer": True,
+                },
+            ]
+        },
+    }
+    response = mock.Mock(ok=True)
+    response.json.return_value = payload
+    with mock.patch("galaxy.webapps.galaxy.services.help.requests.get", return_value=response):
+        topic = service.get_topic(77)
+    assert isinstance(topic, HelpForumTopicContent)
+    assert topic.answer_is_accepted is True
+    assert topic.answer == "Use the FastQC tool in Galaxy."
+
+
+def test_search_forum_rate_limited_raises_upstream_proxy_error():
+    """HTTP 429 must raise UpstreamProxyError (transient), not InternalServerError."""
+    service = _service()
+    response = mock.Mock(ok=False, status_code=429)
+    with mock.patch("galaxy.webapps.galaxy.services.help.requests.get", return_value=response):
+        with pytest.raises(UpstreamProxyError, match="rate-limiting"):
+            service.search_forum("some query")
 
 
 def test_get_topic_fallback_picks_most_liked_reply_with_null_like_count():
