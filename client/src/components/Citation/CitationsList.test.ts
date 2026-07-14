@@ -18,7 +18,7 @@ vi.mock("@/composables/config");
 
 setMockConfig({
     citation_bibtex:
-        "@article{Galaxy2024, title={The Galaxy platform for accessible, reproducible, and collaborative data analyses: 2024 update}, author={{The Galaxy Community}}, journal={Nucleic Acids Research}, year={2024}, doi={10.1093/nar/gkae410}, url={https://doi.org/10.1093/nar/gkae410}}",
+        "@article{Galaxy2026, title={Galaxy for accessible, reproducible, and collaborative data analyses: 2026 update}, author={{The Galaxy Community}}, journal={Nucleic Acids Research}, year={2026}, doi={10.1093/nar/gkag469}, url={https://doi.org/10.1093/nar/gkag469}}",
 });
 
 vi.mock("@/components/Citation/services", () => ({
@@ -71,7 +71,7 @@ describe("CitationsList", () => {
         expect(citationItems.length).toBe(2);
 
         expect(citationItems.at(0).text()).toContain(
-            "The Galaxy platform for accessible, reproducible, and collaborative data analyses: 2024 update",
+            "Galaxy for accessible, reproducible, and collaborative data analyses: 2026 update",
         );
         expect(citationItems.at(1).text()).toContain(
             "DFTB$\\mathplus$, a software package for efficient approximate density functional theory based atomistic simulations",

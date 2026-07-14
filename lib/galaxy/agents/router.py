@@ -606,7 +606,7 @@ class QueryRouterAgent(BaseGalaxyAgent):
         # Citation requests can be answered without AI
         if any(phrase in query_lower for phrase in ["cite galaxy", "citation", "reference"]):
             return self._build_response(
-                content="""To cite Galaxy, please use: Nekrutenko, A., et al. (2024). The Galaxy platform for accessible, reproducible, and collaborative data analyses: 2024 update. Nucleic Acids Research. https://doi.org/10.1093/nar/gkae410
+                content="""To cite Galaxy, please use: The Galaxy Community (2026). Galaxy for accessible, reproducible, and collaborative data analyses: 2026 update. Nucleic Acids Research. https://doi.org/10.1093/nar/gkag469
 
 For specific tools, please also cite the individual tool publications.""",
                 confidence=ConfidenceLevel.HIGH,
