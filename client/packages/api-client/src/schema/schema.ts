@@ -7681,9 +7681,7 @@ export interface components {
             | "contact_support"
             | "view_external"
             | "documentation"
-            | "workflow_import"
-            | "start_tutorial"
-            | "next_pathway_step";
+            | "workflow_import";
         /** AddInputAction */
         AddInputAction: {
             /**
