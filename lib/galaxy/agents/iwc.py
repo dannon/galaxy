@@ -7,6 +7,12 @@ the cache via celery beat is a reasonable follow-up.
 
 import logging
 import re
+from datetime import (
+    datetime,
+    timedelta,
+    timezone,
+)
+from email.utils import parsedate_to_datetime
 from threading import Lock
 from typing import (
     Any,
@@ -20,7 +26,9 @@ log = logging.getLogger(__name__)
 
 IWC_MANIFEST_URL = "https://iwc.galaxyproject.org/workflow_manifest.json"
 CACHE_TTL_SECONDS = 60 * 60  # one hour
+FRESHNESS_TIMEOUT_SECONDS = 10.0
 _CACHE_KEY = "manifest"
+_ONE_SECOND = timedelta(seconds=1)
 
 _manifest_cache: TTLCache = TTLCache(maxsize=1, ttl=CACHE_TTL_SECONDS)
 _manifest_cache_lock = Lock()
@@ -32,8 +40,41 @@ def clear_manifest_cache() -> None:
         _manifest_cache.clear()
 
 
-def _download_manifest(timeout: float) -> list[dict[str, Any]]:
-    """Fetch and validate the IWC manifest over the network, bypassing the cache."""
+def manifest_modified_since(local_mtime: float, timeout: float = FRESHNESS_TIMEOUT_SECONDS) -> bool:
+    """Whether the published manifest is newer than ``local_mtime``.
+
+    A HEAD costs nothing next to the ~16 MB body, and the manifest changes every
+    few days, so callers that keep a derived copy on disk can skip almost every
+    download. Returns True when the answer is unknown -- re-downloading is
+    wasteful, but serving indefinitely stale data because one HEAD failed is worse.
+    """
+    try:
+        response = requests.head(IWC_MANIFEST_URL, timeout=timeout)
+        response.raise_for_status()
+        header = response.headers.get("Last-Modified")
+    except Exception as e:
+        log.debug(f"IWC manifest freshness HEAD failed: {e}")
+        return True
+    if not header:
+        return True
+    try:
+        remote = parsedate_to_datetime(header)
+    except (TypeError, ValueError):
+        return True
+    local = datetime.fromtimestamp(local_mtime, tz=timezone.utc)
+    # Last-Modified has second resolution; the slack keeps a refresh we just
+    # completed from immediately looking stale again.
+    return remote > local + _ONE_SECOND
+
+
+def download_manifest(timeout: float) -> list[dict[str, Any]]:
+    """Fetch and validate the IWC manifest over the network, bypassing the cache.
+
+    Intentionally cache-free: the parsed manifest is ~16 MB, so callers that
+    only need a derived projection of it (see ``galaxy.workflow.curated``) can
+    drop it as soon as they are done instead of pinning it in every process
+    that happens to touch this module.
+    """
     response = requests.get(IWC_MANIFEST_URL, timeout=timeout)
     response.raise_for_status()
     manifest = response.json()
@@ -53,7 +94,7 @@ def fetch_manifest(timeout: float = 30.0) -> list[dict[str, Any]]:
         if cached is not None:
             return cached
 
-        manifest = _download_manifest(timeout)
+        manifest = download_manifest(timeout)
         _manifest_cache[_CACHE_KEY] = manifest
         return manifest
 
@@ -71,7 +112,7 @@ def refresh_manifest(timeout: float = 30.0) -> list[dict[str, Any]]:
     continue without the data); this one is called from a periodic task
     that has to tolerate transient failure.
     """
-    manifest = _download_manifest(timeout)
+    manifest = download_manifest(timeout)
     with _manifest_cache_lock:
         _manifest_cache[_CACHE_KEY] = manifest
     return manifest
