@@ -36,6 +36,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import (
     joinedload,
+    selectinload,
     subqueryload,
 )
 
@@ -81,10 +82,14 @@ from galaxy.model.index_filter_util import (
     tag_exists_filter,
     text_column_filter,
     user_exists_filter,
+    user_in_filter,
 )
 from galaxy.model.item_attrs import UsesAnnotations
 from galaxy.schema.invocation import InvocationCancellationUserRequest
-from galaxy.schema.schema import WorkflowIndexQueryPayload
+from galaxy.schema.schema import (
+    CuratedWorkflowsQueryPayload,
+    WorkflowIndexQueryPayload,
+)
 from galaxy.structured_app import MinimalManagerApp
 from galaxy.tools.parameters import (
     params_to_incoming,
@@ -112,6 +117,7 @@ from galaxy.util.search import (
     RawTextTerm,
 )
 from galaxy.work.context import WorkRequestContext
+from galaxy.workflow.curated import CURATED_SEARCH_FILTERS
 from galaxy.workflow.modules import (
     module_factory,
     PickValueModule,
@@ -153,6 +159,11 @@ INDEX_SEARCH_FILTERS = {
     "u": "user",
     "is": "is",
 }
+
+# CURATED_SEARCH_FILTERS is imported from galaxy.workflow.curated rather than
+# restated here: the two serving modes must accept exactly the same filter
+# vocabulary, or a query works on one deployment and silently degrades to free
+# text on another.
 
 
 class WorkflowsManager(sharable.SharableModelManager[model.StoredWorkflow], deletable.DeletableManagerMixin):
@@ -299,6 +310,78 @@ class WorkflowsManager(sharable.SharableModelManager[model.StoredWorkflow], dele
             stmt = stmt.offset(payload.offset)
         result = trans.sa_session.scalars(stmt).unique()
         return result, total_matches
+
+    def curated_index_query(
+        self, trans: ProvidesUserContext, payload: CuratedWorkflowsQueryPayload, owners: list[str]
+    ) -> tuple[list[StoredWorkflow], int]:
+        """Published workflows owned by an explicit, config-driven allowlist of usernames.
+
+        Kept separate from `index_query` because that method's `show_shared` defaulting and
+        `is:` search handling raise 400s for the anonymous callers this endpoint serves, and
+        because the curated tab's ordering must not depend on who is asking.
+        """
+        stmt = (
+            select(StoredWorkflow)
+            .join(StoredWorkflow.user)
+            .where(User.deleted == false())
+            .where(user_in_filter(StoredWorkflow.user_id, owners))
+            .where(StoredWorkflow.published == true())
+            .where(StoredWorkflow.deleted == false())
+            .where(StoredWorkflow.hidden == false())
+        )
+
+        def w_tag_exists(term_text: str, quoted: bool):
+            # Restricted to the owner's own tags: anyone who can see a published
+            # workflow can tag it, and this endpoint is anonymous, so an
+            # unrestricted filter would let a stranger's private tag both surface
+            # on the card and be used to find the workflow.
+            return tag_exists_filter(
+                StoredWorkflowTagAssociation,
+                StoredWorkflowTagAssociation.stored_workflow_id,
+                StoredWorkflow.id,
+                term_text,
+                quoted,
+                tag_user_id_column=StoredWorkflowTagAssociation.user_id,
+                owner_id_column=StoredWorkflow.user_id,
+            )
+
+        if payload.search:
+            parsed_search = filter_terms(parse_filters_structured(payload.search, CURATED_SEARCH_FILTERS))
+            for term in parsed_search.terms:
+                if isinstance(term, FilteredTerm):
+                    if term.filter == "name":
+                        stmt = stmt.where(text_column_filter(StoredWorkflow.name, term))
+                    elif term.filter == "tag":
+                        stmt = stmt.where(w_tag_exists(term.text, term.quoted))
+                elif isinstance(term, RawTextTerm):
+                    stmt = stmt.where(
+                        raw_text_column_filter([StoredWorkflow.name, w_tag_exists(term.text, False)], term)
+                    )
+
+        # Counted before the eager-load options go on, so the count statement is
+        # plainly just the filters. No DISTINCT: every tag predicate above is a
+        # correlated EXISTS and the only join is many-to-one, so nothing here
+        # multiplies rows the way index_query's outer join on tags does.
+        total_matches = get_count(trans.sa_session, stmt)
+
+        latest_workflow_load = joinedload(StoredWorkflow.latest_workflow)
+        latest_workflow_load = latest_workflow_load.undefer(Workflow.step_count)  # type: ignore[arg-type]
+        latest_workflow_load = latest_workflow_load.lazyload(Workflow.steps)
+        # selectinload for the collections: joinedload would return one row per
+        # annotation x tag combination, each repeating every workflow column.
+        stmt = stmt.options(selectinload(StoredWorkflow.annotations))
+        stmt = stmt.options(selectinload(StoredWorkflow.owner_tags))
+        stmt = stmt.options(joinedload(StoredWorkflow.user))
+        stmt = stmt.options(latest_workflow_load)
+
+        sort_column = StoredWorkflow.name if payload.sort_by == "name" else StoredWorkflow.update_time
+        if payload.sort_desc is False:
+            stmt = stmt.order_by(sort_column, StoredWorkflow.id)
+        else:
+            stmt = stmt.order_by(sort_column.desc(), StoredWorkflow.id)
+
+        stmt = stmt.limit(payload.limit).offset(payload.offset)
+        return list(trans.sa_session.scalars(stmt).unique().all()), total_matches
 
     def get_stored_workflow(self, trans: ProvidesUserContext, workflow_id, by_stored_id=True) -> StoredWorkflow:
         """Use a supplied ID (UUID or encoded stored workflow ID) to find
