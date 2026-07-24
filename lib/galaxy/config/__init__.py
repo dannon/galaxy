@@ -887,6 +887,10 @@ class GalaxyAppConfiguration(GalaxyAppConfigurationAttributes, BaseAppConfigurat
         self.tool_filters = listify(self.tool_filters, do_strip=True)
         self.tool_label_filters = listify(self.tool_label_filters, do_strip=True)
         self.tool_section_filters = listify(self.tool_section_filters, do_strip=True)
+        self.curated_workflow_owners = listify(self.curated_workflow_owners, do_strip=True)
+        # Only the catalog mode reads the IWC projection; naming the predicate keeps
+        # the celery task and its beat gate from fetching a file nothing will read.
+        self.curated_workflows_use_iwc = bool(self.curated_workflows_enabled) and not self.curated_workflow_owners
 
         self.user_tool_filters = listify(self.user_tool_filters, do_strip=True)
         self.user_tool_label_filters = listify(self.user_tool_label_filters, do_strip=True)
