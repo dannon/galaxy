@@ -308,9 +308,11 @@ def setup_periodic_tasks(config, celery_app):
     if config.inference_services and config.gtn_database_refresh_interval and config.gtn_database_path:
         schedule_task("refresh_gtn_database", config.gtn_database_refresh_interval)
 
-    # IWC manifest pre-warm only matters when the agent-ops layer is exposed --
-    # same inference_services gate as the GTN refresh above.
-    if config.inference_services and config.iwc_manifest_refresh_interval:
+    # Two consumers want the IWC manifest: the agent-ops layer, gated on
+    # inference_services like the GTN refresh above, and the curated workflows tab
+    # -- but only in catalog mode, since pointing the tab at local owners makes the
+    # projection dead weight and the fetch an outbound request nobody asked for.
+    if (config.inference_services or config.curated_workflows_use_iwc) and config.iwc_manifest_refresh_interval:
         schedule_task("refresh_iwc_manifest", config.iwc_manifest_refresh_interval)
 
     if config.celery_user_concurrency_limit:
