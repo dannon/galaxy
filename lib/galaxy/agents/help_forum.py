@@ -42,7 +42,7 @@ class HelpThread(BaseModel):
     """A single cited help-forum thread."""
 
     title: str = Field(..., description="Thread title")
-    url: str = Field(..., description="Canonical thread URL")
+    topic_id: int = Field(..., gt=0, description="Forum topic id, as returned by search_help_forum")
     excerpt: str = Field("", description="Short snippet or synthesized excerpt")
     has_accepted_answer: bool = Field(False, description="Whether the thread has an accepted answer")
     tags: list[str] = Field(default_factory=list, description="Thread tags")
@@ -54,6 +54,19 @@ class HelpForumResponse(BaseModel):
 
     summary: str = Field(..., description="Synthesized answer in the model's own words")
     threads: list[HelpThread] = Field(default_factory=list, description="Cited forum threads")
+
+
+def build_topic_url(topic_id: int, config: Any) -> str:
+    """Build a canonical forum topic URL from trusted configuration.
+
+    Links are constructed here rather than taken from the model's output. Forum posts
+    are untrusted user-generated text, so a model-supplied URL -- hallucinated, or
+    planted by an injected post -- would otherwise render as a link and an action
+    button inside Galaxy's own assistant UI. Discourse redirects the slug-less form
+    to the full topic URL.
+    """
+    base_url = (getattr(config, "help_forum_api_url", "") or "").rstrip("/")
+    return f"{base_url}/t/{topic_id}"
 
 
 def build_ask_forum_url(question: str, config: Any) -> str:
@@ -135,14 +148,14 @@ class HelpForumAgent(BaseGalaxyAgent):
             except Exception as e:
                 log.warning(f"Help forum search failed: {e}")
                 return json.dumps({"error": str(e)})
-            base_url = (self.deps.config.help_forum_api_url or "").rstrip("/")
             topics = []
             for topic in (search.topics or [])[:limit]:
+                # Deliberately no url here -- cite by topic_id and let Galaxy build the
+                # link, so the model never handles (or invents) a URL.
                 topics.append(
                     {
                         "topic_id": topic.id,
                         "title": topic.title,
-                        "url": f"{base_url}/t/{topic.slug}/{topic.id}",
                         "tags": [getattr(t, "name", "") for t in (topic.tags or [])],
                         "has_accepted_answer": topic.has_accepted_answer,
                         "reply_count": topic.reply_count,
@@ -255,7 +268,7 @@ class HelpForumAgent(BaseGalaxyAgent):
                 parts.append(f"\n{i}. **{thread.title}**{marker}")
                 if thread.excerpt:
                     parts.append(f"   {thread.excerpt}")
-                parts.append(f"   - Link: {thread.url}")
+                parts.append(f"   - Link: {build_topic_url(thread.topic_id, self.deps.config)}")
             parts.append("\n_These are community answers, not official Galaxy documentation._")
         else:
             parts.append("\nI could not find a clear answer on the forum. You can ask the community directly below.")
@@ -268,7 +281,7 @@ class HelpForumAgent(BaseGalaxyAgent):
                 ActionSuggestion(
                     action_type=ActionType.VIEW_EXTERNAL,
                     description=f"Open thread: {thread.title}",
-                    parameters={"url": thread.url},
+                    parameters={"url": build_topic_url(thread.topic_id, self.deps.config)},
                     confidence=ConfidenceLevel.HIGH,
                     priority=1,
                 )
