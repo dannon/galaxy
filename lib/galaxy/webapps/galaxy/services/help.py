@@ -23,6 +23,11 @@ from galaxy.webapps.galaxy.services.base import ServiceBase
 
 log = logging.getLogger(__name__)
 
+# (connect, read) seconds. Without an explicit timeout requests waits forever, which
+# would both pin the worker thread the help forum agent calls this from and leave the
+# Timeout handlers below unreachable.
+FORUM_REQUEST_TIMEOUT = (5, 15)
+
 
 def _compose_search_query(
     query: str,
@@ -99,6 +104,7 @@ class HelpService(ServiceBase):
                 url=f"{base_url}/search.json",
                 params={"q": composed},
                 headers=self._auth_headers(),
+                timeout=FORUM_REQUEST_TIMEOUT,
             )
         except requests.exceptions.ConnectionError:
             raise UpstreamProxyError(
@@ -123,6 +129,7 @@ class HelpService(ServiceBase):
             response = requests.get(
                 url=f"{base_url}/t/{topic_id}.json",
                 headers=self._auth_headers(),
+                timeout=FORUM_REQUEST_TIMEOUT,
             )
         except requests.exceptions.ConnectionError:
             raise UpstreamProxyError("Could not connect to the Galaxy Help Forum.")

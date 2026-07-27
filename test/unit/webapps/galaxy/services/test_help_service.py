@@ -3,12 +3,15 @@ from unittest import mock
 import pytest
 
 from galaxy.exceptions import (
+    GatewayTimeoutException,
     ServerNotConfiguredForRequest,
     UpstreamProxyError,
 )
 from galaxy.schema.help import HelpForumTopicContent
+from galaxy.util import requests
 from galaxy.webapps.galaxy.services.help import (
     _compose_search_query,
+    FORUM_REQUEST_TIMEOUT,
     HelpService,
 )
 
@@ -161,3 +164,33 @@ def test_get_topic_fallback_picks_most_liked_reply_with_null_like_count():
     assert isinstance(topic, HelpForumTopicContent)
     assert topic.answer_is_accepted is False
     assert topic.answer == "Check the stderr log."
+
+
+def test_search_forum_sets_a_request_timeout():
+    """Without an explicit timeout requests waits forever, pinning the caller's thread."""
+    service = _service()
+    response = mock.Mock(ok=True)
+    response.json.return_value = {"topics": [], "posts": []}
+    with mock.patch("galaxy.webapps.galaxy.services.help.requests.get", return_value=response) as get:
+        service.search_forum("anything")
+    assert get.call_args.kwargs["timeout"] == FORUM_REQUEST_TIMEOUT
+
+
+def test_get_topic_sets_a_request_timeout():
+    service = _service()
+    response = mock.Mock(ok=True)
+    response.json.return_value = {"title": "t", "slug": "t", "post_stream": {"posts": []}}
+    with mock.patch("galaxy.webapps.galaxy.services.help.requests.get", return_value=response) as get:
+        service.get_topic(1)
+    assert get.call_args.kwargs["timeout"] == FORUM_REQUEST_TIMEOUT
+
+
+def test_search_forum_timeout_raises_gateway_timeout():
+    """Reachable only because a timeout is actually set on the request."""
+    service = _service()
+    with mock.patch(
+        "galaxy.webapps.galaxy.services.help.requests.get",
+        side_effect=requests.exceptions.Timeout(),
+    ):
+        with pytest.raises(GatewayTimeoutException):
+            service.search_forum("anything")
