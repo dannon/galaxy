@@ -5,6 +5,8 @@ import { computed, onMounted, ref } from "vue";
 import { useEntryPointStore } from "@/stores/entryPointStore";
 import { useInteractiveToolsStore } from "@/stores/interactiveToolsStore";
 
+import GAlert from "@/components/BaseComponents/GAlert.vue";
+
 export interface Props {
     entryId: string;
 }
@@ -50,9 +52,9 @@ onMounted(async () => {
         <div v-if="loading" class="d-flex justify-content-center align-items-center h-100">
             <b-spinner label="Loading interactive tool..."></b-spinner>
         </div>
-        <div v-else-if="error" class="alert alert-danger m-3">
+        <GAlert v-else-if="error" show variant="danger" class="m-3">
             {{ error }}
-        </div>
+        </GAlert>
         <iframe
             v-else-if="frameUrl"
             id="galaxy_interactive_tool"
@@ -62,7 +64,7 @@ onMounted(async () => {
             title="galaxy interactive tool frame"
             width="100%"
             height="100%" />
-        <div v-else class="alert alert-danger m-3">No URL available for this interactive tool.</div>
+        <GAlert v-else show variant="danger" class="m-3">No URL available for this interactive tool.</GAlert>
     </div>
 </template>
 

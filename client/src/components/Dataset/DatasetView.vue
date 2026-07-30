@@ -17,6 +17,7 @@ import LoadingSpan from "../LoadingSpan.vue";
 import DatasetAsImage from "./DatasetAsImage/DatasetAsImage.vue";
 import DatasetDisplay from "./DatasetDisplay.vue";
 import DatasetState from "./DatasetState.vue";
+import GAlert from "@/components/BaseComponents/GAlert.vue";
 import Heading from "@/components/Common/Heading.vue";
 import DatasetAttributes from "@/components/DatasetInformation/DatasetAttributes.vue";
 import DatasetDetails from "@/components/DatasetInformation/DatasetDetails.vue";
@@ -108,7 +109,7 @@ watch(
 </script>
 
 <template>
-    <div v-if="loadError" class="alert alert-danger m-4">
+    <GAlert v-if="loadError" show variant="danger" class="m-4">
         <h4 class="alert-heading">Dataset Not Available</h4>
         <p>
             {{
@@ -116,7 +117,7 @@ watch(
                 "This dataset could not be loaded. It may not exist or you may not have permission to access it."
             }}
         </p>
-    </div>
+    </GAlert>
     <LoadingSpan v-else-if="isLoading || !dataset" message="Loading dataset details" />
     <div v-else class="dataset-view d-flex flex-column">
         <header v-if="!displayOnly" :key="`dataset-header-${dataset.id}`" class="dataset-header flex-shrink-0">
@@ -214,14 +215,14 @@ watch(
                 :visualization="preferredVisualization"
                 @load="iframeLoading = false" />
             <div v-else-if="isAutoDownloadType && !isPdfDataset" class="auto-download-message p-4">
-                <div class="alert alert-info">
+                <GAlert show variant="info">
                     <h4>Download Required</h4>
                     <p>This file type ({{ dataset.file_ext }}) will download automatically when accessed directly.</p>
                     <p>File size: <strong v-html="bytesToString(dataset.file_size || 0, false)" /></p>
                     <a :href="downloadUrl" class="btn btn-primary mt-2" download>
                         <FontAwesomeIcon :icon="faFileAlt" class="mr-1" /> Download File
                     </a>
-                </div>
+                </GAlert>
             </div>
             <DatasetAsImage
                 v-else-if="isImageDataset && !isPdfDataset"
@@ -232,14 +233,14 @@ watch(
         </div>
         <div v-else-if="tab === 'raw'" class="tab-content-panel">
             <div v-if="isAutoDownloadType && !isPdfDataset" class="auto-download-message p-4">
-                <div class="alert alert-info">
+                <GAlert show variant="info">
                     <h4>Download Required</h4>
                     <p>This file type ({{ dataset.file_ext }}) will download automatically when accessed directly.</p>
                     <p>File size: <strong v-html="bytesToString(dataset.file_size || 0, false)" /></p>
                     <a :href="downloadUrl" class="btn btn-primary mt-2" download>
                         <FontAwesomeIcon :icon="faFileAlt" class="mr-1" /> Download File
                     </a>
-                </div>
+                </GAlert>
             </div>
             <DatasetDisplay v-else :dataset-id="datasetId" :is-binary="isBinaryDataset" @load="iframeLoading = false" />
         </div>

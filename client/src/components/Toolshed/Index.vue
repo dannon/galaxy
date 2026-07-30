@@ -1,6 +1,6 @@
 <template>
     <div class="overflow-auto h-100 p-1" @scroll="onScroll">
-        <div v-if="error" class="alert alert-danger">{{ error }}</div>
+        <GAlert v-if="error" show variant="danger">{{ error }}</GAlert>
         <div v-else>
             <b-input-group class="mb-3">
                 <b-input
@@ -31,9 +31,11 @@ import _l from "@/utils/localization";
 
 import InstalledList from "./InstalledList/Index.vue";
 import SearchList from "./SearchList/Index.vue";
+import GAlert from "@/components/BaseComponents/GAlert.vue";
 
 export default {
     components: {
+        GAlert,
         SearchList,
         InstalledList,
     },

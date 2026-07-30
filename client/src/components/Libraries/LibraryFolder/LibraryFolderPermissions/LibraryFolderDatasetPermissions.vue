@@ -28,10 +28,10 @@
                 @input="setUserPermissionsPreferences" />
             <hr class="my-4" />
             <h2 class="text-center">Dataset-related permissions</h2>
-            <div class="alert alert-warning text-center">
+            <GAlert show variant="warning" class="text-center">
                 Changes made below will affect <strong>every</strong> library item that was created from this dataset
                 and also every history this dataset is part of.
-            </div>
+            </GAlert>
             <p v-if="is_unrestricted" class="text-center">
                 You can
                 <strong class="make-private" @click="toggleDatasetPrivacy(true)">
@@ -88,6 +88,7 @@ import { Services } from "@/components/Libraries/LibraryPermissions/services";
 import { Toast } from "@/composables/toast";
 import { getAppRoot } from "@/onload/loadConfig";
 
+import GAlert from "@/components/BaseComponents/GAlert.vue";
 import LibraryBreadcrumb from "@/components/Libraries/LibraryFolder/LibraryBreadcrumb.vue";
 import PermissionsHeader from "@/components/Libraries/LibraryPermissions/PermissionsHeader.vue";
 import PermissionsInputField from "@/components/Libraries/LibraryPermissions/PermissionsInputField.vue";
@@ -97,6 +98,7 @@ Vue.use(BootstrapVue);
 
 export default {
     components: {
+        GAlert,
         PermissionsInputField,
         FontAwesomeIcon,
         LibraryBreadcrumb,

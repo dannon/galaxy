@@ -12,6 +12,7 @@ import type { UploadMethodComponent, UploadMethodConfig } from "./types";
 import { useFilteredUploadMethods } from "./uploadMethodRegistry";
 import type { UploadedDataset, UploadModalConfig } from "./uploadModalTypes";
 
+import GAlert from "@/components/BaseComponents/GAlert.vue";
 import GButton from "@/components/BaseComponents/GButton.vue";
 import GTip from "@/components/BaseComponents/GTip.vue";
 import GCard from "@/components/Common/GCard.vue";
@@ -171,9 +172,9 @@ async function handleStartClick() {
                     :tips="selectedMethod.tips"
                     variant="info"
                     class="mb-2" />
-                <div v-if="error" class="alert alert-danger py-1 px-2 mb-2">
+                <GAlert v-if="error" show variant="danger" class="py-1 px-2 mb-2">
                     {{ error }}
-                </div>
+                </GAlert>
                 <div v-if="uploading" class="mb-2">
                     <div class="d-flex justify-content-between small text-muted mb-1">
                         <span>Uploading</span>

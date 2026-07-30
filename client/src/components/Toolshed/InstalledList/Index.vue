@@ -1,6 +1,6 @@
 <template>
     <div>
-        <div v-if="error" class="alert alert-danger" show>{{ error }}</div>
+        <GAlert v-if="error" show variant="danger">{{ error }}</GAlert>
         <div v-else>
             <LoadingSpan v-if="loading" message="Loading installed repositories" />
             <div v-else>

@@ -1,6 +1,6 @@
 <template>
     <div>
-        <div v-if="error" class="alert alert-danger" show>{{ error }}</div>
+        <GAlert v-if="error" show variant="danger">{{ error }}</GAlert>
         <div v-else>
             <span v-if="loading">
                 <BCard>
@@ -21,11 +21,13 @@ import { getAppRoot } from "@/onload/loadConfig";
 import { Services } from "../services";
 
 import RepositoryDetails from "../RepositoryDetails/Index.vue";
+import GAlert from "@/components/BaseComponents/GAlert.vue";
 import LoadingSpan from "@/components/LoadingSpan.vue";
 
 export default {
     components: {
         BCard,
+        GAlert,
         LoadingSpan,
         RepositoryDetails,
     },

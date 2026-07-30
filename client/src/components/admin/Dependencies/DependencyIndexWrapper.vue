@@ -1,6 +1,6 @@
 <template>
     <div>
-        <div v-if="error" class="alert alert-danger" show>{{ error }}</div>
+        <GAlert v-if="error" show variant="danger">{{ error }}</GAlert>
         <div v-else>
             <slot name="header"></slot>
             <LoadingSpan v-if="loading" :message="loadingMessage" />
@@ -13,10 +13,12 @@
     </div>
 </template>
 <script>
+import GAlert from "@/components/BaseComponents/GAlert.vue";
 import LoadingSpan from "@/components/LoadingSpan.vue";
 
 export default {
     components: {
+        GAlert,
         LoadingSpan,
     },
     props: {

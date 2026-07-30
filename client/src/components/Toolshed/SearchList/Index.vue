@@ -6,7 +6,7 @@
             :total="total"
             :loading="loading"
             @onToolshed="setToolshed" />
-        <div v-if="error" class="alert alert-danger">{{ error }}</div>
+        <GAlert v-if="error" show variant="danger">{{ error }}</GAlert>
         <div v-else>
             <Repositories
                 v-if="!queryEmpty"
@@ -31,10 +31,12 @@ import { getGalaxyInstance } from "@/app";
 import Categories from "./Categories.vue";
 import Repositories from "./Repositories.vue";
 import ServerSelection from "./ServerSelection.vue";
+import GAlert from "@/components/BaseComponents/GAlert.vue";
 
 export default {
     components: {
         Categories,
+        GAlert,
         Repositories,
         ServerSelection,
     },
