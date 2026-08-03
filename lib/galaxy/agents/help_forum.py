@@ -3,10 +3,7 @@
 import json
 import logging
 from pathlib import Path
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any
 from urllib.parse import urlencode
 
 import anyio
@@ -83,6 +80,7 @@ class HelpForumAgent(BaseGalaxyAgent):
     """Searches the Galaxy Help forum (Discourse) and synthesizes cited answers."""
 
     agent_type = AgentType.HELP_FORUM
+    capability_blurb = "Search the Galaxy Help community forum for usage, setup, and troubleshooting questions."
 
     MAX_TOOL_CALLS = 4
     _TOOL_BUDGET_MESSAGE = (
@@ -95,13 +93,13 @@ class HelpForumAgent(BaseGalaxyAgent):
     def __init__(self, deps: GalaxyAgentDependencies):
         super().__init__(deps)
         self._tool_calls = 0
-        self._help_service: Optional[HelpService] = None
+        self._help_service: HelpService | None = None
         try:
             self._help_service = HelpService(deps.trans.app.security, deps.config)
         except (AttributeError, RuntimeError) as e:
             log.warning(f"Help forum service not available: {e}")
 
-    def _charge_tool_budget(self) -> Optional[str]:
+    def _charge_tool_budget(self) -> str | None:
         self._tool_calls += 1
         if self._tool_calls > self.MAX_TOOL_CALLS:
             return self._TOOL_BUDGET_MESSAGE
@@ -129,11 +127,11 @@ class HelpForumAgent(BaseGalaxyAgent):
             ctx: RunContext[GalaxyAgentDependencies],
             query: str,
             solved_only: bool = False,
-            category: Optional[str] = None,
-            tags: Optional[list[str]] = None,
+            category: str | None = None,
+            tags: list[str] | None = None,
             limit: int = 5,
         ) -> str:
-            """Search the Galaxy Help forum. Returns ranked topics with title, url, tags, accepted-answer flag."""
+            """Search the Galaxy Help forum. Returns ranked topics with topic_id, title, tags, accepted-answer flag."""
             over_budget = self._charge_tool_budget()
             if over_budget:
                 return over_budget
@@ -184,7 +182,7 @@ class HelpForumAgent(BaseGalaxyAgent):
         prompt_path = Path(__file__).parent / "prompts" / "help_forum.md"
         return prompt_path.read_text()
 
-    async def process(self, query: str, context: Optional[dict[str, Any]] = None) -> AgentResponse:
+    async def process(self, query: str, context: dict[str, Any] | None = None) -> AgentResponse:
         validation_error = self._validate_query(query)
         if validation_error:
             return self._validation_error_response(validation_error)

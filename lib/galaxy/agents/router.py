@@ -249,6 +249,7 @@ class QueryRouterAgent(BaseGalaxyAgent):
         AgentType.TOOL_RECOMMENDATION,
         AgentType.HISTORY,
         AgentType.GTN_TRAINING,
+        AgentType.HELP_FORUM,
         AgentType.ERROR_ANALYSIS,
         AgentType.ORCHESTRATOR,
         AgentType.CUSTOM_TOOL,

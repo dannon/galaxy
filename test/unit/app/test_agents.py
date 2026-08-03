@@ -61,6 +61,7 @@ from galaxy.agents import (
     ToolRecommendationAgent,
 )
 from galaxy.agents.base import truncate_message_history
+from galaxy.agents.help_forum import HelpForumAgent
 from galaxy.agents.custom_tool import (
     CritiqueReport,
     ToolEdit,
@@ -352,6 +353,7 @@ class TestAgentUnitMocked:
             ToolRecommendationAgent,
             HistoryAgent,
             GTNTrainingAgent,
+            HelpForumAgent,
             ErrorAnalysisAgent,
             WorkflowOrchestratorAgent,
             CustomToolAgent,
@@ -409,6 +411,30 @@ class TestAgentUnitMocked:
 
         assert CustomToolAgent.capability_blurb not in prompt
         assert HistoryAgent.capability_blurb in prompt
+
+    def test_help_forum_capability_is_advertised(self):
+        """The help forum blurb reaches the composed router prompt.
+
+        Defining capability_blurb is not enough -- the agent also has to appear in
+        the router's display order, or it is silently absent from "what can you do".
+        """
+        self.mock_config.inference_services = None
+        registry = build_default_registry()
+        self.deps.get_capability_blurb = registry.get_capability_blurb
+        prompt = QueryRouterAgent(self.deps).get_system_prompt()
+
+        assert HelpForumAgent.capability_blurb in prompt
+
+    def test_help_forum_capability_hidden_when_disabled(self):
+        """A disabled help forum agent must not be advertised."""
+        self.mock_config.inference_services = None
+        config = mock.Mock()
+        config.inference_services = {"help_forum": {"enabled": False}}
+        registry = build_default_registry(config)
+        self.deps.get_capability_blurb = registry.get_capability_blurb
+        prompt = QueryRouterAgent(self.deps).get_system_prompt()
+
+        assert HelpForumAgent.capability_blurb not in prompt
 
     def test_help_forum_registered_by_default(self):
         config = mock.Mock()
