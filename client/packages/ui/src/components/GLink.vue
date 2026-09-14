@@ -41,7 +41,19 @@ const emit = defineEmits<{
     (e: "click", event: PointerEvent): void;
 }>();
 
+// Vue 2.7 needs both bindings below: a plain button/a root ignores `.native`,
+// while a vue-router 3 RouterLink root only ever sees `.native`. Vue 3 dropped
+// the modifier, so there both attach as ordinary listeners and one press runs
+// this handler twice. The two deliver the same DOM event, so dedupe on it and
+// leave the template working for either stack. A WeakSet so nothing is retained.
+const handledEvents = new WeakSet<Event>();
+
 function onClick(event: PointerEvent) {
+    if (handledEvents.has(event)) {
+        return;
+    }
+    handledEvents.add(event);
+
     if (props.disabled) {
         // Mirror a native disabled control, which dispatches no click event at all:
         // without stopping propagation the click still bubbles to clickable ancestors
