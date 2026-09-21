@@ -50,7 +50,7 @@ const router = useRouter();
 const chatStore = useChatStore();
 const Toast = useToast();
 
-const { activeContext, contextLabel, contextIcon } = useActiveContext();
+const { activeContext, contextId, contextLabel, contextIcon } = useActiveContext();
 const pageEditorStore = usePageEditorStore();
 const contextDismissed = ref(false);
 
@@ -569,11 +569,19 @@ watch(currentChatId, async (newId) => {
         </div>
 
         <div v-if="(docked || panel) && effectiveContext" class="context-indicator">
-            <span class="context-badge">
+            <span
+                class="context-badge"
+                data-description="chat context badge"
+                :data-context-type="effectiveContext.contextType"
+                :data-context-id="contextId">
                 <FontAwesomeIcon :icon="contextIcon" fixed-width />
                 {{ contextLabel }}
             </span>
-            <button class="context-dismiss" title="Dismiss context" @click="contextDismissed = true">
+            <button
+                class="context-dismiss"
+                data-description="chat context dismiss"
+                title="Dismiss context"
+                @click="contextDismissed = true">
                 <FontAwesomeIcon :icon="faTimes" />
             </button>
         </div>
@@ -622,13 +630,18 @@ watch(currentChatId, async (newId) => {
         </div>
 
         <div class="galaxyai-footer">
-            <BFormCheckbox :checked="tutorModeEnabled" switch size="sm" class="tutor-toggle" @change="setTutorMode">
-                <FontAwesomeIcon :icon="faLightbulb" fixed-width />
-                Learning mode
-                <span v-if="tutorModeEnabled && scaffoldingLevel" class="tutor-scaffolding">
-                    · scaffolding {{ scaffoldingLevel }}/5
-                </span>
-            </BFormCheckbox>
+            <div data-description="learning mode toggle" :data-tutor-mode="tutorModeEnabled ? 'on' : 'off'">
+                <BFormCheckbox :checked="tutorModeEnabled" switch size="sm" class="tutor-toggle" @change="setTutorMode">
+                    <FontAwesomeIcon :icon="faLightbulb" fixed-width />
+                    Learning mode
+                    <span
+                        v-if="tutorModeEnabled && scaffoldingLevel"
+                        class="tutor-scaffolding"
+                        data-description="learning mode scaffolding">
+                        · scaffolding {{ scaffoldingLevel }}/5
+                    </span>
+                </BFormCheckbox>
+            </div>
             <ChatInput v-model="query" :busy="busy" @submit="submitQuery" />
         </div>
     </div>
