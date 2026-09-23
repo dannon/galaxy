@@ -19,11 +19,13 @@ const baseRules = {
     "vue/prop-name-casing": "warn",
     "vue/require-prop-types": "warn",
     "vue/require-default-prop": "warn",
-    "vue/no-v-html": "warn",
 
     // Increase the severity of some rules to errors
     "vue/attributes-order": "error",
     "vue/order-in-components": "error",
+    // Markup goes through v-safe-html (DOMPurify); v-trusted-html is the
+    // reviewed exception for server/shipped markup, with a comment saying why.
+    "vue/no-v-html": "error",
 
     // Prettier compromises/workarounds -- mostly #wontfix?
     "vue/html-indent": "off",
