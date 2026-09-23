@@ -7,6 +7,8 @@ import { vi } from "vitest";
 // Vue configuration
 import Vue from "vue";
 
+import { vSafeHtml } from "@/directives/vSafeHtml";
+
 Vue.config.productionTip = false;
 Vue.config.devtools = false;
 
@@ -16,6 +18,11 @@ Vue.directive("g-tooltip", {
         el.setAttribute("data-mock-directive", binding.value || el.title || "");
     },
 });
+
+// v-safe-html is the real directive; only the DOMPurify call behind it is
+// replaced with a pass-through spy (see directives/__mocks__/sanitizeHtml.ts).
+vi.mock("@/directives/sanitizeHtml");
+Vue.directive("safe-html", vSafeHtml);
 
 // Mock hashedUserId and userLocalStorage by default
 vi.mock("@/composables/hashedUserId");
