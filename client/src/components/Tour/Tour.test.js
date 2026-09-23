@@ -43,4 +43,16 @@ describe("Tour", () => {
     it("test tours", async () => {
         expect(wrapper.findAll("[data-description='tour link']").length).toBe(2);
     });
+
+    it("shows tour descriptions as text", async () => {
+        server.use(
+            http.get("/api/tours", ({ response }) =>
+                response(200).json([{ id: "t", name: "T", description: "Uses <b>markup</b>", tags: [] }]),
+            ),
+        );
+        const textWrapper = shallowMount(TourList, { propsData: {}, localVue });
+        await flushPromises();
+        expect(textWrapper.text()).toContain("Uses <b>markup</b>");
+        expect(textWrapper.find("b").exists()).toBe(false);
+    });
 });
