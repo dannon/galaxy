@@ -35,7 +35,7 @@ const citationHtml = computed(() => {
 <template>
     <div>
         {{ prefix }}
-        <span v-html="citationHtml" />
+        <span v-safe-html="citationHtml" />
 
         <a v-if="link" :href="link" target="_blank">
             Visit reference
