@@ -95,8 +95,10 @@ const clarificationOptions = computed<string[]>(() => props.message.agentRespons
                         :question="props.message.content"
                         :options="clarificationOptions"
                         @select-option="(option) => emit('select-clarification-option', option)" />
-                    <!-- eslint-disable-next-line vue/no-v-html -->
-                    <div v-else class="response-content" v-html="props.renderMarkdown(props.message.content)" />
+                    <div
+                        v-else
+                        v-safe-html="{ html: props.renderMarkdown(props.message.content), profile: 'links' }"
+                        class="response-content" />
 
                     <ActionCard
                         v-if="!isClarification && props.message.suggestions?.length"

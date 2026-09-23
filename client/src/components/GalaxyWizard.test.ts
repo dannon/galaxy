@@ -1,9 +1,10 @@
 import { getLocalVue } from "@tests/vitest/helpers";
 import { mount } from "@vue/test-utils";
 import flushPromises from "flush-promises";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { useServerMock } from "@/api/client/__mocks__";
+import { sanitizeHtml } from "@/directives/sanitizeHtml";
 
 import GalaxyWizard from "./GalaxyWizard.vue";
 
@@ -92,5 +93,16 @@ describe("GalaxyWizard", () => {
         const notice = wrapper.find(TRUNCATION_NOTICE);
         expect(notice.exists()).toBe(true);
         expect(notice.text()).toContain("too much error output");
+    });
+
+    it("renders the analysis through v-safe-html with the links profile", async () => {
+        mockErrorAnalysis({});
+        vi.mocked(sanitizeHtml).mockClear();
+        const wrapper = mountWizard();
+
+        await wrapper.find(ANALYZE_BUTTON).trigger("click");
+        await flushPromises();
+
+        expect(sanitizeHtml).toHaveBeenLastCalledWith("<p>The tool ran out of memory.</p>\n", "links");
     });
 });
