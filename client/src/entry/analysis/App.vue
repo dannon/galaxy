@@ -17,8 +17,7 @@
                     class="rounded-0 m-0 p-2"
                     :variant="config.message_box_class || 'info'">
                     <span class="fa fa-fw mr-1 fa-exclamation" />
-                    <!-- eslint-disable-next-line vue/no-v-html -->
-                    <span v-html="config.message_box_content"></span>
+                    <span v-safe-html="{ html: config.message_box_content, profile: 'links' }"></span>
                 </Alert>
                 <Alert
                     v-if="showInactivityWarning && config.inactivity_box_content"

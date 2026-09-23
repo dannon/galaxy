@@ -110,8 +110,7 @@ async function submit() {
         <div class="d-flex justify-content-md-center">
             <div>
                 <BAlert :show="!!registrationWarningMessage" variant="info">
-                    <!-- eslint-disable-next-line vue/no-v-html -->
-                    <span v-html="registrationWarningMessage" />
+                    <span v-safe-html="{ html: registrationWarningMessage, profile: 'links' }" />
                 </BAlert>
 
                 <BAlert :show="!!messageText" variant="danger">
