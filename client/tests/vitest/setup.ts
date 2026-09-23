@@ -8,6 +8,7 @@ import { vi } from "vitest";
 import Vue from "vue";
 
 import { vSafeHtml } from "@/directives/vSafeHtml";
+import { vTrustedHtml } from "@/directives/vTrustedHtml";
 
 Vue.config.productionTip = false;
 Vue.config.devtools = false;
@@ -23,6 +24,7 @@ Vue.directive("g-tooltip", {
 // replaced with a pass-through spy (see directives/__mocks__/sanitizeHtml.ts).
 vi.mock("@/directives/sanitizeHtml");
 Vue.directive("safe-html", vSafeHtml);
+Vue.directive("trusted-html", vTrustedHtml);
 
 // Mock hashedUserId and userLocalStorage by default
 vi.mock("@/composables/hashedUserId");
