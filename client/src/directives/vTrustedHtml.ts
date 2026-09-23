@@ -4,9 +4,9 @@
  * code can produce and that DOMPurify would alter (see `v-safe-html` for
  * everything else).
  *
- * Every use needs an HTML comment directly above it explaining where the
- * content comes from and why `v-safe-html` does not fit, so reviewers can
- * judge the claim.
+ * Lint flags every use, so each one needs a disable directly above it that
+ * says where the content comes from and why `v-safe-html` does not fit:
+ *   <!-- eslint-disable-next-line vue/no-restricted-syntax -- <reason> -->
  */
 
 import type { DirectiveBinding, ObjectDirective } from "vue";
