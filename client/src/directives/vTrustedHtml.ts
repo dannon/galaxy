@@ -22,6 +22,12 @@ export const vTrustedHtml: ObjectDirective<HTMLElement, TrustedHtmlBinding> = {
             el.innerHTML = binding.value ?? "";
         }
     },
+    unbind(el, _binding, _vnode, _oldVnode, isDestroy?: boolean) {
+        // Same element reuse cleanup as v-safe-html
+        if (!isDestroy) {
+            el.innerHTML = "";
+        }
+    },
 };
 
 export default vTrustedHtml;
