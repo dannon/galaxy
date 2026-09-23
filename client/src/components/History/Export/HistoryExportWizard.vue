@@ -288,8 +288,7 @@ function resetWizard() {
                         :header="target.label"
                         class="wizard-selection-card"
                         @click="exportData.destination = target.destination">
-                        <!-- eslint-disable-next-line vue/no-v-html -->
-                        <div v-html="renderMarkdown(target.markdownDescription)" />
+                        <div v-safe-html="{ html: renderMarkdown(target.markdownDescription), profile: 'links' }" />
                     </BCard>
                 </BCardGroup>
             </div>

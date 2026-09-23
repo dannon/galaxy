@@ -48,7 +48,7 @@ function isSelected(plugin: ExportPlugin): boolean {
                     <b>Learn more</b>
                 </ExternalLink>
             </div>
-            <div v-else v-html="renderMarkdown(plugin.markdownDescription)" />
+            <div v-else v-safe-html="{ html: renderMarkdown(plugin.markdownDescription), profile: 'links' }" />
         </BCard>
     </BCardGroup>
 </template>
