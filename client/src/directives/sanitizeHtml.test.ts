@@ -37,7 +37,10 @@ describe("sanitizeHtml", () => {
 
     test("default profile uses the shared DOMPurify instance with the HTML profile", () => {
         expect(sanitizeHtml("<b>x</b>")).toBe("clean(<b>x</b>)");
-        expect(defaultInstance.sanitize).toHaveBeenCalledWith("<b>x</b>", { USE_PROFILES: { html: true } });
+        expect(defaultInstance.sanitize).toHaveBeenCalledWith("<b>x</b>", {
+            USE_PROFILES: { html: true },
+            FORBID_TAGS: ["style", "form", "input", "button", "textarea", "select"],
+        });
         expect(linksInstance.sanitize).not.toHaveBeenCalled();
     });
 
@@ -52,6 +55,7 @@ describe("sanitizeHtml", () => {
         expect(createInstance).toHaveBeenCalledTimes(1);
         expect(linksInstance.sanitize).toHaveBeenCalledWith("<a>x</a>", {
             USE_PROFILES: { html: true },
+            FORBID_TAGS: ["style", "form", "input", "button", "textarea", "select"],
             ADD_ATTR: ["target"],
         });
         expect(defaultInstance.sanitize).not.toHaveBeenCalled();
@@ -64,6 +68,8 @@ describe("sanitizeHtml", () => {
         expect(config.USE_PROFILES).toEqual({ html: true, svg: true, mathMl: true });
         expect(config.ADD_ATTR).toEqual(["target"]);
         expect(config.ADD_TAGS).toEqual(["semantics", "annotation"]);
+        // The authoring help renders copy buttons, so only <style> is dropped here
+        expect(config.FORBID_TAGS).toEqual(["style"]);
         const uriPattern = config.ALLOWED_URI_REGEXP!;
         for (const uri of [
             "gxhelp://term",
@@ -89,12 +95,14 @@ describe("sanitizeHtml", () => {
         expect(defaultInstance.addHook).not.toHaveBeenCalled();
     });
 
-    test("elements that keep a target get noopener and noreferrer", () => {
+    test("targets that open a new window get noopener and noreferrer", () => {
         const hook = linksHook();
-        const link = document.createElement("a");
-        link.setAttribute("target", "_blank");
-        hook(link);
-        expect(link.getAttribute("rel")).toBe("noopener noreferrer");
+        for (const target of ["_blank", "_BLANK", "report"]) {
+            const link = document.createElement("a");
+            link.setAttribute("target", target);
+            hook(link);
+            expect(link.getAttribute("rel")).toBe("noopener noreferrer");
+        }
     });
 
     test("an existing rel value is kept and not duplicated", () => {
@@ -106,11 +114,17 @@ describe("sanitizeHtml", () => {
         expect(link.getAttribute("rel")).toBe("nofollow noopener noreferrer");
     });
 
-    test("elements without a target and non-element nodes are left alone", () => {
+    test("elements without a target, same-window targets and non-element nodes are left alone", () => {
         const hook = linksHook();
         const link = document.createElement("a");
         hook(link);
         expect(link.hasAttribute("rel")).toBe(false);
+        for (const target of ["_self", "_top", "_parent"]) {
+            const sameWindow = document.createElement("a");
+            sameWindow.setAttribute("target", target);
+            hook(sameWindow);
+            expect(sameWindow.hasAttribute("rel")).toBe(false);
+        }
         const text = document.createTextNode("plain");
         expect(() => hook(text)).not.toThrow();
     });
