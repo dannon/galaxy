@@ -7,7 +7,7 @@ import { sanitizeHtml } from "@/directives/sanitizeHtml";
 import TourStep from "./TourStep.vue";
 
 describe("TourStep", () => {
-    it("shows the title as text and renders the content through v-safe-html", () => {
+    it("renders the title and content through v-safe-html", () => {
         vi.mocked(sanitizeHtml).mockClear();
         const wrapper = mount(TourStep as object, {
             localVue: getLocalVue(),
@@ -18,8 +18,8 @@ describe("TourStep", () => {
             },
         });
 
-        expect(wrapper.find(".tour-title").text()).toBe("Step <i>one</i>");
-        expect(wrapper.find(".tour-title i").exists()).toBe(false);
+        expect(sanitizeHtml).toHaveBeenCalledWith("Step <i>one</i>", "default");
+        expect(wrapper.find(".tour-title i").text()).toBe("one");
         expect(sanitizeHtml).toHaveBeenCalledWith("Click <b>Upload</b>", "default");
         expect(wrapper.find(".tour-content b").text()).toBe("Upload");
     });

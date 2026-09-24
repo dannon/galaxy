@@ -74,7 +74,7 @@ function createStep() {
         class="tour-element"
         :class="{ 'tour-element-sticky': !targetElementVisible, 'tour-has-title': !!step.title }">
         <div v-if="step.title" class="tour-header">
-            <div class="tour-title">{{ step.title }}</div>
+            <div v-safe-html="step.title" class="tour-title" />
         </div>
         <div v-if="step.content" v-safe-html="step.content" class="tour-content" />
         <div class="float-right p-2">
