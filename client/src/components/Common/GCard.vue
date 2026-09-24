@@ -607,7 +607,8 @@ function onKeyDown(event: KeyboardEvent) {
                                 <TextSummary
                                     v-if="!props.fullDescription"
                                     :id="getElementId(props.id, 'text-summary')"
-                                    :description="props.description" />
+                                    :description="props.description"
+                                    is-html />
                                 <div
                                     v-else
                                     v-safe-html="{ html: renderMarkdown(props.description), profile: 'links' }" />
