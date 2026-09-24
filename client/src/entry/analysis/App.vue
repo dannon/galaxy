@@ -17,7 +17,7 @@
                     class="rounded-0 m-0 p-2"
                     :variant="config.message_box_class || 'info'">
                     <span class="fa fa-fw mr-1 fa-exclamation" />
-                    <span v-safe-html="{ html: config.message_box_content, profile: 'links' }"></span>
+                    <span v-safe-html:links="config.message_box_content"></span>
                 </Alert>
                 <Alert
                     v-if="showInactivityWarning && config.inactivity_box_content"

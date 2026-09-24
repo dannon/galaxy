@@ -132,7 +132,7 @@ function onActionClick(link: string) {
             <BCol cols="auto">
                 <BRow align-v="center" no-gutters>
                     <span
-                        v-safe-html="{ html: renderMarkdown(notification.content.message), profile: 'links' }"
+                        v-safe-html:links="renderMarkdown(notification.content.message)"
                         :class="hasExpired ? 'expired-broadcast' : ''" />
                 </BRow>
 

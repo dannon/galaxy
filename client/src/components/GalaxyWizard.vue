@@ -132,7 +132,7 @@ async function sendFeedback(value: "up" | "down") {
                 </GAlert>
 
                 <div
-                    v-safe-html="{ html: renderMarkdown(queryResponse), profile: 'links' }"
+                    v-safe-html:links="renderMarkdown(queryResponse)"
                     class="chatResponse"
                     data-description="galaxy wizard response" />
 

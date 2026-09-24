@@ -12,7 +12,7 @@ const { formattedContent } = useFormattedToolHelp(props.content);
 </script>
 
 <template>
-    <div v-safe-html="{ html: formattedContent, profile: 'links' }" class="form-help form-text" />
+    <div v-safe-html:links="formattedContent" class="form-help form-text" />
 </template>
 
 <style lang="scss" scoped>

@@ -609,9 +609,7 @@ function onKeyDown(event: KeyboardEvent) {
                                     :id="getElementId(props.id, 'text-summary')"
                                     :description="props.description"
                                     is-html />
-                                <div
-                                    v-else
-                                    v-safe-html="{ html: renderMarkdown(props.description), profile: 'links' }" />
+                                <div v-else v-safe-html:links="renderMarkdown(props.description)" />
                             </template>
                         </slot>
                     </div>

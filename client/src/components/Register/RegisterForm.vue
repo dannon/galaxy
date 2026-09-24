@@ -110,7 +110,7 @@ async function submit() {
         <div class="d-flex justify-content-md-center">
             <div>
                 <BAlert :show="!!registrationWarningMessage" variant="info">
-                    <span v-safe-html="{ html: registrationWarningMessage, profile: 'links' }" />
+                    <span v-safe-html:links="registrationWarningMessage" />
                 </BAlert>
 
                 <BAlert :show="!!messageText" variant="danger">

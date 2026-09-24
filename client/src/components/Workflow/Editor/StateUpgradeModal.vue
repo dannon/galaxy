@@ -64,7 +64,7 @@ const computedStateMessages = computed<RenderedStateMessage[]>(() => {
                     </b>
                     <ul class="workflow-state-upgrade-step-details">
                         <li v-for="(detail, detailIndex) in stateMessage.details" :key="detailIndex">
-                            <span v-safe-html="{ html: detail, profile: 'links' }" />
+                            <span v-safe-html:links="detail" />
                         </li>
                     </ul>
                 </li>

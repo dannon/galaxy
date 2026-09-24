@@ -97,7 +97,7 @@ const clarificationOptions = computed<string[]>(() => props.message.agentRespons
                         @select-option="(option) => emit('select-clarification-option', option)" />
                     <div
                         v-else
-                        v-safe-html="{ html: props.renderMarkdown(props.message.content), profile: 'links' }"
+                        v-safe-html:links="props.renderMarkdown(props.message.content)"
                         class="response-content" />
 
                     <ActionCard

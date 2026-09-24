@@ -26,7 +26,7 @@ const summaryHtml = computed(() => (summary.value ? renderMarkdown(summary.value
         <BAlert v-else-if="error" variant="danger" show class="mb-0">
             Failed to generate the AI summary: {{ error }}
         </BAlert>
-        <div v-else-if="summary" v-safe-html="{ html: summaryHtml, profile: 'links' }" class="report-text" />
+        <div v-else-if="summary" v-safe-html:links="summaryHtml" class="report-text" />
         <BAlert v-else show variant="info" class="mb-0">No summary available.</BAlert>
     </div>
 </template>

@@ -159,9 +159,7 @@ function dismiss() {
 
         <section class="main-content area-m">
             <Heading h2>{{ displayedBroadcast.content.subject }}</Heading>
-            <div
-                v-safe-html="{ html: renderMarkdown(displayedBroadcast.content.message), profile: 'links' }"
-                class="message mb-1"></div>
+            <div v-safe-html:links="renderMarkdown(displayedBroadcast.content.message)" class="message mb-1"></div>
             <div class="bottom-row">
                 <div class="action-links">
                     <GButton

@@ -23,14 +23,11 @@ const { renderMarkdown } = useMarkdown({
         <LoadingSpan message="Loading workflow help" />
     </BAlert>
     <BCard v-else-if="props.workflow" class="mx-1 flex-grow-1 overflow-auto">
-        <p
-            v-if="props.workflow.readme"
-            v-safe-html="{ html: renderMarkdown(props.workflow.readme), profile: 'links' }"
-            class="container" />
+        <p v-if="props.workflow.readme" v-safe-html:links="renderMarkdown(props.workflow.readme)" class="container" />
         <template v-if="props.workflow.help">
             <hr v-if="props.workflow.readme" class="w-100" />
             <h4 class="text-center">Workflow Help</h4>
-            <p v-safe-html="{ html: renderMarkdown(props.workflow.help), profile: 'links' }" class="container" />
+            <p v-safe-html:links="renderMarkdown(props.workflow.help)" class="container" />
         </template>
         <div class="py-2 text-center">- End of help -</div>
     </BCard>

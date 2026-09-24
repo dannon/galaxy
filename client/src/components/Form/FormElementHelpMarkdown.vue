@@ -43,7 +43,7 @@ onMounted(setupPopovers);
 
 <template>
     <span>
-        <div ref="helpHtml" v-safe-html="{ html: markdownHtml, profile: 'markdown' }" />
+        <div ref="helpHtml" v-safe-html:markdown="markdownHtml" />
         <span v-for="(value, i) in internalHelpReferences" :key="i">
             <HelpPopover :target="value.element" :term="value.term" />
         </span>

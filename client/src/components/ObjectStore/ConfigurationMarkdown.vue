@@ -11,5 +11,5 @@ const props = defineProps<Props>();
 const markdownHtml = computed(() => markup(props.markdown ?? "", props.admin));
 </script>
 <template>
-    <div v-safe-html="{ html: markdownHtml, profile: 'links' }" />
+    <div v-safe-html:links="markdownHtml" />
 </template>

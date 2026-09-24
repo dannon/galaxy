@@ -257,10 +257,7 @@ async function sendNewNotification() {
                 <template v-slot:description>
                     <span
                         id="notification-message"
-                        v-safe-html="{
-                            html: renderMarkdown(notificationData.notification.content.message),
-                            profile: 'links',
-                        }"
+                        v-safe-html:links="renderMarkdown(notificationData.notification.content.message)"
                         class="notification-message" />
                 </template>
             </GCard>

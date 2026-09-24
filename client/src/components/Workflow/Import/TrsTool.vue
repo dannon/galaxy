@@ -134,7 +134,7 @@ function importSelectedVersion() {
         <div>
             <b>Description:</b>
 
-            <span v-safe-html="{ html: renderMarkdown(props.trsTool.description), profile: 'links' }" />
+            <span v-safe-html:links="renderMarkdown(props.trsTool.description)" />
         </div>
         <div>
             <b>Organization</b>

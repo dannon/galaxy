@@ -1,7 +1,7 @@
 <template>
     <div>
         <div v-for="(child, childIndex) in childList" :key="childIndex">
-            <p v-safe-html="{ html: child, profile: 'links' }" />
+            <p v-safe-html:links="child" />
         </div>
     </div>
 </template>

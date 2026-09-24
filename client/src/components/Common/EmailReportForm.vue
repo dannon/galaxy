@@ -65,7 +65,7 @@ async function submitEmail() {
 
         <div v-else>
             <BAlert v-for="(resultMessage, index) in resultMessages" :key="index" :variant="resultMessage[1]" show>
-                <span v-safe-html="{ html: renderMarkdown(resultMessage[0] ?? ''), profile: 'links' }" />
+                <span v-safe-html:links="renderMarkdown(resultMessage[0] ?? '')" />
             </BAlert>
 
             <div v-if="showForm" id="email-report-form">

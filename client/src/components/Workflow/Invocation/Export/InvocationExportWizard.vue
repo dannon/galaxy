@@ -402,7 +402,7 @@ onUnmounted(() => {
                         :header="target.label"
                         class="wizard-selection-card"
                         @click="exportData.destination = target.destination">
-                        <div v-safe-html="{ html: renderMarkdown(target.markdownDescription), profile: 'links' }" />
+                        <div v-safe-html:links="renderMarkdown(target.markdownDescription)" />
                     </BCard>
                 </BCardGroup>
             </div>

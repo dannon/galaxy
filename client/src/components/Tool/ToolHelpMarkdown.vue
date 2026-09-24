@@ -22,7 +22,7 @@ const { internalHelpReferences, MarkdownHelpPopovers } = useGxUris(helpHtml);
 
 <template>
     <span>
-        <div ref="helpHtml" v-safe-html="{ html: formattedContent, profile: 'markdown' }" />
+        <div ref="helpHtml" v-safe-html:markdown="formattedContent" />
         <MarkdownHelpPopovers :elements="internalHelpReferences" />
     </span>
 </template>

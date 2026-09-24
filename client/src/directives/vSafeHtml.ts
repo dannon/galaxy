@@ -3,51 +3,44 @@
  * Use this instead of `v-html` wherever markup is genuinely needed; plain
  * text belongs in `{{ }}` interpolation.
  *
- * Value forms:
- *   v-safe-html="html"                            -> `default` profile
- *   v-safe-html="{ html, profile: 'links' }"      -> named profile (see sanitizeHtml.ts)
+ * The argument picks the profile (see sanitizeHtml.ts):
+ *   v-safe-html="html"          -> `default` profile
+ *   v-safe-html:links="html"    -> `links` profile
  */
 
 import type { DirectiveBinding, ObjectDirective } from "vue";
 
 import { type SafeHtmlProfile, sanitizeHtml } from "./sanitizeHtml";
 
-export type SafeHtmlBinding =
-    | string
-    | null
-    | undefined
-    | {
-          html: string | null | undefined;
-          profile?: SafeHtmlProfile;
-      };
+export type SafeHtmlBinding = string | null | undefined;
 
-function normalize(value: SafeHtmlBinding): { html: string; profile: SafeHtmlProfile } {
-    if (value !== null && typeof value === "object") {
-        return { html: String(value.html ?? ""), profile: value.profile ?? "default" };
+function toHtml(value: unknown): string {
+    if (value === null || value === undefined) {
+        return "";
     }
-    return { html: String(value ?? ""), profile: "default" };
+    if (typeof value === "string") {
+        return value;
+    }
+    // Coercing would show "[object Object]" or a comma-joined array, so the
+    // caller has to build the string it wants rendered.
+    console.warn("v-safe-html expects a string, got:", value);
+    return "";
 }
 
-function render(el: HTMLElement, value: SafeHtmlBinding) {
-    const { html, profile } = normalize(value);
-    el.innerHTML = sanitizeHtml(html, profile);
-}
-
-function isSameValue(a: SafeHtmlBinding, b: SafeHtmlBinding): boolean {
-    const left = normalize(a);
-    const right = normalize(b);
-    return left.html === right.html && left.profile === right.profile;
+function render(el: HTMLElement, binding: DirectiveBinding<SafeHtmlBinding>) {
+    const profile = (binding.arg ?? "default") as SafeHtmlProfile;
+    el.innerHTML = sanitizeHtml(toHtml(binding.value), profile);
 }
 
 export const vSafeHtml: ObjectDirective<HTMLElement, SafeHtmlBinding> = {
-    bind(el, binding: DirectiveBinding<SafeHtmlBinding>) {
-        render(el, binding.value);
+    bind(el, binding) {
+        render(el, binding);
     },
-    update(el, binding: DirectiveBinding<SafeHtmlBinding>) {
+    update(el, binding) {
         // Like v-html, only touch the DOM when the content changes, so code that
         // decorates the rendered nodes after mount is not undone on every re-render.
-        if (!isSameValue(binding.value, binding.oldValue)) {
-            render(el, binding.value);
+        if (binding.value !== binding.oldValue) {
+            render(el, binding);
         }
     },
     unbind(el, _binding, _vnode, _oldVnode, isDestroy?: boolean) {

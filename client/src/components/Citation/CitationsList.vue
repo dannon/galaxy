@@ -189,7 +189,7 @@ function citationsToBibtexAsText() {
                 </template>
 
                 <div v-if="source === 'histories'" class="infomessage">
-                    <div v-safe-html="{ html: config?.citations_export_message_html, profile: 'links' }"></div>
+                    <div v-safe-html:links="config?.citations_export_message_html"></div>
                 </div>
 
                 <GAlert v-if="warnings.length > 0" variant="warning" show>
