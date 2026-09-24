@@ -80,13 +80,14 @@ describe("CitationsList", () => {
         );
     });
 
-    it("renders citation html and the export message through v-safe-html", () => {
+    it("renders citation html through v-safe-html", () => {
         const calls = vi.mocked(sanitizeHtml).mock.calls;
         expect(calls).toContainEqual([expect.stringContaining("csl-entry"), "default"]);
-        expect(calls).toContainEqual([
-            'Please <a href="https://galaxyproject.org/citing-galaxy">cite Galaxy</a>.',
-            "links",
-        ]);
-        expect(wrapper.find(".infomessage a").text()).toBe("cite Galaxy");
+    });
+
+    it("renders the configured export message as written", () => {
+        const message = 'Please <a href="https://galaxyproject.org/citing-galaxy">cite Galaxy</a>.';
+        expect(vi.mocked(sanitizeHtml).mock.calls.map(([html]) => html)).not.toContain(message);
+        expect(wrapper.find(".infomessage div").element.innerHTML).toBe(message);
     });
 });

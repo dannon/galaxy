@@ -189,7 +189,8 @@ function citationsToBibtexAsText() {
                 </template>
 
                 <div v-if="source === 'histories'" class="infomessage">
-                    <div v-safe-html:links="config?.citations_export_message_html"></div>
+                    <!-- eslint-disable-next-line vue/no-restricted-syntax -- citations_export_message_html only comes from the operator's galaxy.yml -->
+                    <div v-trusted-html="config?.citations_export_message_html"></div>
                 </div>
 
                 <GAlert v-if="warnings.length > 0" variant="warning" show>

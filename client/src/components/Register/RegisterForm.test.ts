@@ -88,11 +88,11 @@ describe("RegisterForm", () => {
     //     expect(missingToggle.exists()).toBeFalsy();
     // });
 
-    it("renders the registration warning through v-safe-html with the links profile", async () => {
+    it("renders the configured registration warning as written", async () => {
         vi.mocked(sanitizeHtml).mockClear();
         const message = 'Read the <a href="https://example.org/terms" target="_blank">terms</a>';
         await wrapper.setProps({ registrationWarningMessage: message });
-        expect(sanitizeHtml).toHaveBeenLastCalledWith(message, "links");
-        expect(wrapper.find(".alert a").text()).toBe("terms");
+        expect(sanitizeHtml).not.toHaveBeenCalledWith(message, expect.anything());
+        expect(wrapper.find(".alert span").element.innerHTML).toBe(message);
     });
 });
