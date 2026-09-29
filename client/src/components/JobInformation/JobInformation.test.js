@@ -106,7 +106,7 @@ describe("JobInformation/JobInformation.vue", () => {
                 });
             }),
         );
-        wrapper.destroy();
+        wrapper.unmount();
         wrapper = mount(JobInformation, {
             propsData: { jobId: JOB_ID },
             localVue,
