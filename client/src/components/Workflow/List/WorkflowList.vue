@@ -507,7 +507,7 @@ onMounted(() => {
                 @on-key-down="onKeyDown"
                 @select="onSelectWorkflow"
                 @refreshList="load"
-                @tagClick="(tag) => updateFilterValue('tag', `'${tag}'`)"
+                @tagClick="(tag: string) => updateFilterValue('tag', `'${tag}'`)"
                 @updateFilter="updateFilterValue" />
         </GOverlay>
 

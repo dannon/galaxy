@@ -94,7 +94,7 @@ const clarificationOptions = computed<string[]>(() => props.message.agentRespons
                         v-if="isClarification"
                         :question="props.message.content"
                         :options="clarificationOptions"
-                        @select-option="(option) => emit('select-clarification-option', option)" />
+                        @select-option="(option: string) => emit('select-clarification-option', option)" />
                     <!-- eslint-disable-next-line vue/no-v-html -->
                     <div v-else class="response-content" v-html="props.renderMarkdown(props.message.content)" />
 
@@ -103,7 +103,7 @@ const clarificationOptions = computed<string[]>(() => props.message.agentRespons
                         :suggestions="props.message.suggestions"
                         :processing-action="props.processingAction"
                         @handle-action="
-                            (action) =>
+                            (action: ActionSuggestion) =>
                                 emit('handle-action', action, getAgentResponseOrEmpty(props.message.agentResponse))
                         " />
 
