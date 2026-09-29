@@ -371,18 +371,19 @@ const extendedCollectionType = computed<ExtendedCollectionType>(() => {
                     <span v-if="Boolean(nonMdHelp)" class="text-muted" v-html="nonMdHelp" />
                 </div>
                 <FormBoolean v-else-if="props.type === 'boolean'" :id="props.id" v-model="currentValue" />
-                <FormHidden v-else-if="isHiddenType" :id="props.id" v-model="currentValue" :info="attrs['info']" />
+                <FormHidden v-else-if="isHiddenType" :id="props.id" :value="currentValue" :info="attrs['info']" />
                 <FormNumber
                     v-else-if="props.type === 'integer' || props.type === 'float'"
                     :id="props.id"
-                    v-model="currentValue"
+                    :value="currentValue"
                     :max="attrs.max"
                     :min="attrs.min"
                     :placeholder="computedPlaceholder"
                     :optional="isOptional"
                     :show-state="props.workflowRun"
                     :type="props.type ?? 'float'"
-                    :workflow-building-mode="workflowBuildingMode" />
+                    :workflow-building-mode="workflowBuildingMode"
+                    @input="(v: FormParameterValue) => (currentValue = v)" />
                 <FormOptionalText
                     v-else-if="props.type === 'select' && attrs.is_workflow && attrs.optional"
                     :id="props.id"
