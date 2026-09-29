@@ -3,9 +3,9 @@ import "@testing-library/jest-dom/vitest";
 import "fake-indexeddb/auto";
 import "vitest-location-mock";
 
-import { configureCompat } from "@vue/compat";
 import { config } from "@vue/test-utils";
 import { vi } from "vitest";
+import { configureCompat } from "vue";
 
 // Configure Vue 3 compat mode - suppress warnings for Vue 2 features used in tests
 configureCompat({
