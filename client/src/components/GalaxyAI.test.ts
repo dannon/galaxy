@@ -171,7 +171,7 @@ describe("GalaxyAI fetch operations on mount", () => {
     });
 
     afterEach(() => {
-        lastWrapper?.destroy();
+        lastWrapper?.unmount();
         lastWrapper = null;
         vi.restoreAllMocks();
     });
