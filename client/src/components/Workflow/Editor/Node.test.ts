@@ -53,9 +53,8 @@ function mountNode(mounter: typeof shallowMount = shallowMount, propsData = {}) 
             scroll: MOCK_SCROLL,
             ...propsData,
         },
-        global: localVue,
+        global: { ...localVue, provide: { workflowId: "mock-workflow", transform: ref(zoomIdentity) } },
         pinia: testingPinia,
-        provide: { workflowId: "mock-workflow", transform: ref(zoomIdentity) },
     });
 
     return { wrapper, inspectorStore: useWorkflowNodeInspectorStore() };
