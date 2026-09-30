@@ -18,6 +18,14 @@ function getOrCreatePinia() {
     return getActivePinia() || createPinia();
 }
 
+// Plugins every Galaxy app needs, shared by the main analysis app and the
+// transitional apps mounted below.
+export function installAppPlugins(app) {
+    app.use(BootstrapVue);
+    app.use(localizationPlugin);
+    app.directive("g-tooltip", vGTooltip);
+}
+
 function createConfiguredApp(ComponentDefinition, propsData = {}) {
     const app = createApp({
         render() {
@@ -25,9 +33,7 @@ function createConfiguredApp(ComponentDefinition, propsData = {}) {
         },
     });
     app.use(getOrCreatePinia());
-    app.use(BootstrapVue);
-    app.use(localizationPlugin);
-    app.directive("g-tooltip", vGTooltip);
+    installAppPlugins(app);
     return app;
 }
 
