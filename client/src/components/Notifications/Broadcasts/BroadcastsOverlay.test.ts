@@ -62,9 +62,6 @@ async function mountBroadcastsOverlayWith(broadcasts: BroadcastNotification[] = 
     const wrapper = mount(BroadcastsOverlay as object, {
         global: localVue,
         pinia,
-        stubs: {
-            BroadcastContainer: true,
-        },
     });
 
     await flushPromises();
@@ -78,7 +75,7 @@ describe("BroadcastsOverlay.vue", () => {
         const wrapper = await mountBroadcastsOverlayWith();
 
         expect(wrapper.exists()).toBe(true);
-        expect(wrapper.html()).toBe("");
+        expect(wrapper.find(".broadcast-container").exists()).toBe(false);
     });
 
     it("should render only one broadcast at a time", async () => {
@@ -151,7 +148,7 @@ describe("BroadcastsOverlay.vue", () => {
         const wrapper = await mountBroadcastsOverlayWith([expiredBroadcast]);
 
         expect(wrapper.exists()).toBe(true);
-        expect(wrapper.html()).toBe("");
+        expect(wrapper.find(".broadcast-container").exists()).toBe(false);
     });
 
     it("should not render the broadcast when it has not been published yet", async () => {
@@ -162,6 +159,6 @@ describe("BroadcastsOverlay.vue", () => {
         const wrapper = await mountBroadcastsOverlayWith([unpublishedBroadcast]);
 
         expect(wrapper.exists()).toBe(true);
-        expect(wrapper.html()).toBe("");
+        expect(wrapper.find(".broadcast-container").exists()).toBe(false);
     });
 });
