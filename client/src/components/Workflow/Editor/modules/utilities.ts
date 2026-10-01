@@ -26,7 +26,7 @@ export function getStateUpgradeMessages(data: {
             details.push(step.errors);
         }
         for (const m of Object.values(data.upgrade_messages[step_id] || {})) {
-            details.push(m);
+            details.push(...flattenUpgradeMessages(m));
         }
         if (details.length) {
             const iconType = WorkflowIcons[step.type as keyof typeof WorkflowIcons];
@@ -41,6 +41,14 @@ export function getStateUpgradeMessages(data: {
         }
     }
     return messages;
+}
+
+/** Subworkflow steps nest their inner steps' messages; so we collect them all as strings. */
+function flattenUpgradeMessages(message: unknown): string[] {
+    if (message && typeof message === "object") {
+        return Object.values(message).flatMap(flattenUpgradeMessages);
+    }
+    return [String(message)];
 }
 
 export function getCompatibleRecommendations(predChild: any, outputDatatypes: any, datatypesMapper: any) {
