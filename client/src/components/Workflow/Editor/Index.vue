@@ -1573,7 +1573,7 @@ initializeWorkflowEditor();
                     :loading="loadingWorkflow || initialLoading"
                     @scrollTo="scrollToId = null"
                     @transform="(value: ZoomTransform) => (transform = value)"
-                    @graph-offset="(value: typeof graphOffset.value) => (graphOffset = value)"
+                    @graph-offset="(value: typeof graphOffset) => (graphOffset = value)"
                     @onClone="onClone"
                     @onCreate="onInsertTool"
                     @onChange="hasChanges = true"
