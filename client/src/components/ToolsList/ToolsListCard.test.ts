@@ -129,7 +129,7 @@ describe("ToolsListCard", () => {
         await button.trigger("click");
         expect(isShown()).toBe(true);
 
-        wrapper.destroy();
+        wrapper.unmount();
         document.body.innerHTML = "";
     });
 
