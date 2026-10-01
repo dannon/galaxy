@@ -43,7 +43,7 @@ describe.each(CASES)("$name", ({ component, propsData, prefix }) => {
 
         // The old `$refs['button'] || 'works-lazily'` target never resolved: $refs is empty on first render.
         expect(target).toEqual(expect.stringContaining(prefix));
-        expect(document.getElementById(target)).not.toBeNull();
+        expect(document.getElementById(target as string)).not.toBeNull();
     });
 
     it("gives each instance a distinct popover target", () => {
