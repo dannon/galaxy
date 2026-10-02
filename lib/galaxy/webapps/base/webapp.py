@@ -654,6 +654,13 @@ class GalaxyWebTransaction(base.DefaultWebTransaction, context.ProvidesHistoryCo
                         remote_user_email,
                         galaxy_session.user.email,
                     )
+                elif remote_user_email and galaxy_session.user.email.lower() != remote_user_email.lower():
+                    # An admin authenticated by the proxy is using another user's session;
+                    # mark it so every request in it names the admin as the actor.
+                    admin = self.user_manager.get_or_create_remote_user(remote_user_email)
+                    if galaxy_session.impersonated_by_user_id != admin.id:
+                        galaxy_session.impersonated_by_user_id = admin.id
+                        galaxy_session_requires_flush = True
             elif remote_user_email:
                 # No session exists, get/create user for new session
                 user_for_new_session = self.user_manager.get_or_create_remote_user(remote_user_email)

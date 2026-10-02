@@ -11,6 +11,7 @@ from galaxy import (
     model,
     web,
 )
+from galaxy.managers.users import UserManager
 from galaxy.model.index_filter_util import (
     raw_text_column_filter,
     text_column_filter,
@@ -27,6 +28,7 @@ from galaxy.web.framework.helpers import (
 )
 from galaxy.webapps.base import controller
 from galaxy.webapps.base.webapp import GalaxyWebTransaction
+from ..api import depends
 
 log = logging.getLogger(__name__)
 
@@ -353,6 +355,7 @@ class DatatypesEntryT(TypedDict):
 
 
 class AdminGalaxy(controller.BaseUIController):
+    user_manager: UserManager = depends(UserManager)
     user_list_grid = UserListGrid()
     role_list_grid = RoleListGrid()
     group_list_grid = GroupListGrid()
@@ -416,8 +419,7 @@ class AdminGalaxy(controller.BaseUIController):
             try:
                 user = trans.sa_session.query(trans.app.model.User).get(trans.security.decode_id(user_id))
                 if user:
-                    trans.handle_user_logout()
-                    trans.handle_user_login(user)
+                    self.user_manager.impersonate(trans, user)
                     return trans.show_message(
                         f'You are now logged in as {user.email}, <a target="_top" href="{url_for("/")}">return to the home page</a>',
                         use_panels=True,
