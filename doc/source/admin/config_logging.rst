@@ -98,12 +98,13 @@ impersonation -- along with how the request authenticated, the request id (the s
 ``success``
     The response started with a status below 400: it was handed to the application server (or, with
     ``nginx_x_accel_redirect_base`` or ``apache_xsendfile``, to the proxy, which then validates any ``Range`` header
-    and reads the file itself). It does not prove every byte was delivered.
+    and reads the file itself). It does not prove every byte was delivered, or even that the client was still
+    connected: the application server may accept a response after the client has gone.
 ``denied``
     Galaxy refused access. The event names the requested object by id.
 ``error``
     Access was not refused but content was not served, with a short ``reason`` (``not_found``, ``invalid_range``,
-    ``archive_failed``, ...) and the ``stage`` it failed at (``authorize``, ``prepare`` or ``respond``).
+    ``archive_failed``, ``response_not_started``, ...) and the ``stage`` it failed at (``authorize``, ``prepare`` or ``respond``).
 
 By default events carry numeric and encoded ids only. Set ``include_names: true`` under ``audit_log`` to also record
 usernames, email addresses and dataset, history and file names. Strings are JSON-escaped to ASCII, so user-supplied

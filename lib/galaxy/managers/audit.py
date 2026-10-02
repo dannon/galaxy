@@ -555,8 +555,9 @@ class AuditAttempt:
     def hand_off(self) -> None:
         """The response will settle this attempt when it starts.
 
-        If the request ends first -- the client disconnects, or the server never calls
-        the response -- the attempt is settled as an error when the request scope closes.
+        If the request ends without the response being called, the attempt is settled
+        as an error when the request scope closes. Outside a request scope nothing does
+        that, so callers without one must settle the attempt themselves.
         """
         self.handed_off = True
         self.stage = "respond"
@@ -565,7 +566,12 @@ class AuditAttempt:
             scope.on_close.append(self._abandoned)
 
     def _abandoned(self) -> None:
-        self.failed("response_not_started", "respond")
+        try:
+            self.failed("response_not_started", "respond")
+        except Exception:
+            audit_failures.report(
+                "abandoned", "Could not settle an abandoned audit attempt for %s", self._event["action"]
+            )
 
     def _settle(self, outcome: AuditOutcome, reason: AuditReason | None, stage: AuditStage | None = None) -> None:
         if self.settled:

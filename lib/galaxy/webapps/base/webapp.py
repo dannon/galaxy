@@ -514,6 +514,7 @@ class GalaxyWebTransaction(base.DefaultWebTransaction, context.ProvidesHistoryCo
                 proxy_actor = proxy_actor_id(
                     self.galaxy_session,
                     remote_user_email,
+                    config,
                     lambda email: self.user_manager.by_email(email, case_sensitive=False),
                 )
                 self._note_identity(session_identity(self.galaxy_session, "remote_user", proxy_actor))

@@ -106,6 +106,7 @@ from galaxy.web.framework.request_scope import (
     AuthMethod,
     current_request_header,
     model_id,
+    normalize_remote_user,
     proxy_actor_id,
     remote_user_header_name,
     RequestIdentity,
@@ -283,8 +284,11 @@ def _user_selected(user: User | None, galaxy_session: model.GalaxySession | None
             def find_by_email(email: str) -> User | None:
                 return remote_app.user_manager.by_email(email, case_sensitive=False)
 
-            remote_user_email = current_request_header(remote_user_header_name(app.config.remote_user_header))
-            proxy_actor = proxy_actor_id(galaxy_session, remote_user_email, find_by_email)
+            # FastAPI reads the header itself; the legacy RemoteUser middleware never sees these requests.
+            remote_user_email = normalize_remote_user(
+                current_request_header(remote_user_header_name(app.config.remote_user_header)), app.config
+            )
+            proxy_actor = proxy_actor_id(galaxy_session, remote_user_email, app.config, find_by_email)
             set_request_identity(session_identity(galaxy_session, "remote_user", proxy_actor))
         else:
             set_request_identity(session_identity(galaxy_session))

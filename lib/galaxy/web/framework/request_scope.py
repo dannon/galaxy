@@ -73,8 +73,9 @@ class RequestScope:
     remote_addr: str | None = None
     user_agent: str | None = None
     identity: RequestIdentity | None = None
-    # The ASGI scope's raw header list, shared rather than copied.
-    headers: Any = None
+    # The ASGI scope's raw header list, shared rather than copied. It includes cookies and
+    # credentials, so it is kept out of repr() (debug logs, error reporters).
+    headers: Any = field(default=None, repr=False)
     # Run when the request is over, however it ended (finished, failed, or the client went away).
     on_close: list[Callable[[], None]] = field(default_factory=list)
 
@@ -110,11 +111,9 @@ def current_request_header(name: str) -> str | None:
     if scope is None or not scope.headers:
         return None
     wanted = name.lower().encode("latin-1")
-    for key, value in scope.headers:
-        if key == wanted:
-            decoded: str = value.decode("latin-1")
-            return decoded
-    return None
+    # Joined like WSGI joins repeated headers, so both stacks see the same value.
+    values: list[str] = [value.decode("latin-1") for key, value in scope.headers if key == wanted]
+    return ",".join(values) if values else None
 
 
 def remote_user_header_name(environ_key: str) -> str:
@@ -124,18 +123,36 @@ def remote_user_header_name(environ_key: str) -> str:
     return environ_key.replace("_", "-").lower()
 
 
+def normalize_remote_user(value: str | None, config: Any) -> str | None:
+    """The remote user as the legacy RemoteUser middleware leaves it, for code that reads the raw header."""
+    if not value or value.startswith("(null)"):
+        return None
+    if getattr(config, "normalize_remote_user_email", False):
+        value = value.lower()
+    maildomain = getattr(config, "remote_user_maildomain", None)
+    if maildomain and "@" not in value:
+        value = f"{value}@{maildomain}"
+    return value
+
+
 def proxy_actor_id(
-    galaxy_session: Any, remote_user_email: str | None, find_by_email: Callable[[str], Any]
+    galaxy_session: Any, remote_user_email: str | None, config: Any, find_by_email: Callable[[str], Any]
 ) -> int | None:
     """Under remote-user auth, the admin the proxy says is behind another user's session, if any.
 
-    Galaxy keeps a session whose user differs from the proxy's user only when that
-    user is an admin allowed to impersonate, so a mismatch is that bypass. It is
-    derived on every request rather than stored: the proxy names the user each
-    time, and a stored marker would outlive the admin's use of the session.
+    This is the condition under which the legacy app keeps another user's session
+    instead of replacing it: impersonation is allowed and the proxy's user is an
+    admin. It is derived on every request rather than stored, because the proxy names
+    the user each time and a stored marker would outlive the admin's use of the session.
     """
     user = galaxy_session.user
-    if not remote_user_email or user is None or user.email.lower() == remote_user_email.lower():
+    if (
+        not remote_user_email
+        or user is None
+        or user.email.lower() == remote_user_email.lower()
+        or not getattr(config, "allow_user_impersonation", False)
+        or remote_user_email not in (getattr(config, "admin_users_list", None) or ())
+    ):
         return None
     return model_id(find_by_email(remote_user_email))
 

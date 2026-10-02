@@ -8,6 +8,7 @@ from sqlalchemy.orm.exc import DetachedInstanceError
 from galaxy import model
 from galaxy.web.framework.request_scope import (
     api_key_id,
+    current_request_header,
     current_request_identity,
     current_request_scope,
     MAX_USER_AGENT_LENGTH,
@@ -117,3 +118,14 @@ def test_scope_shares_the_request_id_with_the_response_header():
         assert body["request_id"] == response.headers["X-Request-ID"]
         assert body["remote_addr"] == "testclient"
         assert body["user_agent"] == "x" * MAX_USER_AGENT_LENGTH
+
+
+def test_scope_repr_leaves_out_request_headers():
+    with request_scope(headers=[(b"cookie", b"galaxysession=secret-cookie")]) as scope:
+        assert "secret-cookie" not in repr(scope)
+
+
+def test_repeated_headers_are_joined():
+    with request_scope(headers=[(b"remote-user", b"a"), (b"remote-user", b"b")]):
+        assert current_request_header("Remote-User") == "a,b"
+        assert current_request_header("missing") is None

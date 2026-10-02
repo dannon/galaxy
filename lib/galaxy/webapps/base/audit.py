@@ -51,7 +51,8 @@ class AuditedResponse(Response):
         async def send_and_settle(message: Message) -> None:
             nonlocal started
             await send(message)
-            # Settled only once the server has taken the start message.
+            # Settled once the server has taken the start message. A server may accept it
+            # quietly after the client has gone (uvicorn does), so this is not proof of delivery.
             if message["type"] == "http.response.start" and not started:
                 started = True
                 self.attempt.response_started(message["status"])

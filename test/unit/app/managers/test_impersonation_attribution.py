@@ -174,6 +174,10 @@ def remote_user_request(trans, galaxy_session, remote_user_email):
         sa_session=trans.sa_session,
         webapp=SimpleNamespace(name="galaxy"),
         galaxy_session=None,
+        _GalaxyWebTransaction__create_new_session=lambda prev=None, user=None: create_new_session(
+            cast(Any, trans), prev, user
+        ),
+        _GalaxyWebTransaction__update_session_cookie=lambda name="galaxysession": None,
     )
     with request_scope():
         GalaxyWebTransaction._ensure_valid_session(cast(Any, stand_in), "galaxysession")
@@ -218,23 +222,89 @@ def test_remote_user_matching_the_session_case_insensitively_is_not_a_switch(tra
     assert (identity.actor_id, identity.switch) == (target_id, None)
 
 
-@pytest.mark.parametrize("remote_user_email", [ADMIN_EMAIL, TARGET_EMAIL])
-def test_fastapi_remote_user_identity_is_derived_per_request(
-    trans, admin, target, target_session, monkeypatch, remote_user_email
-):
-    expected_actor = admin.id if remote_user_email == ADMIN_EMAIL else target.id
-    config = SimpleNamespace(use_remote_user=True, remote_user_header="HTTP_REMOTE_USER")
-    monkeypatch.setattr(
-        galaxy_app, "app", SimpleNamespace(config=config, user_manager=trans.app[UserManager]), raising=False
+def fastapi_request(trans, galaxy_session, monkeypatch, remote_user, **config_overrides):
+    """One FastAPI request in galaxy_session's cookie, with the proxy naming remote_user."""
+    config = SimpleNamespace(
+        use_remote_user=True,
+        remote_user_header="HTTP_REMOTE_USER",
+        allow_user_impersonation=True,
+        admin_users_list=[ADMIN_EMAIL],
+        normalize_remote_user_email=False,
+        remote_user_maildomain=None,
     )
-    later = later_request_session(trans, target_session)
-    headers = [(b"remote-user", remote_user_email.encode())]
-    with request_scope(headers=headers), request_cycle_context():
+    for key, value in config_overrides.items():
+        setattr(config, key, value)
+    lookups: list[str] = []
+    user_manager = trans.app[UserManager]
+
+    def by_email(email, case_sensitive=True):
+        lookups.append(email)
+        return user_manager.by_email(email, case_sensitive=case_sensitive)
+
+    monkeypatch.setattr(
+        galaxy_app,
+        "app",
+        SimpleNamespace(config=config, user_manager=SimpleNamespace(by_email=by_email)),
+        raising=False,
+    )
+    later = later_request_session(trans, galaxy_session)
+    with request_scope(headers=[(b"remote-user", remote_user.encode())]), request_cycle_context():
         get_user(galaxy_session=later, api_user=None)
         identity = current_request_identity()
     assert identity is not None
-    assert (identity.auth_method, identity.actor_id) == ("remote_user", expected_actor)
-    assert identity.switch == ("impersonation" if remote_user_email == ADMIN_EMAIL else None)
+    return identity, lookups
+
+
+def test_fastapi_remote_user_admin_is_the_actor_per_request(trans, admin, target, target_session, monkeypatch):
+    admin_id, target_id = admin.id, target.id
+    identity, _ = fastapi_request(trans, target_session, monkeypatch, ADMIN_EMAIL)
+    assert (identity.auth_method, identity.user_id, identity.actor_id, identity.switch) == (
+        "remote_user",
+        target_id,
+        admin_id,
+        "impersonation",
+    )
+    # The real user, later, in the same session: themselves, because nothing was stored.
+    identity, _ = fastapi_request(trans, target_session, monkeypatch, TARGET_EMAIL)
+    assert (identity.actor_id, identity.switch) == (target_id, None)
+
+
+def test_fastapi_remote_user_naming_a_non_admin_is_not_a_switch(trans, target, target_session, monkeypatch):
+    target_id = target.id
+    trans.app[UserManager].create(email="someone@example.org", username="someone", password=PASSWORD)
+    identity, lookups = fastapi_request(trans, target_session, monkeypatch, "someone@example.org")
+    assert (identity.actor_id, identity.switch) == (target_id, None)
+    assert lookups == []
+
+
+def test_fastapi_remote_user_switch_needs_impersonation_enabled(trans, target, target_session, monkeypatch):
+    target_id = target.id
+    identity, _ = fastapi_request(trans, target_session, monkeypatch, ADMIN_EMAIL, allow_user_impersonation=False)
+    assert (identity.actor_id, identity.switch) == (target_id, None)
+
+
+def test_fastapi_remote_user_is_normalized_like_the_legacy_middleware(
+    trans, admin, target, target_session, monkeypatch
+):
+    admin_id = admin.id
+    local_part, domain = ADMIN_EMAIL.split("@")
+    identity, _ = fastapi_request(
+        trans,
+        target_session,
+        monkeypatch,
+        local_part.upper(),
+        remote_user_maildomain=domain,
+        normalize_remote_user_email=True,
+    )
+    assert (identity.actor_id, identity.switch) == (admin_id, "impersonation")
+
+
+def test_legacy_remote_user_naming_a_non_admin_keeps_nothing(trans, target, target_session):
+    trans.app[UserManager].create(email="someone@example.org", username="someone", password=PASSWORD)
+    replaced, identity = remote_user_request(trans, target_session, "someone@example.org")
+    # The legacy app replaces the session outright; the new one is the proxy's user's own.
+    assert replaced.id != target_session.id
+    assert identity is not None and identity.switch is None
 
 
 def real_web_trans(mock_trans):

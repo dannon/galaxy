@@ -298,8 +298,8 @@ def test_remote_user_sessions_say_so(harness, audit_events):
 def test_response_handed_off_but_never_started_is_one_error(harness, audit_events):
     attempt = harness.audit.attempt("dataset.display", AuditObject(type="hda", id=42))
     with request_scope():
-        audited_response(Response(b"never sent"), attempt)
         attempt.authorized(harness.hda)
+        audited_response(Response(b"never sent"), attempt)
     # The scope closing is the end of the request; nobody called the response.
     assert [(e["outcome"], e["reason"], e["stage"]) for e in audit_events] == [
         ("error", "response_not_started", "respond")
@@ -314,8 +314,12 @@ def test_response_started_is_not_settled_again_at_close(harness, audit_events):
     assert [e["outcome"] for e in audit_events] == ["success"]
 
 
-class DisconnectBeforeStart:
-    """ASGI middleware standing in for a client that goes away before the response starts."""
+class CancelledBeforeStart:
+    """ASGI middleware standing in for a server that cancels the request as the response starts.
+
+    uvicorn instead accepts a send after a disconnect without complaint, so there the
+    event says success: the start was handed to the server.
+    """
 
     def __init__(self, app):
         self.app = app
@@ -332,9 +336,9 @@ class DisconnectBeforeStart:
             await Response(status_code=499)(scope, receive, send)
 
 
-def test_client_gone_before_start_is_one_error_not_a_success(harness, audit_events):
+def test_cancelled_before_start_is_one_error_not_a_success(harness, audit_events):
     app = harness.client.app
-    app.add_middleware(DisconnectBeforeStart)
+    app.add_middleware(CancelledBeforeStart)
     harness.client.get(display_url(raw="true"))
     assert [(e["outcome"], e["reason"], e["stage"]) for e in audit_events] == [
         ("error", "response_not_started", "respond")
