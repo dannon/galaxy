@@ -2428,6 +2428,43 @@ mapping:
           are grid views, tool searches, and use of "recently" used tools menu.  The
           log_events and log_actions functionality will eventually be merged.
 
+      audit_log:
+        type: map
+        required: false
+        desc: |
+          Structured audit events recording who accessed what, when and from where.
+          Each event is written as a single JSON object per line to the
+          ``galaxy.audit`` logger at INFO; route that logger with the ``logging``
+          option (see the logging configuration documentation for an example that
+          sends it to syslog). Nothing is stored in Galaxy's database. Events
+          carry numeric and encoded ids rather than names unless
+          ``include_names`` is set.
+
+          Example value: ``{enabled: true, actions: [dataset], include_names: false}``
+        mapping:
+          enabled:
+            type: bool
+            default: false
+            required: false
+            desc: |
+              Emit audit events.
+          actions:
+            type: seq
+            required: false
+            sequence:
+              - type: str
+            desc: |
+              Action families to record, e.g. ``dataset`` for ``dataset.display`` and
+              ``dataset.download``. Empty or unset records every family.
+          include_names:
+            type: bool
+            default: false
+            required: false
+            desc: |
+              Also record usernames, email addresses, and dataset, history and file
+              names. By default events carry only numeric and encoded ids, which are
+              enough to look the rest up in Galaxy.
+
       fluent_log:
         type: bool
         default: false

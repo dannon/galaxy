@@ -253,6 +253,7 @@ class GalaxyAppConfigurationAttributes:
     database_engine_option_echo_pool: bool
     log_events: bool
     log_actions: bool
+    audit_log: Any
     fluent_log: bool
     fluent_host: str
     fluent_port: int

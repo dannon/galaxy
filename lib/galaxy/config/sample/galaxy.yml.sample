@@ -1918,6 +1918,17 @@ galaxy:
   # eventually be merged.
   #log_actions: false
 
+  # Structured audit events recording who accessed what, when and from
+  # where. Each event is written as a single JSON object per line to the
+  # ``galaxy.audit`` logger at INFO; route that logger with the
+  # ``logging`` option (see the logging configuration documentation for
+  # an example that sends it to syslog). Nothing is stored in Galaxy's
+  # database. Events carry numeric and encoded ids rather than names
+  # unless ``include_names`` is set.
+  # Example value: ``{enabled: true, actions: [dataset], include_names:
+  # false}``
+  #audit_log: null
+
   # Fluentd configuration.  Various events can be logged to the fluentd
   # instance configured below by enabling fluent_log.
   #fluent_log: false
