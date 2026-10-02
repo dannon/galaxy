@@ -26,6 +26,10 @@ from galaxy.celery.helpers import async_task_summary
 from galaxy.celery.tasks import compute_dataset_hash
 from galaxy.datatypes.binary import Binary
 from galaxy.datatypes.dataproviders.exceptions import NoProviderAvailable
+from galaxy.managers.audit import (
+    AuditAttempt,
+    NULL_ATTEMPT,
+)
 from galaxy.managers.base import ModelSerializer
 from galaxy.managers.context import (
     ProvidesAppContext,
@@ -761,6 +765,7 @@ class DatasetsService(ServiceBase, UsesVisualizationMixin):
         offset: int | None = None,
         ck_size: int | None = None,
         allow_stream: bool = False,
+        audit_attempt: AuditAttempt = NULL_ATTEMPT,
         **kwd,
     ):
         """
@@ -775,12 +780,16 @@ class DatasetsService(ServiceBase, UsesVisualizationMixin):
         backing store, so the client gets its first byte immediately instead of waiting for the
         object to be pulled into the cache. Callers that need a seekable file -- HEAD and Range
         requests, and every legacy controller -- leave it False and get today's behavior.
+
+        ``audit_attempt`` is told which dataset access was granted to, and about a composite
+        download that produced an error page instead of an archive.
         """
         headers: dict[str, str] = {}
         rval: Any = ""
         try:
             dataset_manager = self.dataset_manager_by_type[hda_ldda]
             dataset_instance = dataset_manager.get_accessible(dataset_id, trans.user)
+            audit_attempt.authorized(dataset_instance)
             dataset_manager.ensure_dataset_on_disk(trans, dataset_instance)
             if filename and filename.startswith("/"):
                 # Path needs to relative to extra files path
@@ -810,6 +819,15 @@ class DatasetsService(ServiceBase, UsesVisualizationMixin):
                 rval, headers = dataset_instance.datatype.display_data(
                     trans, dataset_instance, preview, filename, to_ext, **kwd
                 )
+                if (
+                    to_ext is not None
+                    and isinstance(rval, str)
+                    and dataset_instance.datatype.is_archive_download(
+                        trans.app.datatypes_registry, dataset_instance.extension
+                    )
+                ):
+                    # Building the archive failed and display_data returned an error page instead.
+                    audit_attempt.failed("archive_failed")
         except galaxy_exceptions.MessageException:
             raise
         except Exception as e:

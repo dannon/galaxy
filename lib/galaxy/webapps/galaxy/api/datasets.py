@@ -27,6 +27,11 @@ from starlette.responses import (
 )
 
 from galaxy.datatypes.dataproviders.base import MAX_LIMIT
+from galaxy.managers.audit import (
+    AuditObject,
+    AuditService,
+    DatasetContentDetails,
+)
 from galaxy.schema import (
     FilterQueryParams,
     SerializationParams,
@@ -45,6 +50,7 @@ from galaxy.webapps.base.api import (
     GalaxyFileResponse,
     GalaxyStreamingResponse,
 )
+from galaxy.webapps.base.audit import audited_response
 from galaxy.webapps.galaxy.api import (
     depends,
     DependsOnTrans,
@@ -144,6 +150,20 @@ DisplayChunkSizeQueryParam = Query(
 )
 
 
+def _display_response(display_data, headers) -> Response:
+    if isinstance(display_data, IOBase):
+        file_name = getattr(display_data, "name", None)
+        if file_name:
+            return GalaxyFileResponse(file_name, headers=headers)
+    elif isinstance(display_data, ZipstreamWrapper):
+        return GalaxyStreamingResponse(display_data.response(), headers=headers)
+    elif isinstance(display_data, bytes):
+        return GalaxyStreamingResponse(BytesIO(display_data), headers=headers)
+    elif isinstance(display_data, str):
+        return GalaxyStreamingResponse(content=StringIO(display_data), headers=headers)
+    return GalaxyStreamingResponse(display_data, headers=headers)
+
+
 def _allows_stream(request: Request) -> bool:
     """Whether this request can be answered by streaming the object straight from the backing store.
 
@@ -156,6 +176,7 @@ def _allows_stream(request: Request) -> bool:
 @router.cbv
 class FastAPIDatasets:
     service: DatasetsService = depends(DatasetsService)
+    audit: AuditService = depends(AuditService)
 
     @router.get(
         "/api/datasets",
@@ -445,31 +466,40 @@ class FastAPIDatasets:
         ck_size: int | None = None,
     ):
         extra_params = get_query_parameters_from_request_excluding(
-            request, {"preview", "filename", "to_ext", "raw", "dataset", "ck_size", "offset", "allow_stream"}
+            request,
+            {"preview", "filename", "to_ext", "raw", "dataset", "ck_size", "offset", "allow_stream", "audit_attempt"},
         )
-        display_data, headers = self.service.display(
-            trans,
-            history_content_id,
-            preview=preview,
-            filename=filename,
-            to_ext=to_ext,
-            raw=raw,
-            offset=offset,
-            ck_size=ck_size,
-            allow_stream=_allows_stream(request),
-            **extra_params,
+        # Served as an attachment (display_data's own test) is a download; anything else is a display.
+        attempt = self.audit.attempt(
+            "dataset.download" if to_ext is not None else "dataset.display",
+            AuditObject(type="hda", id=history_content_id),
+            DatasetContentDetails(
+                preview=preview,
+                raw=raw,
+                to_ext=to_ext,
+                filename=filename,
+                offset=offset,
+                ck_size=ck_size,
+                http_range=request.headers.get("range"),
+            ),
+            # A HEAD request runs the same checks but sends no content.
+            record_success=request.method != "HEAD",
         )
-        if isinstance(display_data, IOBase):
-            file_name = getattr(display_data, "name", None)
-            if file_name:
-                return GalaxyFileResponse(file_name, headers=headers)
-        elif isinstance(display_data, ZipstreamWrapper):
-            return GalaxyStreamingResponse(display_data.response(), headers=headers)
-        elif isinstance(display_data, bytes):
-            return GalaxyStreamingResponse(BytesIO(display_data), headers=headers)
-        elif isinstance(display_data, str):
-            return GalaxyStreamingResponse(content=StringIO(display_data), headers=headers)
-        return GalaxyStreamingResponse(display_data, headers=headers)
+        with attempt.guard():
+            display_data, headers = self.service.display(
+                trans,
+                history_content_id,
+                preview=preview,
+                filename=filename,
+                to_ext=to_ext,
+                raw=raw,
+                offset=offset,
+                ck_size=ck_size,
+                allow_stream=_allows_stream(request),
+                audit_attempt=attempt,
+                **extra_params,
+            )
+            return audited_response(_display_response(display_data, headers), attempt)
 
     @router.get(
         "/api/histories/{history_id}/contents/{history_content_id}/metadata_file",
