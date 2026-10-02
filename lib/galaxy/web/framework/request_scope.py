@@ -17,7 +17,10 @@ from collections.abc import (
 )
 from contextlib import contextmanager
 from contextvars import ContextVar
-from dataclasses import dataclass
+from dataclasses import (
+    dataclass,
+    field,
+)
 from typing import (
     Any,
     Literal,
@@ -72,6 +75,8 @@ class RequestScope:
     identity: RequestIdentity | None = None
     # The ASGI scope's raw header list, shared rather than copied.
     headers: Any = None
+    # Run when the request is over, however it ended (finished, failed, or the client went away).
+    on_close: list[Callable[[], None]] = field(default_factory=list)
 
 
 REQUEST_SCOPE: ContextVar[RequestScope | None] = ContextVar("galaxy_request_scope", default=None)
@@ -92,6 +97,11 @@ def request_scope(
     try:
         yield scope
     finally:
+        for callback in scope.on_close:
+            try:
+                callback()
+            except Exception:
+                pass
         REQUEST_SCOPE.reset(token)
 
 

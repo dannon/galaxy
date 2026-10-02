@@ -16,6 +16,7 @@ under that name would be children of the audit logger and leak Galaxy's own
 diagnostics into the audit stream.
 """
 
+import asyncio
 import json
 import logging
 import logging.handlers
@@ -80,6 +81,7 @@ AuditReason = Literal[
     "invalid_range",
     "archive_failed",
     "error_response",
+    "response_not_started",
     "internal_error",
 ]
 
@@ -250,6 +252,9 @@ def classify_failure(exc: BaseException) -> tuple[AuditOutcome, AuditReason]:
         return "denied", "not_accessible"
     if isinstance(exc, exceptions.ObjectNotFound):
         return "error", "not_found"
+    if isinstance(exc, asyncio.CancelledError):
+        # The client went away (or the server gave up) before the response started.
+        return "error", "response_not_started"
     status_code = getattr(exc, "status_code", None)
     if status_code == 416:
         return "error", "invalid_range"
@@ -580,9 +585,19 @@ class AuditAttempt:
             self.failed("error_response", "respond")
 
     def hand_off(self) -> None:
-        """The response will settle this attempt when it starts."""
+        """The response will settle this attempt when it starts.
+
+        If the request ends first -- the client disconnects, or the server never calls
+        the response -- the attempt is settled as an error when the request scope closes.
+        """
         self.handed_off = True
         self.stage = "respond"
+        scope = current_request_scope()
+        if scope is not None:
+            scope.on_close.append(self._abandoned)
+
+    def _abandoned(self) -> None:
+        self.failed("response_not_started", "respond")
 
     def _settle(self, outcome: AuditOutcome, reason: AuditReason | None, stage: AuditStage | None = None) -> None:
         if self.settled:

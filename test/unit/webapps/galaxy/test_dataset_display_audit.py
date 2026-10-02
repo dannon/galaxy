@@ -5,6 +5,7 @@ classes are all real; only the managers behind the service and the app container
 are stand-ins.
 """
 
+import asyncio
 import inspect
 import json
 import logging
@@ -21,6 +22,7 @@ from fastapi import (
 from fastapi.security import APIKeyCookie
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import make_transient_to_detached
+from starlette.responses import Response
 
 from galaxy import (
     app as galaxy_app,
@@ -32,14 +34,17 @@ from galaxy.exceptions import (
 )
 from galaxy.managers.audit import (
     AUDIT_LOGGER_NAME,
+    AuditObject,
     AuditService,
 )
 from galaxy.schema.fields import Security as IdSecurity
 from galaxy.security.idencoding import IdEncodingHelper
+from galaxy.web.framework.request_scope import request_scope
 from galaxy.webapps.base.api import (
     add_exception_handler,
     add_raw_context_middlewares,
 )
+from galaxy.webapps.base.audit import audited_response
 from galaxy.webapps.galaxy.api import (
     get_api_user,
     get_session,
@@ -288,3 +293,49 @@ def test_remote_user_sessions_say_so(harness, audit_events):
     harness.client.get(display_url(raw="true"))
     (event,) = audit_events
     assert event["auth"]["method"] == "remote_user"
+
+
+def test_response_handed_off_but_never_started_is_one_error(harness, audit_events):
+    attempt = harness.audit.attempt("dataset.display", AuditObject(type="hda", id=42))
+    with request_scope():
+        audited_response(Response(b"never sent"), attempt)
+        attempt.authorized(harness.hda)
+    # The scope closing is the end of the request; nobody called the response.
+    assert [(e["outcome"], e["reason"], e["stage"]) for e in audit_events] == [
+        ("error", "response_not_started", "respond")
+    ]
+
+
+def test_response_started_is_not_settled_again_at_close(harness, audit_events):
+    attempt = harness.audit.attempt("dataset.display", AuditObject(type="hda", id=42))
+    with request_scope():
+        audited_response(Response(b"sent"), attempt)
+        attempt.response_started(200)
+    assert [e["outcome"] for e in audit_events] == ["success"]
+
+
+class DisconnectBeforeStart:
+    """ASGI middleware standing in for a client that goes away before the response starts."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        async def disconnected_send(message):
+            if message["type"] == "http.response.start":
+                raise asyncio.CancelledError()
+            await send(message)
+
+        try:
+            await self.app(scope, receive, disconnected_send)
+        except asyncio.CancelledError:
+            await Response(status_code=499)(scope, receive, send)
+
+
+def test_client_gone_before_start_is_one_error_not_a_success(harness, audit_events):
+    app = harness.client.app
+    app.add_middleware(DisconnectBeforeStart)
+    harness.client.get(display_url(raw="true"))
+    assert [(e["outcome"], e["reason"], e["stage"]) for e in audit_events] == [
+        ("error", "response_not_started", "respond")
+    ]
