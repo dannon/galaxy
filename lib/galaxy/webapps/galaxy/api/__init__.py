@@ -104,7 +104,10 @@ from galaxy.web.framework.decorators import (
 from galaxy.web.framework.request_scope import (
     api_key_id,
     AuthMethod,
+    current_request_header,
     model_id,
+    proxy_actor_id,
+    remote_user_header_name,
     RequestIdentity,
     session_identity,
     set_request_identity,
@@ -273,9 +276,16 @@ def _user_selected(user: User | None, galaxy_session: model.GalaxySession | None
     from_session = galaxy_session is not None
     authentication = request_context.get(API_AUTHENTICATION_KEY)
     if galaxy_session is not None:
-        config = getattr(getattr(galaxy_app, "app", None), "config", None)
-        auth_method: AuthMethod = "remote_user" if getattr(config, "use_remote_user", False) else "session"
-        set_request_identity(session_identity(galaxy_session, auth_method))
+        app = getattr(galaxy_app, "app", None)
+        config = getattr(app, "config", None)
+        if getattr(config, "use_remote_user", False):
+            remote_user_email = current_request_header(remote_user_header_name(config.remote_user_header))
+            proxy_actor = proxy_actor_id(
+                galaxy_session, remote_user_email, lambda email: app.user_manager.by_email(email, case_sensitive=False)
+            )
+            set_request_identity(session_identity(galaxy_session, "remote_user", proxy_actor))
+        else:
+            set_request_identity(session_identity(galaxy_session))
     elif authentication is None:
         set_request_identity(RequestIdentity("anonymous"))
     elif authentication.run_as is not None:

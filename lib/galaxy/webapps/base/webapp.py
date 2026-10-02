@@ -67,8 +67,8 @@ from galaxy.web.framework import (
 from galaxy.web.framework.middleware.static import CacheableStaticURLParser as Static
 from galaxy.web.framework.request_scope import (
     ANONYMOUS,
-    AuthMethod,
     credential_identity,
+    proxy_actor_id,
     replace_request_identity,
     RequestIdentity,
     session_identity,
@@ -508,8 +508,17 @@ class GalaxyWebTransaction(base.DefaultWebTransaction, context.ProvidesHistoryCo
         if self.galaxy_session is None:
             self._note_identity(ANONYMOUS)
         else:
-            auth_method: AuthMethod = "remote_user" if self.app.config.use_remote_user else "session"
-            self._note_identity(session_identity(self.galaxy_session, auth_method))
+            config = self.app.config
+            if config.use_remote_user:
+                remote_user_email = self.environ.get(config.remote_user_header)
+                proxy_actor = proxy_actor_id(
+                    self.galaxy_session,
+                    remote_user_email,
+                    lambda email: self.user_manager.by_email(email, case_sensitive=False),
+                )
+                self._note_identity(session_identity(self.galaxy_session, "remote_user", proxy_actor))
+            else:
+                self._note_identity(session_identity(self.galaxy_session))
 
     def get_cookie(self, name="galaxysession"):
         """Convenience method for getting a session cookie"""
@@ -678,13 +687,6 @@ class GalaxyWebTransaction(base.DefaultWebTransaction, context.ProvidesHistoryCo
                         remote_user_email,
                         galaxy_session.user.email,
                     )
-                elif remote_user_email and galaxy_session.user.email.lower() != remote_user_email.lower():
-                    # An admin authenticated by the proxy is using another user's session;
-                    # mark it so every request in it names the admin as the actor.
-                    admin = self.user_manager.get_or_create_remote_user(remote_user_email)
-                    if galaxy_session.impersonated_by_user_id != admin.id:
-                        galaxy_session.impersonated_by_user_id = admin.id
-                        galaxy_session_requires_flush = True
             elif remote_user_email:
                 # No session exists, get/create user for new session
                 user_for_new_session = self.user_manager.get_or_create_remote_user(remote_user_email)

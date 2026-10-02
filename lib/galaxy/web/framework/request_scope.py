@@ -11,7 +11,10 @@ WSGI app, so neither can rebind the ContextVar for the rest of the request -- bu
 both can fill in the object every copy shares.
 """
 
-from collections.abc import Iterator
+from collections.abc import (
+    Callable,
+    Iterator,
+)
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
@@ -67,6 +70,8 @@ class RequestScope:
     remote_addr: str | None = None
     user_agent: str | None = None
     identity: RequestIdentity | None = None
+    # The ASGI scope's raw header list, shared rather than copied.
+    headers: Any = None
 
 
 REQUEST_SCOPE: ContextVar[RequestScope | None] = ContextVar("galaxy_request_scope", default=None)
@@ -78,16 +83,50 @@ def current_request_scope() -> RequestScope | None:
 
 @contextmanager
 def request_scope(
-    request_id: str | None = None, remote_addr: str | None = None, user_agent: str | None = None
+    request_id: str | None = None, remote_addr: str | None = None, user_agent: str | None = None, headers: Any = None
 ) -> Iterator[RequestScope]:
     if user_agent is not None:
         user_agent = user_agent[:MAX_USER_AGENT_LENGTH]
-    scope = RequestScope(request_id=request_id, remote_addr=remote_addr, user_agent=user_agent)
+    scope = RequestScope(request_id=request_id, remote_addr=remote_addr, user_agent=user_agent, headers=headers)
     token = REQUEST_SCOPE.set(scope)
     try:
         yield scope
     finally:
         REQUEST_SCOPE.reset(token)
+
+
+def current_request_header(name: str) -> str | None:
+    scope = REQUEST_SCOPE.get()
+    if scope is None or not scope.headers:
+        return None
+    wanted = name.lower().encode("latin-1")
+    for key, value in scope.headers:
+        if key == wanted:
+            return value.decode("latin-1")
+    return None
+
+
+def remote_user_header_name(environ_key: str) -> str:
+    """The HTTP header behind a WSGI environ key such as ``HTTP_REMOTE_USER``."""
+    if environ_key.startswith("HTTP_"):
+        environ_key = environ_key[len("HTTP_") :]
+    return environ_key.replace("_", "-").lower()
+
+
+def proxy_actor_id(
+    galaxy_session: Any, remote_user_email: str | None, find_by_email: Callable[[str], Any]
+) -> int | None:
+    """Under remote-user auth, the admin the proxy says is behind another user's session, if any.
+
+    Galaxy keeps a session whose user differs from the proxy's user only when that
+    user is an admin allowed to impersonate, so a mismatch is that bypass. It is
+    derived on every request rather than stored: the proxy names the user each
+    time, and a stored marker would outlive the admin's use of the session.
+    """
+    user = galaxy_session.user
+    if not remote_user_email or user is None or user.email.lower() == remote_user_email.lower():
+        return None
+    return model_id(find_by_email(remote_user_email))
 
 
 def current_request_identity() -> RequestIdentity | None:
@@ -120,12 +159,21 @@ def model_id(instance: Any) -> int | None:
     return int(state.identity[0])
 
 
-def session_identity(galaxy_session: Any, auth_method: AuthMethod = "session") -> RequestIdentity:
-    """Identity for a request authenticated by a Galaxy session cookie."""
+def session_identity(
+    galaxy_session: Any, auth_method: AuthMethod = "session", proxy_actor: int | None = None
+) -> RequestIdentity:
+    """Identity for a request authenticated by a Galaxy session cookie.
+
+    ``proxy_actor`` is the remote user behind the session (see :func:`proxy_actor_id`).
+    """
     session_id = model_id(galaxy_session)
     user_id = model_id(galaxy_session.user)
     if user_id is None:
         return RequestIdentity("anonymous", credential_id=session_id)
+    if proxy_actor is not None and proxy_actor != user_id:
+        return RequestIdentity(
+            auth_method, user_id, actor_id=proxy_actor, switch="impersonation", credential_id=session_id
+        )
     if impersonated_by := galaxy_session.impersonated_by_user_id:
         return RequestIdentity(
             auth_method, user_id, actor_id=impersonated_by, switch="impersonation", credential_id=session_id

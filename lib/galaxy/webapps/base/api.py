@@ -430,6 +430,7 @@ class RequestScopeMiddleware:
             # to trust its forwarded headers (uvicorn --forwarded-allow-ips).
             remote_addr=client[0] if client else None,
             user_agent=Headers(scope=scope).get("user-agent"),
+            headers=scope.get("headers"),
         ):
             await self.app(scope, receive, send)
 

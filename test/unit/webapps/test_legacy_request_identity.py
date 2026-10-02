@@ -39,7 +39,9 @@ TARGET_USER = detached(model.User(email="target@example.org"), 2)
 def legacy_trans(user_for_key: Any = API_USER, params=None, headers=None, use_remote_user=False) -> Any:
     """A GalaxyWebTransaction with only the state _authenticate_api reads; its methods are the real ones."""
     trans: Any = object.__new__(GalaxyWebTransaction)
-    trans._app = SimpleNamespace(config=SimpleNamespace(use_remote_user=use_remote_user))
+    trans._app = SimpleNamespace(
+        config=SimpleNamespace(use_remote_user=use_remote_user, remote_user_header="HTTP_REMOTE_USER")
+    )
     trans.environ = {"is_api_request": True}
     trans.request = SimpleNamespace(params=params or {}, headers=headers or {})
     trans.response = SimpleNamespace(cookies={})

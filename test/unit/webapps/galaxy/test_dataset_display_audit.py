@@ -283,7 +283,8 @@ def test_composite_preview_page_is_not_an_archive_failure(harness, audit_events)
 
 
 def test_remote_user_sessions_say_so(harness, audit_events):
-    cast(SimpleNamespace, galaxy_app.app).config.use_remote_user = True
+    config = cast(SimpleNamespace, galaxy_app.app).config
+    config.use_remote_user, config.remote_user_header = True, "HTTP_REMOTE_USER"
     harness.client.get(display_url(raw="true"))
     (event,) = audit_events
     assert event["auth"]["method"] == "remote_user"

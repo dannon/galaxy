@@ -9,7 +9,10 @@ from typing import (
 import pytest
 from starlette_context import request_cycle_context
 
-from galaxy import model
+from galaxy import (
+    app as galaxy_app,
+    model,
+)
 from galaxy.app_unittest_utils import galaxy_mock
 from galaxy.managers.session import GalaxySessionManager
 from galaxy.managers.users import UserManager
@@ -146,7 +149,10 @@ def test_an_ordinary_login_is_not_marked(trans, admin, target):
 
 
 class RemoteUserTrans(SimpleNamespace):
-    """Just enough of a transaction to run the real _ensure_valid_session under remote-user auth."""
+    """Just enough of a transaction to run the real session and identity code under remote-user auth."""
+
+    _note_identity = GalaxyWebTransaction._note_identity
+    _note_session_identity = GalaxyWebTransaction._note_session_identity
 
     def get_cookie(self, name="galaxysession"):
         return self.cookie
@@ -156,6 +162,7 @@ class RemoteUserTrans(SimpleNamespace):
 
 
 def remote_user_request(trans, galaxy_session, remote_user_email):
+    """One legacy request: the proxy names remote_user_email, the browser sends galaxy_session's cookie."""
     trans.app.config.use_remote_user = True
     trans.app.config.remote_user_header = "HTTP_REMOTE_USER"
     stand_in = RemoteUserTrans(
@@ -169,35 +176,99 @@ def remote_user_request(trans, galaxy_session, remote_user_email):
         webapp=SimpleNamespace(name="galaxy"),
         galaxy_session=None,
     )
-    GalaxyWebTransaction._ensure_valid_session(cast(Any, stand_in), "galaxysession")
-    return stand_in.galaxy_session
+    with request_scope():
+        GalaxyWebTransaction._ensure_valid_session(cast(Any, stand_in), "galaxysession")
+        stand_in._note_session_identity()
+        identity = current_request_identity()
+    return stand_in.galaxy_session, identity
 
 
-def test_remote_user_admin_in_another_users_session_is_recorded(trans, admin, target):
-    admin_id, target_id = admin.id, target.id
-    target_session = create_new_session(cast(Any, trans), user_for_new_session=target)
-    trans.sa_session.add(target_session)
+@pytest.fixture
+def target_session(trans, target):
+    galaxy_session = create_new_session(cast(Any, trans), user_for_new_session=target)
+    trans.sa_session.add(galaxy_session)
     trans.sa_session.commit()
-    kept = remote_user_request(trans, target_session, ADMIN_EMAIL)
-    # The proxy says the admin; the cookie is the target's: the session is kept and marked.
+    return galaxy_session
+
+
+def test_remote_user_admin_in_another_users_session_is_the_actor(trans, admin, target, target_session):
+    admin_id, target_id = admin.id, target.id
+    kept, identity = remote_user_request(trans, target_session, ADMIN_EMAIL)
+    # The proxy says the admin; the cookie is the target's: the session is kept.
     assert kept.id == target_session.id
-    later = later_request_session(trans, kept)
-    identity = session_identity(later, "remote_user")
-    assert (identity.auth_method, identity.user_id, identity.actor_id, identity.switch) == (
-        "remote_user",
-        target_id,
-        admin_id,
-        "impersonation",
+    assert identity == RequestIdentity(
+        "remote_user", target_id, actor_id=admin_id, switch="impersonation", credential_id=kept.id
     )
 
 
-def test_remote_user_matching_the_session_is_not_marked(trans, target):
-    target_session = create_new_session(cast(Any, trans), user_for_new_session=target)
-    trans.sa_session.add(target_session)
-    trans.sa_session.commit()
-    kept = remote_user_request(trans, target_session, TARGET_EMAIL.upper())
+def test_remote_user_impersonation_is_not_stored_on_the_session(trans, admin, target, target_session):
+    target_id = target.id
+    kept, _ = remote_user_request(trans, target_session, ADMIN_EMAIL)
+    assert later_request_session(trans, kept).impersonated_by_user_id is None
+    # The real user resumes the same session later: they act as themselves.
+    resumed, identity = remote_user_request(trans, kept, TARGET_EMAIL)
+    assert resumed.id == kept.id
+    assert identity == RequestIdentity("remote_user", target_id, actor_id=target_id, credential_id=kept.id)
+
+
+def test_remote_user_matching_the_session_case_insensitively_is_not_a_switch(trans, target, target_session):
+    target_id = target.id
+    kept, identity = remote_user_request(trans, target_session, TARGET_EMAIL.upper())
     assert kept.id == target_session.id
-    assert kept.impersonated_by_user_id is None
+    assert identity is not None
+    assert (identity.actor_id, identity.switch) == (target_id, None)
+
+
+@pytest.mark.parametrize("remote_user_email", [ADMIN_EMAIL, TARGET_EMAIL])
+def test_fastapi_remote_user_identity_is_derived_per_request(
+    trans, admin, target, target_session, monkeypatch, remote_user_email
+):
+    expected_actor = admin.id if remote_user_email == ADMIN_EMAIL else target.id
+    config = SimpleNamespace(use_remote_user=True, remote_user_header="HTTP_REMOTE_USER")
+    monkeypatch.setattr(
+        galaxy_app, "app", SimpleNamespace(config=config, user_manager=trans.app[UserManager]), raising=False
+    )
+    later = later_request_session(trans, target_session)
+    headers = [(b"remote-user", remote_user_email.encode())]
+    with request_scope(headers=headers), request_cycle_context():
+        get_user(galaxy_session=later, api_user=None)
+        identity = current_request_identity()
+    assert identity is not None
+    assert (identity.auth_method, identity.actor_id) == ("remote_user", expected_actor)
+    assert identity.switch == ("impersonation" if remote_user_email == ADMIN_EMAIL else None)
+
+
+def real_web_trans(mock_trans):
+    """A GalaxyWebTransaction running its real login/logout code over the mock app's database."""
+    web_trans: Any = object.__new__(GalaxyWebTransaction)
+    web_trans._app = mock_trans.app
+    web_trans.galaxy_session = mock_trans.galaxy_session
+    web_trans._GalaxyWebTransaction__user = None
+    web_trans.environ = {}
+    # The tool shed branch of handle_user_login skips history association, which needs a full app.
+    web_trans.webapp = SimpleNamespace(name="tool_shed")
+    web_trans.user_checks = lambda user: None
+    web_trans._GalaxyWebTransaction__create_new_session = lambda prev=None, user=None: create_new_session(
+        cast(Any, mock_trans), prev, user
+    )
+    web_trans._GalaxyWebTransaction__update_session_cookie = lambda name="galaxysession": None
+    return web_trans
+
+
+def test_real_login_code_marks_only_the_impersonated_session(trans, admin, target):
+    admin_id = admin.id
+    other = trans.app[UserManager].create(email="other@example.org", username="other", password=PASSWORD)
+    other_id = other.id
+    web_trans = real_web_trans(trans)
+    trans.app[UserManager].impersonate(web_trans, target)
+    impersonated = web_trans.galaxy_session
+    assert later_request_session(trans, impersonated).impersonated_by_user_id == admin_id
+    # Logging out, then a new login on the same browser, leaves no marker behind.
+    web_trans.handle_user_logout()
+    assert later_request_session(trans, web_trans.galaxy_session).impersonated_by_user_id is None
+    web_trans.handle_user_login(trans.sa_session.get(model.User, other_id))
+    identity = session_identity(later_request_session(trans, web_trans.galaxy_session))
+    assert (identity.user_id, identity.actor_id, identity.switch) == (other_id, other_id, None)
 
 
 def test_impersonation_marker_survives_a_fresh_model_load(trans, admin, target):
