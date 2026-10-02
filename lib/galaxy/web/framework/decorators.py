@@ -10,9 +10,11 @@ from pydantic import (
     BaseModel,
     ValidationError,
 )
+from sqlalchemy import inspect as sa_inspect
 
 from galaxy.exceptions import (
     error_codes,
+    MalformedId,
     MessageException,
 )
 from galaxy.exceptions.utils import (
@@ -31,6 +33,45 @@ if TYPE_CHECKING:
     from galaxy.webapps.base.webapp import GalaxyWebTransaction
 
 log = logging.getLogger(__name__)
+
+
+def user_log_id(user) -> str:
+    """Identify a user in a log line without loading attributes from the database.
+
+    Log lines are often written after a commit has expired the user or its session
+    has gone away, so the id comes from the identity key rather than ``user.id``.
+    """
+    if user is None:
+        return "anonymous"
+    if getattr(user, "bootstrap_admin_user", False):
+        return "bootstrap-admin"
+    state = sa_inspect(user, raiseerr=False)
+    return str(state.identity[0]) if state is not None and state.identity else "unknown"
+
+
+# run_as log lines never include the raw requested value: it is request text and
+# could hold anything, including a credential pasted into the wrong field.
+def log_run_as_refused(real_user: str, reason: str, target_id: int | None = None) -> None:
+    target = f" for user {target_id}" if target_id is not None else ""
+    log.warning("Refused run_as by user %s%s: %s", real_user, target, reason)
+
+
+def log_run_as_switch(real_user: str, target_user: str) -> None:
+    log.info("User %s is running as user %s via run_as", real_user, target_user)
+
+
+def log_run_as_ignored(real_user: str, target_id: int, session_user: str) -> None:
+    log.info(
+        "Ignored run_as by user %s for user %s: the request's session takes precedence (user %s)",
+        real_user,
+        target_id,
+        session_user,
+    )
+
+
+def log_run_as_missing_target(real_user: str, target_id: int) -> None:
+    log.warning("run_as by user %s named user %s, which does not exist", real_user, target_id)
+
 
 JSON_CONTENT_TYPE = "application/json; charset=UTF-8"
 JSONP_CONTENT_TYPE = "application/javascript"
@@ -187,11 +228,17 @@ def legacy_expose_api(func, to_json=True, user_required=True):
 
         # Perform api_run_as processing, possibly changing identity
         if "payload" in kwargs and isinstance(kwargs["payload"], dict) and "run_as" in kwargs["payload"]:
+            real_user = user_log_id(trans.user)
             if not trans.user_can_do_run_as:
+                log_run_as_refused(real_user, "not permitted")
                 error_message = "User does not have permissions to run jobs as another user"
                 return error
             try:
                 decoded_user_id = trans.security.decode_id(kwargs["payload"]["run_as"])
+            except MalformedId:
+                # decode_id reports every bad id this way; the usual handler builds the response.
+                log_run_as_refused(real_user, "malformed target id")
+                raise
             except TypeError:
                 trans.response.status = 400
                 return f"Malformed user id ( {str(kwargs['payload']['run_as'])} ) specified, unable to decode."
@@ -199,8 +246,13 @@ def legacy_expose_api(func, to_json=True, user_required=True):
                 user = trans.sa_session.query(trans.app.model.User).get(decoded_user_id)
                 trans.set_user(user)
             except Exception:
+                log_run_as_refused(real_user, "could not switch to the target user", decoded_user_id)
                 trans.response.status = 400
                 return "That user does not exist."
+            if user is None:
+                log_run_as_missing_target(real_user, decoded_user_id)
+            else:
+                log_run_as_switch(real_user, user_log_id(user))
         try:
             rval = func(self, trans, *args, **kwargs)
             if to_json:
@@ -327,11 +379,17 @@ def expose_api(func, to_json=True, user_required=True, user_or_session_required=
         # TODO: Refactor next block out into a helper procedure.
         # Perform api_run_as processing, possibly changing identity
         if "payload" in kwargs and "run_as" in kwargs["payload"]:
+            real_user = user_log_id(trans.user)
             if not trans.user_can_do_run_as:
+                log_run_as_refused(real_user, "not permitted")
                 error_code = error_codes.USER_CANNOT_RUN_AS
                 return __api_error_response(trans, err_code=error_code, status_code=403)
             try:
                 decoded_user_id = trans.security.decode_id(kwargs["payload"]["run_as"])
+            except MalformedId:
+                # decode_id reports every bad id this way; the usual handler builds the response.
+                log_run_as_refused(real_user, "malformed target id")
+                raise
             except (TypeError, ValueError):
                 error_message = f"Malformed user id ( {str(kwargs['payload']['run_as'])} ) specified, unable to decode."
                 error_code = error_codes.USER_INVALID_RUN_AS
@@ -340,8 +398,13 @@ def expose_api(func, to_json=True, user_required=True, user_or_session_required=
                 user = trans.sa_session.query(trans.app.model.User).get(decoded_user_id)
                 trans.set_user(user)
             except Exception:
+                log_run_as_refused(real_user, "could not switch to the target user", decoded_user_id)
                 error_code = error_codes.USER_INVALID_RUN_AS
                 return __api_error_response(trans, err_code=error_code, status_code=400)
+            if user is None:
+                log_run_as_missing_target(real_user, decoded_user_id)
+            else:
+                log_run_as_switch(real_user, user_log_id(user))
         try:
             try:
                 rval = func(self, trans, *args, **kwargs)

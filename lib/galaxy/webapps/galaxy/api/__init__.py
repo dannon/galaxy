@@ -7,6 +7,10 @@ from collections.abc import (
     AsyncGenerator,
     Callable,
 )
+from dataclasses import (
+    dataclass,
+    field,
+)
 from enum import Enum
 from string import Template
 from typing import (
@@ -89,7 +93,14 @@ from galaxy.tool_util.parameters import (
     to_json_schema_string,
     ToolState,
 )
-from galaxy.web.framework.decorators import require_admin_message
+from galaxy.web.framework.decorators import (
+    log_run_as_ignored,
+    log_run_as_missing_target,
+    log_run_as_refused,
+    log_run_as_switch,
+    require_admin_message,
+    user_log_id,
+)
 from galaxy.webapps.base.controller import BaseAPIController
 from galaxy.webapps.galaxy.api.cbv import cbv
 from galaxy.work.context import (
@@ -182,8 +193,10 @@ def get_api_user(
         return None
     if run_as:
         if user_manager.user_can_do_run_as(user):
+            _remember_api_authentication(ApiAuthentication(user=user_log_id(user), run_as=run_as))
             return user_manager.by_id(run_as)
         else:
+            log_run_as_refused(user_log_id(user), "not permitted", run_as)
             raise UserCannotRunAsException
     return user
 
@@ -193,7 +206,9 @@ def get_user(
     api_user=cast(User | None, Depends(get_api_user)),
 ) -> User | None:
     if galaxy_session:
+        _user_selected(galaxy_session.user, from_session=True)
         return galaxy_session.user
+    _user_selected(api_user, from_session=False)
     return api_user
 
 
@@ -202,10 +217,53 @@ def get_required_user(
     api_user=cast(User | None, Depends(get_api_user)),
 ) -> User:
     if galaxy_session and (user := galaxy_session.user):
+        _user_selected(user, from_session=True)
         return user
+    _user_selected(api_user, from_session=False)
     if api_user:
         return api_user
     raise UserRequiredException
+
+
+API_AUTHENTICATION_KEY = "api_authentication"
+
+
+@dataclass
+class ApiAuthentication:
+    """What get_api_user resolved, for the dependencies that pick the request's user.
+
+    get_api_user can't log a run_as switch itself: a session can still take
+    precedence, so only get_user / get_required_user know who the request acts as.
+    """
+
+    user: str
+    run_as: int | None = None
+    logged_outcomes: set[tuple[bool, str]] = field(default_factory=set)
+
+
+def _remember_api_authentication(authentication: ApiAuthentication) -> None:
+    if request_context is not None and request_context.exists():
+        request_context[API_AUTHENTICATION_KEY] = authentication
+
+
+def _user_selected(user: User | None, from_session: bool) -> None:
+    if request_context is None or not request_context.exists():
+        return
+    authentication = request_context.get(API_AUTHENTICATION_KEY)
+    if authentication is None or authentication.run_as is None:
+        return
+    # Both user dependencies can run in one request and, with an anonymous session,
+    # pick different users; log each outcome that actually happened, once.
+    outcome = (from_session, user_log_id(user))
+    if outcome in authentication.logged_outcomes:
+        return
+    authentication.logged_outcomes.add(outcome)
+    if from_session:
+        log_run_as_ignored(authentication.user, authentication.run_as, user_log_id(user))
+    elif user is None:
+        log_run_as_missing_target(authentication.user, authentication.run_as)
+    else:
+        log_run_as_switch(authentication.user, user_log_id(user))
 
 
 class UrlBuilder:
