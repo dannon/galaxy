@@ -24,6 +24,12 @@ from galaxy.web.framework.decorators import (
     legacy_expose_api,
     user_log_id,
 )
+from galaxy.web.framework.request_scope import (
+    current_request_identity,
+    request_scope,
+    RequestIdentity,
+    set_request_identity,
+)
 from galaxy.webapps.base.api import (
     add_exception_handler,
     add_request_id_middleware,
@@ -372,3 +378,23 @@ def test_user_log_id_special_cases():
     assert user_log_id(model.User(email="new@example.org", password="password")) == "unknown"
     assert user_log_id(ADMIN) == "1"
     assert user_log_id(SimpleNamespace(id=5)) == "unknown"
+
+
+@pytest.mark.parametrize("decorator", LEGACY_DECORATORS)
+def test_legacy_run_as_switch_updates_the_request_identity(decorator):
+    trans = FakeTrans({"run_as": security.encode_id(2)}, users={2: TARGET})
+    with request_scope():
+        set_request_identity(RequestIdentity("api_key", 1, actor_id=1, credential_id=50))
+        decorator(_endpoint)(None, trans)
+        assert current_request_identity() == RequestIdentity(
+            "api_key", 2, actor_id=1, switch="run_as", credential_id=50
+        )
+
+
+@pytest.mark.parametrize("decorator", LEGACY_DECORATORS)
+def test_legacy_run_as_by_the_bootstrap_key_keeps_the_target(decorator):
+    trans = FakeTrans({"run_as": security.encode_id(2)}, users={2: TARGET})
+    with request_scope():
+        set_request_identity(RequestIdentity("bootstrap_api_key"))
+        decorator(_endpoint)(None, trans)
+        assert current_request_identity() == RequestIdentity("bootstrap_api_key", 2, switch="run_as")

@@ -657,14 +657,8 @@ class UserManager(base.ModelManager, deletable.PurgableManagerMixin):
         if user:
             admin_id = trans.user.id
             trans.handle_user_logout()
-            trans.handle_user_login(user)
             # The new session looks like any login by the target user; record who is really behind it.
-            galaxy_session = trans.galaxy_session
-            assert galaxy_session is not None
-            galaxy_session.impersonated_by_user_id = admin_id
-            session = self.session()
-            session.add(galaxy_session)
-            session.commit()
+            trans.handle_user_login(user, impersonated_by_user_id=admin_id)
         else:
             raise exceptions.MessageException("Please provide a valid user.")
 

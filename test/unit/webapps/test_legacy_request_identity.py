@@ -45,7 +45,6 @@ def legacy_trans(user_for_key: Any = API_USER, params=None, headers=None, use_re
     trans.response = SimpleNamespace(cookies={})
     trans.galaxy_session = None
     trans._GalaxyWebTransaction__user = None
-    trans._identity_noted = False
     trans.user_manager = SimpleNamespace(
         by_api_key=lambda api_key: user_for_key, by_oidc_access_token=lambda token: user_for_key
     )
@@ -81,15 +80,14 @@ def test_request_without_credentials_is_anonymous():
         assert current_request_identity() == RequestIdentity("anonymous")
 
 
-def test_legacy_run_as_keeps_the_key_owner_as_actor():
+def test_clearing_the_user_is_not_a_run_as_switch():
+    # OIDC reauthentication and session expiry clear the user; only the run_as
+    # decorators switch identity.
     trans = legacy_trans(params={"key": API_KEY})
     with request_scope():
         trans._authenticate_api("galaxysession")
-        # What the legacy API decorators do after checking run_as is allowed.
-        trans.set_user(TARGET_USER)
-        assert current_request_identity() == RequestIdentity(
-            "api_key", 2, actor_id=1, switch="run_as", credential_id=50
-        )
+        trans.set_user(None)
+        assert current_request_identity() == RequestIdentity("api_key", 1, actor_id=1, credential_id=50)
 
 
 def test_session_identity_says_remote_user_when_configured():

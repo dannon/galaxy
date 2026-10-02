@@ -69,7 +69,6 @@ from galaxy.web.framework.request_scope import (
     ANONYMOUS,
     AuthMethod,
     credential_identity,
-    note_run_as,
     replace_request_identity,
     RequestIdentity,
     session_identity,
@@ -345,7 +344,6 @@ class GalaxyWebTransaction(base.DefaultWebTransaction, context.ProvidesHistoryCo
         # and such).
         self.workflow_building_mode = False
         self.__user = None
-        self._identity_noted = False
         self.galaxy_session = None
         self.error_message = None
         self.host = self.request.host
@@ -500,15 +498,11 @@ class GalaxyWebTransaction(base.DefaultWebTransaction, context.ProvidesHistoryCo
                 self.sa_session.add(self.galaxy_session)
                 self.sa_session.commit()
         self.__user = user
-        if self._identity_noted:
-            # Authentication is settled, so this is a legacy run_as switch.
-            note_run_as(user)
 
     user = property(get_user, set_user)
 
     def _note_identity(self, identity: RequestIdentity) -> None:
         replace_request_identity(identity)
-        self._identity_noted = True
 
     def _note_session_identity(self) -> None:
         if self.galaxy_session is None:
@@ -891,7 +885,7 @@ class GalaxyWebTransaction(base.DefaultWebTransaction, context.ProvidesHistoryCo
             )
         self.sa_session.add_all((prev_galaxy_session, self.galaxy_session, history))
 
-    def handle_user_login(self, user):
+    def handle_user_login(self, user, impersonated_by_user_id=None):
         """
         Login a new user (possibly newly created)
            - do some 'system' checks (if any) for this user
@@ -908,6 +902,8 @@ class GalaxyWebTransaction(base.DefaultWebTransaction, context.ProvidesHistoryCo
         prev_galaxy_session.is_valid = False
         # Define a new current_session
         self.galaxy_session = self.__create_new_session(prev_galaxy_session, user)
+        # Set before the commit below, so the session never exists without its marker.
+        self.galaxy_session.impersonated_by_user_id = impersonated_by_user_id
         if self.webapp.name == "galaxy":
             cookie_name = "galaxysession"
             self._associate_user_history(user, prev_galaxy_session)

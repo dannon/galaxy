@@ -273,7 +273,9 @@ def _user_selected(user: User | None, galaxy_session: model.GalaxySession | None
     from_session = galaxy_session is not None
     authentication = request_context.get(API_AUTHENTICATION_KEY)
     if galaxy_session is not None:
-        set_request_identity(session_identity(galaxy_session))
+        config = getattr(getattr(galaxy_app, "app", None), "config", None)
+        auth_method: AuthMethod = "remote_user" if getattr(config, "use_remote_user", False) else "session"
+        set_request_identity(session_identity(galaxy_session, auth_method))
     elif authentication is None:
         set_request_identity(RequestIdentity("anonymous"))
     elif authentication.run_as is not None:

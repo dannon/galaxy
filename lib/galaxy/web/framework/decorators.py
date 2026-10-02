@@ -28,6 +28,7 @@ from galaxy.util import (
 )
 from galaxy.util.json import safe_dumps
 from galaxy.web.framework import url_for
+from galaxy.web.framework.request_scope import note_run_as
 
 if TYPE_CHECKING:
     from galaxy.webapps.base.webapp import GalaxyWebTransaction
@@ -245,6 +246,7 @@ def legacy_expose_api(func, to_json=True, user_required=True):
             try:
                 user = trans.sa_session.query(trans.app.model.User).get(decoded_user_id)
                 trans.set_user(user)
+                note_run_as(user)
             except Exception:
                 log_run_as_refused(real_user, "could not switch to the target user", decoded_user_id)
                 trans.response.status = 400
@@ -397,6 +399,7 @@ def expose_api(func, to_json=True, user_required=True, user_or_session_required=
             try:
                 user = trans.sa_session.query(trans.app.model.User).get(decoded_user_id)
                 trans.set_user(user)
+                note_run_as(user)
             except Exception:
                 log_run_as_refused(real_user, "could not switch to the target user", decoded_user_id)
                 error_code = error_codes.USER_INVALID_RUN_AS

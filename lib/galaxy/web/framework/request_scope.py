@@ -160,7 +160,7 @@ def credential_identity(user: Any, auth_method: Literal["api_key", "bearer"]) ->
 def note_run_as(user: Any) -> None:
     """Follow a legacy ``run_as`` switch: the request now acts as ``user`` for its actor."""
     scope = REQUEST_SCOPE.get()
-    if scope is None or scope.identity is None or scope.identity.actor_id is None:
+    if scope is None or scope.identity is None:
         return
     current = scope.identity
     scope.identity = RequestIdentity(

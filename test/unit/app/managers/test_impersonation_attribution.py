@@ -38,19 +38,20 @@ class SessionSwitchingTrans(galaxy_mock.MockTrans):
         self.request.remote_addr = "192.0.2.10"
         self.request.remote_host = "192.0.2.10"
 
-    def _switch_session(self, user=None):
+    def _switch_session(self, user=None, impersonated_by_user_id=None):
         prev = self.galaxy_session
         assert prev is not None
         prev.is_valid = False
         self.galaxy_session = create_new_session(cast(Any, self), prev, user)
+        self.galaxy_session.impersonated_by_user_id = impersonated_by_user_id
         self.sa_session.add_all((prev, self.galaxy_session))
         self.sa_session.commit()
 
     def handle_user_logout(self, logout_all=False):
         self._switch_session()
 
-    def handle_user_login(self, user):
-        self._switch_session(user)
+    def handle_user_login(self, user, impersonated_by_user_id=None):
+        self._switch_session(user, impersonated_by_user_id)
 
 
 @pytest.fixture
@@ -117,7 +118,7 @@ def test_later_legacy_request_records_the_admin_as_actor(trans, admin, target):
     admin_id, target_id = admin.id, target.id
     trans.app[UserManager].impersonate(trans, target)
     later = later_request_session(trans, trans.galaxy_session)
-    stand_in = SimpleNamespace(galaxy_session=later, app=trans.app, _identity_noted=False)
+    stand_in = SimpleNamespace(galaxy_session=later, app=trans.app)
     stand_in._note_identity = lambda identity: GalaxyWebTransaction._note_identity(cast(Any, stand_in), identity)
     with request_scope():
         GalaxyWebTransaction._note_session_identity(cast(Any, stand_in))
