@@ -1,4 +1,5 @@
 import os
+import re
 import stat
 import uuid
 from collections.abc import Mapping
@@ -9,6 +10,7 @@ from typing import (
     Optional,
     TYPE_CHECKING,
 )
+from urllib.parse import unquote_plus
 
 import anyio
 from fastapi import (
@@ -340,6 +342,26 @@ def add_exception_handler(app: FastAPI) -> None:
         return get_error_response_for_request(request, exc)
 
 
+# Query parameters that carry credentials (API keys, password reset and activation
+# tokens, OIDC callback codes, landing secrets) and must never reach the access log.
+REDACTED_QUERY_PARAMETERS = frozenset(
+    "access_token activation_token api_key client_secret code galaxysession id_token key password"
+    " refresh_token secret session_key state token".split()
+)
+
+
+def redact_query_string(query_string: str) -> str:
+    # Split on ";" as well as "&": WebOb, which parses queries for the legacy
+    # controllers, treats both as separators.
+    parts = re.split(r"([&;])", query_string)
+    for index in range(0, len(parts), 2):
+        name, sep, _ = parts[index].partition("=")
+        # Compare decoded names so "%6Bey=" or "KEY=" can't slip a credential past the filter.
+        if sep and unquote_plus(name).lower() in REDACTED_QUERY_PARAMETERS:
+            parts[index] = f"{name}=REDACTED"
+    return "".join(parts)
+
+
 REQUEST_IDENTITY_KEY = "request_identity"
 
 
@@ -378,7 +400,7 @@ class AccessLoggingMiddleware(Plugin):
         scope = request.scope
         path = scope["root_path"] + scope["path"]
         if scope["query_string"]:
-            path = f"{path}?{scope['query_string'].decode('ascii')}"
+            path = f"{path}?{redact_query_string(scope['query_string'].decode('ascii'))}"
         access_line = f"{scope['method']} {path} {uuid.uuid4()}"
         log.debug(access_line)
         return access_line

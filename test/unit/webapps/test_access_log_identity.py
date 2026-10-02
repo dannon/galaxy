@@ -17,6 +17,7 @@ from galaxy.security.idencoding import IdEncodingHelper
 from galaxy.webapps.base.api import (
     add_exception_handler,
     add_raw_context_middlewares,
+    redact_query_string,
     RequestIdentity,
 )
 from galaxy.webapps.galaxy.api import (
@@ -206,3 +207,56 @@ def test_refused_run_as_carries_no_identity(client, caplog):
 )
 def test_access_log_fields(identity, expected):
     assert identity.access_log_fields() == expected
+
+
+def test_api_key_query_param_is_redacted(client, caplog):
+    response = client.get("/required", params={"key": API_KEY, "view": "summary"})
+    assert response.json() == {"user": 1}
+    lines = [r.getMessage() for r in caplog.records if r.name == ACCESS_LOGGER]
+    assert all(line.startswith("GET /required?key=REDACTED&view=summary ") for line in lines)
+    _assert_no_secrets(caplog)
+
+
+@pytest.mark.parametrize(
+    "query_string,expected",
+    [
+        # password reset link
+        ("token=abc123", "token=REDACTED"),
+        # account activation link
+        ("activation_token=abc&email=a%40example.org", "activation_token=REDACTED&email=a%40example.org"),
+        # OIDC callback
+        ("code=abc&state=xyz&scope=openid", "code=REDACTED&state=REDACTED&scope=openid"),
+        # landing request claim link
+        ("secret=abc", "secret=REDACTED"),
+        ("key=a&view=b&key=c", "key=REDACTED&view=b&key=REDACTED"),
+        ("x=1;key=abc&token=def;y=2", "x=1;key=REDACTED&token=REDACTED;y=2"),
+        ("%6Bey=abc&KEY=abc&api%5Fkey=abc", "%6Bey=REDACTED&KEY=REDACTED&api%5Fkey=REDACTED"),
+        (
+            "galaxysession=abc&session_key=abc&password=abc",
+            "galaxysession=REDACTED&session_key=REDACTED&password=REDACTED",
+        ),
+        ("keys=abc&monkey=abc&q=key%3Dabc", "keys=abc&monkey=abc&q=key%3Dabc"),
+        ("key", "key"),
+        ("", ""),
+    ],
+)
+def test_redact_query_string(query_string, expected):
+    assert redact_query_string(query_string) == expected
+
+
+@pytest.mark.parametrize(
+    "url,logged",
+    [
+        ("/login/start?token=secret-reset-token", "/login/start?token=REDACTED"),
+        (
+            "/authnz/google/callback?code=secret-oidc-code&state=secret-state",
+            "/authnz/google/callback?code=REDACTED&state=REDACTED",
+        ),
+    ],
+)
+def test_credential_urls_are_redacted_in_access_lines(client, caplog, url, logged):
+    client.get(url)
+    lines = [r.getMessage() for r in caplog.records if r.name == ACCESS_LOGGER]
+    assert len(lines) == 2
+    assert all(line.startswith(f"GET {logged} ") for line in lines)
+    assert not any("secret-" in line for line in lines)
