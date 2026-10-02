@@ -24,7 +24,6 @@ from galaxy.managers.audit import (
     MAX_EVENT_BYTES,
     NULL_ATTEMPT,
     registered_actions,
-    ReportsAuditFailures,
 )
 from galaxy.security.idencoding import IdEncodingHelper
 from galaxy.web.framework.request_scope import (
@@ -46,7 +45,7 @@ class CapturingHandler(logging.Handler):
         self.lines.append(self.format(record))
 
 
-class BrokenHandler(ReportsAuditFailures, logging.Handler):
+class BrokenHandler(logging.Handler):
     def emit(self, record):
         try:
             raise OSError("disk full")
@@ -273,8 +272,8 @@ def test_event_size_is_bounded_and_marked(audit_handler):
     assert event["object"]["id"] == 42 and event["object"]["uuid"]
     assert event["actor"]["id"] == 1 and event["effective_user"]["id"] == 7
     assert event["request_id"] == "req-1"
-    assert event["truncated"][:2] == ["user_agent", "object.history_name"]
-    assert "object.name" in event["truncated"]
+    assert event["truncated"] == ["optional_fields"]
+    assert event["user_agent"] is None and event["object"]["name"] is None and event["details"] == {}
 
 
 @pytest.mark.parametrize(
@@ -328,23 +327,33 @@ def test_handler_at_warning_counts_as_unrouted():
         logger.handlers, logger.level, logger.propagate = saved
 
 
-def test_failing_handler_is_reported_and_counted(caplog):
+def test_a_failing_handler_never_fails_the_request():
+    # A handler's own write errors are logging's business (and the log platform's gap
+    # detection); record() just must not raise.
     logger = logging.getLogger(audit.AUDIT_LOGGER_NAME)
     saved = (logger.handlers[:], logger.level, logger.propagate)
-    calls: list[tuple[str, Any]] = []
-    statsd = SimpleNamespace(incr=lambda path, n=1, tags=None: calls.append((path, tags)))
     logger.handlers, logger.propagate = [BrokenHandler(level=logging.INFO)], False
     logger.setLevel(logging.INFO)
     try:
-        service = make_service(statsd_client=statsd)
-        before = audit_failures.count
-        with caplog.at_level(logging.ERROR, logger="galaxy.managers.audit"):
-            service.record("dataset.display", make_hda())
-        assert audit_failures.count == before + 1
-        assert calls == [("galaxy.audit.failures", {"kind": "handler"})]
-        assert any("an audit event was lost" in r.getMessage() for r in caplog.records)
+        make_service().record("dataset.display", make_hda())
     finally:
         logger.handlers, logger.level, logger.propagate = saved
+
+
+def test_failures_are_counted_and_sent_to_statsd(audit_handler, monkeypatch, caplog):
+    calls: list[tuple[str, Any]] = []
+    statsd = SimpleNamespace(incr=lambda path, n=1, tags=None: calls.append((path, tags)))
+
+    def broken_fit(event, max_bytes=MAX_EVENT_BYTES):
+        raise RuntimeError("cannot serialize")
+
+    monkeypatch.setattr(audit, "fit_event", broken_fit)
+    before = audit_failures.count
+    with caplog.at_level(logging.ERROR, logger="galaxy.managers.audit"):
+        make_service(statsd_client=statsd).record("dataset.display", make_hda())
+    assert audit_failures.count == before + 1
+    assert calls == [("galaxy.audit.failures", {"kind": "emit"})]
+    assert any("Failed to write audit event" in r.getMessage() for r in caplog.records)
 
 
 def test_reporting_a_failure_never_raises(audit_handler, monkeypatch):
@@ -492,6 +501,9 @@ def test_failure_to_start_an_attempt_returns_a_null_attempt(monkeypatch):
 
 
 def test_event_over_budget_after_shedding_is_marked():
-    event = {"details": {}, "truncated": [], "request_id": "x" * 100}
+    event = {"details": {}, "truncated": [], "request_id": "x" * 100, "object": {"type": "hda", "id": 1}}
     line = audit.fit_event(event, max_bytes=50)
-    assert json.loads(line)["truncated"] == ["over_budget"]
+    parsed = json.loads(line)
+    assert parsed["truncated"] == ["optional_fields", "over_budget"]
+    # A minimal object doesn't grow name keys it never had.
+    assert parsed["object"] == {"type": "hda", "id": 1}

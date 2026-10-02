@@ -19,7 +19,6 @@ diagnostics into the audit stream.
 import asyncio
 import json
 import logging
-import logging.handlers
 import os
 import socket
 import sys
@@ -205,37 +204,28 @@ def serialize_event(event: dict[str, Any]) -> str:
     return json.dumps(event, ensure_ascii=True, separators=(",", ":"), default=str)
 
 
-# Dropped in this order until an event fits; identifiers are never dropped.
-_SHEDDABLE: tuple[tuple[str, ...], ...] = (
-    ("user_agent",),
-    ("object", "history_name"),
-    ("object", "name"),
-    ("details",),
-    ("actor", "username"),
-    ("actor", "email"),
-    ("effective_user", "username"),
-    ("effective_user", "email"),
-)
-
-
 def fit_event(event: dict[str, Any], max_bytes: int = MAX_EVENT_BYTES) -> str:
+    """Serialize an event, dropping what users chose -- never identifiers -- if it's too big."""
     line = serialize_event(event)
-    for path in _SHEDDABLE:
-        if len(line) <= max_bytes:
-            break
-        parent = event
-        for key in path[:-1]:
-            parent = parent.get(key) or {}
-        if parent.get(path[-1]) in (None, {}):
-            continue
-        parent[path[-1]] = {} if path[-1] == "details" else None
-        event["truncated"].append(".".join(path))
-        line = serialize_event(event)
+    if len(line) <= max_bytes:
+        return line
+    event["user_agent"] = None
+    event["details"] = {}
+    for key, fields in (("actor", _USER_NAMES), ("effective_user", _USER_NAMES), ("object", _OBJECT_NAMES)):
+        part = event.get(key) or {}
+        for field_name in fields & part.keys():
+            part[field_name] = None
+    event["truncated"].append("optional_fields")
+    line = serialize_event(event)
     if len(line) > max_bytes:
-        # Only identifiers are left; say so rather than pretend the budget held.
+        # Only identifiers and admin-configured values are left; say so rather than cut the JSON.
         event["truncated"].append("over_budget")
         line = serialize_event(event)
     return line
+
+
+_USER_NAMES = frozenset({"username", "email"})
+_OBJECT_NAMES = frozenset({"name", "history_name"})
 
 
 def classify_failure(exc: BaseException) -> tuple[AuditOutcome, AuditReason]:
@@ -289,28 +279,6 @@ class _FailureCounter:
 
 
 audit_failures = _FailureCounter()
-
-
-class ReportsAuditFailures:
-    """Mix into a logging handler so a failed audit write is counted and reported.
-
-    logging's default ``handleError`` prints a traceback to stderr and carries on,
-    so a full disk or a dead syslog socket would lose audit events silently.
-    """
-
-    def handleError(self, record: logging.LogRecord) -> None:
-        if record.name == AUDIT_LOGGER_NAME:
-            audit_failures.report("handler", "Audit log handler %r failed; an audit event was lost", self)
-        else:
-            super().handleError(record)  # type: ignore[misc]
-
-
-class AuditSysLogHandler(ReportsAuditFailures, logging.handlers.SysLogHandler):
-    pass
-
-
-class AuditWatchedFileHandler(ReportsAuditFailures, logging.handlers.WatchedFileHandler):
-    pass
 
 
 def audit_logger_routed() -> bool:

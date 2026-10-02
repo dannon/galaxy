@@ -107,8 +107,10 @@ impersonation -- along with how the request authenticated, the request id (the s
 
 By default events carry numeric and encoded ids only. Set ``include_names: true`` under ``audit_log`` to also record
 usernames, email addresses and dataset, history and file names. Strings are JSON-escaped to ASCII, so user-supplied
-values cannot break a line apart, and each event is kept under 4 KiB by dropping optional fields, which are listed
-in the event's ``truncated`` field (``over_budget`` there means even the identifiers alone did not fit).
+values cannot break a line apart. An event over 4 KiB loses its user agent, names and details, and its ``truncated``
+field says ``optional_fields``; identifiers are never dropped. If it is still over 4 KiB after that (only possible with
+very long admin-configured values such as the instance URL), it is written anyway and marked ``over_budget``, rather
+than cut into invalid JSON.
 
 Under the default logging configuration these lines go to the console along with everything else. To keep them
 separate, give ``galaxy.audit`` its own handler, a message-only formatter, and ``propagate: false``. This example
@@ -137,7 +139,7 @@ sends them to the local syslog daemon, which can forward them off the host:
                     level: INFO
                     stream: ext://sys.stderr
                 audit:
-                    class: galaxy.managers.audit.AuditSysLogHandler
+                    class: logging.handlers.SysLogHandler
                     address: /dev/log
                     facility: auth
                     formatter: audit
@@ -148,12 +150,11 @@ sends them to the local syslog daemon, which can forward them off the host:
                     level: INFO
                     propagate: false
 
-``galaxy.managers.audit.AuditSysLogHandler`` and ``galaxy.managers.audit.AuditWatchedFileHandler`` are the standard
-library handlers with one change: when writing an audit event fails, they log an error on Galaxy's own log and count
-it (as ``galaxy.audit.failures``, under ``statsd_prefix``, when ``statsd_host`` is set) instead of only printing to stderr. A failed
-audit write never fails the request. Galaxy also warns at startup, and counts every dropped event, if ``audit_log`` is
-enabled but no handler accepts ``galaxy.audit`` at ``INFO``. Alert on that metric or message, or on gaps at the log
-platform; Galaxy cannot see what happens to an event after its handler accepts it.
+A failed audit write never fails the request. If building or writing an event fails inside Galaxy, or ``audit_log`` is
+enabled but no handler accepts ``galaxy.audit`` at ``INFO``, Galaxy logs an error on its own log and counts it (as
+``galaxy.audit.failures``, under ``statsd_prefix``, when ``statsd_host`` is set); the unrouted case is also a warning at
+startup. Once a handler has accepted an event, failures in it (a full disk, a dead syslog socket) are reported the way
+Python's ``logging`` reports any handler error, on stderr. Detect those as gaps at the log platform.
 
 Audit events can come from any web worker, so route them to something that accepts concurrent writers (syslog,
 journald, a log shipper) rather than a single shared rotating file. Behind a reverse proxy, the recorded client
