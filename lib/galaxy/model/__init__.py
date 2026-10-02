@@ -8862,6 +8862,9 @@ class GalaxySession(Base, RepresentById):
     is_valid: Mapped[bool | None] = mapped_column(default=False)
     # saves a reference to the previous session so we have a way to chain them together
     prev_session_id: Mapped[int | None]
+    # The admin whose impersonation created this session. Like prev_session_id it is a
+    # plain id, so the session's user relationship stays unambiguous.
+    impersonated_by_user_id: Mapped[int | None]
     disk_usage: Mapped[Decimal | None] = mapped_column(Numeric(15, 0), index=True)
     last_action: Mapped[datetime | None]
     current_history: Mapped[Optional["History"]] = relationship()
