@@ -152,7 +152,6 @@ class RemoteUserTrans(SimpleNamespace):
     """Just enough of a transaction to run the real session and identity code under remote-user auth."""
 
     _note_identity = GalaxyWebTransaction._note_identity
-    _note_session_identity = GalaxyWebTransaction._note_session_identity
 
     def get_cookie(self, name="galaxysession"):
         return self.cookie
@@ -178,7 +177,7 @@ def remote_user_request(trans, galaxy_session, remote_user_email):
     )
     with request_scope():
         GalaxyWebTransaction._ensure_valid_session(cast(Any, stand_in), "galaxysession")
-        stand_in._note_session_identity()
+        GalaxyWebTransaction._note_session_identity(cast(Any, stand_in))
         identity = current_request_identity()
     return stand_in.galaxy_session, identity
 

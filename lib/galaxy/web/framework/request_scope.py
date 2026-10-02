@@ -112,7 +112,8 @@ def current_request_header(name: str) -> str | None:
     wanted = name.lower().encode("latin-1")
     for key, value in scope.headers:
         if key == wanted:
-            return value.decode("latin-1")
+            decoded: str = value.decode("latin-1")
+            return decoded
     return None
 
 

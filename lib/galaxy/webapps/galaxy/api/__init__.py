@@ -277,12 +277,14 @@ def _user_selected(user: User | None, galaxy_session: model.GalaxySession | None
     authentication = request_context.get(API_AUTHENTICATION_KEY)
     if galaxy_session is not None:
         app = getattr(galaxy_app, "app", None)
-        config = getattr(app, "config", None)
-        if getattr(config, "use_remote_user", False):
-            remote_user_email = current_request_header(remote_user_header_name(config.remote_user_header))
-            proxy_actor = proxy_actor_id(
-                galaxy_session, remote_user_email, lambda email: app.user_manager.by_email(email, case_sensitive=False)
-            )
+        if app is not None and getattr(app.config, "use_remote_user", False):
+            remote_app = app
+
+            def find_by_email(email: str) -> User | None:
+                return remote_app.user_manager.by_email(email, case_sensitive=False)
+
+            remote_user_email = current_request_header(remote_user_header_name(app.config.remote_user_header))
+            proxy_actor = proxy_actor_id(galaxy_session, remote_user_email, find_by_email)
             set_request_identity(session_identity(galaxy_session, "remote_user", proxy_actor))
         else:
             set_request_identity(session_identity(galaxy_session))
