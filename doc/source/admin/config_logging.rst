@@ -82,5 +82,79 @@ The default as of this Galaxy release can be found (in Python syntax) in the
 
 .. include:: config_logging_default_yaml.rst
 
+Audit events
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+With ``audit_log`` enabled, Galaxy writes one JSON object per line to the ``galaxy.audit`` logger at ``INFO`` for
+each audited action (currently ``dataset.display`` and ``dataset.download`` from the dataset display API). Each event
+names the authenticated actor and the effective user -- they differ under ``run_as`` and in a session created by
+impersonation -- along with how the request authenticated, the request id (the same id as the access log line and the
+``X-Request-ID`` response header), the client address, the object acted on, and an ``outcome``:
+
+``success``
+    The response started with a status below 400: it was handed to the application server (or, with
+    ``nginx_x_accel_redirect_base``, to the proxy). It does not prove every byte was delivered.
+``denied``
+    Galaxy refused access. The event names the requested object by id.
+``error``
+    Access was not refused but content was not served, with a short ``reason`` (``not_found``, ``invalid_range``,
+    ``archive_failed``, ...) and the ``stage`` it failed at (``authorize``, ``prepare`` or ``respond``).
+
+By default events carry numeric and encoded ids only. Set ``include_names: true`` under ``audit_log`` to also record
+usernames, email addresses and dataset, history and file names. Strings are JSON-escaped to ASCII, so user-supplied
+values cannot break a line apart, and each event is kept under 4 KiB; anything left out to fit is listed in the
+event's ``truncated`` field.
+
+Under the default logging configuration these lines go to the console along with everything else. To keep them
+separate, give ``galaxy.audit`` its own handler, a message-only formatter, and ``propagate: false``. This example
+sends them to the local syslog daemon, which can forward them off the host:
+
+.. code-block:: yaml
+
+    galaxy:
+        audit_log:
+            enabled: true
+        logging:
+            version: 1
+            disable_existing_loggers: false
+            root:
+                handlers: [console]
+                level: INFO
+            formatters:
+                stack:
+                    (): galaxy.web_stack.application_stack_log_formatter
+                audit:
+                    format: "%(message)s"
+            handlers:
+                console:
+                    class: logging.StreamHandler
+                    formatter: stack
+                    level: INFO
+                    stream: ext://sys.stderr
+                audit:
+                    class: galaxy.managers.audit.AuditSysLogHandler
+                    address: /dev/log
+                    facility: auth
+                    formatter: audit
+                    level: INFO
+            loggers:
+                galaxy.audit:
+                    handlers: [audit]
+                    level: INFO
+                    propagate: false
+
+``galaxy.managers.audit.AuditSysLogHandler`` and ``galaxy.managers.audit.AuditWatchedFileHandler`` are the standard
+library handlers with one change: when writing an audit event fails, they log an error on Galaxy's own log and count
+it (as ``galaxy.audit.failures`` in statsd, when ``statsd_host`` is set) instead of only printing to stderr. A failed
+audit write never fails the request. Galaxy also warns at startup, and counts every dropped event, if ``audit_log`` is
+enabled but no handler accepts ``galaxy.audit`` at ``INFO``. Alert on that metric or message, or on gaps at the log
+platform; Galaxy cannot see what happens to an event after its handler accepts it.
+
+Audit events can come from any web worker, so route them to something that accepts concurrent writers (syslog,
+journald, a log shipper) rather than a single shared rotating file. Behind a reverse proxy, the recorded client
+address is the proxy's unless the application server trusts its forwarded headers. Identity is only recorded for
+requests served through Galaxy's ASGI application; a deployment serving the legacy WSGI application on its own gets
+events without identity or request fields.
+
 .. _logging levels: https://docs.python.org/library/logging.html#logging-levels
 .. _fileConfig file format: https://docs.python.org/library/logging.config.html#configuration-file-format
