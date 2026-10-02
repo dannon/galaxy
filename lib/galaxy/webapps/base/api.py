@@ -9,7 +9,10 @@ from typing import (
     Optional,
     TYPE_CHECKING,
 )
-from urllib.parse import unquote_plus
+from urllib.parse import (
+    quote,
+    unquote_plus,
+)
 
 import anyio
 from fastapi import (
@@ -397,9 +400,14 @@ class AccessLoggingMiddleware(Plugin):
 
     async def process_request(self, request):
         scope = request.scope
-        path = scope["root_path"] + scope["path"]
+        # scope["path"] is percent-decoded, so re-escape it: a request for
+        # "/x%0A...%20auth=session" must not be able to forge lines or identity fields.
+        path = quote(scope["root_path"] + scope["path"], safe="/:@!$&'()*+,;=")
         if scope["query_string"]:
-            path = f"{path}?{redact_query_string(scope['query_string'].decode('ascii'))}"
+            # The raw query string is normally ASCII, but nothing guarantees it; escape
+            # whatever arrives rather than failing the request or writing it verbatim.
+            query_string = quote(scope["query_string"].decode("latin-1"), safe="/:@!$&'()*+,;=?%~")
+            path = f"{path}?{redact_query_string(query_string)}"
         # AccessLoggingContextMiddleware appends the request id and logs the line.
         return f"{scope['method']} {path}"
 

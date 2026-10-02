@@ -15,6 +15,7 @@ from galaxy import model
 from galaxy.schema.fields import Security as IdSecurity
 from galaxy.security.idencoding import IdEncodingHelper
 from galaxy.webapps.base.api import (
+    AccessLoggingMiddleware,
     add_exception_handler,
     add_raw_context_middlewares,
     redact_query_string,
@@ -267,3 +268,20 @@ def test_request_lines_use_the_request_id(client, caplog):
     lines = [r.getMessage() for r in caplog.records if r.name == ACCESS_LOGGER]
     request_id = response.headers["X-Request-ID"]
     assert lines == [f"GET /static {request_id}", f"GET /static {request_id} 200"]
+
+
+def test_path_cannot_forge_log_fields(client, caplog):
+    client.get("/static%0Aforged%20200%20auth=session%20user=1")
+    lines = [r.getMessage() for r in caplog.records if r.name == ACCESS_LOGGER]
+    assert len(lines) == 2
+    for line in lines:
+        assert line.startswith("GET /static%0Aforged%20200%20auth=session%20user=1 ")
+        assert "\n" not in line
+        assert " auth=" not in line
+
+
+@pytest.mark.asyncio
+async def test_raw_query_string_is_escaped():
+    scope = {"method": "GET", "root_path": "", "path": "/x", "query_string": b"q=\xff\n auth=session&key=abc"}
+    access_line = await AccessLoggingMiddleware().process_request(SimpleNamespace(scope=scope))
+    assert access_line == "GET /x?q=%C3%BF%0A%20auth=session&key=REDACTED"
