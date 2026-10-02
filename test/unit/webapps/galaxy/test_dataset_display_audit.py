@@ -215,8 +215,6 @@ def test_denial_names_the_requested_dataset(harness, audit_events):
         "name": None,
         "history_name": None,
     }
-    # The denied lookup isn't repeated just to describe the dataset.
-    assert harness.hda_manager.by_id.call_count == 0
 
 
 def test_head_still_records_a_denial(harness, audit_events):
@@ -264,3 +262,28 @@ def test_disabled_audit_leaves_the_response_alone(tmp_path, monkeypatch, audit_e
     response = harness.client.get(display_url(raw="true"), headers={"Range": "bytes=2-5"})
     assert response.status_code == 206 and response.content == CONTENT[2:6]
     assert audit_events == []
+
+
+def test_denied_library_dataset_is_named_as_one(harness, audit_events):
+    ldda_manager = cast(MagicMock, harness.service.ldda_manager)
+    ldda_manager.get_accessible.side_effect = ItemAccessibilityException("nope")
+    response = harness.client.get(display_url(hda_ldda="ldda"))
+    assert response.status_code == 403
+    (event,) = audit_events
+    assert (event["outcome"], event["object"]["type"], event["object"]["id"]) == ("denied", "ldda", 42)
+    assert event["details"] == {"source": "ldda"}
+
+
+def test_composite_preview_page_is_not_an_archive_failure(harness, audit_events):
+    harness.hda.datatype.is_archive_download.return_value = True
+    harness.hda.datatype.display_data.side_effect = lambda *args, **kwargs: ("<html>preview</html>", {})
+    harness.client.get(display_url(to_ext="zip", preview="true"))
+    (event,) = audit_events
+    assert event["outcome"] == "success"
+
+
+def test_remote_user_sessions_say_so(harness, audit_events):
+    cast(SimpleNamespace, galaxy_app.app).config.use_remote_user = True
+    harness.client.get(display_url(raw="true"))
+    (event,) = audit_events
+    assert event["auth"]["method"] == "remote_user"

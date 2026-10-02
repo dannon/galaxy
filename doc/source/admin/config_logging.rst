@@ -86,14 +86,19 @@ Audit events
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 With ``audit_log`` enabled, Galaxy writes one JSON object per line to the ``galaxy.audit`` logger at ``INFO`` for
-each audited action (currently ``dataset.display`` and ``dataset.download`` from the dataset display API). Each event
+each audited action. Today that is ``dataset.display`` and ``dataset.download`` from the dataset display API
+(``/api/datasets/{id}/display`` and its history contents equivalent). Not yet audited: downloads that
+``/api/datasets/{id}/download`` redirects straight to an object store's presigned URL, and every other content path,
+including the legacy ``/dataset/display`` controller. A request refused before it reaches the route (a bad API key, a
+refused ``run_as``) records no event. Each event
 names the authenticated actor and the effective user -- they differ under ``run_as`` and in a session created by
 impersonation -- along with how the request authenticated, the request id (the same id as the access log line and the
 ``X-Request-ID`` response header), the client address, the object acted on, and an ``outcome``:
 
 ``success``
     The response started with a status below 400: it was handed to the application server (or, with
-    ``nginx_x_accel_redirect_base``, to the proxy). It does not prove every byte was delivered.
+    ``nginx_x_accel_redirect_base`` or ``apache_xsendfile``, to the proxy, which then validates any ``Range`` header
+    and reads the file itself). It does not prove every byte was delivered.
 ``denied``
     Galaxy refused access. The event names the requested object by id.
 ``error``
@@ -102,8 +107,8 @@ impersonation -- along with how the request authenticated, the request id (the s
 
 By default events carry numeric and encoded ids only. Set ``include_names: true`` under ``audit_log`` to also record
 usernames, email addresses and dataset, history and file names. Strings are JSON-escaped to ASCII, so user-supplied
-values cannot break a line apart, and each event is kept under 4 KiB; anything left out to fit is listed in the
-event's ``truncated`` field.
+values cannot break a line apart, and each event is kept under 4 KiB by dropping optional fields, which are listed
+in the event's ``truncated`` field (``over_budget`` there means even the identifiers alone did not fit).
 
 Under the default logging configuration these lines go to the console along with everything else. To keep them
 separate, give ``galaxy.audit`` its own handler, a message-only formatter, and ``propagate: false``. This example
@@ -145,7 +150,7 @@ sends them to the local syslog daemon, which can forward them off the host:
 
 ``galaxy.managers.audit.AuditSysLogHandler`` and ``galaxy.managers.audit.AuditWatchedFileHandler`` are the standard
 library handlers with one change: when writing an audit event fails, they log an error on Galaxy's own log and count
-it (as ``galaxy.audit.failures`` in statsd, when ``statsd_host`` is set) instead of only printing to stderr. A failed
+it (as ``galaxy.audit.failures``, under ``statsd_prefix``, when ``statsd_host`` is set) instead of only printing to stderr. A failed
 audit write never fails the request. Galaxy also warns at startup, and counts every dropped event, if ``audit_log`` is
 enabled but no handler accepts ``galaxy.audit`` at ``INFO``. Alert on that metric or message, or on gaps at the log
 platform; Galaxy cannot see what happens to an event after its handler accepts it.

@@ -229,6 +229,10 @@ def fit_event(event: dict[str, Any], max_bytes: int = MAX_EVENT_BYTES) -> str:
         parent[path[-1]] = {} if path[-1] == "details" else None
         event["truncated"].append(".".join(path))
         line = serialize_event(event)
+    if len(line) > max_bytes:
+        # Only identifiers are left; say so rather than pretend the budget held.
+        event["truncated"].append("over_budget")
+        line = serialize_event(event)
     return line
 
 
@@ -365,7 +369,12 @@ class AuditService:
         """Emit one audit event. Never raises: a broken audit pipeline is reported, not propagated."""
         if not self.wants(action):
             return
-        self._emit(self._prepare(action, obj, details), outcome, reason, stage)
+        try:
+            event = self._prepare(action, obj, details)
+        except Exception:
+            audit_failures.report("prepare", "Failed to build audit event for action %s", action)
+            return
+        self._emit(event, outcome, reason, stage)
 
     def attempt(
         self,
@@ -382,9 +391,13 @@ class AuditService:
         """
         if not self.wants(action):
             return NULL_ATTEMPT
-        if requested is not None and requested.encoded_id is None and requested.id is not None:
-            requested = requested.model_copy(update={"encoded_id": self._encode(requested.id)})
-        return AuditAttempt(self, self._prepare(action, requested, details), record_success)
+        try:
+            if requested is not None and requested.encoded_id is None and requested.id is not None:
+                requested = requested.model_copy(update={"encoded_id": self._encode(requested.id)})
+            return AuditAttempt(self, self._prepare(action, requested, details), record_success)
+        except Exception:
+            audit_failures.report("prepare", "Failed to start audit attempt for action %s", action)
+            return NULL_ATTEMPT
 
     def _prepare(self, action: str, obj: Any, details: AuditDetails | None) -> dict[str, Any]:
         """Capture everything except the outcome, while the request's database session is still open."""
@@ -595,6 +608,7 @@ class _NullAttempt(AuditAttempt):
     """What attempt() returns when the action isn't audited: every method does nothing."""
 
     def __init__(self) -> None:
+        self._record_success = False
         self.stage = "authorize"
         self.settled = True
         self.handed_off = False

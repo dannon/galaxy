@@ -821,6 +821,8 @@ class DatasetsService(ServiceBase, UsesVisualizationMixin):
                 )
                 if (
                     to_ext is not None
+                    # Some composite datatypes answer a preview with an HTML page of their own.
+                    and not preview
                     and isinstance(rval, str)
                     and dataset_instance.datatype.is_archive_download(
                         trans.app.datatypes_registry, dataset_instance.extension

@@ -469,11 +469,14 @@ class FastAPIDatasets:
             request,
             {"preview", "filename", "to_ext", "raw", "dataset", "ck_size", "offset", "allow_stream", "audit_attempt"},
         )
+        # The service also accepts ?hda_ldda=ldda; name the object the client actually asked for.
+        source = "ldda" if extra_params.get("hda_ldda") == "ldda" else "hda"
         # Served as an attachment (display_data's own test) is a download; anything else is a display.
         attempt = self.audit.attempt(
             "dataset.download" if to_ext is not None else "dataset.display",
-            AuditObject(type="hda", id=history_content_id),
+            AuditObject(type=source, id=history_content_id),
             DatasetContentDetails(
+                source=source,
                 preview=preview,
                 raw=raw,
                 to_ext=to_ext,

@@ -467,3 +467,31 @@ def test_error_status_at_response_start_is_not_success(audit_handler):
     attempt.response_started(404)
     event = json.loads(audit_handler.lines[0])
     assert (event["outcome"], event["reason"], event["stage"]) == ("error", "error_response", "respond")
+
+
+def test_null_attempt_accepts_every_call():
+    with NULL_ATTEMPT.guard():
+        NULL_ATTEMPT.authorized(object())
+        NULL_ATTEMPT.succeeded()
+        NULL_ATTEMPT.failed("internal_error")
+        NULL_ATTEMPT.failed_with(OSError())
+        NULL_ATTEMPT.response_started(200)
+        NULL_ATTEMPT.hand_off()
+    assert not NULL_ATTEMPT.active
+
+
+def test_failure_to_start_an_attempt_returns_a_null_attempt(monkeypatch):
+    service = make_service()
+
+    def broken_prepare(*args):
+        raise RuntimeError("broken")
+
+    monkeypatch.setattr(service, "_prepare", broken_prepare)
+    assert service.attempt("dataset.display", requested_hda()) is NULL_ATTEMPT
+    service.record("dataset.display", make_hda())
+
+
+def test_event_over_budget_after_shedding_is_marked():
+    event = {"details": {}, "truncated": [], "request_id": "x" * 100}
+    line = audit.fit_event(event, max_bytes=50)
+    assert json.loads(line)["truncated"] == ["over_budget"]
