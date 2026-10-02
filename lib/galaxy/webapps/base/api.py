@@ -1,7 +1,6 @@
 import os
 import re
 import stat
-import uuid
 from collections.abc import Mapping
 from dataclasses import dataclass
 from logging import getLogger
@@ -401,9 +400,8 @@ class AccessLoggingMiddleware(Plugin):
         path = scope["root_path"] + scope["path"]
         if scope["query_string"]:
             path = f"{path}?{redact_query_string(scope['query_string'].decode('ascii'))}"
-        access_line = f"{scope['method']} {path} {uuid.uuid4()}"
-        log.debug(access_line)
-        return access_line
+        # AccessLoggingContextMiddleware appends the request id and logs the line.
+        return f"{scope['method']} {path}"
 
     async def enrich_response(self, response) -> None:
         access_line = context.get("access_line")
@@ -414,10 +412,25 @@ class AccessLoggingMiddleware(Plugin):
                 log.debug("%s %s", access_line, status)
 
 
+class AccessLoggingContextMiddleware(RawContextMiddleware):
+    """Logs request start using the request id, which plugins can't see while the context is being built.
+
+    Reusing the request id (rather than a separate one) ties access lines to the
+    X-Request-ID response header and to the request's database session.
+    """
+
+    async def set_context(self, request):
+        data = await super().set_context(request)
+        access_line = f"{data[AccessLoggingMiddleware.key]} {data[RequestIdPlugin.key]}"
+        data[AccessLoggingMiddleware.key] = access_line
+        log.debug(access_line)
+        return data
+
+
 def add_raw_context_middlewares(app: FastAPI):
     getLogger("uvicorn.access").handlers = []
     plugins = (RequestIdPlugin(force_new_uuid=True), AccessLoggingMiddleware())
-    app.add_middleware(RawContextMiddleware, plugins=plugins)
+    app.add_middleware(AccessLoggingContextMiddleware, plugins=plugins)
 
 
 def add_request_id_middleware(app: FastAPI):

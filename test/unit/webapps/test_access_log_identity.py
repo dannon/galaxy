@@ -260,3 +260,10 @@ def test_credential_urls_are_redacted_in_access_lines(client, caplog, url, logge
     assert len(lines) == 2
     assert all(line.startswith(f"GET {logged} ") for line in lines)
     assert not any("secret-" in line for line in lines)
+
+
+def test_request_lines_use_the_request_id(client, caplog):
+    response = client.get("/static")
+    lines = [r.getMessage() for r in caplog.records if r.name == ACCESS_LOGGER]
+    request_id = response.headers["X-Request-ID"]
+    assert lines == [f"GET /static {request_id}", f"GET /static {request_id} 200"]
