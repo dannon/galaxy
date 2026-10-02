@@ -2,6 +2,7 @@ import os
 import stat
 import uuid
 from collections.abc import Mapping
+from dataclasses import dataclass
 from logging import getLogger
 from typing import (
     Any,
@@ -339,6 +340,37 @@ def add_exception_handler(app: FastAPI) -> None:
         return get_error_response_for_request(request, exc)
 
 
+REQUEST_IDENTITY_KEY = "request_identity"
+
+
+@dataclass(frozen=True)
+class RequestIdentity:
+    """Who a request acted as, set by the auth dependencies for the access log line."""
+
+    auth_method: str
+    user: str | None = None
+    # Set when run_as made the request act as someone other than the authenticated user.
+    real_user: str | None = None
+
+    def access_log_fields(self) -> str:
+        fields = [f"auth={self.auth_method}"]
+        if self.user is not None:
+            fields.append(f"user={self.user}")
+        if self.real_user is not None:
+            fields.append(f"real_user={self.real_user}")
+        return " ".join(fields)
+
+
+def set_request_identity(identity: RequestIdentity) -> None:
+    if not context.exists():
+        return
+    current = context.get(REQUEST_IDENTITY_KEY)
+    # A request can resolve its user more than once, and with an anonymous session
+    # get_user and get_required_user disagree; never replace a user with nobody.
+    if current is None or current.user is None or identity.user is not None:
+        context[REQUEST_IDENTITY_KEY] = identity
+
+
 class AccessLoggingMiddleware(Plugin):
     key = "access_line"
 
@@ -354,7 +386,10 @@ class AccessLoggingMiddleware(Plugin):
     async def enrich_response(self, response) -> None:
         access_line = context.get("access_line")
         if status := response.get("status"):
-            log.debug(f"{access_line} {status}")
+            if identity := context.get(REQUEST_IDENTITY_KEY):
+                log.debug("%s %s %s", access_line, status, identity.access_log_fields())
+            else:
+                log.debug("%s %s", access_line, status)
 
 
 def add_raw_context_middlewares(app: FastAPI):

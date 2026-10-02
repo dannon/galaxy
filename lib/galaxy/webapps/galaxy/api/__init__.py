@@ -101,6 +101,10 @@ from galaxy.web.framework.decorators import (
     require_admin_message,
     user_log_id,
 )
+from galaxy.webapps.base.api import (
+    RequestIdentity,
+    set_request_identity,
+)
 from galaxy.webapps.base.controller import BaseAPIController
 from galaxy.webapps.galaxy.api.cbv import cbv
 from galaxy.work.context import (
@@ -187,13 +191,17 @@ def get_api_user(
 ) -> User | None:
     if api_key := key or x_api_key:
         user = user_manager.by_api_key(api_key=api_key)
+        authentication = ApiAuthentication(method="api_key", user=user_log_id(user))
     elif bearer_token:
         user = user_manager.by_oidc_access_token(access_token=bearer_token.credentials)
+        authentication = ApiAuthentication(method="bearer", user=user_log_id(user))
     else:
         return None
+    if user is not None:
+        _remember_api_authentication(authentication)
     if run_as:
         if user_manager.user_can_do_run_as(user):
-            _remember_api_authentication(ApiAuthentication(user=user_log_id(user), run_as=run_as))
+            authentication.run_as = run_as
             return user_manager.by_id(run_as)
         else:
             log_run_as_refused(user_log_id(user), "not permitted", run_as)
@@ -236,6 +244,7 @@ class ApiAuthentication:
     precedence, so only get_user / get_required_user know who the request acts as.
     """
 
+    method: str
     user: str
     run_as: int | None = None
     logged_outcomes: set[tuple[bool, str]] = field(default_factory=set)
@@ -250,6 +259,15 @@ def _user_selected(user: User | None, from_session: bool) -> None:
     if request_context is None or not request_context.exists():
         return
     authentication = request_context.get(API_AUTHENTICATION_KEY)
+    if from_session:
+        auth_method = "session" if user else "anonymous"
+    else:
+        auth_method = authentication.method if authentication else "anonymous"
+    real_user = None
+    if not from_session and authentication and authentication.run_as is not None:
+        real_user = authentication.user
+    identity_user = user_log_id(user) if user is not None or real_user else None
+    set_request_identity(RequestIdentity(auth_method, identity_user, real_user=real_user))
     if authentication is None or authentication.run_as is None:
         return
     # Both user dependencies can run in one request and, with an anonymous session,
