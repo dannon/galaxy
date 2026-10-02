@@ -65,6 +65,15 @@ from galaxy.web.framework import (
     url_for,
 )
 from galaxy.web.framework.middleware.static import CacheableStaticURLParser as Static
+from galaxy.web.framework.request_scope import (
+    ANONYMOUS,
+    AuthMethod,
+    credential_identity,
+    note_run_as,
+    replace_request_identity,
+    RequestIdentity,
+    session_identity,
+)
 
 try:
     import galaxy.web_client
@@ -336,6 +345,7 @@ class GalaxyWebTransaction(base.DefaultWebTransaction, context.ProvidesHistoryCo
         # and such).
         self.workflow_building_mode = False
         self.__user = None
+        self._identity_noted = False
         self.galaxy_session = None
         self.error_message = None
         self.host = self.request.host
@@ -358,6 +368,7 @@ class GalaxyWebTransaction(base.DefaultWebTransaction, context.ProvidesHistoryCo
             # This is a web request, get or create session.
             assert session_cookie
             self._ensure_valid_session(session_cookie)
+            self._note_session_identity()
 
         if hasattr(self.app, "authnz_manager") and self.app.authnz_manager:
             # Check for expiring tokens and refresh them. If configured (at the individual provider
@@ -397,6 +408,7 @@ class GalaxyWebTransaction(base.DefaultWebTransaction, context.ProvidesHistoryCo
                 if expiration_time < now:
                     # Expiration time has passed.
                     self.handle_user_logout()
+                    self._note_identity(ANONYMOUS)
                     if self.environ.get("is_api_request", False):
                         self.response.status = 401
                         self.user = None
@@ -488,8 +500,22 @@ class GalaxyWebTransaction(base.DefaultWebTransaction, context.ProvidesHistoryCo
                 self.sa_session.add(self.galaxy_session)
                 self.sa_session.commit()
         self.__user = user
+        if self._identity_noted:
+            # Authentication is settled, so this is a legacy run_as switch.
+            note_run_as(user)
 
     user = property(get_user, set_user)
+
+    def _note_identity(self, identity: RequestIdentity) -> None:
+        replace_request_identity(identity)
+        self._identity_noted = True
+
+    def _note_session_identity(self) -> None:
+        if self.galaxy_session is None:
+            self._note_identity(ANONYMOUS)
+        else:
+            auth_method: AuthMethod = "remote_user" if self.app.config.use_remote_user else "session"
+            self._note_identity(session_identity(self.galaxy_session, auth_method))
 
     def get_cookie(self, name="galaxysession"):
         """Convenience method for getting a session cookie"""
@@ -566,6 +592,7 @@ class GalaxyWebTransaction(base.DefaultWebTransaction, context.ProvidesHistoryCo
             except AuthenticationFailed as e:
                 return str(e)
             self.set_user(user)
+            self._note_identity(credential_identity(user, "api_key"))
         elif secure_id:
             # API authentication via active session
             # Associate user using existing session
@@ -578,6 +605,7 @@ class GalaxyWebTransaction(base.DefaultWebTransaction, context.ProvidesHistoryCo
                 )
                 self.user = None
                 self.galaxy_session = None
+            self._note_session_identity()
         elif oidc_token_supplied:
             # Sessionless API transaction with oidc token, we just need to associate a user.
             oidc_access_token = oidc_access_token.replace("Bearer ", "")
@@ -586,10 +614,12 @@ class GalaxyWebTransaction(base.DefaultWebTransaction, context.ProvidesHistoryCo
             except AuthenticationFailed as e:
                 return str(e)
             self.set_user(user)
+            self._note_identity(credential_identity(user, "bearer"))
         else:
             # Anonymous API interaction -- anything but @expose_api_anonymous will fail past here.
             self.user = None
             self.galaxy_session = None
+            self._note_identity(ANONYMOUS)
         return None
 
     def _ensure_valid_session(self, session_cookie: str, create: bool = True) -> None:

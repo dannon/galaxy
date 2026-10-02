@@ -144,3 +144,35 @@ def api_key_id(user: Any) -> int | None:
         return None
     keys = state.dict.get("api_keys")
     return model_id(keys[0]) if keys else None
+
+
+def credential_identity(user: Any, auth_method: Literal["api_key", "bearer"]) -> RequestIdentity:
+    """Identity for a sessionless request authenticated by an API key or bearer token."""
+    if user is None:
+        return ANONYMOUS
+    if getattr(user, "bootstrap_admin_user", False):
+        return RequestIdentity("bootstrap_api_key")
+    user_id = model_id(user)
+    credential_id = api_key_id(user) if auth_method == "api_key" else None
+    return RequestIdentity(auth_method, user_id, actor_id=user_id, credential_id=credential_id)
+
+
+def note_run_as(user: Any) -> None:
+    """Follow a legacy ``run_as`` switch: the request now acts as ``user`` for its actor."""
+    scope = REQUEST_SCOPE.get()
+    if scope is None or scope.identity is None or scope.identity.actor_id is None:
+        return
+    current = scope.identity
+    scope.identity = RequestIdentity(
+        current.auth_method,
+        model_id(user),
+        actor_id=current.actor_id,
+        switch="run_as",
+        credential_id=current.credential_id,
+    )
+
+
+def replace_request_identity(identity: RequestIdentity) -> None:
+    scope = REQUEST_SCOPE.get()
+    if scope is not None:
+        scope.identity = identity

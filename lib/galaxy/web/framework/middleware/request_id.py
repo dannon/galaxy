@@ -1,5 +1,7 @@
 import uuid
 
+from galaxy.web.framework.request_scope import current_request_scope
+
 
 class RequestIDMiddleware:
     """
@@ -11,5 +13,8 @@ class RequestIDMiddleware:
         self.app = app
 
     def __call__(self, environ, start_response):
-        environ["request_id"] = uuid.uuid1().hex
+        # Mounted under the ASGI app, reuse its request id so this request's log lines,
+        # access line and audit events can be matched with one id.
+        scope = current_request_scope()
+        environ["request_id"] = (scope.request_id if scope is not None else None) or uuid.uuid1().hex
         return self.app(environ, start_response)

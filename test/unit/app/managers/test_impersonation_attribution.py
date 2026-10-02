@@ -106,10 +106,25 @@ def test_later_fastapi_request_records_the_admin_as_actor(trans, admin, target):
     trans.app[UserManager].impersonate(trans, target)
     later = later_request_session(trans, trans.galaxy_session)
     with request_scope(), request_cycle_context():
-        assert get_user(galaxy_session=later, api_user=None).id == target_id
+        selected = get_user(galaxy_session=later, api_user=None)
+        assert selected is not None and selected.id == target_id
         identity = current_request_identity()
     assert identity is not None
     assert (identity.user_id, identity.actor_id, identity.switch) == (target_id, admin_id, "impersonation")
+
+
+def test_later_legacy_request_records_the_admin_as_actor(trans, admin, target):
+    admin_id, target_id = admin.id, target.id
+    trans.app[UserManager].impersonate(trans, target)
+    later = later_request_session(trans, trans.galaxy_session)
+    stand_in = SimpleNamespace(galaxy_session=later, app=trans.app, _identity_noted=False)
+    stand_in._note_identity = lambda identity: GalaxyWebTransaction._note_identity(cast(Any, stand_in), identity)
+    with request_scope():
+        GalaxyWebTransaction._note_session_identity(cast(Any, stand_in))
+        identity = current_request_identity()
+    assert identity == RequestIdentity(
+        "session", target_id, actor_id=admin_id, switch="impersonation", credential_id=later.id
+    )
 
 
 def test_logging_out_of_an_impersonated_session_ends_the_attribution(trans, admin, target):
