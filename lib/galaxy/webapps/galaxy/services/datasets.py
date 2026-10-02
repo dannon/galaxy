@@ -820,7 +820,8 @@ class DatasetsService(ServiceBase, UsesVisualizationMixin):
                     trans, dataset_instance, preview, filename, to_ext, **kwd
                 )
                 if (
-                    to_ext is not None
+                    audit_attempt.active
+                    and to_ext is not None
                     # Some composite datatypes answer a preview with an HTML page of their own.
                     and not preview
                     and isinstance(rval, str)

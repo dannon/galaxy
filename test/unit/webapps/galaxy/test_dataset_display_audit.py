@@ -339,3 +339,11 @@ def test_client_gone_before_start_is_one_error_not_a_success(harness, audit_even
     assert [(e["outcome"], e["reason"], e["stage"]) for e in audit_events] == [
         ("error", "response_not_started", "respond")
     ]
+
+
+def test_disabled_audit_skips_the_archive_check(tmp_path, monkeypatch, audit_events):
+    harness = Harness(tmp_path, monkeypatch, {"enabled": False})
+    harness.hda.datatype.display_data.side_effect = lambda *args, **kwargs: ("<html>page</html>", {})
+    # A Range header keeps the object-store streaming path, which has its own archive check, out of it.
+    harness.client.get(display_url(to_ext="zip"), headers={"Range": "bytes=0-1"})
+    harness.hda.datatype.is_archive_download.assert_not_called()
