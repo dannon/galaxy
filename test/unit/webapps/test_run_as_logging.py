@@ -80,9 +80,9 @@ user_manager = FakeUserManager()
 
 def fake_get_session(galaxysession: str = Depends(APIKeyCookie(name="galaxysession", auto_error=False))):
     if galaxysession == SESSION_COOKIE:
-        return SimpleNamespace(user=SESSION_USER)
+        return SimpleNamespace(user=SESSION_USER, impersonated_by_user_id=None)
     if galaxysession == ANONYMOUS_SESSION_COOKIE:
-        return SimpleNamespace(user=None)
+        return SimpleNamespace(user=None, impersonated_by_user_id=None)
     return None
 
 

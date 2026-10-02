@@ -2,7 +2,6 @@ import os
 import re
 import stat
 from collections.abc import Mapping
-from dataclasses import dataclass
 from logging import getLogger
 from typing import (
     Any,
@@ -23,6 +22,7 @@ from fastapi import (
 )
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from starlette.datastructures import Headers
 from starlette.responses import (
     FileResponse,
     Response,
@@ -42,11 +42,16 @@ from galaxy.exceptions.utils import (
 )
 from galaxy.util.path import StrPath
 from galaxy.web.framework.base import walk_controller_modules
+from galaxy.web.framework.request_scope import (
+    current_request_identity,
+    request_scope,
+)
 
 if TYPE_CHECKING:
     from starlette.background import BackgroundTask
     from starlette.routing import BaseRoute
     from starlette.types import (
+        ASGIApp,
         Receive,
         Scope,
         Send,
@@ -364,37 +369,6 @@ def redact_query_string(query_string: str) -> str:
     return "".join(parts)
 
 
-REQUEST_IDENTITY_KEY = "request_identity"
-
-
-@dataclass(frozen=True)
-class RequestIdentity:
-    """Who a request acted as, set by the auth dependencies for the access log line."""
-
-    auth_method: str
-    user: str | None = None
-    # Set when run_as made the request act as someone other than the authenticated user.
-    real_user: str | None = None
-
-    def access_log_fields(self) -> str:
-        fields = [f"auth={self.auth_method}"]
-        if self.user is not None:
-            fields.append(f"user={self.user}")
-        if self.real_user is not None:
-            fields.append(f"real_user={self.real_user}")
-        return " ".join(fields)
-
-
-def set_request_identity(identity: RequestIdentity) -> None:
-    if not context.exists():
-        return
-    current = context.get(REQUEST_IDENTITY_KEY)
-    # A request can resolve its user more than once, and with an anonymous session
-    # get_user and get_required_user disagree; never replace a user with nobody.
-    if current is None or current.user is None or identity.user is not None:
-        context[REQUEST_IDENTITY_KEY] = identity
-
-
 class AccessLoggingMiddleware(Plugin):
     key = "access_line"
 
@@ -414,7 +388,7 @@ class AccessLoggingMiddleware(Plugin):
     async def enrich_response(self, response) -> None:
         access_line = context.get("access_line")
         if status := response.get("status"):
-            if identity := context.get(REQUEST_IDENTITY_KEY):
+            if identity := current_request_identity():
                 log.debug("%s %s %s", access_line, status, identity.access_log_fields())
             else:
                 log.debug("%s %s", access_line, status)
@@ -435,13 +409,41 @@ class AccessLoggingContextMiddleware(RawContextMiddleware):
         return data
 
 
+class RequestScopeMiddleware:
+    """Opens the request's :class:`RequestScope`.
+
+    Installed inside the context middleware so the scope carries the same request
+    id as the access log and the ``X-Request-ID`` response header.
+    """
+
+    def __init__(self, app: "ASGIApp") -> None:
+        self.app = app
+
+    async def __call__(self, scope: "Scope", receive: "Receive", send: "Send") -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        client = scope.get("client")
+        with request_scope(
+            request_id=context.data.get(RequestIdPlugin.key) if context.exists() else None,
+            # Behind a proxy this is the proxy's address unless the server is configured
+            # to trust its forwarded headers (uvicorn --forwarded-allow-ips).
+            remote_addr=client[0] if client else None,
+            user_agent=Headers(scope=scope).get("user-agent"),
+        ):
+            await self.app(scope, receive, send)
+
+
 def add_raw_context_middlewares(app: FastAPI):
     getLogger("uvicorn.access").handlers = []
     plugins = (RequestIdPlugin(force_new_uuid=True), AccessLoggingMiddleware())
+    # Middleware added later runs outside, so the scope opens inside the context.
+    app.add_middleware(RequestScopeMiddleware)
     app.add_middleware(AccessLoggingContextMiddleware, plugins=plugins)
 
 
 def add_request_id_middleware(app: FastAPI):
+    app.add_middleware(RequestScopeMiddleware)
     app.add_middleware(RawContextMiddleware, plugins=(RequestIdPlugin(force_new_uuid=True),))
 
 

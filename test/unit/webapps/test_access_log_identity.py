@@ -14,12 +14,12 @@ from sqlalchemy.orm import make_transient_to_detached
 from galaxy import model
 from galaxy.schema.fields import Security as IdSecurity
 from galaxy.security.idencoding import IdEncodingHelper
+from galaxy.web.framework.request_scope import RequestIdentity
 from galaxy.webapps.base.api import (
     AccessLoggingMiddleware,
     add_exception_handler,
     add_raw_context_middlewares,
     redact_query_string,
-    RequestIdentity,
 )
 from galaxy.webapps.galaxy.api import (
     get_api_user,
@@ -32,7 +32,8 @@ API_KEY = "secret-api-key-0123456789"
 BEARER_TOKEN = "secret-bearer-token-0123456789"
 SESSION_COOKIE = "secret-session-cookie-0123456789"
 ANONYMOUS_SESSION_COOKIE = "secret-anonymous-session-0123456789"
-SECRETS = (API_KEY, BEARER_TOKEN, SESSION_COOKIE, ANONYMOUS_SESSION_COOKIE)
+IMPERSONATED_SESSION_COOKIE = "secret-impersonated-session-0123456789"
+SECRETS = (API_KEY, BEARER_TOKEN, SESSION_COOKIE, ANONYMOUS_SESSION_COOKIE, IMPERSONATED_SESSION_COOKIE)
 ACCESS_LOGGER = "galaxy.webapps.base.api"
 
 
@@ -72,9 +73,11 @@ user_manager = FakeUserManager()
 
 def fake_get_session(galaxysession: str = Depends(APIKeyCookie(name="galaxysession", auto_error=False))):
     if galaxysession == SESSION_COOKIE:
-        return SimpleNamespace(user=SESSION_USER)
+        return SimpleNamespace(user=SESSION_USER, impersonated_by_user_id=None)
     if galaxysession == ANONYMOUS_SESSION_COOKIE:
-        return SimpleNamespace(user=None)
+        return SimpleNamespace(user=None, impersonated_by_user_id=None)
+    if galaxysession == IMPERSONATED_SESSION_COOKIE:
+        return SimpleNamespace(user=SESSION_USER, impersonated_by_user_id=1)
     return None
 
 
@@ -151,6 +154,11 @@ def _assert_no_secrets(caplog):
             "auth=session user=3",
         ),
         ("/user", {"cookies": {"galaxysession": ANONYMOUS_SESSION_COOKIE}}, "auth=anonymous"),
+        (
+            "/required",
+            {"cookies": {"galaxysession": IMPERSONATED_SESSION_COOKIE}},
+            "auth=session user=3 real_user=1",
+        ),
         ("/user", {"headers": {"x-api-key": API_KEY}}, "auth=api_key user=1"),
         ("/async-user", {"headers": {"x-api-key": API_KEY}}, "auth=api_key user=1"),
         ("/required", {"headers": {"Authorization": f"Bearer {BEARER_TOKEN}"}}, "auth=bearer user=1"),
@@ -202,8 +210,11 @@ def test_refused_run_as_carries_no_identity(client, caplog):
     "identity,expected",
     [
         (RequestIdentity("anonymous"), "auth=anonymous"),
-        (RequestIdentity("session", user="5"), "auth=session user=5"),
-        (RequestIdentity("api_key", user="7", real_user="5"), "auth=api_key user=7 real_user=5"),
+        (RequestIdentity("session", 5, actor_id=5), "auth=session user=5"),
+        (RequestIdentity("api_key", 7, actor_id=5, switch="run_as"), "auth=api_key user=7 real_user=5"),
+        (RequestIdentity("api_key", None, actor_id=5, switch="run_as"), "auth=api_key user=anonymous real_user=5"),
+        (RequestIdentity("session", 7, actor_id=5, switch="impersonation"), "auth=session user=7 real_user=5"),
+        (RequestIdentity("bootstrap_api_key"), "auth=bootstrap_api_key"),
     ],
 )
 def test_access_log_fields(identity, expected):
