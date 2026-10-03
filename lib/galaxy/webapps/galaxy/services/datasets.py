@@ -711,7 +711,11 @@ class DatasetsService(ServiceBase, UsesVisualizationMixin):
         self.check_user_is_authenticated(trans)
         payload_dict = payload.model_dump(by_alias=True)
         dataset_manager = self.dataset_manager_by_type[hda_ldda]
-        dataset = dataset_manager.get_accessible(dataset_id, trans.user)
+        try:
+            dataset = dataset_manager.get_accessible(dataset_id, trans.user)
+        except galaxy_exceptions.ItemAccessibilityException:
+            dataset_manager.record_permissions_denied(dataset_id, payload_dict.get("action"))
+            raise
         dataset_manager.update_permissions(trans, dataset, **payload_dict)
         return dataset_manager.serialize_dataset_association_roles(dataset)
 

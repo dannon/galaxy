@@ -45,6 +45,7 @@ from galaxy.managers.audit import (
     audit_id,
     audit_read_session,
 )
+from galaxy.managers.audit_actions import AuditObject
 from galaxy.managers.audit_actions.sharing import HistoryImportDetails
 from galaxy.managers.base import (
     apply_sort_column,
@@ -569,6 +570,18 @@ class HistoryManager(sharable.SharableModelManager[model.History], deletable.Pur
             audit_failures.report("prepare", "Lost the audit event for an import of history %s", source_id)
             return
         self.audit.record("history.import", target, "success", details=details)
+
+    def record_history_import_denied(self, history_id: int) -> None:
+        """Record a refused copy of history ``history_id``, naming only what the request asked for."""
+        if not self.audit.wants("history.import"):
+            return
+        try:
+            requested = AuditObject(type="history", id=history_id, encoded_id=self.app.security.encode_id(history_id))
+        except Exception:
+            # Called on the way to refusing the request; that refusal is what the caller must see.
+            audit_failures.report("prepare", "Lost the audit event for a refused import of history %s", history_id)
+            return
+        self.audit.record("history.import", requested, "denied", reason="not_accessible")
 
     def make_members_public(self, trans: ProvidesUserContext, item):
         """Make the non-purged datasets in history public.

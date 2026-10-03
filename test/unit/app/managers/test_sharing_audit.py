@@ -35,16 +35,24 @@ from galaxy.managers.histories import (
     HistoryManager,
     HistorySerializer,
 )
+from galaxy.schema import SerializationParams
 from galaxy.schema.fields import Security
 from galaxy.schema.schema import (
+    CreateHistoryPayload,
+    DatasetSourceType,
+    HistoryContentSource,
     SetSlugPayload,
     ShareWithPayload,
+    UpdateDatasetPermissionsPayload,
 )
 from galaxy.web.framework.request_scope import (
     request_scope,
     RequestIdentity,
     set_request_identity,
 )
+from galaxy.webapps.galaxy.services.datasets import DatasetsService
+from galaxy.webapps.galaxy.services.histories import HistoriesService
+from galaxy.webapps.galaxy.services.history_contents import HistoriesContentsService
 from galaxy.webapps.galaxy.services.sharable import ShareableService
 from galaxy.work.context import SessionRequestContext
 from .base import (
@@ -395,6 +403,22 @@ class TestSharingAudit(AuditTestCase):
         assert event["object"]["owner_id"] == self.owner.id
         assert event["details"]["published_after"] is True
 
+    def test_a_refused_history_update_with_sharing_keys_is_denied(self):
+        service = mock.Mock(manager=self.history_manager)
+        with self.as_user(self.other):
+            with pytest.raises(exceptions.ItemOwnershipException):
+                HistoriesService.update(
+                    service, self.trans, self.history.id, {"published": True}, SerializationParams()
+                )
+            with pytest.raises(exceptions.ItemOwnershipException):
+                HistoriesService.update(service, self.trans, self.history.id, {"name": "x"}, SerializationParams())
+
+        (event,) = self.events
+        assert (event["action"], event["outcome"], event["reason"]) == ("history.share", "denied", "not_accessible")
+        assert event["object"]["id"] == self.history.id
+        assert event["details"] == {"change": "update"}
+        service.deserializer.deserialize.assert_not_called()
+
     def test_user_names_are_read_without_the_request_session(self):
         self.history_manager.audit = self.make_audit(include_names=True)
         before = self.history_manager.sharing_state(self.history)
@@ -447,6 +471,19 @@ class TestDatasetPermissionsAudit(AuditTestCase):
             self.hda.dataset,
             {actions.DATASET_MANAGE_PERMISSIONS: [self.private_role], actions.DATASET_ACCESS: [self.private_role]},
         )
+
+    def test_a_permission_change_on_an_inaccessible_dataset_is_denied(self):
+        service = mock.Mock(dataset_manager_by_type={DatasetSourceType.hda: self.hda_manager})
+        payload = UpdateDatasetPermissionsPayload(action="remove_restrictions")
+        with self.as_user(self.other):
+            with pytest.raises(exceptions.ItemAccessibilityException):
+                DatasetsService.update_permissions(service, self.trans, self.hda.id, payload)
+
+        (event,) = self.permission_events()
+        assert (event["outcome"], event["reason"]) == ("denied", "not_accessible")
+        assert (event["object"]["type"], event["object"]["id"]) == ("hda", self.hda.id)
+        assert event["effective_user"]["id"] == self.other.id
+        assert event["details"] == {"change": "remove_restrictions"}
 
     def permission_events(self) -> list[dict]:
         return [event for event in self.events if event["action"] == "dataset.permissions"]
@@ -774,6 +811,133 @@ class TestCrossUserCopyAudit(AuditTestCase):
             self.hda_manager.record_copies(copies)
         assert len(copies) == 1
         assert self.events == []
+
+    def test_a_refused_dataset_copy_through_the_service_is_denied(self):
+        target = self.history_manager.create(name="mine", user=self.recipient)
+        service = mock.Mock(hda_manager=self.hda_manager, history_manager=self.history_manager)
+        with self.as_user(self.recipient):
+            # The dataset itself is public; the history holding it isn't shared.
+            with pytest.raises(exceptions.ItemAccessibilityException):
+                HistoriesContentsService._HistoriesContentsService__create_hda_from_copy(  # type: ignore[attr-defined]
+                    service, self.trans, target, self.hda.id
+                )
+
+        (event,) = self.events
+        assert (event["action"], event["outcome"]) == ("dataset.copy", "denied")
+        assert event["object"]["id"] == self.hda.id
+        assert event["details"] == {"target_history_id": target.id}
+
+    def collections(self) -> DatasetCollectionManager:
+        collections = self.app[DatasetCollectionManager]
+        # The container gives the collection manager datasets managers of its own.
+        collections.hda_manager.dataset_manager.audit = self.audit
+        return collections
+
+    def test_collections_record_the_copies_they_make(self):
+        target = self.history_manager.create(name="mine", user=self.recipient)
+        collections = self.collections()
+        with self.as_user(self.recipient):
+            self.trans.set_history(target)
+            first = collections.create(
+                self.trans,
+                parent=target,
+                name="copied",
+                collection_type="list",
+                element_identifiers=[{"src": "hda", "id": self.hda.id, "name": "first"}],
+                copy_elements=True,
+                history=target,
+            )
+            (created,) = self.events
+            # Nested collections are referenced, not copied, even with copy_elements.
+            collections.create(
+                self.trans,
+                parent=target,
+                name="outer",
+                collection_type="list:list",
+                element_identifiers=[{"src": "hdca", "id": first.id, "name": "outer"}],
+                copy_elements=True,
+                history=target,
+            )
+            assert self.events == [created]
+            mine = self.history_manager.create(name="also mine", user=self.recipient)
+            collections.copy(self.trans, mine, HistoryContentSource.hdca, first.id, copy_elements=True)
+
+        assert created["object"]["id"] == self.hda.id
+        assert created["details"]["recipient_id"] == self.recipient.id
+        # Copying the recipient's own copy moves nothing between users.
+        assert len(self.events) == 1
+
+    def test_collection_copies_from_another_user_are_recorded(self):
+        collections = self.collections()
+        with self.as_user(self.owner):
+            self.trans.set_history(self.source_history)
+            source = collections.create(
+                self.trans,
+                parent=self.source_history,
+                name="theirs",
+                collection_type="list",
+                element_identifiers=[{"src": "hda", "id": self.hda.id, "name": "first"}],
+            )
+        self.source_history.importable = True
+        target = self.history_manager.create(name="mine", user=self.recipient)
+        with self.as_user(self.recipient):
+            new_hdca = collections.copy(self.trans, target, HistoryContentSource.hdca, source.id, copy_elements=True)
+
+        (event,) = self.events
+        (copy,) = new_hdca.dataset_instances
+        assert event["object"]["id"] == self.hda.id
+        assert event["details"] == {
+            "new_hda_id": copy.id,
+            "target_history_id": target.id,
+            "recipient_id": self.recipient.id,
+        }
+
+    def test_collections_scan_for_copies_only_when_audited(self):
+        collections = self.collections()
+        collections.hda_manager.dataset_manager.audit = self.make_audit(enabled=False)
+        target = self.history_manager.create(name="mine", user=self.recipient)
+        with mock.patch.object(collections.hda_manager, "record_copies") as record_copies:
+            with self.as_user(self.recipient):
+                self.trans.set_history(target)
+                collections.create(
+                    self.trans,
+                    parent=target,
+                    name="copied",
+                    collection_type="list",
+                    element_identifiers=[{"src": "hda", "id": self.hda.id, "name": "first"}],
+                    copy_elements=True,
+                    history=target,
+                )
+        record_copies.assert_not_called()
+
+    def history_service(self) -> mock.Mock:
+        service = mock.Mock(manager=self.history_manager, user_manager=self.user_manager)
+        service._serialize_history.side_effect = lambda trans, history, params: history
+        return service
+
+    def test_importing_a_history_through_the_service_is_recorded(self):
+        self.source_history.importable = True
+        self.trans.sa_session.commit()
+        payload = CreateHistoryPayload(all_datasets=False)
+        payload.history_id = self.source_history.id
+        with self.as_user(self.recipient):
+            new_history = HistoriesService.create(self.history_service(), self.trans, payload, SerializationParams())
+
+        (event,) = self.events
+        assert (event["action"], event["outcome"]) == ("history.import", "success")
+        assert event["object"]["id"] == self.source_history.id
+        assert event["details"] == {"new_history_id": new_history.id, "recipient_id": self.recipient.id}
+
+    def test_a_refused_history_import_is_denied(self):
+        payload = CreateHistoryPayload()
+        payload.history_id = self.source_history.id
+        with self.as_user(self.recipient):
+            with pytest.raises(exceptions.ItemAccessibilityException):
+                HistoriesService.create(self.history_service(), self.trans, payload, SerializationParams())
+
+        (event,) = self.events
+        assert (event["action"], event["outcome"], event["reason"]) == ("history.import", "denied", "not_accessible")
+        assert (event["object"]["type"], event["object"]["id"]) == ("history", self.source_history.id)
 
     def test_refusal_recorders_never_raise_on_bad_input(self):
         failures = audit_failures.count

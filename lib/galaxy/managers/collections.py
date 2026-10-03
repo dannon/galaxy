@@ -274,6 +274,8 @@ class DatasetCollectionManager:
                 column_definitions=column_definitions,
                 rows=rows,
             )
+        # Taken now: the new collection can also hold existing copies it only references.
+        new_copies = self._unflushed_copies(trans) if copy_elements else []
 
         implicit_inputs = []
         if implicit_collection_info:
@@ -283,7 +285,7 @@ class DatasetCollectionManager:
         if implicit_collection_info:
             implicit_output_name = implicit_collection_info["implicit_output_name"]
 
-        return self._create_instance_for_collection(
+        instance = self._create_instance_for_collection(
             trans,
             parent,
             name,
@@ -294,6 +296,20 @@ class DatasetCollectionManager:
             set_hid=set_hid,
             flush=flush,
         )
+        if new_copies and flush:
+            self.hda_manager.record_copies(new_copies)
+        return instance
+
+    def _unflushed_copies(self, trans: ProvidesHistoryContext) -> list[model.HistoryDatasetAssociation]:
+        """The dataset copies this request has made and not yet flushed, when copies are audited."""
+        if not self.hda_manager.dataset_manager.audit.wants("dataset.copy"):
+            return []
+        return [
+            obj
+            for obj in trans.sa_session.new
+            if isinstance(obj, model.HistoryDatasetAssociation)
+            and obj.copied_from_history_dataset_association_id is not None
+        ]
 
     def _create_instance_for_collection(
         self,
@@ -560,7 +576,10 @@ class DatasetCollectionManager:
         )
         if not copy_elements:
             parent.add_dataset_collection(new_hdca)
+        new_copies = self._unflushed_copies(trans) if copy_elements else []
         trans.sa_session.commit()
+        if new_copies:
+            self.hda_manager.record_copies(new_copies)
         return new_hdca
 
     def _set_from_dict(self, trans: ProvidesUserContext, dataset_collection_instance, new_data):

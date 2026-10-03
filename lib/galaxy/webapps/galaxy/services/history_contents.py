@@ -1402,10 +1402,14 @@ class HistoriesContentsService(ServiceBase, ServesExportStores, ConsumesModelSto
         return hda
 
     def __create_hda_from_copy(self, trans: ProvidesHistoryContext, history: History, original_hda_id: int):
-        original = self.hda_manager.get_accessible(original_hda_id, trans.user)
-        assert original.history is not None
-        # check for access on history that contains the original hda as well
-        self.history_manager.error_unless_accessible(original.history, trans.user, current_history=trans.history)
+        try:
+            original = self.hda_manager.get_accessible(original_hda_id, trans.user)
+            assert original.history is not None
+            # check for access on history that contains the original hda as well
+            self.history_manager.error_unless_accessible(original.history, trans.user, current_history=trans.history)
+        except (exceptions.ItemAccessibilityException, exceptions.ItemOwnershipException):
+            self.hda_manager.record_copy_denied(original_hda_id, history)
+            raise
         hda = self.hda_manager.copy(original, history=history)
         return hda
 

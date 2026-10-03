@@ -45,6 +45,7 @@ from galaxy.managers.histories import (
     HistorySerializer,
 )
 from galaxy.managers.history_graph import HistoryGraphManager
+from galaxy.managers.sharable import SHARING_KEYS
 from galaxy.managers.users import UserManager
 from galaxy.managers.workflow_extraction_naming import suggested_output_name
 from galaxy.model import (
@@ -321,9 +322,13 @@ class HistoriesService(ServiceBase, ConsumesModelStores, ServesExportStores):
         new_history = None
         # if a history id was passed, copy that history
         if copy_this_history_id:
-            original_history = self.manager.get_accessible(
-                copy_this_history_id, trans.user, current_history=trans.history
-            )
+            try:
+                original_history = self.manager.get_accessible(
+                    copy_this_history_id, trans.user, current_history=trans.history
+                )
+            except (glx_exceptions.ItemOwnershipException, glx_exceptions.ItemAccessibilityException):
+                self.manager.record_history_import_denied(copy_this_history_id)
+                raise
             hist_name = hist_name or (f"Copy of '{original_history.name}'")
             new_history = original_history.copy(
                 name=hist_name, target_user=trans.user, all_datasets=payload.all_datasets
@@ -336,6 +341,8 @@ class HistoriesService(ServiceBase, ConsumesModelStores, ServesExportStores):
         trans.app.security_agent.history_set_default_permissions(new_history)
         trans.sa_session.add(new_history)
         trans.sa_session.commit()
+        if copy_this_history_id:
+            self.manager.record_history_import(original_history, new_history, bool(payload.all_datasets))
 
         # an anonymous user can only have one history
         if self.user_manager.is_anonymous(trans.user):
@@ -542,7 +549,12 @@ class HistoriesService(ServiceBase, ConsumesModelStores, ServesExportStores):
             any values that were different from the original and, therefore, updated
         """
         # TODO: PUT /api/histories/{encoded_history_id} payload = { rating: rating } (w/ no security checks)
-        history = self.manager.get_mutable(history_id, trans.user, current_history=trans.history)
+        try:
+            history = self.manager.get_mutable(history_id, trans.user, current_history=trans.history)
+        except (glx_exceptions.ItemOwnershipException, glx_exceptions.ItemAccessibilityException):
+            if SHARING_KEYS.intersection(payload):
+                self.manager.record_sharing_denied(history_id, "update")
+            raise
         self.deserializer.deserialize(history, payload, user=trans.user, trans=trans)
         return self._serialize_history(trans, history, serialization_params)
 
