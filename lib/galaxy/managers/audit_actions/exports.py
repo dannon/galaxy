@@ -126,6 +126,9 @@ class ExportDetails(AuditDetails):
     storage_request_digest: str | None = None
     # The legacy history export runs as a job instead of a task.
     job_id: int | None = None
+    # Set when no request asked for this export: it was queued when a workflow invocation
+    # finished, as the invocation asked for when it was submitted.
+    trigger: Literal["workflow_completion"] | None = None
 
     @field_validator("target")
     @classmethod

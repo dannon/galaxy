@@ -30,6 +30,7 @@ from galaxy import (
     app as galaxy_app,
     model,
 )
+from galaxy.celery import tasks as celery_tasks
 from galaxy.exceptions import (
     AuthenticationFailed,
     ItemAccessibilityException,
@@ -58,6 +59,7 @@ from galaxy.short_term_storage import (
     ShortTermStorageManager,
     ShortTermStorageMonitor,
 )
+from galaxy.web.framework.request_scope import current_request_scope
 from galaxy.webapps.base.api import (
     add_exception_handler,
     add_raw_context_middlewares,
@@ -78,6 +80,7 @@ from galaxy.webapps.galaxy.services import (
 from galaxy.webapps.galaxy.services.histories import HistoriesService
 from galaxy.webapps.galaxy.services.history_contents import HistoriesContentsService
 from galaxy.webapps.galaxy.services.invocations import InvocationsService
+from galaxy.workflow.completion_hooks import export as export_hook
 
 SECURITY = IdEncodingHelper(id_secret="export-audit-test")
 SESSION_COOKIE = "secret-session-cookie-0123456789"
@@ -830,6 +833,90 @@ def test_prepared_download_not_yet_written_is_an_error_at_respond(harness, audit
     with pytest.raises(RuntimeError):
         harness.client.get(f"/api/short_term_storage/{target.request_id}")
     assert outcomes(audit_events) == [("archive.download", "error", "internal_error", "respond")]
+
+
+# -- Workflow completion exports ---------------------------------------------------------
+
+
+class HookApp:
+    """Just enough of the app for the export completion hook."""
+
+    def __init__(self, audit_settings):
+        config = SimpleNamespace(audit_log=audit_settings, server_name="celery.1", galaxy_infrastructure_url=None)
+        self.audit = AuditService(config, SECURITY, MagicMock())  # type: ignore[arg-type]
+        self.config = config
+        self.model = SimpleNamespace(context=MagicMock())
+
+    def __getitem__(self, dependency):
+        assert dependency is AuditService
+        return self.audit
+
+
+def run_completion_export(monkeypatch, audit_settings, task=None):
+    task = task or FakeTask("task-completion-export")
+    monkeypatch.setattr(celery_tasks, "write_invocation_to", task)
+    association = SimpleNamespace(id=5, task_uuid=None)
+    monkeypatch.setattr(
+        export_hook,
+        "StoreExportTracker",
+        lambda app: SimpleNamespace(create_export_association=lambda **kwargs: association),
+    )
+    invocation = make_invocation()
+    invocation.history = SimpleNamespace(user=SimpleNamespace(id=7), user_id=7, name=HISTORY_NAME)
+    invocation.on_complete = [
+        {"export_to_file_source": {"target_uri": f"gxftp://alice:{SECRET}@MyFTP/out.zip?token={SECRET}"}}
+    ]
+    hook = export_hook.ExportToFileSourceHook(HookApp(audit_settings))  # type: ignore[arg-type]
+    hook.execute(SimpleNamespace(workflow_invocation=invocation))  # type: ignore[arg-type]
+    return task, association
+
+
+def test_completion_export_is_recorded_as_the_invocation_owner(monkeypatch, audit_events):
+    task, association = run_completion_export(monkeypatch, {"enabled": True})
+    assert association.task_uuid == "task-completion-export"
+    (event,) = audit_events
+    assert (event["action"], event["outcome"], event["stage"]) == ("invocation.export", "success", "prepare")
+    # Nobody authenticated: the owner asked for this when submitting the workflow.
+    assert event["effective_user"]["id"] == 7
+    assert event["actor"] is None
+    assert event["auth"] == {"method": "anonymous", "credential_id": None, "switch": None}
+    assert (event["request_id"], event["remote_addr"]) == (None, None)
+    assert (event["object"]["type"], event["object"]["id"], event["object"]["owner_id"]) == ("invocation", 13, 7)
+    assert event["details"] == {
+        "destination": "remote",
+        "format": "rocrate.zip",
+        "target": "gxftp://MyFTP/out.zip",
+        "include_files": True,
+        "include_hidden": False,
+        "include_deleted": False,
+        "task_id": "task-completion-export",
+        "trigger": "workflow_completion",
+    }
+    assert SECRET not in json.dumps(event)
+    # The scope opened for the event doesn't outlive it.
+    assert current_request_scope() is None
+
+
+def test_completion_export_that_cannot_queue_is_an_error(monkeypatch, audit_events):
+    task = FakeTask("task-completion-export")
+    task.error = OSError("broker down")
+    with pytest.raises(OSError):
+        run_completion_export(monkeypatch, {"enabled": True}, task)
+    (event,) = audit_events
+    assert (event["outcome"], event["reason"]) == ("error", "internal_error")
+    assert event["effective_user"]["id"] == 7 and "task_id" not in event["details"]
+
+
+def test_completion_export_unaudited_still_exports(monkeypatch, audit_events):
+    task, association = run_completion_export(monkeypatch, {"enabled": False})
+    assert len(task.requests) == 1 and association.task_uuid == "task-completion-export"
+    assert audit_events == []
+
+
+def test_completion_export_survives_a_broken_audit_event(monkeypatch, audit_events):
+    monkeypatch.setattr(export_hook, "store_export_details", refuse)
+    task, association = run_completion_export(monkeypatch, {"enabled": True})
+    assert len(task.requests) == 1 and association.task_uuid == "task-completion-export"
 
 
 # -- The pieces on their own -----------------------------------------------------------
