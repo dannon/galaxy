@@ -49,6 +49,7 @@ from sqlalchemy.engine import (
     Engine,
 )
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.util import identity_key
 from sqlalchemy.pool import (
     SingletonThreadPool,
     StaticPool,
@@ -422,16 +423,31 @@ class AuditService:
         user = {"id": user_id, "encoded_id": self._encode(user_id), "username": None, "email": None}
         if self.include_names:
             try:
-                # Not the request's session: after a commit this is a query, and a failed one
-                # there would leave the request's transaction unable to commit.
-                with audit_read_session(self.sa_session.get_bind()) as session:
-                    instance = session.get(model.User, user_id)
-                    if instance is not None:
-                        user["username"] = _clip(instance.username)
-                        user["email"] = _clip(instance.email)
+                names = self._loaded_names(user_id)
+                if names is None:
+                    # Not the request's session: a query there that failed would leave the
+                    # request's transaction unable to commit.
+                    with audit_read_session(self.sa_session.get_bind()) as session:
+                        instance = session.get(model.User, user_id)
+                        names = (instance.username, instance.email) if instance is not None else (None, None)
+                user["username"], user["email"] = (_clip(name) for name in names)
             except Exception:
                 truncated.append(f"{label}.names")
         return user
+
+    def _loaded_names(self, user_id: int) -> tuple[str | None, str | None] | None:
+        """The user's names if the request's session already holds them, read without a query.
+
+        The usual case: the request loaded its user. Only after a commit has expired them
+        does recording an event need a connection of its own.
+        """
+        try:
+            instance = self.sa_session.identity_map.get(identity_key(model.User, user_id))
+            if instance is None or not _USER_NAMES.isdisjoint(sa_inspect(instance).unloaded):
+                return None
+            return instance.username, instance.email
+        except Exception:
+            return None
 
     def describe(self, obj: Any) -> AuditObject | None:
         if obj is None or isinstance(obj, AuditObject):

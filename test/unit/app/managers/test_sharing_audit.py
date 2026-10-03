@@ -21,14 +21,20 @@ from galaxy import (
     model,
 )
 from galaxy.app_unittest_utils import galaxy_mock
-from galaxy.managers import hdas
+from galaxy.managers import (
+    audit as audit_module,
+    hdas,
+)
 from galaxy.managers.audit import (
     audit_failures,
     AUDIT_LOGGER_NAME,
     audit_read_session,
     AuditService,
 )
-from galaxy.managers.audit_actions.sharing import describe_sharable
+from galaxy.managers.audit_actions.sharing import (
+    describe_sharable,
+    SharingChangeDetails,
+)
 from galaxy.managers.collections import DatasetCollectionManager
 from galaxy.managers.histories import (
     HistoryDeserializer,
@@ -433,6 +439,18 @@ class TestSharingAudit(AuditTestCase):
         (event,) = self.events
         assert event["actor"]["username"] == self.admin_user.username
         assert event["effective_user"]["email"] == "owner@example.org"
+        assert event["truncated"] == []
+
+    def test_loaded_user_names_take_no_connection_of_their_own(self):
+        audit = self.make_audit(include_names=True)
+        # Loaded, as a request's own user is.
+        assert self.owner.username and self.admin_user.email
+        with mock.patch.object(audit_module, "audit_read_session", side_effect=AssertionError("second connection")):
+            with self.as_user(self.owner, actor=self.admin_user):
+                audit.record("history.share", self.history, details=SharingChangeDetails(change="publish"))
+
+        (event,) = self.events
+        assert (event["actor"]["email"], event["effective_user"]["username"]) == (self.admin_user.email, "owner")
         assert event["truncated"] == []
 
     def test_disabled_auditing_skips_the_share_query(self):
