@@ -2,6 +2,7 @@
 API operations around galaxy.short_term_storage infrastructure.
 """
 
+from typing import cast
 from uuid import UUID
 
 from fastapi import Request
@@ -117,7 +118,7 @@ class FastAPIShortTermStorage:
         """
         try:
             galaxy_session = get_session(
-                self.session_manager, self.security, request.cookies.get(api_key_cookie.model.name)
+                self.session_manager, self.security, request.cookies.get(api_key_cookie.model.name, "")
             )
             api_user = None
             if galaxy_session is None:
@@ -130,9 +131,10 @@ class FastAPIShortTermStorage:
                 # run_as isn't honoured: it can't change what this route serves.
                 api_user = get_api_user(
                     self.user_manager,
-                    request.query_params.get(api_key_query.model.name),
-                    request.headers.get(api_key_header.model.name),
-                    bearer_token,
+                    request.query_params.get(api_key_query.model.name, ""),
+                    request.headers.get(api_key_header.model.name, ""),
+                    # None is what the security dependency passes when there is no token.
+                    cast(HTTPAuthorizationCredentials, bearer_token),
                     run_as=None,
                 )
             get_user(galaxy_session, api_user)
