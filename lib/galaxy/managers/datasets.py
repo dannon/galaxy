@@ -29,6 +29,9 @@ from galaxy.managers import (
     users,
 )
 from galaxy.managers.audit import (
+    audit_failures,
+    AuditOutcome,
+    AuditReason,
     AuditService,
     classify_failure,
 )
@@ -107,6 +110,14 @@ class DatasetManager(
         """The role ids on ``dataset``, or None when permission changes aren't audited."""
         if not self.audit.wants("dataset.permissions"):
             return None
+        try:
+            return self._permissions_snapshot(dataset, library_dataset)
+        except Exception:
+            # The change itself must go ahead; a missing audit event is reported, not raised.
+            audit_failures.report("prepare", "Could not read the permissions of dataset %s", dataset.id)
+            return None
+
+    def _permissions_snapshot(self, dataset: Dataset, library_dataset) -> PermissionsSnapshot:
         actions = self.app.security_agent.permitted_actions
         # Query the permission rows: the security agent deletes them without touching relationships.
         modify = None
@@ -140,13 +151,22 @@ class DatasetManager(
         before: PermissionsSnapshot | None,
         library_dataset=None,
         via: PermissionsVia = "permissions",
-    ) -> None:
-        """Record a committed permission change on the dataset behind ``dataset_instance``."""
+        outcome: AuditOutcome = "success",
+        reason: AuditReason | None = None,
+    ) -> bool:
+        """Record a committed permission change on the dataset behind ``dataset_instance``.
+
+        Returns whether the permissions had changed, so a failure after a partial commit
+        can still say what changed.
+        """
         if before is None:
-            return
+            return False
         after = self.permissions_snapshot(dataset_instance.dataset, library_dataset)
-        if after is None or after == before:
-            return
+        if after is None:
+            audit_failures.report("prepare", "Lost the audit event for a permission change on %s", change)
+            return False
+        if after == before:
+            return False
         details = DatasetPermissionsDetails(
             change=change,
             via=via,
@@ -158,7 +178,8 @@ class DatasetManager(
             modify_roles_after=after.modify,
             may_widen_access=bool(set(before.access) - set(after.access)),
         )
-        self.audit.record("dataset.permissions", dataset_instance, "success", details=details)
+        self.audit.record("dataset.permissions", dataset_instance, outcome, details=details, reason=reason)
+        return True
 
     def purge(self, item, flush=True, user=None, **kwargs):
         """
@@ -689,13 +710,15 @@ class DatasetAssociationManager(
             dataset_instance = dataset_assoc
         change = cast(DatasetPermissionsChange, action)
         dataset_manager = self.dataset_manager
-        audited = dataset_manager.audit.wants("dataset.permissions")
-        before = dataset_manager.permissions_snapshot(dataset_instance.dataset, library_dataset) if audited else None
+        before = dataset_manager.permissions_snapshot(dataset_instance.dataset, library_dataset)
         try:
             self._update_permissions(trans, dataset_assoc, action, kwd)
         except Exception as exc:
-            if audited:
-                outcome, reason = classify_failure(exc)
+            outcome, reason = classify_failure(exc)
+            # Some actions commit before their final check fails; say what changed if anything did.
+            if not dataset_manager.record_permissions_change(
+                dataset_instance, change, before, library_dataset, outcome=outcome, reason=reason
+            ):
                 dataset_manager.audit.record(
                     "dataset.permissions",
                     dataset_instance,

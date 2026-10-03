@@ -44,6 +44,7 @@ from galaxy.managers import (
     taggable,
     users,
 )
+from galaxy.managers.audit import audit_failures
 from galaxy.managers.audit_actions.sharing import DatasetCopyDetails
 from galaxy.managers.context import (
     ProvidesAppContext,
@@ -248,10 +249,15 @@ class HDAManager(
         audit = self.dataset_manager.audit
         if history is None or not audit.wants("dataset.copy"):
             return
-        source_owner_id = source.history.user_id if source.history is not None else None
-        if source_owner_id == history.user_id:
+        try:
+            source_owner_id = source.history.user_id if source.history is not None else None
+            if source_owner_id == history.user_id:
+                return
+            details = DatasetCopyDetails(new_hda_id=copy.id, target_history_id=history.id, recipient_id=history.user_id)
+        except Exception:
+            # The copy has committed; a missing audit event is reported, not raised.
+            audit_failures.report("prepare", "Lost the audit event for a copy of dataset %s", source.id)
             return
-        details = DatasetCopyDetails(new_hda_id=copy.id, target_history_id=history.id, recipient_id=history.user_id)
         audit.record("dataset.copy", source, "success", details=details)
 
     # .... deletion and purging

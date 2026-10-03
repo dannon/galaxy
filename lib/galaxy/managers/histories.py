@@ -563,9 +563,10 @@ class HistoryManager(sharable.SharableModelManager[model.History], deletable.Pur
                     before = dataset_manager.permissions_snapshot(dataset)
                     try:
                         trans.app.security_agent.make_dataset_public(hda.dataset)
-                        dataset_manager.record_permissions_change(hda, "make_public", before, via="history_sharing")
                     except Exception:
                         log.warning(f"Unable to make dataset with id: {dataset.id} public")
+                        continue
+                    dataset_manager.record_permissions_change(hda, "make_public", before, via="history_sharing")
                 else:
                     log.warning(f"User without permissions tried to make dataset with id: {dataset.id} public")
 

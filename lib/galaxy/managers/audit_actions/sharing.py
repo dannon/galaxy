@@ -59,15 +59,18 @@ PermissionsVia = Literal["permissions", "history_sharing"]
 class DatasetPermissionsDetails(AuditDetails):
     change: DatasetPermissionsChange
     via: PermissionsVia = "permissions"
-    access_roles_before: list[int] = []
-    access_roles_after: list[int] = []
-    manage_roles_before: list[int] = []
-    manage_roles_after: list[int] = []
+    # None (left out of the event) when not known, so an empty list always means "no roles":
+    # for access, a public dataset.
+    access_roles_before: list[int] | None = None
+    access_roles_after: list[int] | None = None
+    manage_roles_before: list[int] | None = None
+    manage_roles_after: list[int] | None = None
     # Library datasets only.
     modify_roles_before: list[int] | None = None
     modify_roles_after: list[int] | None = None
-    # A user needs every access role, so dropping any of them can only let more users in.
-    may_widen_access: bool = False
+    # A user needs every access role, so dropping one can let more users in. Only access
+    # roles are considered; a new manage role grants the power to widen later instead.
+    may_widen_access: bool | None = None
 
 
 class HistoryImportDetails(AuditDetails):

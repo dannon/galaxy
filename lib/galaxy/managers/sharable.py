@@ -38,7 +38,10 @@ from galaxy.managers import (
     taggable,
     users,
 )
-from galaxy.managers.audit import AuditService
+from galaxy.managers.audit import (
+    audit_failures,
+    AuditService,
+)
 from galaxy.managers.audit_actions import AuditObject
 from galaxy.managers.audit_actions.sharing import (
     SHARABLE_TYPES,
@@ -322,16 +325,24 @@ class SharableModelManager(
         """Who can reach ``item`` right now, or None when sharing changes aren't audited."""
         if not self.audit.wants(self.share_action):
             return None
-        # Query the shares rather than trust the relationship, which a delete leaves stale until expiry.
-        user_ids = frozenset(share.user_id for share in self.get_share_assocs(item))
-        return SharingState(bool(item.importable), bool(item.published), item.slug, user_ids)
+        try:
+            # Query the shares rather than trust the relationship, which a delete leaves stale until expiry.
+            user_ids = frozenset(share.user_id for share in self.get_share_assocs(item))
+            return SharingState(bool(item.importable), bool(item.published), item.slug, user_ids)
+        except Exception:
+            # The change itself must go ahead; a missing audit event is reported, not raised.
+            audit_failures.report("prepare", "Could not read the sharing state for %s", self.share_action)
+            return None
 
     def record_sharing_change(self, item, change: SharingChange, before: SharingState | None) -> None:
         """Record a committed sharing change; a request that changed nothing records nothing."""
         if before is None:
             return
         after = self.sharing_state(item)
-        if after is None or after == before:
+        if after is None:
+            audit_failures.report("prepare", "Lost the audit event for a committed %s", self.share_action)
+            return
+        if after == before:
             return
         details = SharingChangeDetails(
             change=change,
@@ -347,9 +358,13 @@ class SharableModelManager(
         self.audit.record(self.share_action, item, "success", details=details)
 
     def record_sharing_denied(self, item_id: int, change: SharingChange) -> None:
-        requested = AuditObject(
-            type=SHARABLE_TYPES[self.model_class], id=item_id, encoded_id=self.app.security.encode_id(item_id)
-        )
+        if not self.audit.wants(self.share_action):
+            return
+        try:
+            encoded_id = self.app.security.encode_id(item_id)
+        except Exception:
+            encoded_id = None
+        requested = AuditObject(type=SHARABLE_TYPES[self.model_class], id=item_id, encoded_id=encoded_id)
         self.audit.record(
             self.share_action,
             requested,
@@ -541,9 +556,11 @@ class SharableModelDeserializer(
         before = None
         if flush and SHARING_KEYS.intersection(data):
             before = self.manager.sharing_state(item)
-        new_dict = super().deserialize(item, data, flush=flush, **context)
-        self.manager.record_sharing_change(item, "update", before)
-        return new_dict
+        try:
+            return super().deserialize(item, data, flush=flush, **context)
+        finally:
+            # users_shared_with commits on its own, so a later key failing doesn't undo the shares.
+            self.manager.record_sharing_change(item, "update", before)
 
     def deserialize_published(self, item, key, val, **context):
         """ """

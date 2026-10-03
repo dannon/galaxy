@@ -246,6 +246,29 @@ class TestSharingAudit(AuditTestCase):
         assert event["details"]["importable_after"] is True
         assert event["details"]["users_added"] == [self.other.id]
 
+    def test_update_route_records_shares_committed_before_a_later_key_fails(self):
+        deserializer = self.app[HistoryDeserializer]
+        deserializer.manager.audit = self.history_manager.audit
+        with self.as_user(self.owner):
+            with pytest.raises(exceptions.RequestParameterInvalidException):
+                deserializer.deserialize(
+                    self.history,
+                    {"users_shared_with": [self.app.security.encode_id(self.other.id)], "published": "garbage"},
+                    user=self.owner,
+                    trans=self.trans,
+                )
+
+        (event,) = self.events
+        assert event["details"]["users_added"] == [self.other.id]
+
+    def test_a_broken_share_query_never_fails_the_change(self):
+        with mock.patch.object(self.history_manager, "get_share_assocs", side_effect=RuntimeError("db gone")):
+            with self.as_user(self.owner):
+                self.service.publish(self.trans, self.history.id)
+        self.trans.sa_session.refresh(self.history)
+        assert self.history.published
+        assert self.events == []
+
     def test_disabled_auditing_skips_the_share_query(self):
         self.history_manager.audit = self.make_audit(enabled=False)
         assert self.history_manager.sharing_state(self.history) is None
@@ -301,7 +324,7 @@ class TestDatasetPermissionsAudit(AuditTestCase):
         details = event["details"]
         assert details["change"] == "remove_restrictions"
         assert details["access_roles_before"] == [self.private_role.id]
-        assert "access_roles_after" not in details
+        assert details["access_roles_after"] == []
         assert details["manage_roles_before"] == details["manage_roles_after"] == [self.private_role.id]
         assert details["may_widen_access"] is True
 
@@ -313,7 +336,7 @@ class TestDatasetPermissionsAudit(AuditTestCase):
         narrowing = self.events[-1]["details"]
         assert narrowing["change"] == "make_private"
         assert narrowing["access_roles_after"] == [self.private_role.id]
-        assert "may_widen_access" not in narrowing
+        assert narrowing["may_widen_access"] is False
 
     def test_a_request_that_changes_nothing_records_nothing(self):
         with self.as_user(self.owner):
@@ -376,10 +399,34 @@ class TestDatasetPermissionsAudit(AuditTestCase):
         assert self.events[-1]["details"]["users_added"] == [self.other.id]
 
     def test_disabled_auditing_takes_no_snapshots(self):
-        self.hda_manager.dataset_manager.audit = self.make_audit(enabled=False)
-        assert self.hda_manager.dataset_manager.permissions_snapshot(self.hda.dataset) is None
-        with self.as_user(self.owner):
-            self.hda_manager.update_permissions(self.trans, self.hda, action="remove_restrictions")
+        dataset_manager = self.hda_manager.dataset_manager
+        dataset_manager.audit = self.make_audit(enabled=False)
+        with mock.patch.object(dataset_manager, "_role_ids", wraps=dataset_manager._role_ids) as spy:
+            with self.as_user(self.owner):
+                self.hda_manager.update_permissions(self.trans, self.hda, action="remove_restrictions")
+        spy.assert_not_called()
+        assert self.events == []
+
+    def test_a_failure_after_a_partial_commit_still_says_what_changed(self):
+        security_agent = self.app.security_agent
+        # remove_restrictions commits, then re-checks; make the re-check fail.
+        with mock.patch.object(security_agent, "dataset_is_public", return_value=False):
+            with self.as_user(self.owner):
+                with pytest.raises(exceptions.InternalServerError):
+                    self.hda_manager.update_permissions(self.trans, self.hda, action="remove_restrictions")
+
+        (event,) = self.events
+        assert (event["outcome"], event["reason"]) == ("error", "internal_error")
+        assert event["details"]["access_roles_before"] == [self.private_role.id]
+        assert event["details"]["access_roles_after"] == []
+        assert event["details"]["may_widen_access"] is True
+
+    def test_a_broken_snapshot_never_fails_the_change(self):
+        dataset_manager = self.hda_manager.dataset_manager
+        with mock.patch.object(dataset_manager, "_role_ids", side_effect=RuntimeError("db gone")):
+            with self.as_user(self.owner):
+                self.hda_manager.update_permissions(self.trans, self.hda, action="remove_restrictions")
+        assert self.app.security_agent.dataset_is_public(self.hda.dataset)
         assert self.events == []
 
 
