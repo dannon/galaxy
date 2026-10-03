@@ -15,11 +15,13 @@ from typing import (
 )
 
 from galaxy.managers.audit import (
+    audit_failures,
     AuditOutcome,
     AuditReason,
     AuditService,
     classify_failure,
 )
+from galaxy.managers.audit_actions.exports import sanitize_target_uri
 from galaxy.managers.export_audit import store_export_details
 from galaxy.managers.export_tracker import StoreExportTracker
 from galaxy.schema.schema import (
@@ -150,7 +152,8 @@ class ExportToFileSourceHook(WorkflowCompletionHook):
         log.info(
             "Queuing export of invocation %d to %s (format: %s, export_association_id: %d)",
             invocation.id,
-            target_uri,
+            # The URI as given can hold credentials for the file source.
+            sanitize_target_uri(target_uri),
             model_store_format,
             export_association.id,
         )
@@ -199,7 +202,7 @@ class ExportToFileSourceHook(WorkflowCompletionHook):
                 scope.identity = RequestIdentity("anonymous", user_id=owner_id)
                 audit.record("invocation.export", invocation, outcome, details=details, reason=reason, stage="prepare")
         except Exception:
-            log.exception("Failed to record the audit event for the export of invocation %d", invocation.id)
+            audit_failures.report("prepare", "Failed to record the export of invocation %d", invocation.id)
 
     def _get_export_config(self, invocation) -> "dict[str, Any] | None":
         """

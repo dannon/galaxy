@@ -38,6 +38,7 @@ from galaxy.exceptions import (
 )
 from galaxy.managers import hdcas
 from galaxy.managers.audit import (
+    audit_failures,
     AUDIT_LOGGER_NAME,
     AuditService,
 )
@@ -915,8 +916,18 @@ def test_completion_export_unaudited_still_exports(monkeypatch, audit_events):
 
 def test_completion_export_survives_a_broken_audit_event(monkeypatch, audit_events):
     monkeypatch.setattr(export_hook, "store_export_details", refuse)
+    failures = audit_failures.count
     task, association = run_completion_export(monkeypatch, {"enabled": True})
     assert len(task.requests) == 1 and association.task_uuid == "task-completion-export"
+    # Counted where audit failures are watched for, not just logged.
+    assert audit_failures.count == failures + 1
+
+
+def test_completion_export_logs_no_target_credentials(monkeypatch, audit_events, caplog):
+    with caplog.at_level(logging.INFO, logger=export_hook.log.name):
+        run_completion_export(monkeypatch, {"enabled": False})
+    assert "gxftp://MyFTP/out.zip" in caplog.text
+    assert SECRET not in caplog.text and "alice" not in caplog.text
 
 
 # -- The pieces on their own -----------------------------------------------------------
