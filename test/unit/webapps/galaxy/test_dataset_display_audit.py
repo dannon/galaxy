@@ -34,9 +34,9 @@ from galaxy.exceptions import (
 )
 from galaxy.managers.audit import (
     AUDIT_LOGGER_NAME,
-    AuditObject,
     AuditService,
 )
+from galaxy.managers.audit_actions import AuditObject
 from galaxy.schema.fields import Security as IdSecurity
 from galaxy.security.idencoding import IdEncodingHelper
 from galaxy.web.framework.request_scope import request_scope

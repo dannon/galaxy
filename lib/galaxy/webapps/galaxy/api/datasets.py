@@ -28,8 +28,10 @@ from starlette.responses import (
 
 from galaxy.datatypes.dataproviders.base import MAX_LIMIT
 from galaxy.managers.audit import (
-    AuditObject,
     AuditService,
+)
+from galaxy.managers.audit_actions import (
+    AuditObject,
     DatasetContentDetails,
 )
 from galaxy.schema import (

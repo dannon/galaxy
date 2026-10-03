@@ -31,7 +31,6 @@ from datetime import (
 )
 from typing import (
     Any,
-    ClassVar,
     get_args,
     Literal,
 )
@@ -47,6 +46,13 @@ from galaxy import (
     model,
 )
 from galaxy.config import GalaxyAppConfiguration
+from galaxy.managers.audit_actions import (
+    AUDIT_ACTIONS,
+    AuditAction,
+    AuditDetails,
+    AuditObject,
+    OBJECT_DESCRIBERS,
+)
 from galaxy.model.scoped_session import galaxy_scoped_session
 from galaxy.security.idencoding import IdEncodingHelper
 from galaxy.web.framework.request_scope import (
@@ -87,42 +93,8 @@ AuditReason = Literal[
 
 # -- Action registry --------------------------------------------------------------
 #
-# Every action an event can name, with the one details type allowed for it. New
-# call sites add an entry here (and to AuditAction) rather than inventing names.
-
-
-class AuditDetails(BaseModel):
-    """Action-specific facts. Subclasses list fields explicitly; nothing else is serialized."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    # Fields that can carry user-chosen names; dropped unless include_names is on.
-    identifying_fields: ClassVar[frozenset[str]] = frozenset()
-
-
-class DatasetContentDetails(AuditDetails):
-    identifying_fields: ClassVar[frozenset[str]] = frozenset({"filename"})
-
-    source: Literal["hda", "ldda"] = "hda"
-    preview: bool = False
-    raw: bool = False
-    # Strings are clipped when the event is written, so a long request value never fails validation.
-    to_ext: str | None = None
-    # A file inside the dataset's extra files directory.
-    filename: str | None = None
-    offset: int | None = None
-    ck_size: int | None = None
-    # The HTTP Range header, for partial reads (IGV and friends make one request per range).
-    http_range: str | None = None
-
-
-AuditAction = Literal["dataset.display", "dataset.download"]
-
-AUDIT_ACTIONS: dict[str, type[AuditDetails]] = {
-    "dataset.display": DatasetContentDetails,
-    "dataset.download": DatasetContentDetails,
-}
-
+# Actions and their details models live in ``galaxy.managers.audit_actions``, one
+# module per family of call sites. Re-exported here for existing imports.
 
 # -- Event schema -----------------------------------------------------------------
 
@@ -141,25 +113,6 @@ class AuditAuth(BaseModel):
     credential_id: int | None = None
     # How actor and effective_user differ, when they do.
     switch: IdentitySwitch | None = None
-
-
-class AuditObject(BaseModel):
-    """What was acted on, described well enough to stand alone.
-
-    Log consumers cannot join back to Galaxy's database, so each event carries the
-    identifiers someone investigating would search for.
-    """
-
-    type: str
-    id: int | None = None
-    encoded_id: str | None = None
-    uuid: str | None = None
-    dataset_id: int | None = None
-    history_id: int | None = None
-    owner_id: int | None = None
-    # Only with include_names.
-    name: str | None = None
-    history_name: str | None = None
 
 
 class AuditProcess(BaseModel):
@@ -492,6 +445,10 @@ class AuditService:
                 owner_id=getattr(obj, "user_id", None),
                 name=_clip(obj.name) if self.include_names else None,
             )
+        for describer in OBJECT_DESCRIBERS:
+            described = describer(self, obj)
+            if described is not None:
+                return described
         object_id = model_id(obj)
         return AuditObject(type=_object_type(obj), id=object_id, encoded_id=self._encode(object_id))
 

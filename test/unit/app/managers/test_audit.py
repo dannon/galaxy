@@ -15,15 +15,18 @@ from galaxy import (
 from galaxy.app_unittest_utils.galaxy_mock import MockApp
 from galaxy.managers import audit
 from galaxy.managers.audit import (
-    AUDIT_ACTIONS,
     audit_failures,
     AuditEvent,
-    AuditObject,
     AuditService,
-    DatasetContentDetails,
     MAX_EVENT_BYTES,
     NULL_ATTEMPT,
     registered_actions,
+)
+from galaxy.managers.audit_actions import (
+    AUDIT_ACTIONS,
+    AuditDetails,
+    AuditObject,
+    DatasetContentDetails,
 )
 from galaxy.security.idencoding import IdEncodingHelper
 from galaxy.web.framework.request_scope import (
@@ -229,7 +232,7 @@ def test_registry_lists_every_action_with_its_details_type():
 
 
 def test_details_of_the_wrong_type_are_dropped_not_the_event(audit_handler, caplog):
-    class OtherDetails(audit.AuditDetails):
+    class OtherDetails(AuditDetails):
         note: str = "x"
 
     before = audit_failures.count
