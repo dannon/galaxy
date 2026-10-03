@@ -52,7 +52,7 @@ class DatasetDataDetails(AuditDetails):
 
 
 class MetadataFileDetails(AuditDetails):
-    # The metadata element name (e.g. bam_index), set by the datatype rather than the user.
+    # The metadata element name the client asked for (e.g. bam_index); the datatype defines the valid ones.
     metadata_file: str
 
 
@@ -72,7 +72,8 @@ class ExternalLinkDetails(AuditDetails):
     """A link that lets a third-party site (a genome browser, say) fetch the dataset was handed out."""
 
     via: Literal["display_at", "display_application"]
-    # Display application and link ids, and display_at site names, come from admin configuration.
+    # Display application and link ids and the display_at site, as the request named them; on
+    # success they match the admin-configured application that was used.
     app_name: str | None = None
     link_name: str | None = None
     site: str | None = None

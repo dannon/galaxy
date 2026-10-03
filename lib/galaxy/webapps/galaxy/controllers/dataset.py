@@ -106,6 +106,8 @@ class DatasetInterface(BaseUIController, UsesAnnotations, UsesItemRatings, UsesE
             "dataset.download_metadata_file",
             AuditObject(type="hda", id=decoded_id),
             MetadataFileDetails(metadata_file=metadata_name),
+            # Legacy routes answer HEAD by running the action and dropping the body.
+            record_success=trans.request.method != "HEAD",
         )
         with attempt.guard():
             fh, headers = self.service.get_metadata_file(
@@ -631,7 +633,8 @@ class DatasetInterface(BaseUIController, UsesAnnotations, UsesItemRatings, UsesE
                             trans.set_cors_allow()
                         trans.response.set_content_type(value.mime_type(action_param_extra=action_param_extra))
                         trans.response.headers["Content-Length"] = str(content_length)
-                        if self.audit.wants("dataset.external_fetch"):
+                        # HEAD runs this too (the body is dropped later); external sites probe with it.
+                        if trans.request.method != "HEAD" and self.audit.wants("dataset.external_fetch"):
                             self.audit.record(
                                 "dataset.external_fetch",
                                 data,
@@ -711,8 +714,9 @@ class DatasetInterface(BaseUIController, UsesAnnotations, UsesItemRatings, UsesE
         )
 
 
-def _url_host(url: str) -> str | None:
+def _url_host(url) -> str | None:
+    # Request-supplied (a repeated parameter arrives as a list); never fail the request over it.
     try:
         return urlsplit(url).hostname
-    except ValueError:
+    except Exception:
         return None

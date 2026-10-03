@@ -90,7 +90,7 @@ class Harness:
             user_is_admin=False,
             get_current_user_roles=lambda: [],
             sa_session=MagicMock(),
-            request=SimpleNamespace(remote_addr="203.0.113.9"),
+            request=SimpleNamespace(remote_addr="203.0.113.9", method="GET"),
             response=SimpleNamespace(
                 status=200,
                 headers={},
@@ -313,6 +313,37 @@ def test_legacy_metadata_file_success_and_denial(harness, audit_events):
         ("dataset.download_metadata_file", "denied", "not_accessible"),
     ]
     assert audit_events[0]["details"] == {"metadata_file": "bam_index"}
+
+
+def test_legacy_head_probes_record_refusals_but_not_access(harness, audit_events):
+    harness.trans.request.method = "HEAD"
+    handle = harness.call(
+        harness.datasets.display_application,
+        "dh",
+        "uh",
+        app_name="ucsc_bed",
+        link_name="main",
+        app_action="data",
+        action_param="galaxy.bed",
+    )
+    handle.close()
+    harness.call(harness.root.display_as, id="42", display_app="ucsc")
+    assert audit_events == []
+    harness.app.security_agent.can_access_dataset.return_value = False
+    harness.call(harness.root.display_as, id="42", display_app="ucsc")
+    assert summary(audit_events) == [("dataset.external_fetch", "denied", "not_accessible")]
+
+
+def test_display_at_with_a_repeated_redirect_parameter_still_works(harness, audit_events):
+    harness.call(
+        harness.datasets.display_at,
+        "42",
+        filename="ucsc_main",
+        display_url="x",
+        redirect_url=[EXTERNAL, EXTERNAL],
+    )
+    (event,) = audit_events
+    assert event["outcome"] == "success" and "target_host" not in event["details"]
 
 
 def test_disabled_audit_records_nothing(tmp_path, monkeypatch, audit_events):

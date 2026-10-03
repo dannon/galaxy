@@ -102,6 +102,8 @@ class RootController(controller.BaseUIController, UsesAnnotations):
             "dataset.external_fetch",
             AuditObject(type="hda", id=decoded_id),
             ExternalFetchDetails(via="display_as", app_name=display_app, authz_method=authz_method),
+            # Legacy routes answer HEAD by running the action and dropping the body.
+            record_success=trans.request.method != "HEAD",
         )
         with attempt.guard():
             if data := trans.sa_session.get(HistoryDatasetAssociation, decoded_id):

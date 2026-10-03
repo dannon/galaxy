@@ -133,7 +133,12 @@ def signed_url_facts(url: str) -> tuple[str | None, int | None]:
     Only these two facts are taken from the URL: the rest of it, the signature above
     all, is a credential that must never be recorded.
     """
-    parts = urlsplit(url)
+    try:
+        parts = urlsplit(url)
+        host = parts.hostname
+    except ValueError:
+        # Never fail a download over what is only a note about it.
+        return None, None
     query = {key.lower(): values[0] for key, values in parse_qs(parts.query).items() if values}
     expires_in: int | None = None
     try:
@@ -152,7 +157,7 @@ def signed_url_facts(url: str) -> tuple[str | None, int | None]:
             expires_in = int(expiry.timestamp() - time.time())
     except ValueError:
         expires_in = None
-    return parts.hostname, expires_in
+    return host, expires_in
 
 
 def is_direct_download_candidate(filename, to_ext, raw, offset, ck_size, is_archive) -> bool:

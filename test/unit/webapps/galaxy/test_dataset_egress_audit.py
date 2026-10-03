@@ -339,6 +339,24 @@ def test_raw_data_for_a_visualization_is_a_read(harness, audit_events, monkeypat
     assert event["details"] == {"data_type": "raw_data"}
 
 
+def test_raw_data_ignores_an_audit_attempt_query_parameter(harness, audit_events, monkeypatch):
+    monkeypatch.setattr(harness.service, "_raw_data", lambda trans, dataset, **kwargs: {"data": []})
+    assert harness.client.get(f"/api/datasets/{ENCODED}?data_type=raw_data&audit_attempt=x").status_code == 200
+    assert [event["outcome"] for event in audit_events] == ["success"]
+
+
+def test_include_names_adds_the_extra_file_name(tmp_path, monkeypatch, audit_events):
+    harness = Harness(tmp_path, monkeypatch, {"enabled": True, "include_names": True})
+    harness.client.get(f"/api/datasets/{ENCODED}/extra_files/raw/index.html")
+    (event,) = audit_events
+    assert event["details"] == {"raw": True, "filename": "index.html"}
+    assert event["object"]["name"] == "reads.bam"
+
+
+def test_unparseable_presigned_url_gives_no_facts_rather_than_failing():
+    assert signed_url_facts("https://[::1/x?X-Amz-Expires=60&X-Amz-Signature=abc") == (None, None)
+
+
 def test_dataset_state_is_not_a_read(harness, audit_events):
     harness.hda.dataset.state = "ok"
     harness.client.get(f"/api/datasets/{ENCODED}?data_type=state")
