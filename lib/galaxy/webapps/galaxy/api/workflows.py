@@ -1526,7 +1526,7 @@ class FastAPIInvocations:
             self.audit,
             "invocation.export",
             AuditObject(type="invocation", id=invocation_id),
-            store_export_details(payload),
+            lambda: store_export_details(payload),
         )
         with export.guard():
             return self.invocations_service.prepare_store_download(trans, invocation_id, payload, export_audit=export)
@@ -1545,7 +1545,7 @@ class FastAPIInvocations:
             self.audit,
             "invocation.export",
             AuditObject(type="invocation", id=invocation_id),
-            store_export_details(payload, payload.target_uri),
+            lambda: store_export_details(payload, payload.target_uri),
         )
         with export.guard():
             return self.invocations_service.write_store(trans, invocation_id, payload, export_audit=export)

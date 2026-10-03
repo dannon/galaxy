@@ -439,7 +439,10 @@ class FastAPIHistories:
         payload: StoreExportPayload = Body(...),
     ) -> AsyncFile:
         export = ExportAudit(
-            self.audit, "history.export", AuditObject(type="history", id=history_id), store_export_details(payload)
+            self.audit,
+            "history.export",
+            AuditObject(type="history", id=history_id),
+            lambda: store_export_details(payload),
         )
         with export.guard():
             return self.service.prepare_download(trans, history_id, payload=payload, export_audit=export)
@@ -458,7 +461,7 @@ class FastAPIHistories:
             self.audit,
             "history.export",
             AuditObject(type="history", id=history_id),
-            store_export_details(payload, payload.target_uri),
+            lambda: store_export_details(payload, payload.target_uri),
         )
         with export.guard():
             return self.service.write_store(trans, history_id, payload=payload, export_audit=export)
@@ -690,7 +693,7 @@ class FastAPIHistories:
             self.audit,
             "history.export",
             AuditObject(type="history", id=history_id),
-            ExportDetails(
+            lambda: ExportDetails(
                 # The service picks the export-to-URI tool on "is not None", so match it.
                 destination="remote" if directory_uri is not None else "download",
                 format="tar.gz" if payload is None or payload.gzip else "tar",

@@ -38,7 +38,10 @@ from galaxy.managers.audit import (
     AUDIT_LOGGER_NAME,
     AuditService,
 )
-from galaxy.managers.audit_actions import AuditObject
+from galaxy.managers.audit_actions import (
+    AuditObject,
+    exports as exports_actions,
+)
 from galaxy.managers.audit_actions.exports import (
     ExportDetails,
     sanitize_target_uri,
@@ -373,6 +376,51 @@ def test_disabled_audit_records_nothing_and_changes_nothing(tmp_path, monkeypatc
     response = harness.client.post(f"{HISTORY_URL}/prepare_store_download", json={})
     assert response.status_code == 200 and response.json()["task"]["id"] == "task-prepare_history_download"
     assert audit_events == []
+
+
+EXPORT_REQUESTS = [
+    ("post", f"{HISTORY_URL}/prepare_store_download", {}, "prepare_history_download"),
+    ("post", f"{HISTORY_URL}/write_store", {"target_uri": "ftp:/\n/host/path"}, "write_history_to"),
+    ("post", f"{DATASET_URL}/prepare_store_download", {}, "prepare_history_content_download"),
+    ("post", f"/api/dataset_collections/{encoded(21)}/prepare_download", None, "prepare_dataset_collection_download"),
+    ("post", f"{INVOCATION_URL}/prepare_store_download", {}, "prepare_invocation_download"),
+    ("post", f"{INVOCATION_URL}/write_store", {"target_uri": "ftp:/\n/host/path"}, "write_invocation_to"),
+]
+
+
+def refuse(*args, **kwargs):
+    raise AssertionError("audit work done while auditing is off")
+
+
+def test_disabled_audit_parses_no_target_and_builds_no_details(tmp_path, monkeypatch, audit_events):
+    harness = Harness(tmp_path, monkeypatch, {"enabled": False})
+    monkeypatch.setattr(exports_actions, "sanitize_target_uri", refuse)
+    monkeypatch.setattr(ExportDetails, "__init__", refuse)
+    for method, url, body, task in EXPORT_REQUESTS:
+        response = harness.client.request(method, url, json=body)
+        assert response.status_code == 200, url
+        assert len(harness.tasks[task].requests) == 1
+    response = harness.client.put(f"{HISTORY_URL}/exports", json={"directory_uri": "ftp:/\n/host"})
+    assert response.status_code == 200
+    harness.history_manager.queue_history_export.assert_called_once()
+    assert audit_events == []
+
+
+def test_details_that_cannot_be_built_never_fail_the_export(harness, audit_events, monkeypatch):
+    monkeypatch.setattr(ExportDetails, "__init__", refuse)
+    for method, url, body, task in EXPORT_REQUESTS:
+        response = harness.client.request(method, url, json=body)
+        assert response.status_code == 200, url
+        assert len(harness.tasks[task].requests) == 1
+    # Still one event per queued export, naming who and what, without the details.
+    assert [(event["outcome"], event["details"]) for event in audit_events] == [("success", {})] * len(EXPORT_REQUESTS)
+
+
+def test_target_that_urlsplit_chokes_on_is_audited_not_raised(harness, audit_events):
+    response = harness.client.post(f"{HISTORY_URL}/write_store", json={"target_uri": "ftp:/\n/host/path"})
+    assert response.status_code == 200
+    (event,) = audit_events
+    assert (event["outcome"], event["details"]["target"]) == ("success", "ftp:")
 
 
 def test_action_families_can_be_switched_off(tmp_path, monkeypatch, audit_events):
@@ -714,7 +762,10 @@ def test_details_strip_credentials_whoever_builds_them():
 
 def test_export_audit_settles_once(harness, audit_events):
     export = ExportAudit(
-        harness.audit, "history.export", AuditObject(type="history", id=3), ExportDetails(destination="download")
+        harness.audit,
+        "history.export",
+        AuditObject(type="history", id=3),
+        lambda: ExportDetails(destination="download"),
     )
     with export.guard():
         export.queued(task_id="a")
@@ -724,7 +775,10 @@ def test_export_audit_settles_once(harness, audit_events):
 
 def test_export_audit_that_never_says_how_it_ended_is_an_error(harness, audit_events):
     export = ExportAudit(
-        harness.audit, "history.export", AuditObject(type="history", id=3), ExportDetails(destination="download")
+        harness.audit,
+        "history.export",
+        AuditObject(type="history", id=3),
+        lambda: ExportDetails(destination="download"),
     )
     with export.guard():
         pass

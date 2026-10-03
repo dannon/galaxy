@@ -3,6 +3,7 @@ API operations on the contents of a history.
 """
 
 import logging
+from collections.abc import Callable
 from typing import (
     Annotated,
     Literal,
@@ -625,7 +626,7 @@ class FastAPIHistoryContents:
         type: HistoryContentType = ContentTypePathParam,
         payload: StoreExportPayload = Body(...),
     ) -> AsyncFile:
-        export = self._content_export(type, id, store_export_details(payload))
+        export = self._content_export(type, id, lambda: store_export_details(payload))
         with export.guard():
             return self.service.prepare_store_download(
                 trans,
@@ -647,7 +648,7 @@ class FastAPIHistoryContents:
         type: HistoryContentType = ContentTypePathParam,
         payload: WriteStoreToPayload = Body(...),
     ) -> AsyncTaskResultSummary:
-        export = self._content_export(type, id, store_export_details(payload, payload.target_uri))
+        export = self._content_export(type, id, lambda: store_export_details(payload, payload.target_uri))
         with export.guard():
             return self.service.write_store(
                 trans,
@@ -758,7 +759,7 @@ class FastAPIHistoryContents:
             self.audit,
             "collection.export",
             AuditObject(type="hdca", id=hdca_id),
-            ExportDetails(destination="download", format="zip"),
+            lambda: ExportDetails(destination="download", format="zip"),
         )
         with export.guard():
             return self.service.prepare_collection_download(trans, hdca_id, export_audit=export)
@@ -1269,7 +1270,10 @@ class FastAPIHistoryContents:
             return audited_response(GalaxyStreamingResponse(archive.response(), headers=archive.get_headers()), attempt)
 
     def _content_export(
-        self, contents_type: HistoryContentType, content_id: DecodedDatabaseIdField, details: ExportDetails
+        self,
+        contents_type: HistoryContentType,
+        content_id: DecodedDatabaseIdField,
+        details: Callable[[], ExportDetails],
     ) -> ExportAudit:
         if contents_type == HistoryContentType.dataset_collection:
             return ExportAudit(self.audit, "collection.export", AuditObject(type="hdca", id=content_id), details)

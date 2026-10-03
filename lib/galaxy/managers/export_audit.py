@@ -8,11 +8,15 @@ an :class:`ExportAudit` ends in exactly one event, whether the request was refus
 failed, or queued the work -- unless the call site says no export was started.
 """
 
-from collections.abc import Iterator
+from collections.abc import (
+    Callable,
+    Iterator,
+)
 from contextlib import contextmanager
 from typing import Any
 
 from galaxy.managers.audit import (
+    audit_failures,
     AuditOutcome,
     AuditReason,
     AuditService,
@@ -48,21 +52,29 @@ class ExportAudit:
         audit: AuditService,
         action: ExportAction,
         requested: AuditObject,
-        details: ExportDetails,
+        details: Callable[[], ExportDetails],
     ) -> None:
+        """``details`` is only called when the action is audited: it parses user input (the target)."""
         self._audit = audit
         self._action = action
         self.active = audit.wants(action)
         # Nothing to settle when the action isn't audited; every method is then a no-op.
         self.settled = not self.active
         self.stage: AuditStage = "authorize"
-        self._details = details
+        self._details: ExportDetails | None = None
         self._target: Any = requested
-        if self.active and requested.encoded_id is None and requested.id is not None:
+        if not self.active:
+            return
+        # Never break the export over its audit event.
+        try:
+            self._details = details()
+        except Exception:
+            audit_failures.report("details", "Invalid details for audit action %s", action)
+        if requested.encoded_id is None and requested.id is not None:
             try:
                 self._target = requested.model_copy(update={"encoded_id": audit.security.encode_id(requested.id)})
             except Exception:
-                # Never break the export over its audit event; the numeric id is still there.
+                # The numeric id is still there.
                 pass
 
     def authorized(self, obj: Any) -> None:
@@ -80,10 +92,13 @@ class ExportAudit:
         """The work was queued: record the request as a success with the ids that join it to the work."""
         if self.settled:
             return
-        updates: dict[str, Any] = {"task_id": task_id, "job_id": job_id}
-        if storage_request_id is not None:
-            updates["storage_request_id"] = str(storage_request_id)
-        details = ExportDetails(**{**self._details.model_dump(), **updates})
+        details = self._details
+        if details is not None:
+            updates: dict[str, Any] = {"task_id": task_id, "job_id": job_id}
+            if storage_request_id is not None:
+                updates["storage_request_id"] = str(storage_request_id)
+            # Already validated, target included; these ids are ours, not user input.
+            details = details.model_copy(update=updates)
         self._settle("success", None, details)
 
     def not_started(self) -> None:
@@ -93,7 +108,12 @@ class ExportAudit:
     def _settle(self, outcome: AuditOutcome, reason: AuditReason | None, details: ExportDetails | None = None) -> None:
         self.settled = True
         self._audit.record(
-            self._action, self._target, outcome, details=details or self._details, reason=reason, stage=self.stage
+            self._action,
+            self._target,
+            outcome,
+            details=details if details is not None else self._details,
+            reason=reason,
+            stage=self.stage,
         )
 
     @contextmanager
