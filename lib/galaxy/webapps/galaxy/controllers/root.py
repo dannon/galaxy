@@ -117,7 +117,7 @@ class RootController(controller.BaseUIController, UsesAnnotations):
                 ):
                     pass
                 else:
-                    attempt.failed_with(exceptions.ItemAccessibilityException())
+                    attempt.denied()
                     trans.response.status = 403
                     return "You are not allowed to access this dataset."
                 attempt.authorized(data)

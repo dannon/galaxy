@@ -22,7 +22,6 @@ from galaxy.datatypes.display_applications.util import (
 from galaxy.datatypes.sniff import guess_ext
 from galaxy.exceptions import (
     InsufficientPermissionsException,
-    ItemAccessibilityException,
     MessageException,
     RequestParameterInvalidException,
 )
@@ -63,7 +62,6 @@ from galaxy.webapps.galaxy.services.datasets import (
     begin_audit_attempt,
     DatasetsService,
     record_audit_event,
-    withdraw_attempt,
 )
 from ..api import depends
 
@@ -671,12 +669,15 @@ class DatasetInterface(BaseUIController, UsesAnnotations, UsesItemRatings, UsesE
                                 log.debug(e)
                                 attempt.failed("not_found")
                                 return paste.httpexceptions.HTTPNotFound(util.unicodify(e))
+                            attempt.add_details(
+                                lambda: ExternalFetchDetails(via="display_application", action_param=action_param)
+                            )
                             value = display_link.get_param_value(action_param)
                             # The assertions below answer as server errors; the event says what they mean.
                             if not value:
                                 attempt.failed("invalid_request")
                             elif not value.parameter.viewable:
-                                attempt.failed_with(ItemAccessibilityException())
+                                attempt.denied()
                             assert value, f"An invalid parameter name was provided: {action_param}"
                             assert value.parameter.viewable, "This parameter is not viewable."
                             if value.parameter.type == "data":
@@ -684,7 +685,7 @@ class DatasetInterface(BaseUIController, UsesAnnotations, UsesItemRatings, UsesE
                                     if action_param_extra:
                                         if not value.parameter.allow_extra_files_access:
                                             # A refusal, though the assertion below reports it as a server error.
-                                            attempt.failed_with(ItemAccessibilityException())
+                                            attempt.denied()
                                         assert (
                                             value.parameter.allow_extra_files_access
                                         ), f"Extra file content requested ({action_param_extra}), but allow_extra_files_access is False."
@@ -718,7 +719,7 @@ class DatasetInterface(BaseUIController, UsesAnnotations, UsesItemRatings, UsesE
                                 if trans.request.method != "HEAD":
                                     self._record_display_link_issued(attempt, data, app_name, link_name, display_url)
                                 else:
-                                    withdraw_attempt(attempt)
+                                    attempt.withdraw()
                                 raise
                             except Exception as exc:
                                 attempt.failed_with(exc, "respond")
@@ -741,7 +742,7 @@ class DatasetInterface(BaseUIController, UsesAnnotations, UsesItemRatings, UsesE
                 # A page of messages where the link or the file would be.
                 attempt.failed("invalid_request")
                 return dict(msg=msg)
-            attempt.failed_with(ItemAccessibilityException())
+            attempt.denied()
             return trans.show_error_message(
                 "You do not have permission to view this dataset at an external display application."
             )
@@ -750,7 +751,7 @@ class DatasetInterface(BaseUIController, UsesAnnotations, UsesItemRatings, UsesE
         if not attempt.active:
             return
         # Where the user is sent is only known now, so the success is recorded in place of the attempt.
-        withdraw_attempt(attempt)
+        attempt.withdraw()
         record_audit_event(
             self.audit,
             "dataset.external_link",

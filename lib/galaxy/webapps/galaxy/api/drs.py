@@ -23,7 +23,6 @@ from galaxy.webapps.base.audit import audited_response
 from galaxy.webapps.galaxy.services.datasets import (
     begin_audit_attempt,
     DatasetsService,
-    withdraw_attempt,
 )
 from galaxy.webapps.galaxy.services.ga4gh import build_service_info
 from . import (
@@ -84,7 +83,7 @@ class DrsApi:
                 )
             except AcceptedRetryLater:
                 # Nothing was served while the checksum is computed; the client's retry is the access.
-                withdraw_attempt(attempt)
+                attempt.withdraw()
                 raise
             attempt.succeeded()
             return drs_object

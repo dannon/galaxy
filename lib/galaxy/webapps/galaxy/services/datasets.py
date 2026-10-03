@@ -127,11 +127,6 @@ log = logging.getLogger(__name__)
 DEFAULT_LIMIT = 500
 
 
-def withdraw_attempt(attempt: AuditAttempt) -> None:
-    """End an audit attempt without an event, because another request or record will say what happened."""
-    attempt.settled = True
-
-
 def _build_for_audit(factory: Callable[[], Any] | None, action: str) -> Any:
     # Request values go into these models, and one that doesn't fit (a repeated query
     # parameter arrives as a list) must cost the event its details, never the request its answer.
@@ -714,7 +709,7 @@ class DatasetsService(ServiceBase, UsesVisualizationMixin):
         if not trans.app.security_agent.dataset_is_public(dataset_instance.dataset):
             # Only public datasets may be access as DRS datasets currently. The client is told
             # the object doesn't exist, but the record says what happened: Galaxy refused it.
-            audit_attempt.failed_with(galaxy_exceptions.ItemAccessibilityException())
+            audit_attempt.denied()
             raise galaxy_exceptions.ObjectNotFound("Cannot find a public dataset with specified object ID.")
         audit_attempt.authorized(dataset_instance)
 

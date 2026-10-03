@@ -277,8 +277,8 @@ def test_external_site_fetch_names_who_the_link_was_for(harness, audit_events):
         "app_name": "ucsc_bed",
         "link_name": "main",
         "app_action": "data",
-        # As the link named it.
-        "action_param": "galaxy.bed",
+        # The parameter the link's URL name resolved to.
+        "action_param": "bed_file",
         "link_user_id": 7,
     }
 

@@ -85,11 +85,9 @@ from galaxy.webapps.galaxy.services.datasets import (
     DeleteDatasetBatchPayload,
     DeleteDatasetBatchResult,
     is_status_answer,
-    record_audit_event,
     RequestDataType,
     signed_url_facts,
     UpdateObjectStoreIdPayload,
-    withdraw_attempt,
 )
 
 log = logging.getLogger(__name__)
@@ -285,7 +283,7 @@ class FastAPIDatasets:
             content = self.service.get_content_as_text(trans, dataset_id, filename=filename, audit_attempt=attempt)
             if content.item_data is None:
                 # Not text (or no file yet): the answer says so and carries none of the content.
-                withdraw_attempt(attempt)
+                attempt.withdraw()
             else:
                 attempt.succeeded()
             return content
@@ -529,7 +527,7 @@ class FastAPIDatasets:
             url, dataset_instance = self.service.direct_download(trans, dataset_id, to_ext, audit_attempt=attempt)
             if url is None:
                 # The display route this redirects to records the download itself.
-                withdraw_attempt(attempt)
+                attempt.withdraw()
                 # No object-store offload: redirect to the streaming display route. Every download is a 302
                 # so clients implement redirect-following uniformly, regardless of the backing object store.
                 # Auth (x-api-key header, session cookie) carries itself across this same-origin redirect.
@@ -541,19 +539,12 @@ class FastAPIDatasets:
                 )
                 return RedirectResponse(url, status_code=302)
             response = RedirectResponse(url, status_code=302)
-            if attempt.active:
-                # What the URL is good for is only known now it exists, so the success is recorded
-                # with those facts in place of the attempt, once the redirect carrying it is built.
-                withdraw_attempt(attempt)
-                issued_url = url
-                record_audit_event(
-                    self.audit,
-                    "dataset.download_url",
-                    dataset_instance,
-                    "success",
-                    lambda: _issued_url_details(to_ext, dataset_instance, issued_url),
-                    stage="respond",
-                )
+            # What the URL is good for is only known now it exists, so those facts join the
+            # attempt here, once the redirect carrying it is built.
+            issued_url = url
+            attempt.succeeded(
+                details=lambda: _issued_url_details(to_ext, dataset_instance, issued_url), stage="respond"
+            )
             return response
 
     def _display(
@@ -744,7 +735,7 @@ class FastAPIDatasets:
             )
             if attempt.active:
                 if is_status_answer(rval):
-                    withdraw_attempt(attempt)
+                    attempt.withdraw()
                     return rval
                 _ensure_json_serializable(rval)
             attempt.succeeded()
