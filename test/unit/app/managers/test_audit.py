@@ -28,6 +28,7 @@ from galaxy.managers.audit_actions import (
     AuditObject,
     DatasetContentDetails,
 )
+from galaxy.managers.audit_actions.datasets import DownloadUrlDetails
 from galaxy.security.idencoding import IdEncodingHelper
 from galaxy.web.framework.request_scope import (
     request_scope,
@@ -481,10 +482,66 @@ def test_error_status_at_response_start_is_not_success(audit_handler):
     assert (event["outcome"], event["reason"], event["stage"]) == ("error", "error_response", "respond")
 
 
+def test_details_added_later_join_those_given_at_the_start(audit_handler):
+    attempt = make_service().attempt("dataset.download_url", requested_hda(), DownloadUrlDetails(to_ext="bam"))
+    attempt.authorized(make_hda())
+    attempt.add_details(DownloadUrlDetails(to_ext="bam", url_host="bucket.example.org"))
+    attempt.succeeded(details=lambda: DownloadUrlDetails(to_ext="bam", expires_in=3600), stage="respond")
+    event = json.loads(audit_handler.lines[0])
+    assert (event["outcome"], event["stage"]) == ("success", "respond")
+    assert event["details"] == {"to_ext": "bam", "url_host": "bucket.example.org", "expires_in": 3600}
+
+
+def test_details_that_fail_to_build_cost_only_the_details(audit_handler):
+    def broken():
+        raise ValueError("a repeated query parameter")
+
+    attempt = make_service().attempt("dataset.download_url", requested_hda(), DownloadUrlDetails(to_ext="bam"))
+    attempt.add_details(broken)
+    attempt.succeeded(details=DatasetContentDetails())
+    event = json.loads(audit_handler.lines[0])
+    assert event["outcome"] == "success"
+    assert event["details"] == {"to_ext": "bam"}
+    assert event["truncated"] == ["details", "details"]
+
+
+def test_head_success_builds_no_details(audit_handler):
+    def must_not_run():
+        raise AssertionError("built for an event that is never written")
+
+    attempt = make_service().attempt("dataset.display", requested_hda(), record_success=False)
+    attempt.succeeded(details=must_not_run)
+    assert attempt.settled and audit_handler.lines == []
+
+
+def test_withdrawn_attempt_records_nothing(audit_handler):
+    attempt = make_service().attempt("dataset.download_url", requested_hda())
+    with attempt.guard():
+        attempt.authorized(make_hda())
+        attempt.withdraw()
+    attempt.add_details(DownloadUrlDetails(url_host="late.example.org"))
+    attempt.response_started(200)
+    assert audit_handler.lines == []
+
+
+def test_denied_without_an_exception(audit_handler):
+    attempt = make_service().attempt("drs.object", requested_hda(77))
+    attempt.authorized(make_hda())
+    attempt.denied()
+    event = json.loads(audit_handler.lines[0])
+    assert (event["outcome"], event["reason"], event["stage"]) == ("denied", "not_accessible", "prepare")
+
+
 def test_null_attempt_accepts_every_call():
+    def must_not_run():
+        raise AssertionError("built for an action that isn't audited")
+
     with NULL_ATTEMPT.guard():
         NULL_ATTEMPT.authorized(object())
-        NULL_ATTEMPT.succeeded()
+        NULL_ATTEMPT.add_details(must_not_run)
+        NULL_ATTEMPT.succeeded(details=must_not_run)
+        NULL_ATTEMPT.denied()
+        NULL_ATTEMPT.withdraw()
         NULL_ATTEMPT.failed("internal_error")
         NULL_ATTEMPT.failed_with(OSError())
         NULL_ATTEMPT.response_started(200)

@@ -23,7 +23,10 @@ import os
 import socket
 import sys
 import threading
-from collections.abc import Iterator
+from collections.abc import (
+    Callable,
+    Iterator,
+)
 from contextlib import contextmanager
 from datetime import (
     datetime,
@@ -490,11 +493,41 @@ class AuditAttempt:
             audit_failures.report("describe", "Could not describe the object of audit action %s", self._event["action"])
         self.stage = "prepare"
 
-    def succeeded(self) -> None:
-        if self._record_success:
-            self._settle("success", None)
-        else:
+    def add_details(self, details: AuditDetails | Callable[[], AuditDetails]) -> None:
+        """Add facts only known once the attempt is under way (a task id, an issued URL's expiry).
+
+        Fields set here replace the same fields given at the start. ``details`` may be a
+        factory, called only for an audited action, so request values are parsed only then;
+        if it fails, the event loses these details and the request never sees why.
+        """
+        if self.settled:
+            return
+        try:
+            built = details() if callable(details) else details
+            self._event["details"].update(self._service._details(self._event["action"], built))
+        except Exception:
+            self._event["truncated"].append("details")
+            audit_failures.report("details", "Invalid details for audit action %s", self._event["action"])
+
+    def succeeded(
+        self,
+        details: AuditDetails | Callable[[], AuditDetails] | None = None,
+        stage: AuditStage | None = None,
+    ) -> None:
+        if not self._record_success:
             self.settled = True
+            return
+        if details is not None:
+            self.add_details(details)
+        self._settle("success", None, stage)
+
+    def denied(self, stage: AuditStage | None = None) -> None:
+        """Access was refused without an exception to classify."""
+        self._settle("denied", "not_accessible", stage)
+
+    def withdraw(self) -> None:
+        """End the attempt without an event: another request or record says what happened."""
+        self.settled = True
 
     def failed(self, reason: AuditReason, stage: AuditStage | None = None) -> None:
         self._settle("error", reason, stage)
@@ -564,6 +597,9 @@ class _NullAttempt(AuditAttempt):
         return False
 
     def authorized(self, obj: Any) -> None:
+        pass
+
+    def add_details(self, details: AuditDetails | Callable[[], AuditDetails]) -> None:
         pass
 
     def hand_off(self) -> None:
