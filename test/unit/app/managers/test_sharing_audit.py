@@ -590,14 +590,17 @@ class TestDatasetPermissionsAudit(AuditTestCase):
         with self.as_user(self.other):
             self.hda_manager.record_permissions_denied(self.hda.id, "remove_restrictions")
             self.hda_manager.record_permissions_denied(self.hda.id, "not-an-action")
+            self.hda_manager.record_permissions_denied(self.hda.id, "")
 
-        named, unnamed = self.events
+        named, unnamed, empty = self.events
         assert (named["outcome"], named["reason"]) == ("denied", "not_accessible")
         assert named["object"]["type"] == "hda"
         assert named["object"]["id"] == self.hda.id
         assert named["object"]["owner_id"] is None
         assert named["details"] == {"change": "remove_restrictions"}
         assert unnamed["details"] == {}
+        # Only a missing action means set_permissions; an empty one is invalid.
+        assert empty["details"] == {}
 
     def test_an_in_memory_database_records_nothing_rather_than_reading_uncommitted_state(self):
         engine = mock.Mock(pool=mock.Mock(spec=SingletonThreadPool))
@@ -693,28 +696,39 @@ class TestCrossUserCopyAudit(AuditTestCase):
         assert event["object"]["owner_id"] is None
         assert event["details"] == {"target_history_id": target.id}
 
-    def build_collection_from(self, target: model.History):
+    def build_collection(self, target: model.History, element_identifiers: list[dict], collection_type="list"):
+        """Build a collection the way the API does, returning it and the copies it made."""
         collections = self.app[DatasetCollectionManager]
-        return collections.create(
+        session = self.trans.sa_session
+        hdca = collections.create(
             self.trans,
             parent=target,
             name="copied",
-            collection_type="list",
-            element_identifiers=[{"src": "hda", "id": self.hda.id, "name": "first"}],
+            collection_type=collection_type,
+            element_identifiers=element_identifiers,
             copy_elements=True,
             history=target,
+            flush=False,
         )
+        copies = [
+            obj
+            for obj in session.new
+            if isinstance(obj, model.HistoryDatasetAssociation)
+            and obj.copied_from_history_dataset_association_id is not None
+        ]
+        session.commit()
+        return hdca, copies
 
     def test_collection_element_copies_from_another_user_are_recorded(self):
         target = self.history_manager.create(name="mine", user=self.recipient)
         with self.as_user(self.recipient):
             self.trans.set_history(target)
-            hdca = self.build_collection_from(target)
+            _, copies = self.build_collection(target, [{"src": "hda", "id": self.hda.id, "name": "first"}])
             assert self.events == []
-            self.hda_manager.record_collection_copies(hdca)
+            self.hda_manager.record_copies(copies)
 
         (event,) = self.events
-        (copy,) = hdca.dataset_instances
+        (copy,) = copies
         assert event["object"]["id"] == self.hda.id
         assert event["object"]["owner_id"] == self.owner.id
         assert event["details"] == {
@@ -723,13 +737,35 @@ class TestCrossUserCopyAudit(AuditTestCase):
             "recipient_id": self.recipient.id,
         }
 
+    def test_a_collection_that_only_references_existing_copies_records_nothing(self):
+        target = self.history_manager.create(name="mine", user=self.recipient)
+        with self.as_user(self.recipient):
+            self.trans.set_history(target)
+            first, _ = self.build_collection(target, [{"src": "hda", "id": self.hda.id, "name": "first"}])
+            # Nested collections are referenced, not copied, even with copy_elements.
+            _, copies = self.build_collection(
+                target, [{"src": "hdca", "id": first.id, "name": "outer"}], collection_type="list:list"
+            )
+            self.hda_manager.record_copies(copies)
+        assert copies == []
+        assert self.events == []
+
     def test_collection_copies_of_ones_own_datasets_record_nothing(self):
         target = self.history_manager.create(name="also mine", user=self.owner)
         with self.as_user(self.owner):
             self.trans.set_history(target)
-            hdca = self.build_collection_from(target)
-            self.hda_manager.record_collection_copies(hdca)
+            _, copies = self.build_collection(target, [{"src": "hda", "id": self.hda.id, "name": "first"}])
+            self.hda_manager.record_copies(copies)
+        assert len(copies) == 1
         assert self.events == []
+
+    def test_refusal_recorders_never_raise_on_bad_input(self):
+        failures = audit_failures.count
+        with self.as_user(self.recipient):
+            self.hda_manager.record_copy_denied(None, None)
+            self.hda_manager.record_permissions_denied("f2db41e1fa331b3e", "make_private")
+        assert self.events == []
+        assert audit_failures.count == failures + 2
 
     def test_an_uncommitted_copy_records_nothing(self):
         target = self.history_manager.create(name="mine", user=self.recipient)

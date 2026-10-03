@@ -787,17 +787,20 @@ class DatasetAssociationManager(
         if not dataset_manager.audit.wants("dataset.permissions"):
             return
         object_type = "ldda" if self.model_class is LibraryDatasetDatasetAssociation else "hda"
-        details = None
-        # update_permissions treats a missing action as set_permissions.
-        action = action or "set_permissions"
-        if action in PERMISSIONS_ACTIONS:
-            details = DatasetPermissionsDetails(change=cast(DatasetPermissionsChange, action))
+        try:
+            requested = dataset_manager.requested_object(object_type, object_id)
+            details = None
+            # update_permissions treats a missing action as set_permissions.
+            if action is None:
+                action = "set_permissions"
+            if action in PERMISSIONS_ACTIONS:
+                details = DatasetPermissionsDetails(change=cast(DatasetPermissionsChange, action))
+        except Exception:
+            # Called on the way to refusing the request; that refusal is what the caller must see.
+            audit_failures.report("prepare", "Lost the audit event for a refused permission change on %s", object_id)
+            return
         dataset_manager.audit.record(
-            "dataset.permissions",
-            dataset_manager.requested_object(object_type, object_id),
-            "denied",
-            details=details,
-            reason="not_accessible",
+            "dataset.permissions", requested, "denied", details=details, reason="not_accessible"
         )
 
     def _update_permissions(self, trans: ProvidesUserContext, dataset_assoc: U, action: str, kwd: dict[str, Any]):

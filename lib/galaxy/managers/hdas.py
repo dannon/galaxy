@@ -8,6 +8,7 @@ history.
 import gettext
 import logging
 import os
+from collections.abc import Iterable
 from typing import (
     Any,
     TYPE_CHECKING,
@@ -271,26 +272,30 @@ class HDAManager(
         if event is not None:
             audit.record("dataset.copy", event[0], "success", details=event[1])
 
-    def record_collection_copies(self, hdca: HistoryDatasetCollectionAssociation) -> None:
-        """Record the committed element copies of a new collection whose sources someone else owns."""
+    def record_copies(self, copies: Iterable[HistoryDatasetAssociation]) -> None:
+        """Record committed copies, made without flushing, whose sources someone else owns.
+
+        Only the caller knows which datasets it copied: a new collection can also hold
+        existing copies it merely references, so they can't be found from the collection.
+        """
         audit = self.dataset_manager.audit
         if not audit.wants("dataset.copy"):
             return
-        hdca_id = audit_id(hdca)
+        copy_ids = [audit_id(copy) for copy in copies]
         events = []
         try:
             with audit_read_session(self.app) as session:
-                instance = session.get(HistoryDatasetCollectionAssociation, hdca_id)
-                if instance is None:
-                    raise exceptions.ObjectNotFound(f"No collection {hdca_id}")
-                for copy in instance.dataset_instances:
+                for copy_id in copy_ids:
+                    copy = session.get(HistoryDatasetAssociation, copy_id) if copy_id is not None else None
+                    if copy is None:
+                        raise exceptions.ObjectNotFound(f"No dataset {copy_id}")
                     source = copy.copied_from_history_dataset_association
                     if source is not None and copy.history is not None:
-                        event = self._cross_user_copy_event(source, copy.id, copy.history)
+                        event = self._cross_user_copy_event(source, copy_id, copy.history)
                         if event is not None:
                             events.append(event)
         except Exception:
-            audit_failures.report("prepare", "Lost the audit events for the element copies of collection %s", hdca_id)
+            audit_failures.report("prepare", "Lost the audit events for copies %s", copy_ids)
             return
         for target, details in events:
             audit.record("dataset.copy", target, "success", details=details)
@@ -312,8 +317,13 @@ class HDAManager(
         audit = self.dataset_manager.audit
         if not audit.wants("dataset.copy"):
             return
-        requested = AuditObject(type="hda", id=source_id, encoded_id=audit.security.encode_id(source_id))
-        details = DatasetCopyDetails(target_history_id=audit_id(history) if history is not None else None)
+        try:
+            requested = AuditObject(type="hda", id=source_id, encoded_id=audit.security.encode_id(source_id))
+            details = DatasetCopyDetails(target_history_id=audit_id(history) if history is not None else None)
+        except Exception:
+            # Called on the way to refusing the request; that refusal is what the caller must see.
+            audit_failures.report("prepare", "Lost the audit event for a refused copy of dataset %s", source_id)
+            return
         audit.record("dataset.copy", requested, "denied", details=details, reason="not_accessible")
 
     # .... deletion and purging
