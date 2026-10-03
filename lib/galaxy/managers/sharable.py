@@ -11,8 +11,10 @@ A sharable Galaxy object:
 """
 
 import logging
+from functools import cached_property
 from typing import (
     Any,
+    NamedTuple,
     TypeVar,
 )
 
@@ -36,6 +38,15 @@ from galaxy.managers import (
     taggable,
     users,
 )
+from galaxy.managers.audit import AuditService
+from galaxy.managers.audit_actions import AuditObject
+from galaxy.managers.audit_actions.sharing import (
+    SHARABLE_TYPES,
+    SHARE_ACTIONS,
+    SharingAction,
+    SharingChange,
+    SharingChangeDetails,
+)
 from galaxy.managers.base import combine_lists
 from galaxy.managers.context import ProvidesUserContext
 from galaxy.model import (
@@ -54,6 +65,25 @@ from galaxy.util.hash_util import md5_hash_str
 log = logging.getLogger(__name__)
 # Only model classes that have `users_shared_with` field
 U = TypeVar("U", model.History, model.Page, model.StoredWorkflow, model.Visualization)
+
+
+def audit_service_for(app: Any) -> AuditService:
+    """The application's audit service.
+
+    Galaxy registers it at startup. A container that never did (unit tests, scripts
+    building a partial app) gets one built from its own config, rather than letting
+    the container construct a whole new Galaxy configuration to satisfy it.
+    """
+    if AuditService in getattr(app, "defined_types", (AuditService,)):
+        return app[AuditService]
+    return AuditService(app.config, app.security, app.model.context)
+
+
+class SharingState(NamedTuple):
+    importable: bool
+    published: bool
+    slug: str | None
+    user_ids: frozenset[int]
 
 
 class SharableModelManager(
@@ -279,6 +309,55 @@ class SharableModelManager(
             session.commit()
         return current_shares, needs_adding, needs_removing
 
+    # .... auditing
+    @cached_property
+    def audit(self) -> AuditService:
+        return audit_service_for(self.app)
+
+    @property
+    def share_action(self) -> SharingAction:
+        return SHARE_ACTIONS[SHARABLE_TYPES[self.model_class]]
+
+    def sharing_state(self, item) -> SharingState | None:
+        """Who can reach ``item`` right now, or None when sharing changes aren't audited."""
+        if not self.audit.wants(self.share_action):
+            return None
+        # Query the shares rather than trust the relationship, which a delete leaves stale until expiry.
+        user_ids = frozenset(share.user_id for share in self.get_share_assocs(item))
+        return SharingState(bool(item.importable), bool(item.published), item.slug, user_ids)
+
+    def record_sharing_change(self, item, change: SharingChange, before: SharingState | None) -> None:
+        """Record a committed sharing change; a request that changed nothing records nothing."""
+        if before is None:
+            return
+        after = self.sharing_state(item)
+        if after is None or after == before:
+            return
+        details = SharingChangeDetails(
+            change=change,
+            importable_before=before.importable,
+            importable_after=after.importable,
+            published_before=before.published,
+            published_after=after.published,
+            users_added=sorted(after.user_ids - before.user_ids),
+            users_removed=sorted(before.user_ids - after.user_ids),
+            slug_before=before.slug,
+            slug_after=after.slug,
+        )
+        self.audit.record(self.share_action, item, "success", details=details)
+
+    def record_sharing_denied(self, item_id: int, change: SharingChange) -> None:
+        requested = AuditObject(
+            type=SHARABLE_TYPES[self.model_class], id=item_id, encoded_id=self.app.security.encode_id(item_id)
+        )
+        self.audit.record(
+            self.share_action,
+            requested,
+            "denied",
+            details=SharingChangeDetails(change=change),
+            reason="not_accessible",
+        )
+
     # .... slugs
     # slugs are human readable strings often used to link to sharable resources (replacing ids)
     # TODO: as validator, deserializer, etc. (maybe another object entirely?)
@@ -430,6 +509,10 @@ class SharableModelSerializer(
         return [self.serialize_id(share, "user_id") for share in share_assocs]
 
 
+# Update keys that change who can reach an item.
+SHARING_KEYS = frozenset({"published", "importable", "users_shared_with"})
+
+
 class SharableModelDeserializer(
     base.ModelDeserializer,
     taggable.TaggableDeserializerMixin,
@@ -453,6 +536,14 @@ class SharableModelDeserializer(
                 "users_shared_with": self.deserialize_users_shared_with,
             }
         )
+
+    def deserialize(self, item, data, flush=True, **context):
+        before = None
+        if flush and SHARING_KEYS.intersection(data):
+            before = self.manager.sharing_state(item)
+        new_dict = super().deserialize(item, data, flush=flush, **context)
+        self.manager.record_sharing_change(item, "update", before)
+        return new_dict
 
     def deserialize_published(self, item, key, val, **context):
         """ """

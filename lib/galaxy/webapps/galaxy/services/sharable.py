@@ -1,6 +1,8 @@
 import logging
 
+from galaxy import exceptions
 from galaxy.managers import base
+from galaxy.managers.audit_actions.sharing import SharingChange
 from galaxy.managers.context import ProvidesUserContext
 from galaxy.managers.sharable import (
     SharableModelManager,
@@ -60,8 +62,10 @@ class ShareableService:
         self.notification_service = notification_service
 
     def set_slug(self, trans: ProvidesUserContext, id: DecodedDatabaseIdField, payload: SetSlugPayload):
-        item = self._get_item_by_id(trans, id)
+        item = self._get_item_by_id(trans, id, "set_slug")
+        before = self.manager.sharing_state(item)
         self.manager.set_slug(item, payload.new_slug, trans.user)
+        self.manager.record_sharing_change(item, "set_slug", before)
 
     def sharing(self, trans: ProvidesUserContext, id: DecodedDatabaseIdField) -> SharingStatus:
         """Gets the current sharing status of the item with the given id."""
@@ -72,36 +76,46 @@ class ShareableService:
         """Makes this item accessible by link.
         If this item contains other elements they will be publicly accessible too.
         """
-        item = self._get_item_by_id(trans, id)
+        item = self._get_item_by_id(trans, id, "enable_link_access")
+        before = self.manager.sharing_state(item)
         self.manager.make_members_public(trans, item)
         self.manager.make_importable(item)
+        self.manager.record_sharing_change(item, "enable_link_access", before)
         return self._get_sharing_status(trans, item)
 
     def disable_link_access(self, trans: ProvidesUserContext, id: DecodedDatabaseIdField) -> SharingStatus:
-        item = self._get_item_by_id(trans, id)
+        item = self._get_item_by_id(trans, id, "disable_link_access")
+        before = self.manager.sharing_state(item)
         self.manager.make_non_importable(item)
+        self.manager.record_sharing_change(item, "disable_link_access", before)
         return self._get_sharing_status(trans, item)
 
     def publish(self, trans: ProvidesUserContext, id: DecodedDatabaseIdField) -> SharingStatus:
         """Makes this item publicly accessible.
         If this item contains other elements they will be publicly accessible too.
         """
-        item = self._get_item_by_id(trans, id)
+        item = self._get_item_by_id(trans, id, "publish")
+        before = self.manager.sharing_state(item)
         self.manager.make_members_public(trans, item)
         self.manager.publish(item)
+        self.manager.record_sharing_change(item, "publish", before)
         return self._get_sharing_status(trans, item)
 
     def unpublish(self, trans: ProvidesUserContext, id: DecodedDatabaseIdField) -> SharingStatus:
-        item = self._get_item_by_id(trans, id)
+        item = self._get_item_by_id(trans, id, "unpublish")
+        before = self.manager.sharing_state(item)
         self.manager.unpublish(item)
+        self.manager.record_sharing_change(item, "unpublish", before)
         return self._get_sharing_status(trans, item)
 
     def share_with_users(
         self, trans: ProvidesUserContext, id: DecodedDatabaseIdField, payload: ShareWithPayload
     ) -> ShareWithStatus:
-        item = self._get_item_by_id(trans, id)
+        item = self._get_item_by_id(trans, id, "share_with_users")
+        before = self.manager.sharing_state(item)
         users, errors = self._get_users(trans, payload.user_ids)
         extra, users_to_notify = self._share_with_options(trans, item, users, errors, payload.share_option)
+        self.manager.record_sharing_change(item, "share_with_users", before)
         base_status = self._get_sharing_status(trans, item)
         # Use dict() for a shallow field copy so nested UserEmail instances in
         # users_shared_with survive; model_dump() would deep-serialize them to
@@ -127,9 +141,16 @@ class ShareableService:
             extra = None
         return extra, new_users
 
-    def _get_item_by_id(self, trans: ProvidesUserContext, id: DecodedDatabaseIdField):
+    def _get_item_by_id(
+        self, trans: ProvidesUserContext, id: DecodedDatabaseIdField, change: SharingChange | None = None
+    ):
         class_name = self.manager.model_class.__name__
-        item = base.get_object(trans, id, class_name, check_ownership=True, check_accessible=True, deleted=False)
+        try:
+            item = base.get_object(trans, id, class_name, check_ownership=True, check_accessible=True, deleted=False)
+        except (exceptions.ItemOwnershipException, exceptions.ItemAccessibilityException):
+            if change is not None:
+                self.manager.record_sharing_denied(id, change)
+            raise
         return item
 
     def _get_sharing_status(self, trans: ProvidesUserContext, item):
