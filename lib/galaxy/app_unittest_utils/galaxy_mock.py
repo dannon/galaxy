@@ -27,6 +27,7 @@ from galaxy.config import CommonConfigurationMixin
 from galaxy.config_watchers import ConfigWatchers
 from galaxy.job_metrics import JobMetrics
 from galaxy.jobs.manager import NoopManager
+from galaxy.managers.audit import AuditService
 from galaxy.managers.collections import DatasetCollectionManager
 from galaxy.managers.context import ProvidesAppContext
 from galaxy.managers.dbkeys import GenomeBuilds
@@ -145,6 +146,8 @@ class MockApp(di.Container, GalaxyDataTestApp):
         self[ShortTermStorageAllocator] = sts_manager  # type: ignore[type-abstract]
         self[ShortTermStorageMonitor] = sts_manager  # type: ignore[type-abstract]
         self[galaxy_scoped_session] = self.model.context
+        # Left to the container, it would build a whole Galaxy configuration to satisfy this.
+        self[AuditService] = AuditService(config, self.security, self[galaxy_scoped_session])
         self.visualizations_registry = MockVisualizationsRegistry()
         self.tag_handler = tags.GalaxyTagHandler(self.model.session)
         self[tags.GalaxyTagHandler] = self.tag_handler

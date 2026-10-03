@@ -390,10 +390,14 @@ def test_reporting_a_failure_never_raises(audit_handler, monkeypatch):
     assert audit_handler.lines == []
 
 
-def test_mock_app_resolves_the_service(monkeypatch):
+def test_mock_app_registers_the_service(monkeypatch):
     # Galaxy's config points tempfile.tempdir at the mock app's directory; don't leak it.
     monkeypatch.setattr(tempfile, "tempdir", tempfile.tempdir)
-    assert not MockApp()[AuditService].enabled
+    app = MockApp()
+    # Registered, not built on demand: the container would build a whole Galaxy configuration.
+    assert AuditService in app.defined_types
+    assert audit.audit_service_for(app) is app[AuditService]
+    assert not app[AuditService].enabled
 
 
 # -- attempts -----------------------------------------------------------------------
