@@ -502,10 +502,14 @@ class HistoryManager(sharable.SharableModelManager[model.History], deletable.Pur
                     and not hda.dataset.library_associations
                 )
                 if option and owner_can_manage_dataset:
+                    dataset_manager = self.hda_manager.dataset_manager
+                    before = dataset_manager.permissions_snapshot(hda.dataset)
                     if option == sharable.SharingOptions.make_accessible_to_shared:
                         trans.app.security_agent.privately_share_dataset(hda.dataset, users=[owner, user])
+                        dataset_manager.record_permissions_change(hda, "share_privately", before, via="history_sharing")
                     elif option == sharable.SharingOptions.make_public:
                         trans.app.security_agent.make_dataset_public(hda.dataset)
+                        dataset_manager.record_permissions_change(hda, "make_public", before, via="history_sharing")
                 else:
                     hda_id = hda.id
                     hda_info = HDABasicInfo(id=hda_id, name=hda.name)
@@ -541,8 +545,11 @@ class HistoryManager(sharable.SharableModelManager[model.History], deletable.Pur
             dataset = hda.dataset
             if not trans.app.security_agent.dataset_is_public(dataset):
                 if trans.app.security_agent.can_manage_dataset(trans.user.all_roles(), dataset):
+                    dataset_manager = self.hda_manager.dataset_manager
+                    before = dataset_manager.permissions_snapshot(dataset)
                     try:
                         trans.app.security_agent.make_dataset_public(hda.dataset)
+                        dataset_manager.record_permissions_change(hda, "make_public", before, via="history_sharing")
                     except Exception:
                         log.warning(f"Unable to make dataset with id: {dataset.id} public")
                 else:

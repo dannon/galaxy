@@ -5,8 +5,11 @@ Manager and Serializer for Datasets.
 import glob
 import logging
 import os
+from functools import cached_property
 from typing import (
     Any,
+    cast,
+    NamedTuple,
     TypeVar,
 )
 
@@ -25,16 +28,27 @@ from galaxy.managers import (
     secured,
     users,
 )
+from galaxy.managers.audit import (
+    AuditService,
+    classify_failure,
+)
+from galaxy.managers.audit_actions.sharing import (
+    DatasetPermissionsChange,
+    DatasetPermissionsDetails,
+    PermissionsVia,
+)
 from galaxy.managers.context import (
     ProvidesHistoryContext,
     ProvidesUserContext,
 )
+from galaxy.managers.sharable import audit_service_for
 from galaxy.model import (
     Dataset,
     DatasetHash,
     DatasetInstance,
     DatasetPermissions,
     HistoryDatasetAssociation,
+    LibraryDatasetPermissions,
     User,
 )
 from galaxy.model.db.role import (
@@ -52,6 +66,13 @@ from galaxy.util.hash_util import memory_bound_hexdigest
 log = logging.getLogger(__name__)
 
 T = TypeVar("T")
+
+
+class PermissionsSnapshot(NamedTuple):
+    access: list[int]
+    manage: list[int]
+    # Library datasets only.
+    modify: list[int] | None
 
 
 class DatasetManager(
@@ -76,6 +97,68 @@ class DatasetManager(
 
     def copy(self, item, **kwargs):
         raise exceptions.NotImplemented("Datasets cannot be copied")
+
+    # .... auditing permission changes
+    @cached_property
+    def audit(self) -> AuditService:
+        return audit_service_for(self.app)
+
+    def permissions_snapshot(self, dataset: Dataset, library_dataset=None) -> PermissionsSnapshot | None:
+        """The role ids on ``dataset``, or None when permission changes aren't audited."""
+        if not self.audit.wants("dataset.permissions"):
+            return None
+        actions = self.app.security_agent.permitted_actions
+        # Query the permission rows: the security agent deletes them without touching relationships.
+        modify = None
+        if library_dataset is not None:
+            modify = self._role_ids(
+                select(LibraryDatasetPermissions.role_id).where(
+                    LibraryDatasetPermissions.library_dataset_id == library_dataset.id,
+                    LibraryDatasetPermissions.action == actions.LIBRARY_MODIFY.action,
+                )
+            )
+        return PermissionsSnapshot(
+            access=self._dataset_role_ids(dataset, actions.DATASET_ACCESS.action),
+            manage=self._dataset_role_ids(dataset, actions.DATASET_MANAGE_PERMISSIONS.action),
+            modify=modify,
+        )
+
+    def _dataset_role_ids(self, dataset: Dataset, action: str) -> list[int]:
+        return self._role_ids(
+            select(DatasetPermissions.role_id).where(
+                DatasetPermissions.dataset_id == dataset.id, DatasetPermissions.action == action
+            )
+        )
+
+    def _role_ids(self, stmt) -> list[int]:
+        return sorted({role_id for role_id in self.session().scalars(stmt) if role_id is not None})
+
+    def record_permissions_change(
+        self,
+        dataset_instance,
+        change: DatasetPermissionsChange,
+        before: PermissionsSnapshot | None,
+        library_dataset=None,
+        via: PermissionsVia = "permissions",
+    ) -> None:
+        """Record a committed permission change on the dataset behind ``dataset_instance``."""
+        if before is None:
+            return
+        after = self.permissions_snapshot(dataset_instance.dataset, library_dataset)
+        if after is None or after == before:
+            return
+        details = DatasetPermissionsDetails(
+            change=change,
+            via=via,
+            access_roles_before=before.access,
+            access_roles_after=after.access,
+            manage_roles_before=before.manage,
+            manage_roles_after=after.manage,
+            modify_roles_before=before.modify,
+            modify_roles_after=after.modify,
+            may_widen_access=bool(set(before.access) - set(after.access)),
+        )
+        self.audit.record("dataset.permissions", dataset_instance, "success", details=details)
 
     def purge(self, item, flush=True, user=None, **kwargs):
         """
@@ -598,6 +681,32 @@ class DatasetAssociationManager(
                 'The mandatory parameter "action" has an invalid value. '
                 'Allowed values are: "remove_restrictions", "make_private", "set_permissions"'
             )
+        if hasattr(dataset_assoc, "library_dataset_dataset_association"):
+            library_dataset = dataset_assoc
+            dataset_instance = library_dataset.library_dataset_dataset_association
+        else:
+            library_dataset = None
+            dataset_instance = dataset_assoc
+        change = cast(DatasetPermissionsChange, action)
+        dataset_manager = self.dataset_manager
+        audited = dataset_manager.audit.wants("dataset.permissions")
+        before = dataset_manager.permissions_snapshot(dataset_instance.dataset, library_dataset) if audited else None
+        try:
+            self._update_permissions(trans, dataset_assoc, action, kwd)
+        except Exception as exc:
+            if audited:
+                outcome, reason = classify_failure(exc)
+                dataset_manager.audit.record(
+                    "dataset.permissions",
+                    dataset_instance,
+                    outcome,
+                    details=DatasetPermissionsDetails(change=change),
+                    reason=reason,
+                )
+            raise
+        dataset_manager.record_permissions_change(dataset_instance, change, before, library_dataset)
+
+    def _update_permissions(self, trans: ProvidesUserContext, dataset_assoc: U, action: str, kwd: dict[str, Any]):
         if hasattr(dataset_assoc, "library_dataset_dataset_association"):
             library_dataset = dataset_assoc
             dataset = library_dataset.library_dataset_dataset_association.dataset

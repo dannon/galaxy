@@ -53,9 +53,12 @@ DatasetPermissionsChange = Literal[
 ]
 
 
+PermissionsVia = Literal["permissions", "history_sharing"]
+
+
 class DatasetPermissionsDetails(AuditDetails):
     change: DatasetPermissionsChange
-    via: Literal["permissions", "history_sharing"] = "permissions"
+    via: PermissionsVia = "permissions"
     access_roles_before: list[int] = []
     access_roles_after: list[int] = []
     manage_roles_before: list[int] = []

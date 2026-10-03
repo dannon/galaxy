@@ -256,6 +256,133 @@ class TestSharingAudit(AuditTestCase):
         assert self.events == []
 
 
+class TestDatasetPermissionsAudit(AuditTestCase):
+    def set_up_managers(self):
+        super().set_up_managers()
+        self.audit = self.make_audit()
+        self.history_manager = self.app[HistoryManager]
+        self.hda_manager = self.history_manager.hda_manager
+        self.hda_manager.dataset_manager.audit = self.audit
+        self.history_manager.audit = self.audit
+        self.service = ShareableService(self.history_manager, self.app[HistorySerializer], mock.MagicMock())
+
+    def set_up_trans(self):
+        super().set_up_trans()
+        # MockTrans has no role lookup; the permission routes need the current user's.
+        self.mock_trans.get_current_user_roles = lambda: self.trans.user.all_roles()  # type: ignore[attr-defined]
+        self.owner = self.create_user("owner")
+        self.other = self.create_user("other")
+        self.history = self.history_manager.create(name="secret history", user=self.owner)
+        self.hda = self.hda_manager.create(history=self.history, dataset=self.hda_manager.dataset_manager.create())
+        self.trans.sa_session.commit()
+        security_agent = self.app.security_agent
+        self.private_role = security_agent.get_private_user_role(self.owner)
+        actions = security_agent.permitted_actions
+        security_agent.set_all_dataset_permissions(
+            self.hda.dataset,
+            {actions.DATASET_MANAGE_PERMISSIONS: [self.private_role], actions.DATASET_ACCESS: [self.private_role]},
+        )
+
+    def permission_events(self) -> list[dict]:
+        return [event for event in self.events if event["action"] == "dataset.permissions"]
+
+    def test_making_a_private_dataset_public_is_flagged_as_widening(self):
+        with self.as_user(self.owner, actor=self.admin_user):
+            self.hda_manager.update_permissions(self.trans, self.hda, action="remove_restrictions")
+
+        (event,) = self.events
+        assert event["action"] == "dataset.permissions"
+        assert event["outcome"] == "success"
+        assert (event["actor"]["id"], event["effective_user"]["id"]) == (self.admin_user.id, self.owner.id)
+        assert event["object"]["type"] == "hda"
+        assert event["object"]["id"] == self.hda.id
+        assert event["object"]["dataset_id"] == self.hda.dataset_id
+        assert event["object"]["owner_id"] == self.owner.id
+        details = event["details"]
+        assert details["change"] == "remove_restrictions"
+        assert details["access_roles_before"] == [self.private_role.id]
+        assert "access_roles_after" not in details
+        assert details["manage_roles_before"] == details["manage_roles_after"] == [self.private_role.id]
+        assert details["may_widen_access"] is True
+
+    def test_narrowing_is_recorded_without_the_widening_flag(self):
+        with self.as_user(self.owner):
+            self.hda_manager.update_permissions(self.trans, self.hda, action="remove_restrictions")
+            self.hda_manager.update_permissions(self.trans, self.hda, action="make_private")
+
+        narrowing = self.events[-1]["details"]
+        assert narrowing["change"] == "make_private"
+        assert narrowing["access_roles_after"] == [self.private_role.id]
+        assert "may_widen_access" not in narrowing
+
+    def test_a_request_that_changes_nothing_records_nothing(self):
+        with self.as_user(self.owner):
+            self.hda_manager.update_permissions(self.trans, self.hda, action="make_private")
+        assert self.events == []
+
+    def test_refusal_is_recorded_as_denied(self):
+        with self.as_user(self.other):
+            with pytest.raises(exceptions.InsufficientPermissionsException):
+                self.hda_manager.update_permissions(self.trans, self.hda, action="remove_restrictions")
+
+        (event,) = self.events
+        assert (event["outcome"], event["reason"]) == ("denied", "not_accessible")
+        assert event["effective_user"]["id"] == self.other.id
+        assert event["object"]["id"] == self.hda.id
+        assert event["details"] == {"change": "remove_restrictions"}
+
+    def test_invalid_roles_are_recorded_as_an_error(self):
+        # Two private roles together would lock everyone out, so Galaxy refuses the combination.
+        other_private = self.app.security_agent.get_private_user_role(self.other)
+        with self.as_user(self.owner):
+            with pytest.raises(exceptions.RequestParameterInvalidException):
+                self.hda_manager.update_permissions(
+                    self.trans, self.hda, action="set_permissions", access=[self.private_role.id, other_private.id]
+                )
+
+        (event,) = self.events
+        assert (event["outcome"], event["reason"]) == ("error", "invalid_request")
+        assert event["details"] == {"change": "set_permissions"}
+
+    def test_publishing_a_history_records_each_dataset_it_made_public(self):
+        with self.as_user(self.owner):
+            self.service.publish(self.trans, self.history.id)
+
+        assert [event["action"] for event in self.events] == ["dataset.permissions", "history.share"]
+        details = self.permission_events()[0]["details"]
+        assert (details["change"], details["via"], details["may_widen_access"]) == (
+            "make_public",
+            "history_sharing",
+            True,
+        )
+        # Both events belong to one request, so they can be joined.
+        assert {event["request_id"] for event in self.events} == {"req-1"}
+
+    def test_sharing_options_that_open_datasets_are_recorded(self):
+        with self.as_user(self.owner):
+            self.service.share_with_users(
+                self.trans,
+                self.history.id,
+                ShareWithPayload(user_ids=[self.other.email], share_option="make_accessible_to_shared"),
+            )
+
+        (permission_event,) = self.permission_events()
+        details = permission_event["details"]
+        assert details["change"] == "share_privately"
+        assert details["via"] == "history_sharing"
+        # A private role swapped for a sharing role that also holds the recipient.
+        assert details["access_roles_before"] == [self.private_role.id]
+        assert details["access_roles_after"] != [self.private_role.id]
+        assert self.events[-1]["details"]["users_added"] == [self.other.id]
+
+    def test_disabled_auditing_takes_no_snapshots(self):
+        self.hda_manager.dataset_manager.audit = self.make_audit(enabled=False)
+        assert self.hda_manager.dataset_manager.permissions_snapshot(self.hda.dataset) is None
+        with self.as_user(self.owner):
+            self.hda_manager.update_permissions(self.trans, self.hda, action="remove_restrictions")
+        assert self.events == []
+
+
 @pytest.mark.parametrize(
     "model_class,attribute,expected_type",
     [
