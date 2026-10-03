@@ -188,8 +188,8 @@ class ExportToFileSourceHook(WorkflowCompletionHook):
 
         No request asked for this export and no credential is presented: the owner asked
         for it when submitting the workflow, and it runs with their permissions. So the
-        event names the owner as effective user, no actor, and no credential (auth method
-        "anonymous"), and ``trigger`` says where it came from. Never raises.
+        event is background work (auth method "task") for the owner as effective user,
+        with no actor and no credential, and ``trigger`` says where it came from. Never raises.
         """
         try:
             audit = self.app[AuditService]
@@ -199,7 +199,7 @@ class ExportToFileSourceHook(WorkflowCompletionHook):
                 update={"task_id": task_id, "trigger": "workflow_completion"}
             )
             with request_scope() as scope:
-                scope.identity = RequestIdentity("anonymous", user_id=owner_id)
+                scope.identity = RequestIdentity("task", user_id=owner_id)
                 audit.record("invocation.export", invocation, outcome, details=details, reason=reason, stage="prepare")
         except Exception:
             audit_failures.report("prepare", "Failed to record the export of invocation %d", invocation.id)

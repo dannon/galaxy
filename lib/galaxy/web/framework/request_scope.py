@@ -28,7 +28,9 @@ from typing import (
 
 from sqlalchemy import inspect as sa_inspect
 
-AuthMethod = Literal["session", "remote_user", "api_key", "bootstrap_api_key", "bearer", "anonymous"]
+# "task": background work acting for ``user_id`` with no request and no credential, such as a
+# Celery task the user's earlier request queued.
+AuthMethod = Literal["session", "remote_user", "api_key", "bootstrap_api_key", "bearer", "anonymous", "task"]
 IdentitySwitch = Literal["run_as", "impersonation"]
 
 # User agents are client-chosen and unbounded; the head of the string is the useful part.

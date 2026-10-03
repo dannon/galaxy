@@ -905,10 +905,10 @@ def test_completion_export_is_recorded_as_the_invocation_owner(monkeypatch, audi
     assert association.task_uuid == "task-completion-export"
     (event,) = audit_events
     assert (event["action"], event["outcome"], event["stage"]) == ("invocation.export", "success", "prepare")
-    # Nobody authenticated: the owner asked for this when submitting the workflow.
+    # Background work for the owner, who asked for this when submitting the workflow; nobody authenticated.
     assert event["effective_user"]["id"] == 7
     assert event["actor"] is None
-    assert event["auth"] == {"method": "anonymous", "credential_id": None, "switch": None}
+    assert event["auth"] == {"method": "task", "credential_id": None, "switch": None}
     assert (event["request_id"], event["remote_addr"]) == (None, None)
     assert (event["object"]["type"], event["object"]["id"], event["object"]["owner_id"]) == ("invocation", 13, 7)
     assert event["details"] == {
