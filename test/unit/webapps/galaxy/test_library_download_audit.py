@@ -7,6 +7,7 @@ import json
 import logging
 import uuid
 from types import SimpleNamespace
+from typing import cast
 from unittest.mock import MagicMock
 
 import pytest
@@ -159,8 +160,9 @@ def test_two_datasets_uncompressed_is_an_invalid_request_for_both(harness, audit
 
 def test_folder_download_names_each_dataset_and_the_folder(harness, audit_events):
     folder = SimpleNamespace(active_folders=[], datasets=list(harness.datasets.values()))
-    harness.controller.folder_manager.cut_and_decode.return_value = 30
-    harness.controller.folder_manager.get.return_value = folder
+    folder_manager = cast(MagicMock, harness.controller.folder_manager)
+    folder_manager.cut_and_decode.return_value = 30
+    folder_manager.get.return_value = folder
     harness.download("zip", folder_ids="F" + SECURITY.encode_id(30))
     assert summary(audit_events) == [("library_dataset.download", "success", None, "ldda")] * 2
     assert [e["details"] for e in audit_events] == [
@@ -201,7 +203,8 @@ def test_disabled_audit_does_no_work_per_dataset(tmp_path, audit_events, monkeyp
     monkeypatch.setattr(LibraryDatasetsController, "_decode_for_audit", unexpected)
     harness = Harness(tmp_path, {"enabled": False})
     folder = SimpleNamespace(active_folders=[], datasets=list(harness.datasets.values()))
-    harness.controller.folder_manager.cut_and_decode.return_value = 30
-    harness.controller.folder_manager.get.return_value = folder
+    folder_manager = cast(MagicMock, harness.controller.folder_manager)
+    folder_manager.cut_and_decode.return_value = 30
+    folder_manager.get.return_value = folder
     harness.download("zip", ld_ids=[SECURITY.encode_id(1)], folder_ids="F" + SECURITY.encode_id(30))
     assert audit_events == []
