@@ -298,7 +298,7 @@ class Harness:
             app.include_router(module.router)
         app.dependency_overrides[get_session] = impersonated_session
         # The short-term storage route resolves its downloader by calling get_session itself.
-        self.real_get_session = short_term_storage_api.get_session
+        self.real_get_session = get_session
         monkeypatch.setattr(
             short_term_storage_api, "get_session", lambda manager, security, cookie: impersonated_session(cookie)
         )
