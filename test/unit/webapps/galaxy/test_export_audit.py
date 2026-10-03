@@ -145,12 +145,26 @@ class FakeTask:
         self.task_id = task_id
         self.requests: list = []
         self.error: Exception | None = None
+        self.backend_down = False
 
     def delay(self, request, task_user_id=None):
         if self.error is not None:
             raise self.error
         self.requests.append((request, task_user_id))
+        if self.backend_down:
+            return UnreadableResult(self.task_id)
         return SimpleNamespace(id=self.task_id, name="task", queue="celery", ignored=False)
+
+
+class UnreadableResult:
+    """A task the broker accepted whose metadata can't be read back from the result backend."""
+
+    def __init__(self, task_id):
+        self.id = task_id
+
+    @property
+    def name(self):
+        raise OSError("result backend unavailable")
 
 
 class FakeArchive:
@@ -414,6 +428,15 @@ def test_details_that_cannot_be_built_never_fail_the_export(harness, audit_event
         assert len(harness.tasks[task].requests) == 1
     # Still one event per queued export, naming who and what, without the details.
     assert [(event["outcome"], event["details"]) for event in audit_events] == [("success", {})] * len(EXPORT_REQUESTS)
+
+
+@pytest.mark.parametrize("method,url,body,task", EXPORT_REQUESTS)
+def test_accepted_task_is_a_success_even_if_its_metadata_cannot_be_read(harness, audit_events, method, url, body, task):
+    harness.tasks[task].backend_down = True
+    with pytest.raises(OSError):
+        harness.client.request(method, url, json=body)
+    (event,) = audit_events
+    assert (event["outcome"], event["details"]["task_id"]) == ("success", f"task-{task}")
 
 
 def test_target_that_urlsplit_chokes_on_is_audited_not_raised(harness, audit_events):

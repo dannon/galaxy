@@ -415,9 +415,10 @@ class HistoriesContentsService(ServiceBase, ServesExportStores, ConsumesModelSto
             **payload.model_dump(),
         )
         result = prepare_history_content_download.delay(request=request, task_user_id=getattr(trans.user, "id", None))
-        task_summary = async_task_summary(result)
         if export_audit:
-            export_audit.queued(task_id=task_summary.id, storage_request_id=short_term_storage_target.request_id)
+            # Accepted by the broker is what counts; reading task metadata or committing below can still fail.
+            export_audit.queued(task_id=result.id, storage_request_id=short_term_storage_target.request_id)
+        task_summary = async_task_summary(result)
         return AsyncFile(storage_request_id=short_term_storage_target.request_id, task=task_summary)
 
     def write_store(
@@ -443,9 +444,10 @@ class HistoriesContentsService(ServiceBase, ServesExportStores, ConsumesModelSto
             user=trans.async_request_user, content_id=content_id, contents_type=contents_type, **payload.model_dump()
         )
         result = write_history_content_to.delay(request=request, task_user_id=getattr(trans.user, "id", None))
-        task_summary = async_task_summary(result)
         if export_audit:
-            export_audit.queued(task_id=task_summary.id)
+            # Accepted by the broker is what counts; reading task metadata or committing below can still fail.
+            export_audit.queued(task_id=result.id)
+        task_summary = async_task_summary(result)
         return task_summary
 
     def index_jobs_summary(
@@ -536,9 +538,10 @@ class HistoriesContentsService(ServiceBase, ServesExportStores, ConsumesModelSto
         result = prepare_dataset_collection_download.delay(
             request=request, task_user_id=getattr(trans.user, "id", None)
         )
-        task_summary = async_task_summary(result)
         if export_audit:
-            export_audit.queued(task_id=task_summary.id, storage_request_id=short_term_storage_target.request_id)
+            # Accepted by the broker is what counts; reading task metadata or committing below can still fail.
+            export_audit.queued(task_id=result.id, storage_request_id=short_term_storage_target.request_id)
+        task_summary = async_task_summary(result)
         return AsyncFile(storage_request_id=short_term_storage_target.request_id, task=task_summary)
 
     def __stream_dataset_collection(self, trans: ProvidesUserContext, dataset_collection_instance):

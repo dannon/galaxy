@@ -245,10 +245,10 @@ class InvocationsService(ServiceBase, ConsumesModelStores):
             **payload.model_dump(),
         )
         result = prepare_invocation_download.delay(request=request, task_user_id=getattr(trans.user, "id", None))
-        task_summary = async_task_summary(result)
         if export_audit:
-            # Queued is what matters: the task runs even if recording the association fails below.
-            export_audit.queued(task_id=task_summary.id, storage_request_id=short_term_storage_target.request_id)
+            # Accepted by the broker is what counts; reading task metadata or committing below can still fail.
+            export_audit.queued(task_id=result.id, storage_request_id=short_term_storage_target.request_id)
+        task_summary = async_task_summary(result)
         export_association.task_uuid = task_summary.id
         trans.sa_session.commit()
         return AsyncFile(storage_request_id=short_term_storage_target.request_id, task=task_summary)
@@ -275,9 +275,10 @@ class InvocationsService(ServiceBase, ConsumesModelStores):
             **payload.model_dump(),
         )
         result = write_invocation_to.delay(request=request, task_user_id=getattr(trans.user, "id", None))
-        rval = async_task_summary(result)
         if export_audit:
-            export_audit.queued(task_id=rval.id)
+            # Accepted by the broker is what counts; reading task metadata or committing below can still fail.
+            export_audit.queued(task_id=result.id)
+        rval = async_task_summary(result)
         return rval
 
     def report_error(
