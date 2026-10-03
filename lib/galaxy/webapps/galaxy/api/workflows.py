@@ -35,9 +35,15 @@ from galaxy.files.uris import (
     stream_url_to_str,
     validate_uri_access,
 )
+from galaxy.managers.audit import AuditService
+from galaxy.managers.audit_actions import AuditObject
 from galaxy.managers.context import (
     ProvidesHistoryContext,
     ProvidesUserContext,
+)
+from galaxy.managers.export_audit import (
+    ExportAudit,
+    store_export_details,
 )
 from galaxy.managers.landing import LandingRequestManager
 from galaxy.managers.workflows import (
@@ -1391,6 +1397,7 @@ CreateInvocationsFromStoreBody = Annotated[
 @router.cbv
 class FastAPIInvocations:
     invocations_service: InvocationsService = depends(InvocationsService)
+    audit: AuditService = depends(AuditService)
 
     @router.post(
         "/api/invocations/from_store",
@@ -1515,11 +1522,14 @@ class FastAPIInvocations:
         trans: SessionRequestContext = DependsOnTrans,
         payload: PrepareStoreDownloadPayload = Body(...),
     ) -> AsyncFile:
-        return self.invocations_service.prepare_store_download(
-            trans,
-            invocation_id,
-            payload,
+        export = ExportAudit(
+            self.audit,
+            "invocation.export",
+            AuditObject(type="invocation", id=invocation_id),
+            store_export_details(payload),
         )
+        with export.guard():
+            return self.invocations_service.prepare_store_download(trans, invocation_id, payload, export_audit=export)
 
     @router.post(
         "/api/invocations/{invocation_id}/write_store",
@@ -1531,12 +1541,14 @@ class FastAPIInvocations:
         trans: SessionRequestContext = DependsOnTrans,
         payload: WriteInvocationStoreToPayload = Body(...),
     ) -> AsyncTaskResultSummary:
-        rval = self.invocations_service.write_store(
-            trans,
-            invocation_id,
-            payload,
+        export = ExportAudit(
+            self.audit,
+            "invocation.export",
+            AuditObject(type="invocation", id=invocation_id),
+            store_export_details(payload, payload.target_uri),
         )
-        return rval
+        with export.guard():
+            return self.invocations_service.write_store(trans, invocation_id, payload, export_audit=export)
 
     @router.post(
         "/api/invocations/{invocation_id}/error",

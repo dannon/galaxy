@@ -19,6 +19,7 @@ from galaxy.managers.context import (
     ProvidesHistoryContext,
     ProvidesUserContext,
 )
+from galaxy.managers.export_audit import ExportAudit
 from galaxy.managers.export_tracker import StoreExportTracker
 from galaxy.managers.histories import HistoryManager
 from galaxy.managers.jobs import (
@@ -208,7 +209,11 @@ class InvocationsService(ServiceBase, ConsumesModelStores):
         return fetch_job_states(trans.sa_session, ids, types)[0]
 
     def prepare_store_download(
-        self, trans: SessionRequestContext, invocation_id: DecodedDatabaseIdField, payload: PrepareStoreDownloadPayload
+        self,
+        trans: SessionRequestContext,
+        invocation_id: DecodedDatabaseIdField,
+        payload: PrepareStoreDownloadPayload,
+        export_audit: ExportAudit | None = None,
     ) -> AsyncFile:
         ensure_celery_tasks_enabled(trans.app.config)
         model_store_format = payload.model_store_format
@@ -217,6 +222,8 @@ class InvocationsService(ServiceBase, ConsumesModelStores):
         )
         if not workflow_invocation:
             raise ObjectNotFound()
+        if export_audit:
+            export_audit.authorized(workflow_invocation)
         try:
             invocation_name = f"Invocation of {workflow_invocation.workflow.stored_workflow.name} at {workflow_invocation.create_time.isoformat()}"
         except AttributeError:
@@ -241,6 +248,8 @@ class InvocationsService(ServiceBase, ConsumesModelStores):
         task_summary = async_task_summary(result)
         export_association.task_uuid = task_summary.id
         trans.sa_session.commit()
+        if export_audit:
+            export_audit.queued(task_id=task_summary.id, storage_request_id=short_term_storage_target.request_id)
         return AsyncFile(storage_request_id=short_term_storage_target.request_id, task=task_summary)
 
     def write_store(
@@ -248,6 +257,7 @@ class InvocationsService(ServiceBase, ConsumesModelStores):
         trans: SessionRequestContext,
         invocation_id: DecodedDatabaseIdField,
         payload: WriteInvocationStoreToPayload,
+        export_audit: ExportAudit | None = None,
     ) -> AsyncTaskResultSummary:
         ensure_celery_tasks_enabled(trans.app.config)
         workflow_invocation = self._workflows_manager.get_invocation(
@@ -255,6 +265,8 @@ class InvocationsService(ServiceBase, ConsumesModelStores):
         )
         if not workflow_invocation:
             raise ObjectNotFound()
+        if export_audit:
+            export_audit.authorized(workflow_invocation)
         request = WriteInvocationTo(
             galaxy_url=trans.request.url_path,
             user=trans.async_request_user,
@@ -263,6 +275,8 @@ class InvocationsService(ServiceBase, ConsumesModelStores):
         )
         result = write_invocation_to.delay(request=request, task_user_id=getattr(trans.user, "id", None))
         rval = async_task_summary(result)
+        if export_audit:
+            export_audit.queued(task_id=rval.id)
         return rval
 
     def report_error(

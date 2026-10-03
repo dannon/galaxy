@@ -27,9 +27,19 @@ from pydantic import (
 from pydantic.fields import Field
 from pydantic.main import BaseModel
 
+from galaxy.managers.audit import AuditService
+from galaxy.managers.audit_actions import AuditObject
+from galaxy.managers.audit_actions.exports import (
+    ArchiveDownloadDetails,
+    ExportDetails,
+)
 from galaxy.managers.context import (
     ProvidesHistoryContext,
     ProvidesUserContext,
+)
+from galaxy.managers.export_audit import (
+    ExportAudit,
+    store_export_details,
 )
 from galaxy.schema import (
     FilterQueryParams,
@@ -80,6 +90,7 @@ from galaxy.schema.workflows import (
     WorkflowExtractionSummary,
 )
 from galaxy.webapps.base.api import GalaxyFileResponse
+from galaxy.webapps.base.audit import audited_response
 from galaxy.webapps.galaxy.api import (
     as_form,
     depends,
@@ -207,6 +218,7 @@ IndexExportsResponse = Annotated[
 class FastAPIHistories:
     service: HistoriesService = depends(HistoriesService)
     workflows_service: WorkflowsService = depends(WorkflowsService)
+    audit: AuditService = depends(AuditService)
 
     @router.get(
         "/api/histories",
@@ -426,11 +438,11 @@ class FastAPIHistories:
         trans: ProvidesHistoryContext = DependsOnTrans,
         payload: StoreExportPayload = Body(...),
     ) -> AsyncFile:
-        return self.service.prepare_download(
-            trans,
-            history_id,
-            payload=payload,
+        export = ExportAudit(
+            self.audit, "history.export", AuditObject(type="history", id=history_id), store_export_details(payload)
         )
+        with export.guard():
+            return self.service.prepare_download(trans, history_id, payload=payload, export_audit=export)
 
     @router.post(
         "/api/histories/{history_id}/write_store",
@@ -442,11 +454,14 @@ class FastAPIHistories:
         trans: ProvidesHistoryContext = DependsOnTrans,
         payload: WriteStoreToPayload = Body(...),
     ) -> AsyncTaskResultSummary:
-        return self.service.write_store(
-            trans,
-            history_id,
-            payload=payload,
+        export = ExportAudit(
+            self.audit,
+            "history.export",
+            AuditObject(type="history", id=history_id),
+            store_export_details(payload, payload.target_uri),
         )
+        with export.guard():
+            return self.service.write_store(trans, history_id, payload=payload, export_audit=export)
 
     @router.get(
         "/api/histories/{history_id}/citations",
@@ -670,7 +685,21 @@ class FastAPIHistories:
         **Deprecation notice**: Please use `/api/histories/{id}/prepare_store_download` or
         `/api/histories/{id}/write_store` instead.
         """
-        export_result, ready = self.service.archive_export(trans, history_id, payload)
+        directory_uri = payload.directory_uri if payload else None
+        export = ExportAudit(
+            self.audit,
+            "history.export",
+            AuditObject(type="history", id=history_id),
+            ExportDetails(
+                destination="remote" if directory_uri else "download",
+                format="tar.gz" if payload is None or payload.gzip else "tar",
+                target=directory_uri,
+                include_hidden=bool(payload and payload.include_hidden),
+                include_deleted=bool(payload and payload.include_deleted),
+            ),
+        )
+        with export.guard():
+            export_result, ready = self.service.archive_export(trans, history_id, payload, export_audit=export)
         if not ready:
             response.status_code = status.HTTP_202_ACCEPTED
         return export_result
@@ -701,14 +730,22 @@ class FastAPIHistories:
         **Deprecation notice**: Please use `/api/histories/{id}/prepare_store_download` or
         `/api/histories/{id}/write_store` instead.
         """
-        jeha = self.service.get_ready_history_export(trans, history_id, jeha_id)
-        media_type = self.service.get_archive_media_type(jeha)
-        file_path = self.service.get_archive_download_path(trans, jeha)
-        return GalaxyFileResponse(
-            path=file_path,
-            media_type=media_type,
-            filename=jeha.export_name,
+        attempt = self.audit.attempt(
+            "archive.download",
+            AuditObject(type="history_export", id=None if jeha_id == "latest" else jeha_id, history_id=history_id),
+            ArchiveDownloadDetails(source="job_export"),
         )
+        with attempt.guard():
+            jeha = self.service.get_ready_history_export(trans, history_id, jeha_id)
+            attempt.authorized(jeha)
+            media_type = self.service.get_archive_media_type(jeha)
+            file_path = self.service.get_archive_download_path(trans, jeha)
+            response = GalaxyFileResponse(
+                path=file_path,
+                media_type=media_type,
+                filename=jeha.export_name,
+            )
+            return audited_response(response, attempt)
 
     @router.get(
         "/api/histories/{history_id}/custom_builds_metadata",
