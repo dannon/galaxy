@@ -8,6 +8,7 @@ stand-ins.
 import inspect
 import json
 import logging
+import random
 import uuid
 from datetime import datetime
 from types import SimpleNamespace
@@ -336,6 +337,19 @@ def test_history_export_denied_names_the_requested_history(harness, audit_events
     assert harness.tasks["write_history_to"].requests == []
 
 
+@pytest.mark.parametrize("denied", [True, False])
+def test_hostile_target_is_reduced_to_its_scheme_whatever_the_outcome(harness, audit_events, denied):
+    if denied:
+        harness.history_manager.get_accessible.side_effect = ItemAccessibilityException("nope")
+    target = f"ftp:/\t/alice:2024/{SECRET}@host//x"
+    response = harness.client.post(f"{HISTORY_URL}/write_store", json={"target_uri": target})
+    assert response.status_code == (403 if denied else 200)
+    (event,) = audit_events
+    assert event["outcome"] == ("denied" if denied else "success")
+    assert event["details"]["target"] == "ftp:"
+    assert SECRET not in json.dumps(event) and "alice" not in json.dumps(event)
+
+
 def test_history_export_that_cannot_queue_is_one_error(harness, audit_events):
     harness.tasks["prepare_history_download"].error = OSError("broker at amqp://guest:guest@mq down")
     with pytest.raises(OSError):
@@ -628,13 +642,69 @@ def test_prepared_download_not_yet_written_is_an_error_at_respond(harness, audit
         (f"http://host/p;jsessionid={SECRET}", "http://host/p"),
         (f"alice:{SECRET}@host/path", None),
         ("ftp://[::1]:21/x", "ftp://[::1]:21/x"),
-        ("http://[broken/x", None),
+        ("http://[broken/x", "http:"),
+        ("http://[::1]x/y", "http:"),
         (None, None),
+        # urlsplit() drops tabs and newlines, so it finds an authority that isn't in the original text.
+        (f"ftp:/\t/alice:2024/{SECRET}@host//x", "ftp:"),
+        ("ftp:/\n/host/path", "ftp:"),
+        (f"ftp://alice:{SECRET}\t@host/x", "ftp:"),
+        (f"alice:{SECRET}\n@host/x", None),
+        (f"ftp://alice\\{SECRET}@host/x", "ftp:"),
+        (f"ftp://alice:{SECRET}\uff20host/x", "ftp:"),
+        (f"ftp://alice:{SECRET}\u200b@host/x", "ftp:"),
+        ("FTP://Host/Dir", "ftp://Host/Dir"),
+        ("not a uri", None),
+        ("", None),
     ],
 )
 def test_target_uri_never_keeps_credentials(uri, expected):
     assert sanitize_target_uri(uri) == expected
     assert sanitize_target_uri(expected) == expected
+
+
+PASSWORD = "Zq9Xw7Kv"
+HOSTILE_CHARACTERS = ["/", "?", "#", "@", ":", ";", "[", "]", "\\", "%", " ", "\t", "\n", "\r", "\x00", "\x7f"] + [
+    "\u00a0",  # no-break space
+    "\u200b",  # zero-width space
+    "\u202e",  # right-to-left override
+    "\uff0f",  # fullwidth solidus
+    "\uff20",  # fullwidth commercial at
+    "\uff1a",  # fullwidth colon
+]
+CREDENTIALED_URIS = [
+    f"ftp://alice:{PASSWORD}@files.example.org:21/dir/file?token={PASSWORD}#{PASSWORD}",
+    f"https://{PASSWORD}@files.example.org/dir/file",
+    f"gxftp://alice:{PASSWORD}@MyFTP/dir/file",
+]
+
+
+def assert_no_credentials(sanitized):
+    if sanitized is None:
+        return
+    assert "@" not in sanitized
+    assert "alice" not in sanitized
+    assert not any(PASSWORD[i : i + 4] in sanitized for i in range(len(PASSWORD) - 3))
+    assert not any(char.isspace() or not char.isprintable() for char in sanitized)
+    assert sanitize_target_uri(sanitized) == sanitized
+
+
+@pytest.mark.parametrize("uri", CREDENTIALED_URIS)
+def test_target_uri_with_a_hostile_character_anywhere_keeps_no_credentials(uri):
+    for position in range(len(uri) + 1):
+        for char in HOSTILE_CHARACTERS:
+            assert_no_credentials(sanitize_target_uri(uri[:position] + char + uri[position:]))
+
+
+def test_target_uri_sanitizer_never_raises_or_lets_credentials_through():
+    rng = random.Random(20261003)
+    alphabet = list("ftp:/@?#;[]%.") + HOSTILE_CHARACTERS + ["alice", PASSWORD, "host", "21", "//"]
+    for _ in range(5000):
+        uri = "".join(rng.choice(alphabet) for _ in range(rng.randint(0, 12)))
+        sanitized = sanitize_target_uri(uri)
+        if sanitized is not None:
+            assert "@" not in sanitized
+            assert not any(char.isspace() or not char.isprintable() for char in sanitized)
 
 
 def test_details_strip_credentials_whoever_builds_them():
