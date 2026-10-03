@@ -40,6 +40,7 @@ from galaxy.managers import (
     history_contents,
     sharable,
 )
+from galaxy.managers.audit import audit_failures
 from galaxy.managers.audit_actions.sharing import HistoryImportDetails
 from galaxy.managers.base import (
     apply_sort_column,
@@ -504,7 +505,7 @@ class HistoryManager(sharable.SharableModelManager[model.History], deletable.Pur
                 )
                 if option and owner_can_manage_dataset:
                     dataset_manager = self.hda_manager.dataset_manager
-                    before = dataset_manager.permissions_snapshot(hda.dataset)
+                    before = dataset_manager.permissions_snapshot(hda)
                     if option == sharable.SharingOptions.make_accessible_to_shared:
                         trans.app.security_agent.privately_share_dataset(hda.dataset, users=[owner, user])
                         dataset_manager.record_permissions_change(hda, "share_privately", before, via="history_sharing")
@@ -544,12 +545,26 @@ class HistoryManager(sharable.SharableModelManager[model.History], deletable.Pur
         The event's object is the source history, so its owner is the person whose data
         moved; the recipient is the new history's owner.
         """
-        if source.user_id == new_history.user_id or not self.audit.wants("history.import"):
+        if not self.audit.wants("history.import"):
             return
-        details = HistoryImportDetails(
-            new_history_id=new_history.id, recipient_id=new_history.user_id, all_datasets=all_datasets
-        )
-        self.audit.record("history.import", source, "success", details=details)
+        source_id, new_history_id = sharable.audit_id(source), sharable.audit_id(new_history)
+        try:
+            with sharable.audit_read_session(self.app) as session:
+                source_history = session.get(model.History, source_id)
+                copy = session.get(model.History, new_history_id)
+                if source_history is None or copy is None:
+                    raise ObjectNotFound(f"No history {source_id} or {new_history_id}")
+                if source_history.user_id == copy.user_id:
+                    return
+                target = self.audit.describe(source_history)
+                details = HistoryImportDetails(
+                    new_history_id=new_history_id, recipient_id=copy.user_id, all_datasets=all_datasets
+                )
+        except Exception:
+            # The copy has committed; a missing audit event is reported, not raised.
+            audit_failures.report("prepare", "Lost the audit event for an import of history %s", source_id)
+            return
+        self.audit.record("history.import", target, "success", details=details)
 
     def make_members_public(self, trans: ProvidesUserContext, item):
         """Make the non-purged datasets in history public.
@@ -560,7 +575,7 @@ class HistoryManager(sharable.SharableModelManager[model.History], deletable.Pur
             if not trans.app.security_agent.dataset_is_public(dataset):
                 if trans.app.security_agent.can_manage_dataset(trans.user.all_roles(), dataset):
                     dataset_manager = self.hda_manager.dataset_manager
-                    before = dataset_manager.permissions_snapshot(dataset)
+                    before = dataset_manager.permissions_snapshot(hda)
                     try:
                         trans.app.security_agent.make_dataset_public(hda.dataset)
                     except Exception:

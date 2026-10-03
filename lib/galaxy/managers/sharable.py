@@ -11,6 +11,8 @@ A sharable Galaxy object:
 """
 
 import logging
+from collections.abc import Iterator
+from contextlib import contextmanager
 from functools import cached_property
 from typing import (
     Any,
@@ -22,8 +24,14 @@ from slugify import slugify
 from sqlalchemy import (
     exists,
     false,
+    inspect as sa_inspect,
     select,
     true,
+)
+from sqlalchemy.orm import Session
+from sqlalchemy.pool import (
+    SingletonThreadPool,
+    StaticPool,
 )
 
 from galaxy import (
@@ -82,11 +90,46 @@ def audit_service_for(app: Any) -> AuditService:
     return AuditService(app.config, app.security, app.model.context)
 
 
+def audit_id(obj: Any) -> int | None:
+    """The primary key of a persistent ``obj``, read from its identity without a query.
+
+    A commit expires every attribute, ``id`` included, so reading ``obj.id`` afterwards
+    refreshes the object through the request's session.
+    """
+    state = sa_inspect(obj, raiseerr=False)
+    identity = state.identity if state is not None else None
+    return identity[0] if identity else None
+
+
+@contextmanager
+def audit_read_session(app: Any) -> Iterator[Session]:
+    """A short-lived session for the reads behind an audit event.
+
+    A failed query on the request's session leaves its transaction needing a rollback, and
+    the request's own commit then fails over nothing but an audit read. A session of its own
+    keeps audit reads out of that transaction, and sees only committed rows, so an event
+    built from it never claims a change that was rolled back.
+    """
+    engine = app.model.engine
+    if isinstance(engine.pool, (SingletonThreadPool, StaticPool)):
+        # Every session shares one connection (in-memory SQLite), so closing a second one
+        # would roll back the request's work; read through the request's session instead.
+        yield app.model.context()
+        return
+    with Session(engine, autoflush=False) as session:
+        yield session
+
+
 class SharingState(NamedTuple):
     importable: bool
     published: bool
     slug: str | None
     user_ids: frozenset[int]
+    # The item, described while it was read.
+    target: AuditObject
+
+    def access(self) -> tuple[bool, bool, str | None, frozenset[int]]:
+        return self.importable, self.published, self.slug, self.user_ids
 
 
 class SharableModelManager(
@@ -325,24 +368,34 @@ class SharableModelManager(
         """Who can reach ``item`` right now, or None when sharing changes aren't audited."""
         if not self.audit.wants(self.share_action):
             return None
+        return self._read_sharing_state(audit_id(item))
+
+    def _read_sharing_state(self, item_id: int | None) -> SharingState | None:
+        """The committed sharing state of the item and its description, from a session of their own."""
         try:
-            # Query the shares rather than trust the relationship, which a delete leaves stale until expiry.
-            user_ids = frozenset(share.user_id for share in self.get_share_assocs(item))
-            return SharingState(bool(item.importable), bool(item.published), item.slug, user_ids)
+            with audit_read_session(self.app) as session:
+                item = session.get(self.model_class, item_id) if item_id is not None else None
+                if item is None:
+                    raise exceptions.ObjectNotFound(f"No {self.model_class.__name__} {item_id}")
+                target = self.audit.describe(item)
+                assert target is not None
+                user_ids = frozenset(share.user_id for share in item.users_shared_with)
+                return SharingState(bool(item.importable), bool(item.published), item.slug, user_ids, target)
         except Exception:
             # The change itself must go ahead; a missing audit event is reported, not raised.
-            audit_failures.report("prepare", "Could not read the sharing state for %s", self.share_action)
+            audit_failures.report("prepare", "Could not read the sharing state of %s %s", self.share_action, item_id)
             return None
 
     def record_sharing_change(self, item, change: SharingChange, before: SharingState | None) -> None:
         """Record a committed sharing change; a request that changed nothing records nothing."""
         if before is None:
             return
-        after = self.sharing_state(item)
+        item_id = audit_id(item)
+        after = self._read_sharing_state(item_id)
         if after is None:
-            audit_failures.report("prepare", "Lost the audit event for a committed %s", self.share_action)
+            audit_failures.report("prepare", "Lost the audit event for a %s on %s", self.share_action, item_id)
             return
-        if after == before:
+        if after.access() == before.access():
             return
         details = SharingChangeDetails(
             change=change,
@@ -355,7 +408,7 @@ class SharableModelManager(
             slug_before=before.slug,
             slug_after=after.slug,
         )
-        self.audit.record(self.share_action, item, "success", details=details)
+        self.audit.record(self.share_action, after.target, "success", details=details)
 
     def record_sharing_denied(self, item_id: int, change: SharingChange) -> None:
         if not self.audit.wants(self.share_action):
@@ -559,7 +612,8 @@ class SharableModelDeserializer(
         try:
             return super().deserialize(item, data, flush=flush, **context)
         finally:
-            # users_shared_with commits on its own, so a later key failing doesn't undo the shares.
+            # users_shared_with commits on its own (taking any keys set before it along), so a
+            # later key failing doesn't undo everything; the event reads what actually committed.
             self.manager.record_sharing_change(item, "update", before)
 
     def deserialize_published(self, item, key, val, **context):

@@ -51,6 +51,10 @@ from galaxy.managers.context import (
     ProvidesHistoryContext,
     ProvidesUserContext,
 )
+from galaxy.managers.sharable import (
+    audit_id,
+    audit_read_session,
+)
 from galaxy.model import (
     HistoryDatasetAssociation,
     HistoryDatasetCollectionAssociation,
@@ -240,25 +244,34 @@ class HDAManager(
             session = object_session(copy)
             assert session
             session.commit()
-            self._record_cross_user_copy(hda, copy, history)
+            if history is not None:
+                self._record_cross_user_copy(audit_id(hda), audit_id(copy), audit_id(history))
 
         return copy
 
-    def _record_cross_user_copy(self, source: HistoryDatasetAssociation, copy: HistoryDatasetAssociation, history):
+    def _record_cross_user_copy(self, source_id: int | None, copy_id: int | None, history_id: int | None):
         """Record a committed copy into a history whose owner doesn't own the source."""
         audit = self.dataset_manager.audit
-        if history is None or not audit.wants("dataset.copy"):
+        if not audit.wants("dataset.copy"):
             return
         try:
-            source_owner_id = source.history.user_id if source.history is not None else None
-            if source_owner_id == history.user_id:
-                return
-            details = DatasetCopyDetails(new_hda_id=copy.id, target_history_id=history.id, recipient_id=history.user_id)
+            with audit_read_session(self.app) as session:
+                source = session.get(HistoryDatasetAssociation, source_id)
+                history = session.get(model.History, history_id)
+                if source is None or history is None:
+                    raise exceptions.ObjectNotFound(f"No dataset {source_id} or history {history_id}")
+                source_owner_id = source.history.user_id if source.history is not None else None
+                if source_owner_id == history.user_id:
+                    return
+                target = audit.describe(source)
+                details = DatasetCopyDetails(
+                    new_hda_id=copy_id, target_history_id=history_id, recipient_id=history.user_id
+                )
         except Exception:
             # The copy has committed; a missing audit event is reported, not raised.
-            audit_failures.report("prepare", "Lost the audit event for a copy of dataset %s", source.id)
+            audit_failures.report("prepare", "Lost the audit event for a copy of dataset %s", source_id)
             return
-        audit.record("dataset.copy", source, "success", details=details)
+        audit.record("dataset.copy", target, "success", details=details)
 
     # .... deletion and purging
     def purge(self, item, flush=True, **kwargs):

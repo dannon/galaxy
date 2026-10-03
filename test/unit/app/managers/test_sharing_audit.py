@@ -1,18 +1,28 @@
 """Audit events for sharing changes, dataset permission changes and cross-user copies."""
 
+import contextlib
 import json
 import logging
+import os
+import tempfile
 from types import SimpleNamespace
+from typing import cast
 from unittest import mock
 
 import pytest
+from sqlalchemy import (
+    event,
+    exc,
+)
 
 from galaxy import (
     exceptions,
     model,
 )
+from galaxy.app_unittest_utils import galaxy_mock
 from galaxy.managers import hdas
 from galaxy.managers.audit import (
+    audit_failures,
     AUDIT_LOGGER_NAME,
     AuditService,
 )
@@ -33,7 +43,11 @@ from galaxy.web.framework.request_scope import (
     set_request_identity,
 )
 from galaxy.webapps.galaxy.services.sharable import ShareableService
-from .base import BaseTestCase
+from galaxy.work.context import SessionRequestContext
+from .base import (
+    admin_users,
+    BaseTestCase,
+)
 
 default_password = "123456"
 
@@ -48,6 +62,18 @@ class CapturingHandler(logging.Handler):
 
 
 class AuditTestCase(BaseTestCase):
+    def set_up_mocks(self):
+        # A database file rather than in-memory SQLite, whose sessions all share one connection:
+        # audit reads go through a session of their own, and these tests need that to be real.
+        self._database_dir = tempfile.TemporaryDirectory()
+        database = os.path.join(self._database_dir.name, "audit.sqlite")
+        admin_users_list = [u for u in admin_users.split(",") if u]
+        self.mock_trans = galaxy_mock.MockTrans(
+            admin_users=admin_users, admin_users_list=admin_users_list, database_connection=f"sqlite:///{database}"
+        )
+        self.trans = cast(SessionRequestContext, self.mock_trans)
+        self.app = self.trans.app
+
     def setUp(self):
         super().setUp()
         logger = logging.getLogger(AUDIT_LOGGER_NAME)
@@ -64,11 +90,55 @@ class AuditTestCase(BaseTestCase):
         self._security_patch.stop()
         logger = logging.getLogger(AUDIT_LOGGER_NAME)
         logger.handlers, logger.level, logger.propagate = self._saved_logger
+        self.app.model.engine.dispose()
+        self._database_dir.cleanup()
         super().tearDown()
 
     @property
     def events(self) -> list[dict]:
         return self.handler.events
+
+    @contextlib.contextmanager
+    def audit_read_fails(self, statement_prefix: str):
+        """Drop the connection under the first statement starting with ``statement_prefix``."""
+        armed = [True]
+
+        def fail(conn, cursor, statement, parameters, context, executemany):
+            if armed[0] and statement.startswith(statement_prefix):
+                armed[0] = False
+                conn.invalidate()
+                raise exc.OperationalError(statement, parameters, Exception("connection lost"))
+
+        engine = self.app.model.engine
+        event.listen(engine, "before_cursor_execute", fail)
+        try:
+            yield
+        finally:
+            event.remove(engine, "before_cursor_execute", fail)
+        assert not armed[0], "the audit read never ran"
+
+    @contextlib.contextmanager
+    def request_reads_fail(self, after_commit: bool = False):
+        """Fail every SELECT the request's session issues, lazy loads and refreshes included."""
+        session = self.trans.sa_session()
+        armed = [not after_commit]
+
+        def arm(_session):
+            armed[0] = True
+
+        def fail(orm_execute_state):
+            if armed[0] and orm_execute_state.is_select:
+                raise exc.OperationalError("SELECT", {}, Exception("connection lost"))
+
+        event.listen(session, "do_orm_execute", fail)
+        if after_commit:
+            event.listen(session, "after_commit", arm)
+        try:
+            yield
+        finally:
+            event.remove(session, "do_orm_execute", fail)
+            if after_commit:
+                event.remove(session, "after_commit", arm)
 
     def make_audit(self, enabled=True, include_names=False) -> AuditService:
         config = SimpleNamespace(
@@ -261,18 +331,71 @@ class TestSharingAudit(AuditTestCase):
         (event,) = self.events
         assert event["details"]["users_added"] == [self.other.id]
 
-    def test_a_broken_share_query_never_fails_the_change(self):
-        with mock.patch.object(self.history_manager, "get_share_assocs", side_effect=RuntimeError("db gone")):
+    def test_a_rolled_back_update_records_nothing(self):
+        deserializer = self.app[HistoryDeserializer]
+        deserializer.manager.audit = self.history_manager.audit
+        with self.as_user(self.owner):
+            # published is set on the item, then importable fails validation; nothing commits.
+            with pytest.raises(exceptions.RequestParameterInvalidException):
+                deserializer.deserialize(
+                    self.history, {"published": True, "importable": None}, user=self.owner, trans=self.trans
+                )
+        self.trans.sa_session.rollback()
+        assert not self.history.published
+        assert self.events == []
+
+    def test_an_update_records_keys_that_a_later_commit_carried(self):
+        deserializer = self.app[HistoryDeserializer]
+        deserializer.manager.audit = self.history_manager.audit
+        with self.as_user(self.owner):
+            # The share commits everything set before it, published included, then importable fails.
+            with pytest.raises(exceptions.RequestParameterInvalidException):
+                deserializer.deserialize(
+                    self.history,
+                    {
+                        "published": True,
+                        "users_shared_with": [self.app.security.encode_id(self.other.id)],
+                        "importable": None,
+                    },
+                    user=self.owner,
+                    trans=self.trans,
+                )
+        self.trans.sa_session.rollback()
+
+        (event,) = self.events
+        assert self.history.published
+        assert event["details"]["published_after"] is True
+        assert event["details"]["users_added"] == [self.other.id]
+
+    def test_a_failed_audit_read_leaves_the_request_able_to_commit(self):
+        with self.audit_read_fails("SELECT history_user_share_association"):
             with self.as_user(self.owner):
                 self.service.publish(self.trans, self.history.id)
-        self.trans.sa_session.refresh(self.history)
+        self.history.name = "still writable"
+        self.trans.sa_session.commit()
+
+        self.trans.sa_session.expire_all()
         assert self.history.published
+        assert self.history.name == "still writable"
+        # The before-read was lost, so there is nothing to compare against; that is reported, not raised.
         assert self.events == []
+
+    def test_recording_reads_nothing_through_the_request_session(self):
+        before = self.history_manager.sharing_state(self.history)
+        self.history_manager.publish(self.history)
+        with self.as_user(self.owner):
+            with self.request_reads_fail():
+                self.history_manager.record_sharing_change(self.history, "publish", before)
+
+        (event,) = self.events
+        assert event["object"]["id"] == self.history.id
+        assert event["object"]["owner_id"] == self.owner.id
+        assert event["details"]["published_after"] is True
 
     def test_disabled_auditing_skips_the_share_query(self):
         self.history_manager.audit = self.make_audit(enabled=False)
         assert self.history_manager.sharing_state(self.history) is None
-        with mock.patch.object(self.history_manager, "get_share_assocs") as spy:
+        with mock.patch.object(self.history_manager, "_read_sharing_state") as spy:
             with self.as_user(self.owner):
                 self.service.publish(self.trans, self.history.id)
         spy.assert_not_called()
@@ -421,13 +544,54 @@ class TestDatasetPermissionsAudit(AuditTestCase):
         assert event["details"]["access_roles_after"] == []
         assert event["details"]["may_widen_access"] is True
 
+    def test_a_failed_permissions_read_leaves_the_request_able_to_commit(self):
+        with self.audit_read_fails("SELECT dataset_permissions.role_id"):
+            with self.as_user(self.owner):
+                self.hda_manager.update_permissions(self.trans, self.hda, action="remove_restrictions")
+        self.hda.name = "still writable"
+        self.trans.sa_session.commit()
+
+        self.trans.sa_session.expire_all()
+        assert self.app.security_agent.dataset_is_public(self.hda.dataset)
+        assert self.hda.name == "still writable"
+        assert self.events == []
+
+    def test_recording_a_permission_change_reads_nothing_through_the_request_session(self):
+        dataset_manager = self.hda_manager.dataset_manager
+        before = dataset_manager.permissions_snapshot(self.hda)
+        self.app.security_agent.make_dataset_public(self.hda.dataset)
+        with self.as_user(self.owner):
+            with self.request_reads_fail():
+                assert dataset_manager.record_permissions_change(self.hda, "remove_restrictions", before)
+
+        (event,) = self.events
+        assert event["object"]["id"] == self.hda.id
+        assert event["object"]["dataset_id"] == self.hda.dataset_id
+        assert event["details"]["access_roles_after"] == []
+
+    def test_a_failure_that_breaks_the_session_is_still_recorded_without_reading_it(self):
+        dataset_manager = self.hda_manager.dataset_manager
+        with mock.patch.object(dataset_manager, "_read_permissions", return_value=None):
+            with self.as_user(self.other):
+                with self.request_reads_fail():
+                    with pytest.raises(exc.OperationalError):
+                        self.hda_manager.update_permissions(self.trans, self.hda, action="remove_restrictions")
+
+        (event,) = self.events
+        assert (event["outcome"], event["reason"]) == ("error", "internal_error")
+        assert event["object"]["type"] == "hda"
+        assert event["object"]["id"] == self.hda.id
+        assert event["object"]["encoded_id"] == self.app.security.encode_id(self.hda.id)
+
     def test_a_broken_snapshot_never_fails_the_change(self):
         dataset_manager = self.hda_manager.dataset_manager
+        failures = audit_failures.count
         with mock.patch.object(dataset_manager, "_role_ids", side_effect=RuntimeError("db gone")):
             with self.as_user(self.owner):
                 self.hda_manager.update_permissions(self.trans, self.hda, action="remove_restrictions")
         assert self.app.security_agent.dataset_is_public(self.hda.dataset)
         assert self.events == []
+        assert audit_failures.count > failures
 
 
 class TestCrossUserCopyAudit(AuditTestCase):
@@ -473,6 +637,28 @@ class TestCrossUserCopyAudit(AuditTestCase):
             self.hda_manager.copy(self.hda, history=other_history)
         assert self.events == []
 
+    def test_recording_a_copy_reads_nothing_through_the_request_session(self):
+        target = self.history_manager.create(name="mine", user=self.recipient)
+        source_id, target_id = self.hda.id, target.id
+        with self.as_user(self.recipient):
+            with self.request_reads_fail(after_commit=True):
+                self.hda_manager.copy(self.hda, history=target)
+
+        (event,) = self.events
+        assert event["object"]["id"] == source_id
+        assert event["object"]["owner_id"] == self.owner.id
+        assert event["details"]["target_history_id"] == target_id
+
+    def test_a_copy_whose_audit_reads_all_fail_still_succeeds(self):
+        target = self.history_manager.create(name="mine", user=self.recipient)
+        failures = audit_failures.count
+        with mock.patch.object(hdas, "audit_read_session", side_effect=RuntimeError("db gone")):
+            with self.as_user(self.recipient):
+                with self.request_reads_fail(after_commit=True):
+                    self.hda_manager.copy(self.hda, history=target)
+        assert self.events == []
+        assert audit_failures.count > failures
+
     def test_an_uncommitted_copy_records_nothing(self):
         target = self.history_manager.create(name="mine", user=self.recipient)
         with self.as_user(self.recipient):
@@ -495,6 +681,19 @@ class TestCrossUserCopyAudit(AuditTestCase):
             "recipient_id": self.recipient.id,
             "all_datasets": True,
         }
+
+    def test_recording_an_import_reads_nothing_through_the_request_session(self):
+        with self.as_user(self.recipient):
+            new_history = self.source_history.copy(name="Copy", target_user=self.recipient)
+            self.trans.sa_session.commit()
+            new_history_id = new_history.id
+            self.trans.sa_session.expire_all()
+            with self.request_reads_fail():
+                self.history_manager.record_history_import(self.source_history, new_history, all_datasets=False)
+
+        (event,) = self.events
+        assert event["object"]["owner_id"] == self.owner.id
+        assert event["details"] == {"new_history_id": new_history_id, "recipient_id": self.recipient.id}
 
     def test_copying_ones_own_history_records_nothing(self):
         with self.as_user(self.owner):
