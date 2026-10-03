@@ -518,7 +518,15 @@ class DatasetInterface(BaseUIController, UsesAnnotations, UsesItemRatings, UsesE
             return trans.response.send_redirect(redirect_url)
         except webob.exc.HTTPFound:
             # Only a redirect on its way counts: send_redirect refuses some URLs with a server error instead.
-            self._record_display_at(data, "success", site, redirect_url, public=public, stage="respond")
+            # A HEAD request gets the same answer but is only a probe, as on the other legacy routes.
+            if trans.request.method != "HEAD":
+                self._record_display_at(data, "success", site, redirect_url, public=public, stage="respond")
+            raise
+        except webob.exc.HTTPInternalServerError:
+            # The redirect_url from the query string had a line break in it.
+            self._record_display_at(
+                data, "error", site, redirect_url, public=public, reason="invalid_request", stage="respond"
+            )
             raise
         except Exception as exc:
             outcome, reason = classify_failure(exc)
@@ -587,7 +595,6 @@ class DatasetInterface(BaseUIController, UsesAnnotations, UsesItemRatings, UsesE
             )
         else:
             # The external site (usually) fetching what the link points at.
-            link_user_id = getattr(user, "id", None)
             attempt = begin_audit_attempt(
                 self.audit,
                 "dataset.external_fetch",
@@ -599,7 +606,7 @@ class DatasetInterface(BaseUIController, UsesAnnotations, UsesItemRatings, UsesE
                     app_action=app_action,
                     action_param=action_param,
                     filename=action_param_extra,
-                    link_user_id=link_user_id,
+                    link_user_id=getattr(user, "id", None),
                 ),
                 # HEAD runs this too (the body is dropped later); external sites probe with it.
                 record_success=trans.request.method != "HEAD",
@@ -665,6 +672,11 @@ class DatasetInterface(BaseUIController, UsesAnnotations, UsesItemRatings, UsesE
                                 attempt.failed("not_found")
                                 return paste.httpexceptions.HTTPNotFound(util.unicodify(e))
                             value = display_link.get_param_value(action_param)
+                            # The assertions below answer as server errors; the event says what they mean.
+                            if not value:
+                                attempt.failed("invalid_request")
+                            elif not value.parameter.viewable:
+                                attempt.failed_with(ItemAccessibilityException())
                             assert value, f"An invalid parameter name was provided: {action_param}"
                             assert value.parameter.viewable, "This parameter is not viewable."
                             if value.parameter.type == "data":
@@ -703,7 +715,13 @@ class DatasetInterface(BaseUIController, UsesAnnotations, UsesItemRatings, UsesE
                             try:
                                 trans.response.send_redirect(display_url)
                             except webob.exc.HTTPFound:
-                                self._record_display_link_issued(attempt, data, app_name, link_name, display_url)
+                                if trans.request.method != "HEAD":
+                                    self._record_display_link_issued(attempt, data, app_name, link_name, display_url)
+                                else:
+                                    withdraw_attempt(attempt)
+                                raise
+                            except Exception as exc:
+                                attempt.failed_with(exc, "respond")
                                 raise
                         else:
                             msg.append((f"Invalid action provided: {app_action}", "error"))

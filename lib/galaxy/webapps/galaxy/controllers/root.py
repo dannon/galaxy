@@ -130,8 +130,9 @@ class RootController(controller.BaseUIController, UsesAnnotations):
                 trans.response.set_content_type(data.get_mime())
                 trans.log_event(f"Formatted dataset id {str(id)} for display at {display_app}")
                 content = data.as_display_type(display_app, **kwd)
-                if attempt.active and not _offers_display_type(data, display_app):
-                    # The datatype answers with a "not implemented" message where the content would be.
+                if attempt.active and _is_not_implemented_answer(data, display_app, content):
+                    # The datatype answered with its "not implemented" message where the content would be.
+                    # It does so both for a type it doesn't offer and for one whose function failed.
                     attempt.failed("invalid_request")
                 else:
                     # No response-start hook on the legacy stack: success means the content was handed to the server.
@@ -148,9 +149,10 @@ class RootController(controller.BaseUIController, UsesAnnotations):
         return trans.response.send_redirect(web.url_for(welcome_url))
 
 
-def _offers_display_type(data: HistoryDatasetAssociation, display_app) -> bool:
+def _is_not_implemented_answer(data: HistoryDatasetAssociation, display_app, content) -> bool:
+    # Mirrors the fallback text in Data.as_display_type, the only sign that no content was produced.
     try:
-        return display_app in data.datatype.get_display_types()
+        return bool(content == f"This display type ({display_app}) is not implemented for this datatype ({data.ext}).")
     except Exception:
         # Only ever decides how the event reads, so an odd value never fails the request.
         return False

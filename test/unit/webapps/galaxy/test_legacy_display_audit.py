@@ -17,6 +17,7 @@ from galaxy import (
     exceptions,
     model,
 )
+from galaxy.datatypes.data import Data
 from galaxy.managers.audit import (
     AUDIT_LOGGER_NAME,
     AuditService,
@@ -70,7 +71,7 @@ def make_hda(tmp_path):
     hda.deleted = False
     hda.get_mime.return_value = "text/plain"
     hda.as_display_type.return_value = "formatted for ucsc"
-    hda.datatype.get_display_types.return_value = ["ucsc"]
+    hda.ext = "bed"
     hda.path = str(path)
     return hda
 
@@ -149,6 +150,10 @@ def summary(events):
     return [(e["action"], e["outcome"], e["reason"]) for e in events]
 
 
+def outcomes(events):
+    return [(e["action"], e["outcome"], e["reason"], e["stage"]) for e in events]
+
+
 # -- display_at -------------------------------------------------------------------
 
 
@@ -191,7 +196,19 @@ def test_display_at_to_a_url_send_redirect_refuses_is_not_a_success(harness, aud
             redirect_url="https://genome.example.edu/\r\nLocation: https://evil.example",
         )
     assert harness.redirects == []
-    assert summary(audit_events) == [("dataset.external_link", "error", "internal_error")]
+    # The URL came from the request, so the refusal is the request's fault.
+    assert outcomes(audit_events) == [("dataset.external_link", "error", "invalid_request", "respond")]
+
+
+def test_head_on_display_at_and_launch_records_no_success(harness, audit_events):
+    harness.trans.request.method = "HEAD"
+    harness.call(harness.datasets.display_at, "42", filename="ucsc_main", display_url="x", redirect_url=EXTERNAL)
+    harness.call(harness.datasets.display_application, "dh", "uh", app_name="ucsc_bed", link_name="main")
+    assert harness.redirects == [EXTERNAL, EXTERNAL]
+    assert audit_events == []
+    harness.app.security_agent.can_access_dataset.return_value = False
+    harness.call(harness.datasets.display_at, "42", filename="ucsc_main", display_url="x", redirect_url=EXTERNAL)
+    assert summary(audit_events) == [("dataset.external_link", "denied", "not_accessible")]
 
 
 @pytest.mark.parametrize("enabled", [True, False])
@@ -304,6 +321,19 @@ def test_fetching_an_extra_file_the_parameter_does_not_share_is_a_denial(harness
     assert summary(audit_events) == [("dataset.external_fetch", "denied", "not_accessible")]
 
 
+def test_fetching_a_parameter_that_is_not_viewable_is_a_denial(harness, audit_events):
+    harness.display_link.get_param_value.return_value.parameter.viewable = False
+    with pytest.raises(AssertionError):
+        fetch(harness)
+    harness.display_link.get_param_value.return_value = None
+    with pytest.raises(AssertionError):
+        fetch(harness)
+    assert summary(audit_events) == [
+        ("dataset.external_fetch", "denied", "not_accessible"),
+        ("dataset.external_fetch", "error", "invalid_request"),
+    ]
+
+
 def test_fetching_a_missing_file_is_an_error(harness, audit_events):
     harness.display_link.get_param_value.return_value.get_file_name.return_value = "/nonexistent/dataset.dat"
     result = fetch(harness)
@@ -335,7 +365,7 @@ def test_launch_to_a_url_send_redirect_refuses_is_not_a_success(harness, audit_e
     with pytest.raises(webob.exc.HTTPInternalServerError):
         harness.call(harness.datasets.display_application, "dh", "uh", app_name="ucsc_bed", link_name="main")
     assert harness.redirects == []
-    assert summary(audit_events) == [("dataset.external_link", "error", "internal_error")]
+    assert outcomes(audit_events) == [("dataset.external_link", "error", "internal_error", "respond")]
 
 
 # -- display_as ---------------------------------------------------------------------
@@ -363,11 +393,24 @@ def test_display_as_repeated_authz_method_is_refused_as_before(tmp_path, monkeyp
         assert audit_events == []
 
 
-def test_display_as_for_a_display_type_the_datatype_lacks_is_not_a_success(harness, audit_events):
-    harness.hda.as_display_type.return_value = "This display type (bogus) is not implemented for this datatype (bed)."
-    content = harness.call(harness.root.display_as, id="42", display_app="bogus")
-    assert content.startswith("This display type (bogus)")
-    assert summary(audit_events) == [("dataset.external_fetch", "error", "invalid_request")]
+def test_display_as_without_content_is_not_a_success(harness, audit_events):
+    class Track(Data):
+        supported_display_apps = {"ucsc": {"file_function": "broken_track"}}
+
+        def get_display_types(self):
+            return ["ucsc"]
+
+        def broken_track(self, dataset, **kwd):
+            raise OSError("cannot build the track")
+
+    # Real Data.as_display_type: a type it doesn't offer, and one whose function fails, both fall back to a message.
+    harness.hda.as_display_type.side_effect = lambda display_app, **kwd: Track().as_display_type(
+        harness.hda, display_app
+    )
+    for display_app in ("bogus", "ucsc"):
+        content = harness.call(harness.root.display_as, id="42", display_app=display_app)
+        assert content == f"This display type ({display_app}) is not implemented for this datatype (bed)."
+    assert summary(audit_events) == [("dataset.external_fetch", "error", "invalid_request")] * 2
 
 
 def test_display_as_refused_host_is_a_denial(harness, audit_events):
