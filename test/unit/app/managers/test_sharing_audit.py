@@ -27,6 +27,7 @@ from galaxy.managers.audit import (
     AuditService,
 )
 from galaxy.managers.audit_actions.sharing import describe_sharable
+from galaxy.managers.collections import DatasetCollectionManager
 from galaxy.managers.histories import (
     HistoryDeserializer,
     HistoryManager,
@@ -583,6 +584,19 @@ class TestDatasetPermissionsAudit(AuditTestCase):
         assert event["object"]["id"] == self.hda.id
         assert event["object"]["encoded_id"] == self.app.security.encode_id(self.hda.id)
 
+    def test_a_refusal_before_the_dataset_loads_names_what_was_asked_for(self):
+        with self.as_user(self.other):
+            self.hda_manager.record_permissions_denied(self.hda.id, "remove_restrictions")
+            self.hda_manager.record_permissions_denied(self.hda.id, "not-an-action")
+
+        named, unnamed = self.events
+        assert (named["outcome"], named["reason"]) == ("denied", "not_accessible")
+        assert named["object"]["type"] == "hda"
+        assert named["object"]["id"] == self.hda.id
+        assert named["object"]["owner_id"] is None
+        assert named["details"] == {"change": "remove_restrictions"}
+        assert unnamed["details"] == {}
+
     def test_a_broken_snapshot_never_fails_the_change(self):
         dataset_manager = self.hda_manager.dataset_manager
         failures = audit_failures.count
@@ -658,6 +672,55 @@ class TestCrossUserCopyAudit(AuditTestCase):
                     self.hda_manager.copy(self.hda, history=target)
         assert self.events == []
         assert audit_failures.count > failures
+
+    def test_a_refused_copy_is_recorded_as_denied(self):
+        target = self.history_manager.create(name="mine", user=self.recipient)
+        with self.as_user(self.recipient):
+            self.hda_manager.record_copy_denied(self.hda.id, target)
+
+        (event,) = self.events
+        assert (event["action"], event["outcome"], event["reason"]) == ("dataset.copy", "denied", "not_accessible")
+        assert event["object"]["id"] == self.hda.id
+        assert event["object"]["owner_id"] is None
+        assert event["details"] == {"target_history_id": target.id}
+
+    def build_collection_from(self, target: model.History):
+        collections = self.app[DatasetCollectionManager]
+        return collections.create(
+            self.trans,
+            parent=target,
+            name="copied",
+            collection_type="list",
+            element_identifiers=[{"src": "hda", "id": self.hda.id, "name": "first"}],
+            copy_elements=True,
+            history=target,
+        )
+
+    def test_collection_element_copies_from_another_user_are_recorded(self):
+        target = self.history_manager.create(name="mine", user=self.recipient)
+        with self.as_user(self.recipient):
+            self.trans.set_history(target)
+            hdca = self.build_collection_from(target)
+            assert self.events == []
+            self.hda_manager.record_collection_copies(hdca)
+
+        (event,) = self.events
+        (copy,) = hdca.dataset_instances
+        assert event["object"]["id"] == self.hda.id
+        assert event["object"]["owner_id"] == self.owner.id
+        assert event["details"] == {
+            "new_hda_id": copy.id,
+            "target_history_id": target.id,
+            "recipient_id": self.recipient.id,
+        }
+
+    def test_collection_copies_of_ones_own_datasets_record_nothing(self):
+        target = self.history_manager.create(name="also mine", user=self.owner)
+        with self.as_user(self.owner):
+            self.trans.set_history(target)
+            hdca = self.build_collection_from(target)
+            self.hda_manager.record_collection_copies(hdca)
+        assert self.events == []
 
     def test_an_uncommitted_copy_records_nothing(self):
         target = self.history_manager.create(name="mine", user=self.recipient)

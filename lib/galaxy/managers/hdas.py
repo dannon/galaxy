@@ -45,6 +45,7 @@ from galaxy.managers import (
     users,
 )
 from galaxy.managers.audit import audit_failures
+from galaxy.managers.audit_actions import AuditObject
 from galaxy.managers.audit_actions.sharing import DatasetCopyDetails
 from galaxy.managers.context import (
     ProvidesAppContext,
@@ -260,18 +261,58 @@ class HDAManager(
                 history = session.get(model.History, history_id)
                 if source is None or history is None:
                     raise exceptions.ObjectNotFound(f"No dataset {source_id} or history {history_id}")
-                source_owner_id = source.history.user_id if source.history is not None else None
-                if source_owner_id == history.user_id:
-                    return
-                target = audit.describe(source)
-                details = DatasetCopyDetails(
-                    new_hda_id=copy_id, target_history_id=history_id, recipient_id=history.user_id
-                )
+                event = self._cross_user_copy_event(source, copy_id, history)
         except Exception:
             # The copy has committed; a missing audit event is reported, not raised.
             audit_failures.report("prepare", "Lost the audit event for a copy of dataset %s", source_id)
             return
-        audit.record("dataset.copy", target, "success", details=details)
+        if event is not None:
+            audit.record("dataset.copy", event[0], "success", details=event[1])
+
+    def record_collection_copies(self, hdca: HistoryDatasetCollectionAssociation) -> None:
+        """Record the committed element copies of a new collection whose sources someone else owns."""
+        audit = self.dataset_manager.audit
+        if not audit.wants("dataset.copy"):
+            return
+        hdca_id = audit_id(hdca)
+        events = []
+        try:
+            with audit_read_session(self.app) as session:
+                instance = session.get(HistoryDatasetCollectionAssociation, hdca_id)
+                if instance is None:
+                    raise exceptions.ObjectNotFound(f"No collection {hdca_id}")
+                for copy in instance.dataset_instances:
+                    source = copy.copied_from_history_dataset_association
+                    if source is not None and copy.history is not None:
+                        event = self._cross_user_copy_event(source, copy.id, copy.history)
+                        if event is not None:
+                            events.append(event)
+        except Exception:
+            audit_failures.report("prepare", "Lost the audit events for the element copies of collection %s", hdca_id)
+            return
+        for target, details in events:
+            audit.record("dataset.copy", target, "success", details=details)
+
+    def _cross_user_copy_event(
+        self, source: HistoryDatasetAssociation, copy_id: int | None, history: model.History
+    ) -> tuple[AuditObject, DatasetCopyDetails] | None:
+        source_owner_id = source.history.user_id if source.history is not None else None
+        if source_owner_id == history.user_id:
+            return None
+        target = self.dataset_manager.audit.describe(source)
+        assert target is not None
+        return target, DatasetCopyDetails(
+            new_hda_id=copy_id, target_history_id=history.id, recipient_id=history.user_id
+        )
+
+    def record_copy_denied(self, source_id: int, history: model.History | None) -> None:
+        """Record a refused copy of dataset ``source_id``, naming only what the request asked for."""
+        audit = self.dataset_manager.audit
+        if not audit.wants("dataset.copy"):
+            return
+        requested = AuditObject(type="hda", id=source_id, encoded_id=audit.security.encode_id(source_id))
+        details = DatasetCopyDetails(target_history_id=audit_id(history) if history is not None else None)
+        audit.record("dataset.copy", requested, "denied", details=details, reason="not_accessible")
 
     # .... deletion and purging
     def purge(self, item, flush=True, **kwargs):

@@ -78,6 +78,10 @@ log = logging.getLogger(__name__)
 T = TypeVar("T")
 
 
+# The actions the permissions routes accept.
+PERMISSIONS_ACTIONS = frozenset({"set_permissions", "remove_restrictions", "make_private"})
+
+
 class PermissionsSnapshot(NamedTuple):
     access: list[int]
     manage: list[int]
@@ -232,12 +236,14 @@ class DatasetManager(
                 object_type = "ldda"
             else:
                 object_type = "hda"
-            object_id = audit_id(dataset_assoc)
-            encoded_id = self.audit.security.encode_id(object_id) if object_id is not None else None
-            target = AuditObject(type=object_type, id=object_id, encoded_id=encoded_id)
+            target = self.requested_object(object_type, audit_id(dataset_assoc))
         self.audit.record(
             "dataset.permissions", target, outcome, details=DatasetPermissionsDetails(change=change), reason=reason
         )
+
+    def requested_object(self, object_type: str, object_id: int | None) -> AuditObject:
+        encoded_id = self.audit.security.encode_id(object_id) if object_id is not None else None
+        return AuditObject(type=object_type, id=object_id, encoded_id=encoded_id)
 
     def purge(self, item, flush=True, user=None, **kwargs):
         """
@@ -774,6 +780,25 @@ class DatasetAssociationManager(
                 dataset_manager.record_permissions_refused(dataset_assoc, change, before, outcome, reason)
             raise
         dataset_manager.record_permissions_change(dataset_assoc, change, before)
+
+    def record_permissions_denied(self, object_id: int, action: str | None) -> None:
+        """Record a permission change refused before the dataset could be loaded."""
+        dataset_manager = self.dataset_manager
+        if not dataset_manager.audit.wants("dataset.permissions"):
+            return
+        object_type = "ldda" if self.model_class is LibraryDatasetDatasetAssociation else "hda"
+        details = None
+        # update_permissions treats a missing action as set_permissions.
+        action = action or "set_permissions"
+        if action in PERMISSIONS_ACTIONS:
+            details = DatasetPermissionsDetails(change=cast(DatasetPermissionsChange, action))
+        dataset_manager.audit.record(
+            "dataset.permissions",
+            dataset_manager.requested_object(object_type, object_id),
+            "denied",
+            details=details,
+            reason="not_accessible",
+        )
 
     def _update_permissions(self, trans: ProvidesUserContext, dataset_assoc: U, action: str, kwd: dict[str, Any]):
         if hasattr(dataset_assoc, "library_dataset_dataset_association"):
