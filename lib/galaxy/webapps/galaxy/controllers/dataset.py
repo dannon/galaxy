@@ -4,6 +4,7 @@ from typing import IO
 from urllib.parse import (
     quote_plus,
     unquote_plus,
+    urlsplit,
 )
 
 import paste.httpexceptions
@@ -22,6 +23,13 @@ from galaxy.exceptions import (
     InsufficientPermissionsException,
     MessageException,
     RequestParameterInvalidException,
+)
+from galaxy.managers.audit import AuditService
+from galaxy.managers.audit_actions import AuditObject
+from galaxy.managers.audit_actions.datasets import (
+    ExternalFetchDetails,
+    ExternalLinkDetails,
+    MetadataFileDetails,
 )
 from galaxy.managers.hdas import (
     HDADeserializer,
@@ -68,6 +76,7 @@ class DatasetInterface(BaseUIController, UsesAnnotations, UsesItemRatings, UsesE
     hda_manager: HDAManager = depends(HDAManager)
     hda_deserializer: HDADeserializer = depends(HDADeserializer)
     service: DatasetsService = depends(DatasetsService)
+    audit: AuditService = depends(AuditService)
 
     def __init__(self, app: StructuredApp):
         super().__init__(app)
@@ -92,11 +101,20 @@ class DatasetInterface(BaseUIController, UsesAnnotations, UsesItemRatings, UsesE
         if hda_id is None or metadata_name is None:
             raise RequestParameterInvalidException("Required parameters 'hda_id' and 'metadata_name' are missing.")
         # Backward compatibility with legacy links, should use `/api/datasets/{hda_id}/get_metadata_file` instead
-        fh, headers = self.service.get_metadata_file(
-            trans, history_content_id=self.decode_id(hda_id), metadata_file=metadata_name, open_file=True
+        decoded_id = self.decode_id(hda_id)
+        attempt = self.audit.attempt(
+            "dataset.download_metadata_file",
+            AuditObject(type="hda", id=decoded_id),
+            MetadataFileDetails(metadata_file=metadata_name),
         )
-        trans.response.headers.update(headers)
-        return fh
+        with attempt.guard():
+            fh, headers = self.service.get_metadata_file(
+                trans, history_content_id=decoded_id, metadata_file=metadata_name, open_file=True, audit_attempt=attempt
+            )
+            trans.response.headers.update(headers)
+            # No response-start hook on the legacy stack: success means the file was handed to the server.
+            attempt.succeeded()
+            return fh
 
     def _check_dataset(self, trans: GalaxyWebTransaction, hda_id):
         # DEPRECATION: We still support unencoded ids for backward compatibility
@@ -472,14 +490,30 @@ class DatasetInterface(BaseUIController, UsesAnnotations, UsesItemRatings, UsesE
         except Exception:
             redirect_url = kwd["redirect_url"]  # not all will need custom text
         if trans.app.security_agent.dataset_is_public(data.dataset):
+            self._record_display_at(data, "success", site, redirect_url, public=True)
             return trans.response.send_redirect(redirect_url)  # anon access already permitted by rbac
         if self._can_access_dataset(trans, data):
             trans.app.host_security_agent.set_dataset_permissions(data, trans.user, site)
+            self._record_display_at(data, "success", site, redirect_url, public=False)
             return trans.response.send_redirect(redirect_url)
         else:
+            self._record_display_at(data, "denied", site, redirect_url)
             return trans.show_error_message(
                 "You are not allowed to view this dataset at external sites.  Please contact your Galaxy administrator to acquire management permissions for this dataset."
             )
+
+    def _record_display_at(self, data, outcome, site, redirect_url, public=None):
+        if not self.audit.wants("dataset.external_link"):
+            return
+        details = ExternalLinkDetails(via="display_at", site=site, target_host=_url_host(redirect_url), public=public)
+        self.audit.record(
+            "dataset.external_link",
+            data,
+            outcome,
+            details=details,
+            reason="not_accessible" if outcome == "denied" else None,
+            stage="authorize" if outcome == "denied" else "respond",
+        )
 
     @web.expose
     @web.do_not_cache
@@ -597,10 +631,40 @@ class DatasetInterface(BaseUIController, UsesAnnotations, UsesItemRatings, UsesE
                             trans.set_cors_allow()
                         trans.response.set_content_type(value.mime_type(action_param_extra=action_param_extra))
                         trans.response.headers["Content-Length"] = str(content_length)
+                        if self.audit.wants("dataset.external_fetch"):
+                            self.audit.record(
+                                "dataset.external_fetch",
+                                data,
+                                "success",
+                                details=ExternalFetchDetails(
+                                    via="display_application",
+                                    app_name=app_name,
+                                    link_name=link_name,
+                                    app_action=app_action,
+                                    action_param=action_param,
+                                    filename=action_param_extra,
+                                    link_user_id=getattr(user, "id", None),
+                                ),
+                                stage="respond",
+                            )
                         return rval
                     elif app_action is None:
                         # redirect user to url generated by display link
-                        return trans.response.send_redirect(display_link.display_url())
+                        display_url = display_link.display_url()
+                        if self.audit.wants("dataset.external_link"):
+                            self.audit.record(
+                                "dataset.external_link",
+                                data,
+                                "success",
+                                details=ExternalLinkDetails(
+                                    via="display_application",
+                                    app_name=app_name,
+                                    link_name=link_name,
+                                    target_host=_url_host(display_url),
+                                ),
+                                stage="respond",
+                            )
+                        return trans.response.send_redirect(display_url)
                     else:
                         msg.append((f"Invalid action provided: {app_action}", "error"))
                 else:
@@ -616,6 +680,39 @@ class DatasetInterface(BaseUIController, UsesAnnotations, UsesItemRatings, UsesE
                             f"Attempted a view action ({app_action}) on a non-ready display application"
                         )
             return dict(msg=msg)
+        if app_action is None and self.audit.wants("dataset.external_link"):
+            self.audit.record(
+                "dataset.external_link",
+                data,
+                "denied",
+                details=ExternalLinkDetails(via="display_application", app_name=app_name, link_name=link_name),
+                reason="not_accessible",
+                stage="authorize",
+            )
+        elif app_action is not None and self.audit.wants("dataset.external_fetch"):
+            self.audit.record(
+                "dataset.external_fetch",
+                data,
+                "denied",
+                details=ExternalFetchDetails(
+                    via="display_application",
+                    app_name=app_name,
+                    link_name=link_name,
+                    app_action=app_action,
+                    action_param=action_param,
+                    filename=action_param_extra,
+                    link_user_id=getattr(user, "id", None),
+                ),
+                reason="not_accessible",
+                stage="authorize",
+            )
         return trans.show_error_message(
             "You do not have permission to view this dataset at an external display application."
         )
+
+
+def _url_host(url: str) -> str | None:
+    try:
+        return urlsplit(url).hostname
+    except ValueError:
+        return None

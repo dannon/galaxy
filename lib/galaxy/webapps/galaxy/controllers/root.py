@@ -11,6 +11,9 @@ from galaxy import (
     exceptions,
     web,
 )
+from galaxy.managers.audit import AuditService
+from galaxy.managers.audit_actions import AuditObject
+from galaxy.managers.audit_actions.datasets import ExternalFetchDetails
 from galaxy.managers.histories import HistoryManager
 from galaxy.model import HistoryDatasetAssociation
 from galaxy.model.item_attrs import UsesAnnotations
@@ -32,6 +35,7 @@ class RootController(controller.BaseUIController, UsesAnnotations):
 
     app: StructuredApp
     history_manager: HistoryManager = depends(HistoryManager)
+    audit: AuditService = depends(AuditService)
 
     def __init__(self, app: StructuredApp):
         super().__init__(app)
@@ -94,29 +98,42 @@ class RootController(controller.BaseUIController, UsesAnnotations):
         except (TypeError, ValueError):
             trans.response.status = 400
             return f"Invalid dataset id: {escape(str(id))}"
-        if data := trans.sa_session.get(HistoryDatasetAssociation, decoded_id):
-            if authz_method == "rbac" and trans.app.security_agent.can_access_dataset(
-                trans.get_current_user_roles(), data.dataset
-            ):
-                pass
-            elif authz_method == "display_at" and trans.app.host_security_agent.allow_action(
-                trans.request.remote_addr, data.permitted_actions.DATASET_ACCESS, dataset=data
-            ):
-                pass
+        attempt = self.audit.attempt(
+            "dataset.external_fetch",
+            AuditObject(type="hda", id=decoded_id),
+            ExternalFetchDetails(via="display_as", app_name=display_app, authz_method=authz_method),
+        )
+        with attempt.guard():
+            if data := trans.sa_session.get(HistoryDatasetAssociation, decoded_id):
+                if authz_method == "rbac" and trans.app.security_agent.can_access_dataset(
+                    trans.get_current_user_roles(), data.dataset
+                ):
+                    pass
+                elif authz_method == "display_at" and trans.app.host_security_agent.allow_action(
+                    trans.request.remote_addr, data.permitted_actions.DATASET_ACCESS, dataset=data
+                ):
+                    pass
+                else:
+                    attempt.failed_with(exceptions.ItemAccessibilityException())
+                    trans.response.status = 403
+                    return "You are not allowed to access this dataset."
+                attempt.authorized(data)
+                try:
+                    self.app.hda_manager.ensure_dataset_on_disk(trans, data)
+                except exceptions.MessageException as e:
+                    attempt.failed_with(e)
+                    trans.response.status = e.status_code
+                    return str(e)
+                trans.response.set_content_type(data.get_mime())
+                trans.log_event(f"Formatted dataset id {str(id)} for display at {display_app}")
+                content = data.as_display_type(display_app, **kwd)
+                # No response-start hook on the legacy stack: success means the content was handed to the server.
+                attempt.succeeded()
+                return content
             else:
-                trans.response.status = 403
-                return "You are not allowed to access this dataset."
-            try:
-                self.app.hda_manager.ensure_dataset_on_disk(trans, data)
-            except exceptions.MessageException as e:
-                trans.response.status = e.status_code
-                return str(e)
-            trans.response.set_content_type(data.get_mime())
-            trans.log_event(f"Formatted dataset id {str(id)} for display at {display_app}")
-            return data.as_display_type(display_app, **kwd)
-        else:
-            trans.response.status = 400
-            return f"No data with id={id}"
+                attempt.failed("not_found")
+                trans.response.status = 400
+                return f"No data with id={id}"
 
     @web.expose
     def welcome(self, trans: GalaxyWebTransaction, **kwargs):
