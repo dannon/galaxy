@@ -4,9 +4,19 @@ API operations on the contents of a history dataset.
 
 import logging
 import os
+import time
+from datetime import (
+    datetime,
+    timezone,
+)
 from enum import Enum
 from typing import (
     Any,
+    NamedTuple,
+)
+from urllib.parse import (
+    parse_qs,
+    urlsplit,
 )
 
 from pydantic import (
@@ -104,6 +114,45 @@ from galaxy.webapps.galaxy.services.base import ServiceBase
 log = logging.getLogger(__name__)
 
 DEFAULT_LIMIT = 500
+
+
+def withdraw_attempt(attempt: AuditAttempt) -> None:
+    """End an audit attempt without an event, because another request or record will say what happened."""
+    attempt.settled = True
+
+
+class DirectDownload(NamedTuple):
+    # None when the store offers no direct link and the download has to be streamed by Galaxy.
+    url: str | None
+    dataset_instance: Any
+
+
+def signed_url_facts(url: str) -> tuple[str | None, int | None]:
+    """The host a signed backing-store URL points at and, when its scheme says, seconds until it expires.
+
+    Only these two facts are taken from the URL: the rest of it, the signature above
+    all, is a credential that must never be recorded.
+    """
+    parts = urlsplit(url)
+    query = {key.lower(): values[0] for key, values in parse_qs(parts.query).items() if values}
+    expires_in: int | None = None
+    try:
+        if "x-amz-expires" in query:
+            expires_in = int(query["x-amz-expires"])
+        elif "x-goog-expires" in query:
+            expires_in = int(query["x-goog-expires"])
+        elif "expires" in query:
+            # Query-string signatures (S3 SigV2, GCS V2) give an absolute epoch time.
+            expires_in = int(query["expires"]) - int(time.time())
+        elif "se" in query:
+            # Azure SAS tokens give an ISO 8601 expiry.
+            expiry = datetime.fromisoformat(query["se"].replace("Z", "+00:00"))
+            if expiry.tzinfo is None:
+                expiry = expiry.replace(tzinfo=timezone.utc)
+            expires_in = int(expiry.timestamp() - time.time())
+    except ValueError:
+        expires_in = None
+    return parts.hostname, expires_in
 
 
 def is_direct_download_candidate(filename, to_ext, raw, offset, ck_size, is_archive) -> bool:
@@ -401,13 +450,17 @@ class DatasetsService(ServiceBase, UsesVisualizationMixin):
         hda_ldda: DatasetSourceType,
         serialization_params: SerializationParams,
         data_type: RequestDataType | None = None,
+        audit_attempt: AuditAttempt = NULL_ATTEMPT,
         **extra_params,
     ):
         """
         Displays information about and/or content of a dataset.
+
+        ``audit_attempt`` is only meaningful for the ``data_type`` values that read content.
         """
         dataset_manager = self.dataset_manager_by_type[hda_ldda]
         dataset = dataset_manager.get_accessible(dataset_id, trans.user)
+        audit_attempt.authorized(dataset)
         requests_that_require_data = (
             RequestDataType.converted_datasets_state,
             RequestDataType.data,
@@ -572,12 +625,21 @@ class DatasetsService(ServiceBase, UsesVisualizationMixin):
             )
         return decoded_object_id, hda_ldda
 
-    def get_drs_object(self, trans: ProvidesHistoryContext, object_id: str, request_url: URL) -> DrsObject:
+    def get_drs_object(
+        self,
+        trans: ProvidesHistoryContext,
+        object_id: str,
+        request_url: URL,
+        audit_attempt: AuditAttempt = NULL_ATTEMPT,
+    ) -> DrsObject:
         decoded_object_id, hda_ldda = self.drs_dataset_instance(object_id)
         dataset_instance = self.dataset_manager_by_type[hda_ldda].get_accessible(decoded_object_id, trans.user)
         if not trans.app.security_agent.dataset_is_public(dataset_instance.dataset):
-            # Only public datasets may be access as DRS datasets currently
+            # Only public datasets may be access as DRS datasets currently. The client is told
+            # the object doesn't exist, but the record says what happened: Galaxy refused it.
+            audit_attempt.failed_with(galaxy_exceptions.ItemAccessibilityException())
             raise galaxy_exceptions.ObjectNotFound("Cannot find a public dataset with specified object ID.")
+        audit_attempt.authorized(dataset_instance)
 
         # TODO: issue warning if not being served on HTTPS @ 443 - required by the spec.
         self_uri = f"drs://drs.{request_url.components.netloc}/{object_id}"
@@ -640,11 +702,13 @@ class DatasetsService(ServiceBase, UsesVisualizationMixin):
         self,
         trans: ProvidesHistoryContext,
         history_content_id: DecodedDatabaseIdField,
+        audit_attempt: AuditAttempt = NULL_ATTEMPT,
     ):
         """
         Generate list of extra files.
         """
         hda = self.hda_manager.get_accessible(history_content_id, trans.user)
+        audit_attempt.authorized(hda)
         rval = []
         if not hda.is_pending and hda.extra_files_path_exists():
             extra_files_path = hda.extra_files_path
@@ -658,33 +722,37 @@ class DatasetsService(ServiceBase, UsesVisualizationMixin):
 
         return rval
 
-    def direct_download_url(
+    def direct_download(
         self,
         trans: ProvidesHistoryContext,
         dataset_id: DecodedDatabaseIdField,
         to_ext: str | None = None,
         hda_ldda: DatasetSourceType = DatasetSourceType.hda,
-    ) -> str | None:
-        """Return a backing-store URL a whole-file download can be redirected to, or None to stream.
+        audit_attempt: AuditAttempt = NULL_ATTEMPT,
+    ) -> DirectDownload:
+        """Return a backing-store URL a whole-file download can be redirected to (None to stream).
 
         Used by the dedicated download route; the regular display route never redirects.
+        The dataset comes back too, so the caller can say what a URL was issued for.
         """
         dataset_manager = self.dataset_manager_by_type[hda_ldda]
         dataset_instance = dataset_manager.get_accessible(dataset_id, trans.user)
+        audit_attempt.authorized(dataset_instance)
         dataset_manager.ensure_dataset_on_disk(trans, dataset_instance)
         datatype = dataset_instance.datatype
         is_archive = datatype.is_archive_download(trans.app.datatypes_registry, dataset_instance.extension)
         if not is_direct_download_candidate(None, to_ext, False, None, None, is_archive):
-            return None
+            return DirectDownload(None, dataset_instance)
         content_disposition = None
         content_type = None
         if to_ext is not None:
             # Match the filename/content-type a streamed download would produce.
             content_disposition = datatype.content_disposition(dataset_instance, to_ext)
             content_type = "application/octet-stream"
-        return trans.app.object_store.get_direct_download_url(
+        url = trans.app.object_store.get_direct_download_url(
             dataset_instance.dataset, content_disposition=content_disposition, content_type=content_type
         )
+        return DirectDownload(url, dataset_instance)
 
     def download_head_headers(
         self,
@@ -692,6 +760,7 @@ class DatasetsService(ServiceBase, UsesVisualizationMixin):
         dataset_id: DecodedDatabaseIdField,
         to_ext: str | None = None,
         hda_ldda: DatasetSourceType = DatasetSourceType.hda,
+        audit_attempt: AuditAttempt = NULL_ATTEMPT,
     ) -> dict[str, str]:
         """Build response headers for a HEAD download request from object-store metadata.
 
@@ -700,6 +769,7 @@ class DatasetsService(ServiceBase, UsesVisualizationMixin):
         """
         dataset_manager = self.dataset_manager_by_type[hda_ldda]
         dataset_instance = dataset_manager.get_accessible(dataset_id, trans.user)
+        audit_attempt.authorized(dataset_instance)
         dataset_manager.ensure_dataset_on_disk(trans, dataset_instance)
         datatype = dataset_instance.datatype
         headers = {
@@ -838,11 +908,16 @@ class DatasetsService(ServiceBase, UsesVisualizationMixin):
         return rval, headers
 
     def get_content_as_text(
-        self, trans: ProvidesHistoryContext, dataset_id: DecodedDatabaseIdField, filename: str | None
+        self,
+        trans: ProvidesHistoryContext,
+        dataset_id: DecodedDatabaseIdField,
+        filename: str | None,
+        audit_attempt: AuditAttempt = NULL_ATTEMPT,
     ) -> DatasetTextContentDetails:
         """Returns dataset content as Text."""
         user = trans.user
         hda = self.hda_manager.get_accessible(dataset_id, user)
+        audit_attempt.authorized(hda)
         hda = self.hda_manager.error_if_uploading(hda)
         if filename and filename != "index":
             object_store = trans.app.object_store
@@ -872,6 +947,7 @@ class DatasetsService(ServiceBase, UsesVisualizationMixin):
         history_content_id: DecodedDatabaseIdField,
         metadata_file: str,
         open_file: bool = False,
+        audit_attempt: AuditAttempt = NULL_ATTEMPT,
     ):
         """
         Gets the associated metadata file.
@@ -880,6 +956,7 @@ class DatasetsService(ServiceBase, UsesVisualizationMixin):
         TODO: Remove the `open_file` parameter when removing the associated legacy endpoint.
         """
         hda = self.hda_manager.get_accessible(history_content_id, trans.user)
+        audit_attempt.authorized(hda)
         self.hda_manager.ensure_dataset_on_disk(trans, hda)
         metadata_spec = hda.metadata.spec.get(metadata_file)
         if metadata_spec is None:
@@ -970,6 +1047,7 @@ class DatasetsService(ServiceBase, UsesVisualizationMixin):
         trans: ProvidesHistoryContext,
         dataset_id: DecodedDatabaseIdField,
         content_type: DatasetContentType,
+        audit_attempt: AuditAttempt = NULL_ATTEMPT,
         **params,
     ):
         """
@@ -983,6 +1061,7 @@ class DatasetsService(ServiceBase, UsesVisualizationMixin):
         headers = {}
         content: Any = ""
         dataset = self.hda_manager.get_accessible(dataset_id, trans.user)
+        audit_attempt.authorized(dataset)
         if not isinstance(dataset.datatype, Binary):
             raise galaxy_exceptions.InvalidFileFormatError("Only available for structured datatypes")
         try:

@@ -34,6 +34,12 @@ from galaxy.managers.audit_actions import (
     AuditObject,
     DatasetContentDetails,
 )
+from galaxy.managers.audit_actions.datasets import (
+    DatasetDataDetails,
+    DownloadUrlDetails,
+    ExtraFilesListDetails,
+    MetadataFileDetails,
+)
 from galaxy.schema import (
     FilterQueryParams,
     SerializationParams,
@@ -79,7 +85,9 @@ from galaxy.webapps.galaxy.services.datasets import (
     DeleteDatasetBatchPayload,
     DeleteDatasetBatchResult,
     RequestDataType,
+    signed_url_facts,
     UpdateObjectStoreIdPayload,
+    withdraw_attempt,
 )
 
 log = logging.getLogger(__name__)
@@ -175,6 +183,10 @@ def _allows_stream(request: Request) -> bool:
     return request.method == "GET" and "range" not in request.headers
 
 
+# show() data types that read the dataset's content rather than describe it.
+CONTENT_DATA_TYPES = (RequestDataType.data, RequestDataType.raw_data, RequestDataType.features)
+
+
 @router.cbv
 class FastAPIDatasets:
     service: DatasetsService = depends(DatasetsService)
@@ -235,7 +247,13 @@ class FastAPIDatasets:
         filename: str | None = FilenameQueryParam,
         trans=DependsOnTrans,
     ) -> DatasetTextContentDetails:
-        return self.service.get_content_as_text(trans, dataset_id, filename=filename)
+        attempt = self.audit.attempt(
+            "dataset.read_text", AuditObject(type="hda", id=dataset_id), DatasetContentDetails(filename=filename)
+        )
+        with attempt.guard():
+            content = self.service.get_content_as_text(trans, dataset_id, filename=filename, audit_attempt=attempt)
+            attempt.succeeded()
+            return content
 
     @router.get(
         "/api/datasets/{dataset_id}/converted/{ext}",
@@ -299,7 +317,7 @@ class FastAPIDatasets:
         history_content_id: HistoryDatasetIDPathParam,
         trans=DependsOnTrans,
     ) -> DatasetExtraFiles:
-        return self.service.extra_files(trans, history_content_id)
+        return self._extra_files(trans, history_content_id)
 
     @router.get(
         "/api/datasets/{dataset_id}/extra_files",
@@ -310,7 +328,17 @@ class FastAPIDatasets:
         dataset_id: DatasetIDPathParam,
         trans=DependsOnTrans,
     ) -> DatasetExtraFiles:
-        return self.service.extra_files(trans, dataset_id)
+        return self._extra_files(trans, dataset_id)
+
+    def _extra_files(self, trans, dataset_id: DecodedDatabaseIdField) -> DatasetExtraFiles:
+        # The listing names files inside the dataset, which is part of its content.
+        attempt = self.audit.attempt(
+            "dataset.list_extra_files", AuditObject(type="hda", id=dataset_id), ExtraFilesListDetails()
+        )
+        with attempt.guard():
+            extra_files = self.service.extra_files(trans, dataset_id, audit_attempt=attempt)
+            attempt.succeeded()
+            return extra_files
 
     @router.get(
         "/api/datasets/{dataset_id}/extra_files/raw/{filename:path}",
@@ -323,17 +351,25 @@ class FastAPIDatasets:
         filename: str = Path(..., description="The name of the extra file to retrieve."),
         trans=DependsOnTrans,
     ) -> GalaxyFileResponse:
-        display_data, headers = self.service.display(
-            trans,
-            dataset_id,
-            preview=False,
-            filename=filename,
-            raw=True,
+        # The same read as /display?raw=true&filename=..., so it is recorded the same way.
+        attempt = self.audit.attempt(
+            "dataset.display",
+            AuditObject(type="hda", id=dataset_id),
+            DatasetContentDetails(raw=True, filename=filename, http_range=request.headers.get("range")),
         )
-        assert isinstance(display_data, IOBase)
-        file_name = getattr(display_data, "name", None)
-        assert file_name
-        return GalaxyFileResponse(file_name, headers=headers)
+        with attempt.guard():
+            display_data, headers = self.service.display(
+                trans,
+                dataset_id,
+                preview=False,
+                filename=filename,
+                raw=True,
+                audit_attempt=attempt,
+            )
+            assert isinstance(display_data, IOBase)
+            file_name = getattr(display_data, "name", None)
+            assert file_name
+            return audited_response(GalaxyFileResponse(file_name, headers=headers), attempt)
 
     @router.get(
         "/api/histories/{history_id}/contents/{history_content_id}/display",
@@ -437,23 +473,52 @@ class FastAPIDatasets:
         # Default to_ext to "data" so the route always behaves as a whole-file download (server infers
         # the extension from the datatype) rather than a preview.
         to_ext = to_ext or "data"
+        requested = AuditObject(type="hda", id=dataset_id)
         if request.method == "HEAD":
             # HEAD answers from object-store metadata without redirecting -- clients (e.g. requests) do
             # not follow redirects on HEAD, so a 302 here would hide the size/filename from them.
-            headers = self.service.download_head_headers(trans, dataset_id, to_ext)
-            return Response(status_code=200, headers=headers)
-        url = self.service.direct_download_url(trans, dataset_id, to_ext)
-        if url is None:
-            # No object-store offload: redirect to the streaming display route. Every download is a 302
-            # so clients implement redirect-following uniformly, regardless of the backing object store.
-            # Auth (x-api-key header, session cookie) carries itself across this same-origin redirect.
-            url = trans.url_builder(
-                "display",
-                history_content_id=trans.security.encode_id(dataset_id),
-                qualified=True,
-                query_params={"to_ext": to_ext},
+            # It sends no content, so only a refusal or failure is recorded.
+            attempt = self.audit.attempt(
+                "dataset.download", requested, DatasetContentDetails(to_ext=to_ext), record_success=False
             )
-        return RedirectResponse(url, status_code=302)
+            with attempt.guard():
+                headers = self.service.download_head_headers(trans, dataset_id, to_ext, audit_attempt=attempt)
+                attempt.succeeded()
+                return Response(status_code=200, headers=headers)
+        attempt = self.audit.attempt("dataset.download_url", requested, DownloadUrlDetails(to_ext=to_ext))
+        with attempt.guard():
+            url, dataset_instance = self.service.direct_download(trans, dataset_id, to_ext, audit_attempt=attempt)
+            if url is None:
+                # The display route this redirects to records the download itself.
+                withdraw_attempt(attempt)
+                # No object-store offload: redirect to the streaming display route. Every download is a 302
+                # so clients implement redirect-following uniformly, regardless of the backing object store.
+                # Auth (x-api-key header, session cookie) carries itself across this same-origin redirect.
+                url = trans.url_builder(
+                    "display",
+                    history_content_id=trans.security.encode_id(dataset_id),
+                    qualified=True,
+                    query_params={"to_ext": to_ext},
+                )
+                return RedirectResponse(url, status_code=302)
+            if attempt.active:
+                # What the URL is good for is only known now it exists, so the success is recorded
+                # with those facts in place of the attempt. A redirect can't fail once built.
+                url_host, expires_in = signed_url_facts(url)
+                withdraw_attempt(attempt)
+                self.audit.record(
+                    "dataset.download_url",
+                    dataset_instance,
+                    "success",
+                    details=DownloadUrlDetails(
+                        to_ext=to_ext,
+                        object_store_id=dataset_instance.dataset.object_store_id,
+                        url_host=url_host,
+                        expires_in=expires_in,
+                    ),
+                    stage="respond",
+                )
+            return RedirectResponse(url, status_code=302)
 
     def _display(
         self,
@@ -516,6 +581,7 @@ class FastAPIDatasets:
     )
     def get_metadata_file_history_content(
         self,
+        request: Request,
         history_id: HistoryIDPathParam,
         history_content_id: HistoryDatasetIDPathParam,
         trans=DependsOnTrans,
@@ -524,7 +590,7 @@ class FastAPIDatasets:
             description="The name of the metadata file to retrieve.",
         ),
     ):
-        return self._get_metadata_file(trans, history_content_id, metadata_file)
+        return self._get_metadata_file(request, trans, history_content_id, metadata_file)
 
     @router.get(
         "/api/datasets/{history_content_id}/metadata_file",
@@ -538,6 +604,7 @@ class FastAPIDatasets:
     )
     def get_metadata_file_datasets(
         self,
+        request: Request,
         history_content_id: HistoryDatasetIDPathParam,
         trans=DependsOnTrans,
         metadata_file: str = Query(
@@ -545,16 +612,26 @@ class FastAPIDatasets:
             description="The name of the metadata file to retrieve.",
         ),
     ):
-        return self._get_metadata_file(trans, history_content_id, metadata_file)
+        return self._get_metadata_file(request, trans, history_content_id, metadata_file)
 
     def _get_metadata_file(
         self,
+        request: Request,
         trans,
         history_content_id: DecodedDatabaseIdField,
         metadata_file: str,
-    ) -> GalaxyFileResponse:
-        metadata_file_path, headers = self.service.get_metadata_file(trans, history_content_id, metadata_file)
-        return GalaxyFileResponse(path=cast(str, metadata_file_path), headers=headers)
+    ):
+        attempt = self.audit.attempt(
+            "dataset.download_metadata_file",
+            AuditObject(type="hda", id=history_content_id),
+            MetadataFileDetails(metadata_file=metadata_file),
+            record_success=request.method != "HEAD",
+        )
+        with attempt.guard():
+            metadata_file_path, headers = self.service.get_metadata_file(
+                trans, history_content_id, metadata_file, audit_attempt=attempt
+            )
+            return audited_response(GalaxyFileResponse(path=cast(str, metadata_file_path), headers=headers), attempt)
 
     @router.get(
         "/api/datasets/{dataset_id}",
@@ -599,13 +676,33 @@ class FastAPIDatasets:
         and return different kinds of responses, the documentation here will be limited.
         To get more information please check the source code.
         """
-        exclude_params = {"hda_ldda", "data_type", "limit", "offset"}
+        exclude_params = {"hda_ldda", "data_type", "limit", "offset", "audit_attempt"}
         exclude_params.update(SerializationParams.model_fields.keys())
         extra_params = get_query_parameters_from_request_excluding(request, exclude_params)
 
-        return self.service.show(
-            trans, dataset_id, hda_ldda, serialization_params, data_type, limit=limit, offset=offset, **extra_params
+        if data_type not in CONTENT_DATA_TYPES:
+            return self.service.show(
+                trans, dataset_id, hda_ldda, serialization_params, data_type, limit=limit, offset=offset, **extra_params
+            )
+        attempt = self.audit.attempt(
+            "dataset.read_data",
+            AuditObject(type=hda_ldda.value, id=dataset_id),
+            DatasetDataDetails(source=hda_ldda.value, data_type=data_type.value if data_type else None),
         )
+        with attempt.guard():
+            rval = self.service.show(
+                trans,
+                dataset_id,
+                hda_ldda,
+                serialization_params,
+                data_type,
+                audit_attempt=attempt,
+                limit=limit,
+                offset=offset,
+                **extra_params,
+            )
+            attempt.succeeded()
+            return rval
 
     @router.get(
         "/api/datasets/{dataset_id}/content/{content_type}",
@@ -618,10 +715,19 @@ class FastAPIDatasets:
         trans=DependsOnTrans,
         content_type: DatasetContentType = DatasetContentType.data,
     ):
-        content, headers = self.service.get_structured_content(trans, dataset_id, content_type, **request.query_params)
-        if isinstance(content, (bytes, str)):
-            return Response(content=content, headers=headers)
-        return StreamingResponse(content, headers=headers)
+        params = {key: value for key, value in request.query_params.items() if key != "audit_attempt"}
+        attempt = self.audit.attempt(
+            "dataset.read_data",
+            AuditObject(type="hda", id=dataset_id),
+            DatasetDataDetails(content_type=content_type.value),
+        )
+        with attempt.guard():
+            content, headers = self.service.get_structured_content(
+                trans, dataset_id, content_type, audit_attempt=attempt, **params
+            )
+            if isinstance(content, (bytes, str)):
+                return audited_response(Response(content=content, headers=headers), attempt)
+            return audited_response(StreamingResponse(content, headers=headers), attempt)
 
     @router.delete(
         "/api/datasets",

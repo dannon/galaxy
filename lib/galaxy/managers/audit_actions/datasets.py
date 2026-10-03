@@ -1,4 +1,4 @@
-"""Reading dataset content: display, download and related routes."""
+"""Reading dataset content: display, download and every other route that hands out its bytes."""
 
 from typing import (
     ClassVar,
@@ -27,11 +27,66 @@ class DatasetContentDetails(AuditDetails):
     http_range: str | None = None
 
 
-DatasetAction = Literal["dataset.display", "dataset.download"]
+class DownloadUrlDetails(AuditDetails):
+    """A link to the backing store was handed out; the bytes leave without passing through Galaxy.
+
+    The URL itself is a bearer credential, so only facts about it are kept: where it
+    points and how long it works for.
+    """
+
+    source: Literal["hda", "ldda"] = "hda"
+    to_ext: str | None = None
+    object_store_id: str | None = None
+    url_host: str | None = None
+    # Read from the signed URL's own expiry parameter when the store uses a known scheme.
+    expires_in: int | None = None
+
+
+class DatasetDataDetails(AuditDetails):
+    """Content read through a datatype for a visualization or structured view."""
+
+    source: Literal["hda", "ldda"] = "hda"
+    # /api/datasets/{id}?data_type=... or /api/datasets/{id}/content/{content_type}.
+    data_type: str | None = None
+    content_type: str | None = None
+
+
+class MetadataFileDetails(AuditDetails):
+    # The metadata element name (e.g. bam_index), set by the datatype rather than the user.
+    metadata_file: str
+
+
+class ExtraFilesListDetails(AuditDetails):
+    pass
+
+
+class DrsDetails(AuditDetails):
+    # The DRS object id as the client sent it (hda-<id> or ldda-<id>); no secrets in it.
+    object_id: str
+
+
+DatasetAction = Literal[
+    "dataset.display",
+    "dataset.download",
+    "dataset.download_url",
+    "dataset.download_metadata_file",
+    "dataset.list_extra_files",
+    "dataset.read_text",
+    "dataset.read_data",
+    "drs.object",
+    "drs.download",
+]
 
 ACTIONS: dict[str, type[AuditDetails]] = {
     "dataset.display": DatasetContentDetails,
     "dataset.download": DatasetContentDetails,
+    "dataset.download_url": DownloadUrlDetails,
+    "dataset.download_metadata_file": MetadataFileDetails,
+    "dataset.list_extra_files": ExtraFilesListDetails,
+    "dataset.read_text": DatasetContentDetails,
+    "dataset.read_data": DatasetDataDetails,
+    "drs.object": DrsDetails,
+    "drs.download": DrsDetails,
 }
 
 DESCRIBERS: list[ObjectDescriber] = []
