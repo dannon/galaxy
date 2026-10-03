@@ -195,19 +195,6 @@ def _name(audit_service: Any, value: str | None) -> str | None:
     return value[:MAX_NAME_LENGTH]
 
 
-def describe_history(audit_service: Any, obj: Any) -> AuditObject | None:
-    if not isinstance(obj, model.History):
-        return None
-    return AuditObject(
-        type="history",
-        id=obj.id,
-        encoded_id=_encode(audit_service, obj.id),
-        history_id=obj.id,
-        owner_id=obj.user_id,
-        history_name=_name(audit_service, obj.name),
-    )
-
-
 def describe_collection(audit_service: Any, obj: Any) -> AuditObject | None:
     if not isinstance(obj, model.HistoryDatasetCollectionAssociation):
         return None
@@ -253,8 +240,8 @@ def describe_history_export(audit_service: Any, obj: Any) -> AuditObject | None:
     )
 
 
+# Histories are described with the other sharable items, in the sharing family.
 DESCRIBERS: list[ObjectDescriber] = [
-    describe_history,
     describe_collection,
     describe_invocation,
     describe_history_export,
