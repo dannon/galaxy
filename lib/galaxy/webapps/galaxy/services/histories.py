@@ -488,10 +488,11 @@ class HistoriesService(ServiceBase, ConsumesModelStores, ServesExportStores):
         )
         result = prepare_history_download.delay(request=request, task_user_id=getattr(trans.user, "id", None))
         task_summary = async_task_summary(result)
+        if export_audit:
+            # Queued is what matters: the task runs even if recording the association fails below.
+            export_audit.queued(task_id=task_summary.id, storage_request_id=short_term_storage_target.request_id)
         export_association.task_uuid = task_summary.id
         trans.sa_session.commit()
-        if export_audit:
-            export_audit.queued(task_id=task_summary.id, storage_request_id=short_term_storage_target.request_id)
         return AsyncFile(storage_request_id=short_term_storage_target.request_id, task=task_summary)
 
     def write_store(
@@ -513,10 +514,10 @@ class HistoriesService(ServiceBase, ConsumesModelStores, ServesExportStores):
         )
         result = write_history_to.delay(request=request, task_user_id=getattr(trans.user, "id", None))
         task_summary = async_task_summary(result)
-        export_association.task_uuid = task_summary.id
-        trans.sa_session.commit()
         if export_audit:
             export_audit.queued(task_id=task_summary.id)
+        export_association.task_uuid = task_summary.id
+        trans.sa_session.commit()
         return task_summary
 
     def update(

@@ -44,13 +44,17 @@ def sanitize_target_uri(uri: str | None) -> str | None:
     if not parts.netloc:
         # e.g. "user:secret@host/path" parses as scheme "user"; keep nothing that could be a secret.
         return f"{scheme}:" if scheme and "@" not in uri else None
+    if "@" in uri[uri.index("//") + 2 + len(parts.netloc) :]:
+        # Userinfo holding an unescaped "/", "?" or "#" ends the authority early
+        # ("ftp://user:20/24@host"), leaving the secret in what parses as the path.
+        return f"{scheme}:"
     # Not .hostname: that lowercases, and file source ids in the authority can be case-sensitive.
     host = parts.netloc.rpartition("@")[2]
     _, colon, port = host.rpartition(":")
     if colon and not host.endswith("]") and not port.isdigit():
-        # A password holding an unescaped "/" ends the authority early: "ftp://user:pa/ss@host".
         return f"{scheme}:"
-    return f"{scheme}://{host}{parts.path}"
+    # ";params" can carry session tokens (";jsessionid=...") just like a query string.
+    return f"{scheme}://{host}{parts.path.partition(';')[0]}"
 
 
 class ExportDetails(AuditDetails):

@@ -691,7 +691,8 @@ class FastAPIHistories:
             "history.export",
             AuditObject(type="history", id=history_id),
             ExportDetails(
-                destination="remote" if directory_uri else "download",
+                # The service picks the export-to-URI tool on "is not None", so match it.
+                destination="remote" if directory_uri is not None else "download",
                 format="tar.gz" if payload is None or payload.gzip else "tar",
                 target=directory_uri,
                 include_hidden=bool(payload and payload.include_hidden),

@@ -5,7 +5,7 @@ that asked for it reaches the work: there is no request scope in a worker. The e
 is therefore recorded by the request, once the work is queued, carrying the id that
 joins it to the task or job. Like an :class:`~galaxy.managers.audit.AuditAttempt`,
 an :class:`ExportAudit` ends in exactly one event, whether the request was refused,
-failed, or queued the work.
+failed, or queued the work -- unless the call site says no export was started.
 """
 
 from collections.abc import Iterator
@@ -30,7 +30,7 @@ from galaxy.schema.schema import StoreExportPayload
 def store_export_details(payload: StoreExportPayload, target_uri: str | None = None) -> ExportDetails:
     """Details of a model store export: a download unless it is written to ``target_uri``."""
     return ExportDetails(
-        destination="remote" if target_uri else "download",
+        destination="remote" if target_uri is not None else "download",
         # Payload models keep enum values, not members.
         format=str(getattr(payload.model_store_format, "value", payload.model_store_format)),
         target=target_uri,
@@ -59,7 +59,11 @@ class ExportAudit:
         self._details = details
         self._target: Any = requested
         if self.active and requested.encoded_id is None and requested.id is not None:
-            self._target = requested.model_copy(update={"encoded_id": audit.security.encode_id(requested.id)})
+            try:
+                self._target = requested.model_copy(update={"encoded_id": audit.security.encode_id(requested.id)})
+            except Exception:
+                # Never break the export over its audit event; the numeric id is still there.
+                pass
 
     def authorized(self, obj: Any) -> None:
         """Access to ``obj`` was granted; describe it now, before a commit expires it."""

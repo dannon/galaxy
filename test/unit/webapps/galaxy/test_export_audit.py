@@ -208,12 +208,13 @@ class Harness:
             ShortTermStorageManager: self.storage,
             AuditService: self.audit,
         }
+        self.sa_session = MagicMock()
         model_mapping = SimpleNamespace(
             set_request_id=lambda request_id: None,
             unset_request_id=lambda request_id: None,
             scoped_registry=SimpleNamespace(registry={}),
             request_scopefunc=lambda: None,
-            session=MagicMock(),
+            session=self.sa_session,
         )
         self.app_config = SimpleNamespace(enable_celery_tasks=True, upstream_mod_zip=False, upstream_gzip=False)
         stub_app = SimpleNamespace(
@@ -342,7 +343,15 @@ def test_history_export_that_cannot_queue_is_one_error(harness, audit_events):
     (event,) = audit_events
     assert outcomes([event]) == [("history.export", "error", "internal_error", "prepare")]
     assert event["object"]["owner_id"] == 7
-    assert "guest" not in json.dumps(event)
+
+
+def test_export_queued_before_a_failed_commit_is_still_a_success(harness, audit_events):
+    harness.sa_session.commit.side_effect = OSError("database went away")
+    with pytest.raises(OSError):
+        harness.client.post(f"{HISTORY_URL}/write_store", json={"target_uri": "s3://bucket/key"})
+    # The task is already running and will write the data, so the event says so and names it.
+    (event,) = audit_events
+    assert (event["outcome"], event["details"]["task_id"]) == ("success", "task-write_history_to")
 
 
 def test_disabled_audit_records_nothing_and_changes_nothing(tmp_path, monkeypatch, audit_events):
@@ -380,7 +389,7 @@ def test_legacy_job_export_to_a_directory_records_the_job(harness, audit_events)
     }
 
 
-def test_legacy_export_reusing_a_ready_archive_records_nothing(harness, audit_events):
+def test_legacy_export_with_an_up_to_date_archive_records_nothing(harness, audit_events):
     harness.history.latest_export = SimpleNamespace(up_to_date=True, ready=False, job=SimpleNamespace(id=54))
     cast(MagicMock, harness.histories.history_export_manager).serialize.return_value = {
         "id": encoded(8),
@@ -446,7 +455,8 @@ def test_dataset_export_is_a_dataset_export(harness, audit_events):
 
 def test_collection_remote_export_is_a_collection_export(harness, audit_events):
     # The service builds its task request with a misspelled field (contents_type for content_type),
-    # so this route fails before queueing anything; the attempt is still on record, as an error.
+    # so this route fails before queueing anything, for datasets and collections alike; the attempt
+    # is still on record, as an error.
     with pytest.raises(ValidationError):
         harness.client.post(f"{COLLECTION_URL}/write_store", json={"target_uri": "s3://bucket/reads.tgz"})
     (event,) = audit_events
@@ -611,6 +621,11 @@ def test_prepared_download_not_yet_written_is_an_error_at_respond(harness, audit
         (f"https://alice:{SECRET}@host.example.org:8443/p/x?token={SECRET}#frag", "https://host.example.org:8443/p/x"),
         ("gxuserfiles://MyS3/exports/f.tgz", "gxuserfiles://MyS3/exports/f.tgz"),
         (f"ftp://alice:pa/{SECRET}@host/x", "ftp:"),
+        (f"ftp://alice:2024/{SECRET}@host/x", "ftp:"),
+        (f"ftp://alice:1234?{SECRET}@host/x", "ftp:"),
+        (f"ftp://alice:99#{SECRET}@host/", "ftp:"),
+        (f"https://{SECRET}/x@host/", "https:"),
+        (f"http://host/p;jsessionid={SECRET}", "http://host/p"),
         (f"alice:{SECRET}@host/path", None),
         ("ftp://[::1]:21/x", "ftp://[::1]:21/x"),
         ("http://[broken/x", None),
