@@ -31,6 +31,7 @@ from galaxy import (
     model,
 )
 from galaxy.exceptions import (
+    AuthenticationFailed,
     ItemAccessibilityException,
     RequestParameterInvalidException,
 )
@@ -49,6 +50,7 @@ from galaxy.managers.audit_actions.exports import (
     storage_request_digest,
 )
 from galaxy.managers.export_audit import ExportAudit
+from galaxy.managers.users import UserManager
 from galaxy.schema.fields import Security as IdSecurity
 from galaxy.security.idencoding import IdEncodingHelper
 from galaxy.short_term_storage import (
@@ -99,6 +101,34 @@ def detached(instance, instance_id):
 
 
 SESSION_USER = detached(model.User(email="alice@example.org"), 7)
+API_KEY = "bob-api-key-0123456789"
+BEARER_TOKEN = "bob-access-token-0123456789"
+
+
+def api_key_user():
+    key = model.APIKeys(key=API_KEY)
+    key.id = 80
+    user = model.User(email="bob@example.org")
+    user.id, user.api_keys = 8, [key]
+    make_transient_to_detached(key)
+    make_transient_to_detached(user)
+    return user
+
+
+class FakeUserManager:
+    """Answers API key lookups the way UserManager does: a user, or AuthenticationFailed."""
+
+    def __init__(self):
+        self.lookups = 0
+
+    def by_api_key(self, api_key):
+        self.lookups += 1
+        if api_key != API_KEY:
+            raise AuthenticationFailed("Provided API key is not valid.")
+        return api_key_user()
+
+    def by_oidc_access_token(self, access_token):
+        return api_key_user() if access_token == BEARER_TOKEN else None
 
 
 def impersonated_session(galaxysession: str = Depends(APIKeyCookie(name="galaxysession", auto_error=False))):
@@ -221,7 +251,9 @@ class Harness:
             monkeypatch.setattr(module, name, self.tasks[name])
         monkeypatch.setattr(hdcas, "stream_dataset_collection", lambda **kwargs: FakeArchive())
 
+        self.user_manager = FakeUserManager()
         registry = {
+            UserManager: self.user_manager,
             HistoriesService: self.histories,
             HistoriesContentsService: self.contents,
             InvocationsService: self.invocations,
@@ -252,6 +284,10 @@ class Harness:
         for module in (histories_api, history_contents_api, workflows_api, short_term_storage_api):
             app.include_router(module.router)
         app.dependency_overrides[get_session] = impersonated_session
+        # The short-term storage route resolves its downloader by calling get_session itself.
+        monkeypatch.setattr(
+            short_term_storage_api, "get_session", lambda manager, security, cookie: impersonated_session(cookie)
+        )
         app.dependency_overrides[inspect.signature(get_api_user).parameters["user_manager"].default.dependency] = (
             lambda: MagicMock()
         )
@@ -692,6 +728,87 @@ def test_storage_request_digest_is_a_short_sha256():
     assert storage_request_digest(storage_request_id) == (
         hashlib.sha256(b"0f8fad5b-d9cb-469f-a165-70867728950e").hexdigest()[:32]
     )
+
+
+def finished_archive(harness, content=b"history archive"):
+    target = harness.storage.new_target("history.tgz", "application/x-gzip")
+    target.path.write_bytes(content)
+    harness.storage.finalize(target)
+    return f"/api/short_term_storage/{target.request_id}"
+
+
+def test_prepared_download_names_the_session_user_who_fetched_it(harness, audit_events):
+    response = harness.client.get(finished_archive(harness))
+    assert response.status_code == 200
+    (event,) = audit_events
+    assert (event["auth"]["method"], event["auth"]["switch"]) == ("session", "impersonation")
+    assert (event["actor"]["id"], event["effective_user"]["id"]) == (1, 7)
+
+
+@pytest.mark.parametrize("header", [True, False])
+def test_prepared_download_names_the_api_key_user_who_fetched_it(harness, audit_events, header):
+    harness.client.cookies.clear()
+    url = finished_archive(harness)
+    if header:
+        response = harness.client.get(url, headers={"x-api-key": API_KEY})
+    else:
+        response = harness.client.get(url, params={"key": API_KEY})
+    assert response.status_code == 200 and response.content == b"history archive"
+    (event,) = audit_events
+    assert (event["auth"]["method"], event["auth"]["credential_id"]) == ("api_key", 80)
+    assert (event["actor"]["id"], event["effective_user"]["id"]) == (8, 8)
+    assert API_KEY not in json.dumps(event)
+
+
+def test_prepared_download_names_the_bearer_token_user_who_fetched_it(harness, audit_events):
+    harness.client.cookies.clear()
+    response = harness.client.get(finished_archive(harness), headers={"Authorization": f"Bearer {BEARER_TOKEN}"})
+    assert response.status_code == 200
+    (event,) = audit_events
+    assert (event["auth"]["method"], event["effective_user"]["id"]) == ("bearer", 8)
+    assert BEARER_TOKEN not in json.dumps(event)
+
+
+def test_anonymous_prepared_download_still_works_and_is_anonymous(harness, audit_events):
+    harness.client.cookies.clear()
+    response = harness.client.get(finished_archive(harness))
+    assert response.status_code == 200 and response.content == b"history archive"
+    (event,) = audit_events
+    assert event["auth"]["method"] == "anonymous"
+    assert (event["actor"], event["effective_user"]) == (None, None)
+
+
+def test_bad_api_key_does_not_change_what_a_prepared_download_serves(harness, audit_events):
+    harness.client.cookies.clear()
+    response = harness.client.get(finished_archive(harness), headers={"x-api-key": "not-a-key"})
+    assert response.status_code == 200 and response.content == b"history archive"
+    (event,) = audit_events
+    assert event["outcome"] == "success"
+    assert event["effective_user"] is None
+
+
+def test_prepared_download_errors_are_unchanged_by_credentials(harness, audit_events):
+    harness.client.cookies.clear()
+    response = harness.client.get(f"/api/short_term_storage/{uuid.uuid4()}", headers={"x-api-key": API_KEY})
+    assert response.status_code == 404
+    (event,) = audit_events
+    assert outcomes([event]) == [("archive.download", "error", "not_found", "authorize")]
+    assert event["effective_user"]["id"] == 8
+
+
+def test_disabled_audit_looks_up_no_downloader(tmp_path, monkeypatch, audit_events):
+    harness = Harness(tmp_path, monkeypatch, {"enabled": False})
+    harness.client.cookies.clear()
+    response = harness.client.get(finished_archive(harness), headers={"x-api-key": API_KEY})
+    assert response.status_code == 200 and response.content == b"history archive"
+    assert harness.user_manager.lookups == 0
+    assert audit_events == []
+
+
+def test_prepared_download_route_stays_public_in_the_api_schema(harness):
+    operation = harness.client.app.openapi()["paths"]["/api/short_term_storage/{storage_request_id}"]["get"]
+    assert operation["security"] == []
+    assert [parameter["name"] for parameter in operation["parameters"]] == ["storage_request_id"]
 
 
 def test_prepared_download_that_failed_is_an_archive_failure(harness, audit_events):
