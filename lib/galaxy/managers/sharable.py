@@ -108,14 +108,14 @@ def audit_read_session(app: Any) -> Iterator[Session]:
     A failed query on the request's session leaves its transaction needing a rollback, and
     the request's own commit then fails over nothing but an audit read. A session of its own
     keeps audit reads out of that transaction, and sees only committed rows, so an event
-    built from it never claims a change that was rolled back.
+    built from it never claims a change that was rolled back. It holds a second pooled
+    connection while the request holds its own, but only briefly and only when auditing.
     """
     engine = app.model.engine
     if isinstance(engine.pool, (SingletonThreadPool, StaticPool)):
-        # Every session shares one connection (in-memory SQLite), so closing a second one
-        # would roll back the request's work; read through the request's session instead.
-        yield app.model.context()
-        return
+        # Every session shares one connection (in-memory SQLite): a second session would see
+        # the request's uncommitted changes and roll them back on close, so no reads at all.
+        raise RuntimeError("Audit reads need a database that gives each session its own connection")
     with Session(engine, autoflush=False) as session:
         yield session
 

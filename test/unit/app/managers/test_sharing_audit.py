@@ -14,6 +14,7 @@ from sqlalchemy import (
     event,
     exc,
 )
+from sqlalchemy.pool import SingletonThreadPool
 
 from galaxy import (
     exceptions,
@@ -33,6 +34,7 @@ from galaxy.managers.histories import (
     HistoryManager,
     HistorySerializer,
 )
+from galaxy.managers.sharable import audit_read_session
 from galaxy.schema.fields import Security
 from galaxy.schema.schema import (
     SetSlugPayload,
@@ -596,6 +598,13 @@ class TestDatasetPermissionsAudit(AuditTestCase):
         assert named["object"]["owner_id"] is None
         assert named["details"] == {"change": "remove_restrictions"}
         assert unnamed["details"] == {}
+
+    def test_an_in_memory_database_records_nothing_rather_than_reading_uncommitted_state(self):
+        engine = mock.Mock(pool=mock.Mock(spec=SingletonThreadPool))
+        app = SimpleNamespace(model=SimpleNamespace(engine=engine))
+        with pytest.raises(RuntimeError):
+            with audit_read_session(app):
+                pass
 
     def test_a_broken_snapshot_never_fails_the_change(self):
         dataset_manager = self.hda_manager.dataset_manager

@@ -246,22 +246,24 @@ class HDAManager(
             assert session
             session.commit()
             if history is not None:
-                self._record_cross_user_copy(audit_id(hda), audit_id(copy), audit_id(history))
+                self._record_cross_user_copy(hda, copy, history)
 
         return copy
 
-    def _record_cross_user_copy(self, source_id: int | None, copy_id: int | None, history_id: int | None):
+    def _record_cross_user_copy(self, source: HistoryDatasetAssociation, copy: HistoryDatasetAssociation, history):
         """Record a committed copy into a history whose owner doesn't own the source."""
         audit = self.dataset_manager.audit
         if not audit.wants("dataset.copy"):
             return
+        # The commit expired these; their identities give the ids without a query.
+        source_id, copy_id, history_id = audit_id(source), audit_id(copy), audit_id(history)
         try:
             with audit_read_session(self.app) as session:
-                source = session.get(HistoryDatasetAssociation, source_id)
-                history = session.get(model.History, history_id)
-                if source is None or history is None:
+                source_hda = session.get(HistoryDatasetAssociation, source_id)
+                target_history = session.get(model.History, history_id)
+                if source_hda is None or target_history is None:
                     raise exceptions.ObjectNotFound(f"No dataset {source_id} or history {history_id}")
-                event = self._cross_user_copy_event(source, copy_id, history)
+                event = self._cross_user_copy_event(source_hda, copy_id, target_history)
         except Exception:
             # The copy has committed; a missing audit event is reported, not raised.
             audit_failures.report("prepare", "Lost the audit event for a copy of dataset %s", source_id)
