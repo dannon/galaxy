@@ -8,6 +8,7 @@ a prepared download.
 """
 
 import hashlib
+import ipaddress
 import re
 import unicodedata
 from typing import (
@@ -33,6 +34,7 @@ _SCHEME = re.compile(r"[A-Za-z][A-Za-z0-9+.\-]*")
 _AUTHORITY_END = re.compile(r"[/?#]")
 _PATH_END = re.compile(r"[?#;]")
 _DELIMITERS = frozenset("/?#@:;[]\\%")
+_HOST_NAME = re.compile(r"[A-Za-z0-9._~-]*")
 
 
 def _hostile(char: str) -> bool:
@@ -58,11 +60,20 @@ def storage_request_digest(storage_request_id: Any) -> str:
 
 
 def _valid_host(host: str) -> bool:
+    """A host name or address with an optional numeric port, and nothing else.
+
+    Narrower than RFC 3986 allows on purpose: its sub-delimiters (";", "=", ...) can
+    carry tokens in the authority as easily as in a path.
+    """
     if host.startswith("["):
-        _, bracket, port = host.partition("]")
+        address, bracket, port = host[1:].partition("]")
+        try:
+            ipaddress.IPv6Address(address)
+        except ValueError:
+            return False
         return bool(bracket) and (port == "" or (port.startswith(":") and port[1:].isdigit()))
-    _, colon, port = host.rpartition(":")
-    return not colon or port.isdigit()
+    name, colon, port = host.rpartition(":") if ":" in host else (host, "", "")
+    return _HOST_NAME.fullmatch(name) is not None and (not colon or port.isdigit())
 
 
 def sanitize_target_uri(uri: str | None) -> str | None:
@@ -87,12 +98,12 @@ def _sanitize(uri: str) -> str | None:
     if not colon or not _SCHEME.fullmatch(scheme):
         return None
     scheme_only = f"{scheme.lower()}:"
+    # Without "//" after it, what precedes the first ":" is as likely a user name or an
+    # access key ("AKIA...:secret") as a scheme, so nothing is kept.
     if any(_hostile(char) for char in uri):
-        # "alice:secret\t@host" would otherwise leave the user name as the "scheme".
-        return scheme_only if rest.startswith("/") else None
+        return scheme_only if "".join(char for char in rest if not _hostile(char)).startswith("//") else None
     if not rest.startswith("//"):
-        # e.g. "user:secret@host/path" splits as scheme "user"; keep nothing that could be a secret.
-        return None if "@" in rest else scheme_only
+        return None
     remainder = rest[2:]
     match = _AUTHORITY_END.search(remainder)
     authority, tail = (remainder[: match.start()], remainder[match.start() :]) if match else (remainder, "")
