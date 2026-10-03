@@ -16,12 +16,12 @@ from galaxy.exceptions import (
     ObjectNotFound,
 )
 from galaxy.managers.audit import AuditService
-from galaxy.managers.audit_actions import AuditObject
 from galaxy.managers.audit_actions.datasets import DrsDetails
 from galaxy.managers.context import ProvidesHistoryContext
 from galaxy.schema.drs import DrsObject
 from galaxy.webapps.base.audit import audited_response
 from galaxy.webapps.galaxy.services.datasets import (
+    begin_audit_attempt,
     DatasetsService,
     withdraw_attempt,
 )
@@ -70,8 +70,12 @@ class DrsApi:
     ) -> DrsObject:
         # A malformed id names nothing, so it fails here without an event.
         decoded_object_id, hda_ldda = self.service.drs_dataset_instance(object_id)
-        attempt = self.audit.attempt(
-            "drs.object", AuditObject(type=hda_ldda.value, id=decoded_object_id), DrsDetails(object_id=object_id)
+        attempt = begin_audit_attempt(
+            self.audit,
+            "drs.object",
+            decoded_object_id,
+            lambda: DrsDetails(object_id=object_id),
+            requested_type=hda_ldda.value,
         )
         with attempt.guard():
             try:
@@ -103,8 +107,12 @@ class DrsApi:
     )
     def download(self, trans: ProvidesHistoryContext = DependsOnTrans, object_id: str = ObjectIDParam):
         decoded_object_id, hda_ldda = self.service.drs_dataset_instance(object_id)
-        attempt = self.audit.attempt(
-            "drs.download", AuditObject(type=hda_ldda.value, id=decoded_object_id), DrsDetails(object_id=object_id)
+        attempt = begin_audit_attempt(
+            self.audit,
+            "drs.download",
+            decoded_object_id,
+            lambda: DrsDetails(object_id=object_id),
+            requested_type=hda_ldda.value,
         )
         with attempt.guard():
             display_data, headers = self.service.display(

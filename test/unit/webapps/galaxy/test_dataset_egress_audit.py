@@ -38,6 +38,7 @@ from galaxy.exceptions import (
 from galaxy.managers.audit import (
     AUDIT_LOGGER_NAME,
     AuditService,
+    NULL_ATTEMPT,
 )
 from galaxy.schema.fields import Security as IdSecurity
 from galaxy.security.idencoding import IdEncodingHelper
@@ -49,10 +50,16 @@ from galaxy.webapps.galaxy.api import (
     get_api_user,
     get_session,
 )
-from galaxy.webapps.galaxy.api.datasets import router as datasets_router
+from galaxy.webapps.galaxy.api.datasets import (
+    CONTENT_DATA_TYPES,
+    METADATA_DATA_TYPES,
+    router as datasets_router,
+)
 from galaxy.webapps.galaxy.api.drs import router as drs_router
 from galaxy.webapps.galaxy.services.datasets import (
+    begin_audit_attempt,
     DatasetsService,
+    RequestDataType,
     signed_url_facts,
 )
 
@@ -361,6 +368,80 @@ def test_dataset_state_is_not_a_read(harness, audit_events):
     harness.hda.dataset.state = "ok"
     harness.client.get(f"/api/datasets/{ENCODED}?data_type=state")
     assert audit_events == []
+
+
+def test_every_data_type_is_either_audited_or_known_to_be_metadata():
+    # A new data_type has to be placed in one of the two sets before it can ship unaudited.
+    assert not CONTENT_DATA_TYPES & METADATA_DATA_TYPES
+    assert CONTENT_DATA_TYPES | METADATA_DATA_TYPES == set(RequestDataType)
+
+
+def test_genome_wide_data_is_a_read(harness, audit_events, monkeypatch):
+    monkeypatch.setattr(harness.service, "_get_genome_data", lambda trans, dataset, dbkey=None: {"data": [[1, 2]]})
+    response = harness.client.get(f"/api/datasets/{ENCODED}?data_type=genome_data")
+    assert response.status_code == 200 and response.json() == {"data": [[1, 2]]}
+    (event,) = audit_events
+    assert outcomes([event]) == [("dataset.read_data", "success", None, "prepare")]
+    assert event["details"] == {"data_type": "genome_data"}
+
+
+@pytest.mark.parametrize("answer", ["pending", "no data", {"kind": "error", "message": "converter failed"}, None])
+def test_a_status_answer_in_place_of_data_records_nothing(harness, audit_events, monkeypatch, answer):
+    monkeypatch.setattr(harness.service, "_raw_data", lambda trans, dataset, **kwargs: answer)
+    response = harness.client.get(f"/api/datasets/{ENCODED}?data_type=raw_data")
+    assert response.status_code == 200 and response.json() == answer
+    assert audit_events == []
+
+
+def test_binary_content_as_text_records_nothing(harness, audit_events):
+    harness.hda_manager.text_data.return_value = (False, None)
+    response = harness.client.get(f"/api/datasets/{ENCODED}/get_content_as_text")
+    assert response.status_code == 200 and response.json()["item_data"] is None
+    assert audit_events == []
+
+
+@pytest.mark.parametrize("enabled", [True, False])
+def test_data_json_cannot_carry_fails_as_before_and_is_not_a_success(tmp_path, monkeypatch, audit_events, enabled):
+    harness = Harness(tmp_path, monkeypatch, {"enabled": enabled})
+    monkeypatch.setattr(
+        harness.service, "_raw_data", lambda trans, dataset, **kwargs: {"data": [["chr1", 1, 2, float("nan")]]}
+    )
+    with pytest.raises(ValueError):
+        harness.client.get(f"/api/datasets/{ENCODED}?data_type=raw_data")
+    expected = [("dataset.read_data", "error", "internal_error", "prepare")] if enabled else []
+    assert outcomes(audit_events) == expected
+
+
+def test_presigned_success_waits_for_the_redirect_response(harness, audit_events, monkeypatch):
+    harness.stub_app.object_store.get_direct_download_url.return_value = PRESIGNED
+
+    def broken_redirect(url, status_code):
+        raise RuntimeError("could not build the redirect")
+
+    monkeypatch.setattr("galaxy.webapps.galaxy.api.datasets.RedirectResponse", broken_redirect)
+    with pytest.raises(RuntimeError):
+        harness.client.get(f"/api/datasets/{ENCODED}/download", follow_redirects=False)
+    assert outcomes(audit_events) == [("dataset.download_url", "error", "internal_error", "prepare")]
+
+
+def test_audit_models_are_built_only_while_auditing(tmp_path, monkeypatch, audit_events):
+    built = []
+
+    def details():
+        built.append(True)
+        raise ValueError("a request value the model can't take")
+
+    (tmp_path / "off").mkdir()
+    (tmp_path / "on").mkdir()
+    disabled = Harness(tmp_path / "off", monkeypatch, {"enabled": False})
+    assert begin_audit_attempt(disabled.audit, "dataset.read_text", 42, details) is NULL_ATTEMPT
+    assert built == []
+    enabled = Harness(tmp_path / "on", monkeypatch, {"enabled": True})
+    attempt = begin_audit_attempt(enabled.audit, "dataset.read_text", 42, details)
+    attempt.failed("internal_error")
+    (event,) = audit_events
+    # The model couldn't be built: the event goes out without details rather than failing the request.
+    assert built == [True] and event["details"] == {} and event["object"]["id"] == 42
 
 
 def test_raw_data_denied(harness, audit_events):
