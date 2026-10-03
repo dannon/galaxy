@@ -717,6 +717,7 @@ class DatasetInterface(BaseUIController, UsesAnnotations, UsesItemRatings, UsesE
 def _url_host(url) -> str | None:
     # Request-supplied (a repeated parameter arrives as a list); never fail the request over it.
     try:
-        return urlsplit(url).hostname
+        host: str | None = urlsplit(url).hostname
     except Exception:
         return None
+    return host
