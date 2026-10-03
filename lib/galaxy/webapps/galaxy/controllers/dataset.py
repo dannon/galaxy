@@ -8,6 +8,7 @@ from urllib.parse import (
 )
 
 import paste.httpexceptions
+import webob.exc
 
 from galaxy import (
     util,
@@ -21,11 +22,14 @@ from galaxy.datatypes.display_applications.util import (
 from galaxy.datatypes.sniff import guess_ext
 from galaxy.exceptions import (
     InsufficientPermissionsException,
+    ItemAccessibilityException,
     MessageException,
     RequestParameterInvalidException,
 )
-from galaxy.managers.audit import AuditService
-from galaxy.managers.audit_actions import AuditObject
+from galaxy.managers.audit import (
+    AuditService,
+    classify_failure,
+)
 from galaxy.managers.audit_actions.datasets import (
     ExternalFetchDetails,
     ExternalLinkDetails,
@@ -55,7 +59,12 @@ from galaxy.webapps.base.controller import (
     UsesExtendedMetadataMixin,
 )
 from galaxy.webapps.base.webapp import GalaxyWebTransaction
-from galaxy.webapps.galaxy.services.datasets import DatasetsService
+from galaxy.webapps.galaxy.services.datasets import (
+    begin_audit_attempt,
+    DatasetsService,
+    record_audit_event,
+    withdraw_attempt,
+)
 from ..api import depends
 
 log = logging.getLogger(__name__)
@@ -102,10 +111,11 @@ class DatasetInterface(BaseUIController, UsesAnnotations, UsesItemRatings, UsesE
             raise RequestParameterInvalidException("Required parameters 'hda_id' and 'metadata_name' are missing.")
         # Backward compatibility with legacy links, should use `/api/datasets/{hda_id}/get_metadata_file` instead
         decoded_id = self.decode_id(hda_id)
-        attempt = self.audit.attempt(
+        attempt = begin_audit_attempt(
+            self.audit,
             "dataset.download_metadata_file",
-            AuditObject(type="hda", id=decoded_id),
-            MetadataFileDetails(metadata_file=metadata_name),
+            decoded_id,
+            lambda: MetadataFileDetails(metadata_file=metadata_name),
             # Legacy routes answer HEAD by running the action and dropping the body.
             record_success=trans.request.method != "HEAD",
         )
@@ -492,29 +502,40 @@ class DatasetInterface(BaseUIController, UsesAnnotations, UsesItemRatings, UsesE
         except Exception:
             redirect_url = kwd["redirect_url"]  # not all will need custom text
         if trans.app.security_agent.dataset_is_public(data.dataset):
-            self._record_display_at(data, "success", site, redirect_url, public=True)
-            return trans.response.send_redirect(redirect_url)  # anon access already permitted by rbac
+            # anon access already permitted by rbac
+            return self._redirect_display_at(trans, data, site, redirect_url, public=True)
         if self._can_access_dataset(trans, data):
             trans.app.host_security_agent.set_dataset_permissions(data, trans.user, site)
-            self._record_display_at(data, "success", site, redirect_url, public=False)
-            return trans.response.send_redirect(redirect_url)
+            return self._redirect_display_at(trans, data, site, redirect_url, public=False)
         else:
-            self._record_display_at(data, "denied", site, redirect_url)
+            self._record_display_at(data, "denied", site, redirect_url, reason="not_accessible", stage="authorize")
             return trans.show_error_message(
                 "You are not allowed to view this dataset at external sites.  Please contact your Galaxy administrator to acquire management permissions for this dataset."
             )
 
-    def _record_display_at(self, data, outcome, site, redirect_url, public=None):
-        if not self.audit.wants("dataset.external_link"):
-            return
-        details = ExternalLinkDetails(via="display_at", site=site, target_host=_url_host(redirect_url), public=public)
-        self.audit.record(
+    def _redirect_display_at(self, trans: GalaxyWebTransaction, data, site, redirect_url, public: bool):
+        try:
+            return trans.response.send_redirect(redirect_url)
+        except webob.exc.HTTPFound:
+            # Only a redirect on its way counts: send_redirect refuses some URLs with a server error instead.
+            self._record_display_at(data, "success", site, redirect_url, public=public, stage="respond")
+            raise
+        except Exception as exc:
+            outcome, reason = classify_failure(exc)
+            self._record_display_at(data, outcome, site, redirect_url, public=public, reason=reason, stage="respond")
+            raise
+
+    def _record_display_at(self, data, outcome, site, redirect_url, public=None, reason=None, stage=None):
+        record_audit_event(
+            self.audit,
             "dataset.external_link",
             data,
             outcome,
-            details=details,
-            reason="not_accessible" if outcome == "denied" else None,
-            stage="authorize" if outcome == "denied" else "respond",
+            lambda: ExternalLinkDetails(
+                via="display_at", site=site, target_host=_url_host(redirect_url), public=public
+            ),
+            reason=reason,
+            stage=stage,
         )
 
     @web.expose
@@ -556,161 +577,174 @@ class DatasetInterface(BaseUIController, UsesAnnotations, UsesItemRatings, UsesE
             user_roles = user.all_roles()
         else:
             user_roles = []
-        # Decode application name and link name
-        if self._can_access_dataset(trans, data, additional_roles=user_roles):
-            msg = []
-            display_app = trans.app.datatypes_registry.display_applications.get(app_name)
-            if not display_app:
-                log.debug("Unknown display application has been requested: %s", app_name)
-                return paste.httpexceptions.HTTPNotFound(
-                    f"The requested display application ({app_name}) is not available."
-                )
-            dataset_hash, user_hash = encode_dataset_user(trans, data, user)
-            try:
-                display_link = display_app.get_link(link_name, data, dataset_hash, user_hash, trans, app_kwds)
-            except Exception as e:
-                log.debug("Error generating display_link: %s", e)
-                # User can sometimes recover from, e.g. conversion errors by fixing input metadata, so use conflict
-                return paste.httpexceptions.HTTPConflict(f"Error generating display_link: {e}")
-            if not display_link:
-                log.debug("Unknown display link has been requested: %s", link_name)
-                return paste.httpexceptions.HTTPNotFound(f"Unknown display link has been requested: {link_name}")
-            if data.state == data.states.ERROR:
-                msg.append(
-                    (
-                        "This dataset is in an error state, you cannot view it at an external display application.",
-                        "error",
-                    )
-                )
-            elif data.deleted:
-                msg.append(
-                    ("This dataset has been deleted, you cannot view it at an external display application.", "error")
-                )
-            elif data.state != data.states.OK:
-                msg.append(
-                    (
-                        "You must wait for this dataset to be created before you can view it at an external display application.",
-                        "info",
-                    )
-                )
-            else:
-                # We have permissions, dataset is not deleted and is in OK state, allow access
-                if display_link.display_ready():
-                    if app_action in ["data", "param"]:
-                        assert action_param, "An action param must be provided for a data or param action"
-                        # data is used for things with filenames that could be passed off to a proxy
-                        # in case some display app wants all files to be in the same 'directory',
-                        # data can be forced to param, but not the other way (no filename for other direction)
-                        # get param name from url param name
-                        try:
-                            action_param = display_link.get_param_name_by_url(action_param)
-                        except ValueError as e:
-                            log.debug(e)
-                            return paste.httpexceptions.HTTPNotFound(util.unicodify(e))
-                        value = display_link.get_param_value(action_param)
-                        assert value, f"An invalid parameter name was provided: {action_param}"
-                        assert value.parameter.viewable, "This parameter is not viewable."
-                        if value.parameter.type == "data":
-                            try:
-                                if action_param_extra:
-                                    assert (
-                                        value.parameter.allow_extra_files_access
-                                    ), f"Extra file content requested ({action_param_extra}), but allow_extra_files_access is False."
-                                    file_name = os.path.join(value.extra_files_path, action_param_extra)
-                                else:
-                                    file_name = value.get_file_name()
-                                content_length = os.path.getsize(file_name)
-                                rval: str | IO[bytes] = open(file_name, "rb")
-                            except OSError as e:
-                                log.debug("Unable to access requested file in display application: %s", e)
-                                return paste.httpexceptions.HTTPNotFound("This file is no longer available.")
-                        else:
-                            rval = str(value)
-                            content_length = len(rval)
-                        # Set Access-Control-Allow-Origin as specified in GEDA
-                        if value.parameter.allow_cors:
-                            trans.set_cors_origin()
-                            trans.set_cors_allow()
-                        trans.response.set_content_type(value.mime_type(action_param_extra=action_param_extra))
-                        trans.response.headers["Content-Length"] = str(content_length)
-                        # HEAD runs this too (the body is dropped later); external sites probe with it.
-                        if trans.request.method != "HEAD" and self.audit.wants("dataset.external_fetch"):
-                            self.audit.record(
-                                "dataset.external_fetch",
-                                data,
-                                "success",
-                                details=ExternalFetchDetails(
-                                    via="display_application",
-                                    app_name=app_name,
-                                    link_name=link_name,
-                                    app_action=app_action,
-                                    action_param=action_param,
-                                    filename=action_param_extra,
-                                    link_user_id=getattr(user, "id", None),
-                                ),
-                                stage="respond",
-                            )
-                        return rval
-                    elif app_action is None:
-                        # redirect user to url generated by display link
-                        display_url = display_link.display_url()
-                        if self.audit.wants("dataset.external_link"):
-                            self.audit.record(
-                                "dataset.external_link",
-                                data,
-                                "success",
-                                details=ExternalLinkDetails(
-                                    via="display_application",
-                                    app_name=app_name,
-                                    link_name=link_name,
-                                    target_host=_url_host(display_url),
-                                ),
-                                stage="respond",
-                            )
-                        return trans.response.send_redirect(display_url)
-                    else:
-                        msg.append((f"Invalid action provided: {app_action}", "error"))
-                else:
-                    if app_action is None:
-                        msg.append(
-                            (
-                                "Launching this display application requires additional datasets to be generated.",
-                                "info",
-                            )
-                        )
-                    else:
-                        return trans.show_error_message(
-                            f"Attempted a view action ({app_action}) on a non-ready display application"
-                        )
-            return dict(msg=msg)
-        if app_action is None and self.audit.wants("dataset.external_link"):
-            self.audit.record(
+        if app_action is None:
+            # A launch: the user is sent on to the external site with a link to the dataset.
+            attempt = begin_audit_attempt(
+                self.audit,
                 "dataset.external_link",
-                data,
-                "denied",
-                details=ExternalLinkDetails(via="display_application", app_name=app_name, link_name=link_name),
-                reason="not_accessible",
-                stage="authorize",
+                data.id,
+                lambda: ExternalLinkDetails(via="display_application", app_name=app_name, link_name=link_name),
             )
-        elif app_action is not None and self.audit.wants("dataset.external_fetch"):
-            self.audit.record(
+        else:
+            # The external site (usually) fetching what the link points at.
+            link_user_id = getattr(user, "id", None)
+            attempt = begin_audit_attempt(
+                self.audit,
                 "dataset.external_fetch",
-                data,
-                "denied",
-                details=ExternalFetchDetails(
+                data.id,
+                lambda: ExternalFetchDetails(
                     via="display_application",
                     app_name=app_name,
                     link_name=link_name,
                     app_action=app_action,
                     action_param=action_param,
                     filename=action_param_extra,
-                    link_user_id=getattr(user, "id", None),
+                    link_user_id=link_user_id,
                 ),
-                reason="not_accessible",
-                stage="authorize",
+                # HEAD runs this too (the body is dropped later); external sites probe with it.
+                record_success=trans.request.method != "HEAD",
             )
-        return trans.show_error_message(
-            "You do not have permission to view this dataset at an external display application."
+        with attempt.guard():
+            # Decode application name and link name
+            if self._can_access_dataset(trans, data, additional_roles=user_roles):
+                attempt.authorized(data)
+                msg = []
+                display_app = trans.app.datatypes_registry.display_applications.get(app_name)
+                if not display_app:
+                    log.debug("Unknown display application has been requested: %s", app_name)
+                    attempt.failed("not_found")
+                    return paste.httpexceptions.HTTPNotFound(
+                        f"The requested display application ({app_name}) is not available."
+                    )
+                dataset_hash, user_hash = encode_dataset_user(trans, data, user)
+                try:
+                    display_link = display_app.get_link(link_name, data, dataset_hash, user_hash, trans, app_kwds)
+                except Exception as e:
+                    log.debug("Error generating display_link: %s", e)
+                    attempt.failed("invalid_request")
+                    # User can sometimes recover from, e.g. conversion errors by fixing input metadata, so use conflict
+                    return paste.httpexceptions.HTTPConflict(f"Error generating display_link: {e}")
+                if not display_link:
+                    log.debug("Unknown display link has been requested: %s", link_name)
+                    attempt.failed("not_found")
+                    return paste.httpexceptions.HTTPNotFound(f"Unknown display link has been requested: {link_name}")
+                if data.state == data.states.ERROR:
+                    msg.append(
+                        (
+                            "This dataset is in an error state, you cannot view it at an external display application.",
+                            "error",
+                        )
+                    )
+                elif data.deleted:
+                    msg.append(
+                        (
+                            "This dataset has been deleted, you cannot view it at an external display application.",
+                            "error",
+                        )
+                    )
+                elif data.state != data.states.OK:
+                    msg.append(
+                        (
+                            "You must wait for this dataset to be created before you can view it at an external display application.",
+                            "info",
+                        )
+                    )
+                else:
+                    # We have permissions, dataset is not deleted and is in OK state, allow access
+                    if display_link.display_ready():
+                        if app_action in ["data", "param"]:
+                            assert action_param, "An action param must be provided for a data or param action"
+                            # data is used for things with filenames that could be passed off to a proxy
+                            # in case some display app wants all files to be in the same 'directory',
+                            # data can be forced to param, but not the other way (no filename for other direction)
+                            # get param name from url param name
+                            try:
+                                action_param = display_link.get_param_name_by_url(action_param)
+                            except ValueError as e:
+                                log.debug(e)
+                                attempt.failed("not_found")
+                                return paste.httpexceptions.HTTPNotFound(util.unicodify(e))
+                            value = display_link.get_param_value(action_param)
+                            assert value, f"An invalid parameter name was provided: {action_param}"
+                            assert value.parameter.viewable, "This parameter is not viewable."
+                            if value.parameter.type == "data":
+                                try:
+                                    if action_param_extra:
+                                        if not value.parameter.allow_extra_files_access:
+                                            # A refusal, though the assertion below reports it as a server error.
+                                            attempt.failed_with(ItemAccessibilityException())
+                                        assert (
+                                            value.parameter.allow_extra_files_access
+                                        ), f"Extra file content requested ({action_param_extra}), but allow_extra_files_access is False."
+                                        file_name = os.path.join(value.extra_files_path, action_param_extra)
+                                    else:
+                                        file_name = value.get_file_name()
+                                    content_length = os.path.getsize(file_name)
+                                    rval: str | IO[bytes] = open(file_name, "rb")
+                                except OSError as e:
+                                    log.debug("Unable to access requested file in display application: %s", e)
+                                    attempt.failed("not_found")
+                                    return paste.httpexceptions.HTTPNotFound("This file is no longer available.")
+                            else:
+                                rval = str(value)
+                                content_length = len(rval)
+                            # Set Access-Control-Allow-Origin as specified in GEDA
+                            if value.parameter.allow_cors:
+                                trans.set_cors_origin()
+                                trans.set_cors_allow()
+                            trans.response.set_content_type(value.mime_type(action_param_extra=action_param_extra))
+                            trans.response.headers["Content-Length"] = str(content_length)
+                            # No response-start hook on the legacy stack: success means the content was handed to the server.
+                            attempt.succeeded()
+                            return rval
+                        elif app_action is None:
+                            # redirect user to url generated by display link
+                            display_url = display_link.display_url()
+                            try:
+                                trans.response.send_redirect(display_url)
+                            except webob.exc.HTTPFound:
+                                self._record_display_link_issued(attempt, data, app_name, link_name, display_url)
+                                raise
+                        else:
+                            msg.append((f"Invalid action provided: {app_action}", "error"))
+                    else:
+                        if app_action is None:
+                            msg.append(
+                                (
+                                    "Launching this display application requires additional datasets to be generated.",
+                                    "info",
+                                )
+                            )
+                        else:
+                            attempt.failed("invalid_request")
+                            return trans.show_error_message(
+                                f"Attempted a view action ({app_action}) on a non-ready display application"
+                            )
+                # A page of messages where the link or the file would be.
+                attempt.failed("invalid_request")
+                return dict(msg=msg)
+            attempt.failed_with(ItemAccessibilityException())
+            return trans.show_error_message(
+                "You do not have permission to view this dataset at an external display application."
+            )
+
+    def _record_display_link_issued(self, attempt, data, app_name, link_name, display_url) -> None:
+        if not attempt.active:
+            return
+        # Where the user is sent is only known now, so the success is recorded in place of the attempt.
+        withdraw_attempt(attempt)
+        record_audit_event(
+            self.audit,
+            "dataset.external_link",
+            data,
+            "success",
+            lambda: ExternalLinkDetails(
+                via="display_application",
+                app_name=app_name,
+                link_name=link_name,
+                target_host=_url_host(display_url),
+            ),
+            stage="respond",
         )
 
 

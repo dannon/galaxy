@@ -12,7 +12,6 @@ from galaxy import (
     web,
 )
 from galaxy.managers.audit import AuditService
-from galaxy.managers.audit_actions import AuditObject
 from galaxy.managers.audit_actions.datasets import ExternalFetchDetails
 from galaxy.managers.histories import HistoryManager
 from galaxy.model import HistoryDatasetAssociation
@@ -21,6 +20,7 @@ from galaxy.structured_app import StructuredApp
 from galaxy.util import is_safe_local_redirect
 from galaxy.webapps.base import controller
 from galaxy.webapps.base.webapp import GalaxyWebTransaction
+from galaxy.webapps.galaxy.services.datasets import begin_audit_attempt
 from .authnz import LOGIN_NEXT_COOKIE_NAME
 from ..api import depends
 
@@ -98,10 +98,11 @@ class RootController(controller.BaseUIController, UsesAnnotations):
         except (TypeError, ValueError):
             trans.response.status = 400
             return f"Invalid dataset id: {escape(str(id))}"
-        attempt = self.audit.attempt(
+        attempt = begin_audit_attempt(
+            self.audit,
             "dataset.external_fetch",
-            AuditObject(type="hda", id=decoded_id),
-            ExternalFetchDetails(via="display_as", app_name=display_app, authz_method=authz_method),
+            decoded_id,
+            lambda: ExternalFetchDetails(via="display_as", app_name=display_app, authz_method=authz_method),
             # Legacy routes answer HEAD by running the action and dropping the body.
             record_success=trans.request.method != "HEAD",
         )
@@ -129,8 +130,12 @@ class RootController(controller.BaseUIController, UsesAnnotations):
                 trans.response.set_content_type(data.get_mime())
                 trans.log_event(f"Formatted dataset id {str(id)} for display at {display_app}")
                 content = data.as_display_type(display_app, **kwd)
-                # No response-start hook on the legacy stack: success means the content was handed to the server.
-                attempt.succeeded()
+                if attempt.active and not _offers_display_type(data, display_app):
+                    # The datatype answers with a "not implemented" message where the content would be.
+                    attempt.failed("invalid_request")
+                else:
+                    # No response-start hook on the legacy stack: success means the content was handed to the server.
+                    attempt.succeeded()
                 return content
             else:
                 attempt.failed("not_found")
@@ -141,3 +146,11 @@ class RootController(controller.BaseUIController, UsesAnnotations):
     def welcome(self, trans: GalaxyWebTransaction, **kwargs):
         welcome_url = trans.app.config.config_value_for_host("welcome_url", trans.host)
         return trans.response.send_redirect(web.url_for(welcome_url))
+
+
+def _offers_display_type(data: HistoryDatasetAssociation, display_app) -> bool:
+    try:
+        return display_app in data.datatype.get_display_types()
+    except Exception:
+        # Only ever decides how the event reads, so an odd value never fails the request.
+        return False
