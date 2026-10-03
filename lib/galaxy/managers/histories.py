@@ -40,6 +40,7 @@ from galaxy.managers import (
     history_contents,
     sharable,
 )
+from galaxy.managers.audit_actions.sharing import HistoryImportDetails
 from galaxy.managers.base import (
     apply_sort_column,
     combine_lists,
@@ -536,6 +537,19 @@ class HistoryManager(sharable.SharableModelManager[model.History], deletable.Pur
             .where(HistoryUserShareAssociation.history_id == history.id)
         )
         return bool(self.session().scalar(stmt))
+
+    def record_history_import(self, source: model.History, new_history: model.History, all_datasets: bool) -> None:
+        """Record a committed copy of someone else's history.
+
+        The event's object is the source history, so its owner is the person whose data
+        moved; the recipient is the new history's owner.
+        """
+        if source.user_id == new_history.user_id or not self.audit.wants("history.import"):
+            return
+        details = HistoryImportDetails(
+            new_history_id=new_history.id, recipient_id=new_history.user_id, all_datasets=all_datasets
+        )
+        self.audit.record("history.import", source, "success", details=details)
 
     def make_members_public(self, trans: ProvidesUserContext, item):
         """Make the non-purged datasets in history public.

@@ -44,6 +44,7 @@ from galaxy.managers import (
     taggable,
     users,
 )
+from galaxy.managers.audit_actions.sharing import DatasetCopyDetails
 from galaxy.managers.context import (
     ProvidesAppContext,
     ProvidesHistoryContext,
@@ -238,8 +239,20 @@ class HDAManager(
             session = object_session(copy)
             assert session
             session.commit()
+            self._record_cross_user_copy(hda, copy, history)
 
         return copy
+
+    def _record_cross_user_copy(self, source: HistoryDatasetAssociation, copy: HistoryDatasetAssociation, history):
+        """Record a committed copy into a history whose owner doesn't own the source."""
+        audit = self.dataset_manager.audit
+        if history is None or not audit.wants("dataset.copy"):
+            return
+        source_owner_id = source.history.user_id if source.history is not None else None
+        if source_owner_id == history.user_id:
+            return
+        details = DatasetCopyDetails(new_hda_id=copy.id, target_history_id=history.id, recipient_id=history.user_id)
+        audit.record("dataset.copy", source, "success", details=details)
 
     # .... deletion and purging
     def purge(self, item, flush=True, **kwargs):

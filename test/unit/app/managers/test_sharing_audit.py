@@ -383,6 +383,80 @@ class TestDatasetPermissionsAudit(AuditTestCase):
         assert self.events == []
 
 
+class TestCrossUserCopyAudit(AuditTestCase):
+    def set_up_managers(self):
+        super().set_up_managers()
+        self.audit = self.make_audit()
+        self.history_manager = self.app[HistoryManager]
+        self.history_manager.audit = self.audit
+        self.hda_manager = self.history_manager.hda_manager
+        self.hda_manager.dataset_manager.audit = self.audit
+
+    def set_up_trans(self):
+        super().set_up_trans()
+        self.owner = self.create_user("owner")
+        self.recipient = self.create_user("recipient")
+        self.source_history = self.history_manager.create(name="source", user=self.owner)
+        self.hda = self.hda_manager.create(
+            history=self.source_history, dataset=self.hda_manager.dataset_manager.create()
+        )
+        self.trans.sa_session.commit()
+
+    def test_copying_another_users_dataset_names_owner_and_recipient(self):
+        target = self.history_manager.create(name="mine", user=self.recipient)
+        with self.as_user(self.recipient):
+            copy = self.hda_manager.copy(self.hda, history=target)
+
+        (event,) = self.events
+        assert event["action"] == "dataset.copy"
+        assert event["outcome"] == "success"
+        assert event["effective_user"]["id"] == self.recipient.id
+        assert event["object"]["id"] == self.hda.id
+        assert event["object"]["owner_id"] == self.owner.id
+        assert event["object"]["dataset_id"] == self.hda.dataset_id
+        assert event["details"] == {
+            "new_hda_id": copy.id,
+            "target_history_id": target.id,
+            "recipient_id": self.recipient.id,
+        }
+
+    def test_copying_within_ones_own_histories_records_nothing(self):
+        other_history = self.history_manager.create(name="also mine", user=self.owner)
+        with self.as_user(self.owner):
+            self.hda_manager.copy(self.hda, history=other_history)
+        assert self.events == []
+
+    def test_an_uncommitted_copy_records_nothing(self):
+        target = self.history_manager.create(name="mine", user=self.recipient)
+        with self.as_user(self.recipient):
+            self.hda_manager.copy(self.hda, history=target, flush=False)
+        assert self.events == []
+
+    def test_importing_another_users_history(self):
+        with self.as_user(self.recipient):
+            new_history = self.source_history.copy(name="Copy", target_user=self.recipient, all_datasets=True)
+            self.trans.sa_session.commit()
+            self.history_manager.record_history_import(self.source_history, new_history, all_datasets=True)
+
+        (event,) = self.events
+        assert event["action"] == "history.import"
+        assert event["object"]["type"] == "history"
+        assert event["object"]["id"] == self.source_history.id
+        assert event["object"]["owner_id"] == self.owner.id
+        assert event["details"] == {
+            "new_history_id": new_history.id,
+            "recipient_id": self.recipient.id,
+            "all_datasets": True,
+        }
+
+    def test_copying_ones_own_history_records_nothing(self):
+        with self.as_user(self.owner):
+            new_history = self.source_history.copy(name="Copy", target_user=self.owner)
+            self.trans.sa_session.commit()
+            self.history_manager.record_history_import(self.source_history, new_history, all_datasets=False)
+        assert self.events == []
+
+
 @pytest.mark.parametrize(
     "model_class,attribute,expected_type",
     [
