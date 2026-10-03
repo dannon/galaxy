@@ -139,4 +139,6 @@ class FastAPIShortTermStorage:
                 )
             get_user(galaxy_session, api_user)
         except Exception:
+            # Usually a bad or expired credential, which is the client's business on a public
+            # route, not a lost audit event; the event still records the download.
             pass

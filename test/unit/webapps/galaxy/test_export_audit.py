@@ -52,6 +52,7 @@ from galaxy.managers.audit_actions.exports import (
     storage_request_digest,
 )
 from galaxy.managers.export_audit import ExportAudit
+from galaxy.managers.session import GalaxySessionManager
 from galaxy.managers.users import UserManager
 from galaxy.schema.fields import Security as IdSecurity
 from galaxy.security.idencoding import IdEncodingHelper
@@ -106,6 +107,7 @@ def detached(instance, instance_id):
 
 SESSION_USER = detached(model.User(email="alice@example.org"), 7)
 API_KEY = "bob-api-key-0123456789"
+SESSION_KEY = "0123456789abcdef0123456789abcdef"
 BEARER_TOKEN = "bob-access-token-0123456789"
 
 
@@ -117,6 +119,11 @@ def api_key_user():
     make_transient_to_detached(key)
     make_transient_to_detached(user)
     return user
+
+
+class FakeSessionManager:
+    def get_session_from_session_key(self, session_key):
+        return impersonated_session(SESSION_COOKIE) if session_key == SESSION_KEY else None
 
 
 class FakeUserManager:
@@ -258,6 +265,8 @@ class Harness:
         self.user_manager = FakeUserManager()
         registry = {
             UserManager: self.user_manager,
+            GalaxySessionManager: FakeSessionManager(),
+            IdEncodingHelper: SECURITY,
             HistoriesService: self.histories,
             HistoriesContentsService: self.contents,
             InvocationsService: self.invocations,
@@ -289,6 +298,7 @@ class Harness:
             app.include_router(module.router)
         app.dependency_overrides[get_session] = impersonated_session
         # The short-term storage route resolves its downloader by calling get_session itself.
+        self.real_get_session = short_term_storage_api.get_session
         monkeypatch.setattr(
             short_term_storage_api, "get_session", lambda manager, security, cookie: impersonated_session(cookie)
         )
@@ -747,6 +757,24 @@ def test_prepared_download_names_the_session_user_who_fetched_it(harness, audit_
     (event,) = audit_events
     assert (event["auth"]["method"], event["auth"]["switch"]) == ("session", "impersonation")
     assert (event["actor"]["id"], event["effective_user"]["id"]) == (1, 7)
+
+
+def test_prepared_download_reads_a_real_session_cookie(harness, audit_events, monkeypatch):
+    monkeypatch.setattr(short_term_storage_api, "get_session", harness.real_get_session)
+    harness.client.cookies.set("galaxysession", SECURITY.encode_guid(SESSION_KEY).decode())
+    response = harness.client.get(finished_archive(harness))
+    assert response.status_code == 200
+    (event,) = audit_events
+    assert (event["auth"]["method"], event["effective_user"]["id"]) == ("session", 7)
+
+
+def test_prepared_download_with_an_unreadable_cookie_is_served_anonymously(harness, audit_events, monkeypatch):
+    monkeypatch.setattr(short_term_storage_api, "get_session", harness.real_get_session)
+    harness.client.cookies.set("galaxysession", "not-an-encoded-session-key")
+    response = harness.client.get(finished_archive(harness))
+    assert response.status_code == 200 and response.content == b"history archive"
+    (event,) = audit_events
+    assert (event["outcome"], event["effective_user"]) == ("success", None)
 
 
 @pytest.mark.parametrize("header", [True, False])
