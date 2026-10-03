@@ -180,3 +180,28 @@ def test_disabled_audit_records_nothing(tmp_path, audit_events):
     harness = Harness(tmp_path, {"enabled": False})
     harness.download("zip", ld_ids=[SECURITY.encode_id(1)])
     assert audit_events == []
+
+
+@pytest.mark.parametrize("enabled", [True, False])
+def test_an_attempts_query_parameter_is_ignored_as_before(tmp_path, audit_events, enabled):
+    harness = Harness(tmp_path, {"enabled": enabled})
+    response = harness.download("uncompressed", ld_ids=SECURITY.encode_id(1), attempts="x")
+    assert response.read() == b"content of first"
+    response.close()
+    assert len(audit_events) == (1 if enabled else 0)
+
+
+def test_disabled_audit_does_no_work_per_dataset(tmp_path, audit_events, monkeypatch):
+    def unexpected(*args, **kwargs):
+        raise AssertionError("audit work with auditing off")
+
+    module = "galaxy.webapps.galaxy.api.library_datasets"
+    monkeypatch.setattr(f"{module}.begin_audit_attempt", unexpected)
+    monkeypatch.setattr(f"{module}.LibraryDownloadDetails", unexpected)
+    monkeypatch.setattr(LibraryDatasetsController, "_decode_for_audit", unexpected)
+    harness = Harness(tmp_path, {"enabled": False})
+    folder = SimpleNamespace(active_folders=[], datasets=list(harness.datasets.values()))
+    harness.controller.folder_manager.cut_and_decode.return_value = 30
+    harness.controller.folder_manager.get.return_value = folder
+    harness.download("zip", ld_ids=[SECURITY.encode_id(1)], folder_ids="F" + SECURITY.encode_id(30))
+    assert audit_events == []

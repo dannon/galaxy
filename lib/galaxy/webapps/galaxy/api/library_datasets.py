@@ -5,7 +5,9 @@ import logging
 import os
 import os.path
 import string
+from functools import partial
 from json import dumps
+from typing import Any
 
 from paste.httpexceptions import (
     HTTPBadRequest,
@@ -29,8 +31,8 @@ from galaxy.managers import (
 from galaxy.managers.audit import (
     AuditAttempt,
     AuditService,
+    NULL_ATTEMPT,
 )
-from galaxy.managers.audit_actions import AuditObject
 from galaxy.managers.audit_actions.datasets import LibraryDownloadDetails
 from galaxy.managers.context import (
     ProvidesAppContext,
@@ -55,6 +57,7 @@ from galaxy.web import (
 )
 from galaxy.webapps.base.controller import UsesVisualizationMixin
 from galaxy.webapps.base.webapp import GalaxyWebTransaction
+from galaxy.webapps.galaxy.services.datasets import begin_audit_attempt
 from . import BaseGalaxyAPIController
 
 log = logging.getLogger(__name__)
@@ -618,7 +621,8 @@ class LibraryDatasetsController(BaseGalaxyAPIController, UsesVisualizationMixin,
         # One attempt per library dataset, so "who downloaded X" finds archive members too.
         attempts: list[AuditAttempt] = []
         try:
-            response = self._download(trans, archive_format, attempts, **kwd)
+            # kwd goes as one dict: any name could arrive as a query parameter.
+            response = self._download(trans, archive_format, kwd, attempts)
         except BaseException as exc:
             for attempt in attempts:
                 if not attempt.settled:
@@ -638,7 +642,7 @@ class LibraryDatasetsController(BaseGalaxyAPIController, UsesVisualizationMixin,
             return None
         return decoded_id
 
-    def _download(self, trans: GalaxyWebTransaction, archive_format, attempts: list[AuditAttempt], **kwd):
+    def _download(self, trans: GalaxyWebTransaction, archive_format, kwd: dict[str, Any], attempts: list[AuditAttempt]):
         audit = self.app[AuditService]
         auditing = audit.wants("library_dataset.download")
         library_datasets = []
@@ -648,13 +652,17 @@ class LibraryDatasetsController(BaseGalaxyAPIController, UsesVisualizationMixin,
         if datasets_to_download is not None:
             datasets_to_download = util.listify(datasets_to_download)
             for dataset_id in datasets_to_download:
-                decoded_id = self._decode_for_audit(dataset_id) if auditing else None
-                attempt = audit.attempt(
-                    "library_dataset.download",
-                    AuditObject(type="library_dataset", id=decoded_id),
-                    LibraryDownloadDetails(archive_format=archive_format, library_dataset_id=decoded_id),
-                )
-                attempts.append(attempt)
+                attempt: AuditAttempt = NULL_ATTEMPT
+                if auditing:
+                    decoded_id = self._decode_for_audit(dataset_id)
+                    attempt = begin_audit_attempt(
+                        audit,
+                        "library_dataset.download",
+                        decoded_id,
+                        partial(LibraryDownloadDetails, archive_format=archive_format, library_dataset_id=decoded_id),
+                        requested_type="library_dataset",
+                    )
+                    attempts.append(attempt)
                 try:
                     try:
                         library_dataset = self.get_library_dataset(
@@ -664,7 +672,8 @@ class LibraryDatasetsController(BaseGalaxyAPIController, UsesVisualizationMixin,
                         # Classified here because the handlers below rewrap a refusal as a server error.
                         attempt.failed_with(exc)
                         raise
-                    attempt.authorized(library_dataset.library_dataset_dataset_association)
+                    if attempt.active:
+                        attempt.authorized(library_dataset.library_dataset_dataset_association)
                     library_datasets.append(library_dataset)
                 except HTTPBadRequest:
                     raise exceptions.RequestParameterInvalidException("Bad Request.")
@@ -708,11 +717,16 @@ class LibraryDatasetsController(BaseGalaxyAPIController, UsesVisualizationMixin,
                     library_datasets.append(ld)
                     if not auditing:
                         continue
-                    attempt = audit.attempt(
+                    attempt = begin_audit_attempt(
+                        audit,
                         "library_dataset.download",
-                        details=LibraryDownloadDetails(
-                            archive_format=archive_format, library_dataset_id=ld.id, folder_id=folder_id
+                        details=partial(
+                            LibraryDownloadDetails,
+                            archive_format=archive_format,
+                            library_dataset_id=ld.id,
+                            folder_id=folder_id,
                         ),
+                        requested_type=None,
                     )
                     attempts.append(attempt)
                     attempt.authorized(ld.library_dataset_dataset_association)
