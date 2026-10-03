@@ -6,7 +6,10 @@ from uuid import UUID
 
 from galaxy.managers.audit import AuditService
 from galaxy.managers.audit_actions import AuditObject
-from galaxy.managers.audit_actions.exports import ArchiveDownloadDetails
+from galaxy.managers.audit_actions.exports import (
+    ArchiveDownloadDetails,
+    storage_request_digest,
+)
 from galaxy.short_term_storage import (
     ShortTermStorageMonitor,
     ShortTermStorageServeCancelledInformation,
@@ -53,12 +56,15 @@ class FastAPIShortTermStorage:
         },
     )
     def serve(self, storage_request_id: UUID):
-        # The export event that asked for this storage carries the same id, which joins the two.
-        requested = AuditObject(type="short_term_storage", uuid=str(storage_request_id))
+        # The id itself is a download link, so the event carries only its digest, which
+        # the export event that asked for this storage also carries.
+        requested = AuditObject(type="short_term_storage")
         attempt = self.audit.attempt(
             "archive.download",
             requested,
-            ArchiveDownloadDetails(source="short_term_storage", storage_request_id=str(storage_request_id)),
+            ArchiveDownloadDetails(
+                source="short_term_storage", storage_request_digest=storage_request_digest(storage_request_id)
+            ),
         )
         with attempt.guard():
             storage_target = self.short_term_storage_monitor.recover_target(storage_request_id)

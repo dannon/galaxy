@@ -27,6 +27,7 @@ from galaxy.managers.audit_actions import AuditObject
 from galaxy.managers.audit_actions.exports import (
     ExportAction,
     ExportDetails,
+    storage_request_digest,
 )
 from galaxy.schema.schema import StoreExportPayload
 
@@ -96,7 +97,7 @@ class ExportAudit:
         if details is not None:
             updates: dict[str, Any] = {"task_id": task_id, "job_id": job_id}
             if storage_request_id is not None:
-                updates["storage_request_id"] = str(storage_request_id)
+                updates["storage_request_digest"] = storage_request_digest(storage_request_id)
             # Already validated, target included; these ids are ours, not user input.
             details = details.model_copy(update=updates)
         self._settle("success", None, details)

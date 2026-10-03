@@ -5,6 +5,7 @@ the managers behind the services, the Celery tasks and the app container are
 stand-ins.
 """
 
+import hashlib
 import inspect
 import json
 import logging
@@ -45,6 +46,7 @@ from galaxy.managers.audit_actions import (
 from galaxy.managers.audit_actions.exports import (
     ExportDetails,
     sanitize_target_uri,
+    storage_request_digest,
 )
 from galaxy.managers.export_audit import ExportAudit
 from galaxy.schema.fields import Security as IdSecurity
@@ -316,10 +318,12 @@ def test_history_download_export_names_who_what_and_the_join_ids(harness, audit_
         "include_hidden": False,
         "include_deleted": False,
         "task_id": "task-prepare_history_download",
-        "storage_request_id": body["storage_request_id"],
+        "storage_request_digest": storage_request_digest(body["storage_request_id"]),
     }
     assert body["task"]["id"] == event["details"]["task_id"]
     assert HISTORY_NAME not in json.dumps(event)
+    # The storage id is a download link on its own.
+    assert body["storage_request_id"] not in json.dumps(event)
 
 
 def test_history_remote_export_records_the_target_without_credentials(harness, audit_events):
@@ -331,7 +335,7 @@ def test_history_remote_export_records_the_target_without_credentials(harness, a
     assert event["details"]["destination"] == "remote"
     assert event["details"]["target"] == "ftp://files.example.org/exports/run.tgz"
     assert event["details"]["task_id"] == "task-write_history_to"
-    assert "storage_request_id" not in event["details"]
+    assert "storage_request_digest" not in event["details"]
     assert SECRET not in json.dumps(event)
     # The task still gets the URI the user gave; only the audit copy is stripped.
     (request, task_user_id), *_ = harness.tasks["write_history_to"].requests
@@ -535,7 +539,7 @@ def test_dataset_export_is_a_dataset_export(harness, audit_events):
     assert (event["object"]["type"], event["object"]["id"]) == ("hda", 42)
     assert event["object"]["uuid"] == "12345678-1234-5678-1234-567812345678"
     assert event["details"]["include_files"] is False
-    assert event["details"]["storage_request_id"] == response.json()["storage_request_id"]
+    assert event["details"]["storage_request_digest"] == storage_request_digest(response.json()["storage_request_id"])
 
 
 def test_collection_remote_export_is_a_collection_export(harness, audit_events):
@@ -594,7 +598,7 @@ def test_async_collection_zip_is_a_collection_export(harness, audit_events):
         "destination": "download",
         "format": "zip",
         "task_id": "task-prepare_dataset_collection_download",
-        "storage_request_id": response.json()["storage_request_id"],
+        "storage_request_digest": storage_request_digest(response.json()["storage_request_id"]),
     }
 
 
@@ -670,9 +674,24 @@ def test_prepared_download_joins_the_export_that_asked_for_it(harness, audit_eve
     export_event, download_event = audit_events
     assert outcomes([download_event]) == [("archive.download", "success", None, "respond")]
     assert download_event["object"]["type"] == "short_term_storage"
-    assert download_event["object"]["uuid"] == storage_request_id
-    assert download_event["details"] == {"source": "short_term_storage", "storage_request_id": storage_request_id}
-    assert export_event["details"]["storage_request_id"] == download_event["details"]["storage_request_id"]
+    assert download_event["details"] == {
+        "source": "short_term_storage",
+        "storage_request_digest": storage_request_digest(storage_request_id),
+    }
+    assert export_event["details"]["storage_request_digest"] == download_event["details"]["storage_request_digest"]
+    # Neither event holds the id itself, in any spelling.
+    for event in (export_event, download_event):
+        serialized = json.dumps(event).lower()
+        assert storage_request_id.lower() not in serialized
+        assert storage_request_id.replace("-", "").lower() not in serialized
+
+
+def test_storage_request_digest_is_a_short_sha256():
+    storage_request_id = uuid.UUID("0f8fad5b-d9cb-469f-a165-70867728950e")
+    assert storage_request_digest(storage_request_id) == storage_request_digest(str(storage_request_id))
+    assert storage_request_digest(storage_request_id) == (
+        hashlib.sha256(b"0f8fad5b-d9cb-469f-a165-70867728950e").hexdigest()[:32]
+    )
 
 
 def test_prepared_download_that_failed_is_an_archive_failure(harness, audit_events):

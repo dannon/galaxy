@@ -3,10 +3,11 @@
 Exports run later in a Celery task (or, for the legacy history export, a job), so the
 ``*.export`` event is recorded by the request that asks for the work, with the ids
 that join it to what happens next: ``task_id``/``job_id`` to the work itself, and
-``storage_request_id`` to the ``archive.download`` event of whoever later fetches a
-prepared download.
+``storage_request_digest`` to the ``archive.download`` event of whoever later fetches
+a prepared download.
 """
 
+import hashlib
 import re
 import unicodedata
 from typing import (
@@ -42,6 +43,18 @@ def _hostile(char: str) -> bool:
         return True
     # Lookalikes such as a fullwidth "@" become delimiters for parsers that apply NFKC.
     return not char.isascii() and any(normal in _DELIMITERS for normal in unicodedata.normalize("NFKC", char))
+
+
+def storage_request_digest(storage_request_id: Any) -> str:
+    """A one-way stand-in for a short-term storage request id, the same on both sides of a join.
+
+    The id is the whole credential for ``/api/short_term_storage/{id}``, so an audit
+    stream must never carry it. The ids are random UUID4s, so an unkeyed SHA-256 can't
+    be inverted or guessed into; unkeyed so that anyone holding an id (from the export
+    response or a web server log) can find its events with standard tools, and so the
+    value survives a change of Galaxy's id secret.
+    """
+    return hashlib.sha256(str(storage_request_id).encode()).hexdigest()[:32]
 
 
 def _valid_host(host: str) -> bool:
@@ -109,8 +122,8 @@ class ExportDetails(AuditDetails):
     include_deleted: bool | None = None
     # Celery task that does the work; Galaxy's task id, also on store_export_association.task_uuid.
     task_id: str | None = None
-    # Short-term storage request the download will be served from.
-    storage_request_id: str | None = None
+    # Short-term storage request the download will be served from (see storage_request_digest).
+    storage_request_digest: str | None = None
     # The legacy history export runs as a job instead of a task.
     job_id: int | None = None
 
@@ -133,7 +146,8 @@ class ArchiveDownloadDetails(AuditDetails):
     """A previously prepared export handed to the client."""
 
     source: Literal["short_term_storage", "job_export"]
-    storage_request_id: str | None = None
+    # See storage_request_digest; joins the export that prepared the download.
+    storage_request_digest: str | None = None
 
 
 ExportAction = Literal[
