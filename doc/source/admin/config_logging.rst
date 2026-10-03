@@ -86,24 +86,66 @@ Audit events
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 With ``audit_log`` enabled, Galaxy writes one JSON object per line to the ``galaxy.audit`` logger at ``INFO`` for
-each audited action. Today that is ``dataset.display`` and ``dataset.download`` from the dataset display API
-(``/api/datasets/{id}/display`` and its history contents equivalent). Not yet audited: downloads that
-``/api/datasets/{id}/download`` redirects straight to an object store's presigned URL, and every other content path,
-including the legacy ``/dataset/display`` controller. A request refused before it reaches the route (a bad API key, a
-refused ``run_as``) records no event. Each event
+each audited action: the ways data leaves Galaxy, and the ways it changes hands inside Galaxy. Actions are grouped
+into families by the part of their name before the dot, which is what the ``actions`` setting under ``audit_log``
+selects:
+
+``dataset``
+    Content served by the dataset API: ``dataset.display`` and ``dataset.download`` (``/api/datasets/{id}/display``,
+    ``/download``, ``/extra_files/raw/{path}`` and their history contents equivalents), ``dataset.download_url`` when
+    ``/download`` hands out an object store's presigned URL (the event records the URL's host and lifetime, never the
+    URL), ``dataset.download_metadata_file``, ``dataset.list_extra_files``, ``dataset.read_text``
+    (``get_content_as_text`` and the tool ``report``), and ``dataset.read_data`` (datatype reads through
+    ``?data_type=`` and ``/content/{type}``). Links handed to external display sites -- ``display_at``, display
+    applications and ``display_as`` -- are ``dataset.external_link`` when the link is issued and
+    ``dataset.external_fetch`` when the external site fetches the content. Also in this family: ``dataset.export``
+    (a dataset exported from a history), ``dataset.permissions`` (a permission change, with the access and manage
+    roles before and after, and whether access may have widened) and ``dataset.copy`` (a copy of a dataset owned by
+    someone else, including copies made while building or copying a collection).
+``library_dataset``
+    Library downloads, one event per dataset in the request.
+``drs``
+    GA4GH DRS object lookups (``drs.object``) and ``/api/drs_download`` (``drs.download``).
+``history``
+    ``history.export`` (to a download or a remote file source), ``history.download`` (a contents archive),
+    ``history.share`` (sharing with users, link access, publishing and slug changes, with the state before and
+    after) and ``history.import`` (a copy of someone else's history).
+``collection``
+    ``collection.download`` (a collection zip) and ``collection.export``.
+``invocation``
+    ``invocation.export``, including exports a workflow queues when it finishes.
+``archive``
+    ``archive.download``: a prepared export archive fetched from short-term storage or from a legacy history export.
+``workflow``, ``page``, ``visualization``
+    ``workflow.share``, ``page.share`` and ``visualization.share``, as for histories.
+
+An export is recorded when it is requested, since the work runs later in a task or job. Its event carries the
+``task_id`` or ``job_id`` that will do it and, for a download, ``storage_request_digest``: the first 32 hex characters
+of the SHA-256 of the short-term storage request id, which the later ``archive.download`` event carries too. Neither
+event records the id itself, because anyone holding it can fetch the archive. Remote export targets are recorded
+without credentials, query or fragment.
+
+Not yet audited: the legacy ``/dataset/display`` controller, library and folder permission changes, publishing a
+workflow through ``PUT /api/workflows/{id}``, role and group membership changes, and page or invocation PDFs. A
+request refused before it reaches the route (a bad API key, a refused ``run_as``) records no event. Each event
 names the authenticated actor and the effective user -- they differ under ``run_as`` and in a session created by
 impersonation -- along with how the request authenticated, the request id (the same id as the access log line and the
-``X-Request-ID`` response header), the client address, the object acted on, and an ``outcome``:
+``X-Request-ID`` response header), the client address, the object acted on, and an ``outcome``. Work Galaxy does in
+the background for a user, such as an export a workflow queues when it finishes, is recorded with ``auth.method`` set
+to ``task``: the effective user is the one it runs for, and there is no actor, credential or request.
 
 ``success``
-    The response started with a status below 400: it was handed to the application server (or, with
+    For content, the response started with a status below 400: it was handed to the application server (or, with
     ``nginx_x_accel_redirect_base`` or ``apache_xsendfile``, to the proxy, which then validates any ``Range`` header
     and reads the file itself). It does not prove every byte was delivered, or even that the client was still
-    connected: the application server may accept a response after the client has gone.
+    connected: the application server may accept a response after the client has gone. For routes that return a JSON
+    body, and on legacy (non-FastAPI) routes, ``success`` is recorded when the route hands its result to the server;
+    for a presigned redirect it means the URL was issued; for an export, that the work was queued, not that it
+    finished; and for a change such as a share or a permission update, that the change was committed.
 ``denied``
-    Galaxy refused access. The event names the requested object by id.
+    Galaxy refused the request. The event names the requested object by id.
 ``error``
-    Access was not refused but content was not served, with a short ``reason`` (``not_found``, ``invalid_range``,
+    The request was not refused but did not complete, with a short ``reason`` (``not_found``, ``invalid_range``,
     ``archive_failed``, ``response_not_started``, ...) and the ``stage`` it failed at (``authorize``, ``prepare`` or ``respond``).
 
 By default events carry numeric and encoded ids only. Set ``include_names: true`` under ``audit_log`` to also record
