@@ -60,6 +60,14 @@ class ExtraFilesListDetails(AuditDetails):
     pass
 
 
+class LibraryDownloadDetails(AuditDetails):
+    # zip or uncompressed; one event per library dataset in the request.
+    archive_format: str
+    library_dataset_id: int | None = None
+    # Set when the dataset was included by downloading a folder rather than named directly.
+    folder_id: int | None = None
+
+
 class DrsDetails(AuditDetails):
     # The DRS object id as the client sent it (hda-<id> or ldda-<id>); no secrets in it.
     object_id: str
@@ -73,6 +81,7 @@ DatasetAction = Literal[
     "dataset.list_extra_files",
     "dataset.read_text",
     "dataset.read_data",
+    "library_dataset.download",
     "drs.object",
     "drs.download",
 ]
@@ -85,6 +94,7 @@ ACTIONS: dict[str, type[AuditDetails]] = {
     "dataset.list_extra_files": ExtraFilesListDetails,
     "dataset.read_text": DatasetContentDetails,
     "dataset.read_data": DatasetDataDetails,
+    "library_dataset.download": LibraryDownloadDetails,
     "drs.object": DrsDetails,
     "drs.download": DrsDetails,
 }
