@@ -5,7 +5,9 @@ import logging
 import os
 import os.path
 import string
+from functools import partial
 from json import dumps
+from typing import Any
 
 from paste.httpexceptions import (
     HTTPBadRequest,
@@ -26,6 +28,12 @@ from galaxy.managers import (
     library_datasets,
     roles,
 )
+from galaxy.managers.audit import (
+    AuditAttempt,
+    AuditService,
+    NULL_ATTEMPT,
+)
+from galaxy.managers.audit_actions.datasets import LibraryDownloadDetails
 from galaxy.managers.context import (
     ProvidesAppContext,
     ProvidesHistoryContext,
@@ -49,6 +57,7 @@ from galaxy.web import (
 )
 from galaxy.webapps.base.controller import UsesVisualizationMixin
 from galaxy.webapps.base.webapp import GalaxyWebTransaction
+from galaxy.webapps.galaxy.services.datasets import begin_audit_attempt
 from . import BaseGalaxyAPIController
 
 log = logging.getLogger(__name__)
@@ -609,6 +618,33 @@ class LibraryDatasetsController(BaseGalaxyAPIController, UsesVisualizationMixin,
 
         :raises: MessageException, ItemDeletionException, ItemAccessibilityException, HTTPBadRequest, OSError, IOError, ObjectNotFound
         """
+        # One attempt per library dataset, so "who downloaded X" finds archive members too.
+        attempts: list[AuditAttempt] = []
+        try:
+            # kwd goes as one dict: any name could arrive as a query parameter.
+            response = self._download(trans, archive_format, kwd, attempts)
+        except BaseException as exc:
+            for attempt in attempts:
+                if not attempt.settled:
+                    attempt.failed_with(exc)
+            raise
+        # The legacy stack gives no hook for when the response starts, so success here means the
+        # archive or file was handed to the server; a stream that fails midway is not seen.
+        for attempt in attempts:
+            attempt.succeeded()
+        return response
+
+    def _decode_for_audit(self, encoded_id) -> int | None:
+        # A malformed id still gets its event; get_library_dataset reports the problem to the client.
+        try:
+            decoded_id: int = self.decode_id(encoded_id)
+        except Exception:
+            return None
+        return decoded_id
+
+    def _download(self, trans: GalaxyWebTransaction, archive_format, kwd: dict[str, Any], attempts: list[AuditAttempt]):
+        audit = self.app[AuditService]
+        auditing = audit.wants("library_dataset.download")
         library_datasets = []
         datasets_to_download = kwd.get("ld_ids%5B%5D", None)
         if datasets_to_download is None:
@@ -616,10 +652,28 @@ class LibraryDatasetsController(BaseGalaxyAPIController, UsesVisualizationMixin,
         if datasets_to_download is not None:
             datasets_to_download = util.listify(datasets_to_download)
             for dataset_id in datasets_to_download:
-                try:
-                    library_dataset = self.get_library_dataset(
-                        trans, id=dataset_id, check_ownership=False, check_accessible=True
+                attempt: AuditAttempt = NULL_ATTEMPT
+                if auditing:
+                    decoded_id = self._decode_for_audit(dataset_id)
+                    attempt = begin_audit_attempt(
+                        audit,
+                        "library_dataset.download",
+                        decoded_id,
+                        partial(LibraryDownloadDetails, archive_format=archive_format, library_dataset_id=decoded_id),
+                        requested_type="library_dataset",
                     )
+                    attempts.append(attempt)
+                try:
+                    try:
+                        library_dataset = self.get_library_dataset(
+                            trans, id=dataset_id, check_ownership=False, check_accessible=True
+                        )
+                    except BaseException as exc:
+                        # Classified here because the handlers below rewrap a refusal as a server error.
+                        attempt.failed_with(exc)
+                        raise
+                    if attempt.active:
+                        attempt.authorized(library_dataset.library_dataset_dataset_association)
                     library_datasets.append(library_dataset)
                 except HTTPBadRequest:
                     raise exceptions.RequestParameterInvalidException("Bad Request.")
@@ -658,7 +712,24 @@ class LibraryDatasetsController(BaseGalaxyAPIController, UsesVisualizationMixin,
             for encoded_folder_id in folders_to_download:
                 folder_id = self.folder_manager.cut_and_decode(trans, encoded_folder_id)
                 folder = self.folder_manager.get(trans, folder_id)
-                library_datasets.extend(traverse(folder))
+                # Datasets the user can't access are skipped silently, so they leave no event.
+                for ld in traverse(folder):
+                    library_datasets.append(ld)
+                    if not auditing:
+                        continue
+                    attempt = begin_audit_attempt(
+                        audit,
+                        "library_dataset.download",
+                        details=partial(
+                            LibraryDownloadDetails,
+                            archive_format=archive_format,
+                            library_dataset_id=ld.id,
+                            folder_id=folder_id,
+                        ),
+                        requested_type=None,
+                    )
+                    attempts.append(attempt)
+                    attempt.authorized(ld.library_dataset_dataset_association)
 
         if not library_datasets:
             raise exceptions.RequestParameterMissingException(

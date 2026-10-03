@@ -11,10 +11,20 @@ from fastapi import (
 from starlette.responses import FileResponse
 
 from galaxy.config import GalaxyAppConfiguration
-from galaxy.exceptions import ObjectNotFound
+from galaxy.exceptions import (
+    AcceptedRetryLater,
+    ObjectNotFound,
+)
+from galaxy.managers.audit import AuditService
+from galaxy.managers.audit_actions.datasets import DrsDetails
 from galaxy.managers.context import ProvidesHistoryContext
 from galaxy.schema.drs import DrsObject
-from galaxy.webapps.galaxy.services.datasets import DatasetsService
+from galaxy.webapps.base.audit import audited_response
+from galaxy.webapps.galaxy.services.datasets import (
+    begin_audit_attempt,
+    DatasetsService,
+    withdraw_attempt,
+)
 from galaxy.webapps.galaxy.services.ga4gh import build_service_info
 from . import (
     depends,
@@ -37,6 +47,7 @@ DRS_SERVICE_DESCRIPTION = "Serves Galaxy datasets according to the GA4GH DRS spe
 class DrsApi:
     service: DatasetsService = depends(DatasetsService)
     config: GalaxyAppConfiguration = depends(GalaxyAppConfiguration)
+    audit: AuditService = depends(AuditService)
 
     @router.get("/ga4gh/drs/v1/service-info", public=True)
     def service_info(self, request: Request):
@@ -57,7 +68,26 @@ class DrsApi:
         trans: ProvidesHistoryContext = DependsOnTrans,
         object_id: str = ObjectIDParam,
     ) -> DrsObject:
-        return self.service.get_drs_object(trans, object_id, request_url=request.url)
+        # A malformed id names nothing, so it fails here without an event.
+        decoded_object_id, hda_ldda = self.service.drs_dataset_instance(object_id)
+        attempt = begin_audit_attempt(
+            self.audit,
+            "drs.object",
+            decoded_object_id,
+            lambda: DrsDetails(object_id=object_id),
+            requested_type=hda_ldda.value,
+        )
+        with attempt.guard():
+            try:
+                drs_object = self.service.get_drs_object(
+                    trans, object_id, request_url=request.url, audit_attempt=attempt
+                )
+            except AcceptedRetryLater:
+                # Nothing was served while the checksum is computed; the client's retry is the access.
+                withdraw_attempt(attempt)
+                raise
+            attempt.succeeded()
+            return drs_object
 
     @router.get("/ga4gh/drs/v1/objects/{object_id}/access/{access_id}", public=True)
     @router.post("/ga4gh/drs/v1/objects/{object_id}/access/{access_id}", public=True)
@@ -77,8 +107,16 @@ class DrsApi:
     )
     def download(self, trans: ProvidesHistoryContext = DependsOnTrans, object_id: str = ObjectIDParam):
         decoded_object_id, hda_ldda = self.service.drs_dataset_instance(object_id)
-        display_data, headers = self.service.display(
-            trans, decoded_object_id, hda_ldda=hda_ldda, filename=None, raw=True
+        attempt = begin_audit_attempt(
+            self.audit,
+            "drs.download",
+            decoded_object_id,
+            lambda: DrsDetails(object_id=object_id),
+            requested_type=hda_ldda.value,
         )
-        data_io = cast(IOBase, display_data)
-        return FileResponse(getattr(data_io, "name", "unnamed_file"), headers=headers)
+        with attempt.guard():
+            display_data, headers = self.service.display(
+                trans, decoded_object_id, hda_ldda=hda_ldda, filename=None, raw=True, audit_attempt=attempt
+            )
+            data_io = cast(IOBase, display_data)
+            return audited_response(FileResponse(getattr(data_io, "name", "unnamed_file"), headers=headers), attempt)
