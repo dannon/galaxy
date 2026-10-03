@@ -316,6 +316,20 @@ def test_content_as_text_denied(harness, audit_events):
     assert_denied_names_request(event, "dataset.read_text")
 
 
+def test_tool_report_reads_the_dataset(harness, audit_events, monkeypatch):
+    harness.stub_app.object_store.get_filename.return_value = str(harness.hda.get_file_name())
+    monkeypatch.setattr(f"{SERVICE_MODULE}.resolve_job_markdown", lambda trans, job, content: content)
+    monkeypatch.setattr(f"{SERVICE_MODULE}.ready_galaxy_markdown_for_export", lambda trans, md: (md, md, {}))
+    response = harness.client.get(f"/api/datasets/{ENCODED}/report")
+    assert response.status_code == 200 and response.json()["content"] == "0123456789"
+    harness.deny()
+    harness.client.get(f"/api/datasets/{ENCODED}/report")
+    assert outcomes(audit_events) == [
+        ("dataset.read_text", "success", None, "prepare"),
+        ("dataset.read_text", "denied", "not_accessible", "authorize"),
+    ]
+
+
 def test_raw_data_for_a_visualization_is_a_read(harness, audit_events, monkeypatch):
     monkeypatch.setattr(harness.service, "_raw_data", lambda trans, dataset, **kwargs: {"data": []})
     response = harness.client.get(f"/api/datasets/{ENCODED}?data_type=raw_data")

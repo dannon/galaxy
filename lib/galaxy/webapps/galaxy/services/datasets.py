@@ -600,8 +600,14 @@ class DatasetsService(ServiceBase, UsesVisualizationMixin):
         result = compute_dataset_hash.delay(request=request, task_user_id=getattr(trans.user, "id", None))
         return async_task_summary(result)
 
-    def report(self, trans: ProvidesHistoryContext, dataset_id: DecodedDatabaseIdField) -> ToolReportForDataset:
+    def report(
+        self,
+        trans: ProvidesHistoryContext,
+        dataset_id: DecodedDatabaseIdField,
+        audit_attempt: AuditAttempt = NULL_ATTEMPT,
+    ) -> ToolReportForDataset:
         dataset_instance = self.hda_manager.get_accessible(dataset_id, trans.user)
+        audit_attempt.authorized(dataset_instance)
         self.hda_manager.ensure_dataset_on_disk(trans, dataset_instance)
         file_path = trans.app.object_store.get_filename(dataset_instance.dataset, auth=ObjectStoreAuth(user=trans.user))
         raw_content = open(file_path).read(1024 * 10)

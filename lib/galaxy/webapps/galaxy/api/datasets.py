@@ -767,7 +767,14 @@ class FastAPIDatasets:
         dataset_id: HistoryDatasetIDPathParam,
         trans=DependsOnTrans,
     ) -> ToolReportForDataset:
-        return self.service.report(trans, dataset_id)
+        # The report is the head of the dataset's own content, rendered as markdown.
+        attempt = self.audit.attempt(
+            "dataset.read_text", AuditObject(type="hda", id=dataset_id), DatasetContentDetails()
+        )
+        with attempt.guard():
+            report = self.service.report(trans, dataset_id, audit_attempt=attempt)
+            attempt.succeeded()
+            return report
 
     @router.put(
         "/api/datasets/{dataset_id}/object_store_id",
