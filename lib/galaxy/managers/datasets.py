@@ -30,6 +30,9 @@ from galaxy.managers import (
 )
 from galaxy.managers.audit import (
     audit_failures,
+    audit_id,
+    audit_read_session,
+    audit_service_for,
     AuditOutcome,
     AuditReason,
     AuditService,
@@ -44,11 +47,6 @@ from galaxy.managers.audit_actions.sharing import (
 from galaxy.managers.context import (
     ProvidesHistoryContext,
     ProvidesUserContext,
-)
-from galaxy.managers.sharable import (
-    audit_id,
-    audit_read_session,
-    audit_service_for,
 )
 from galaxy.model import (
     Dataset,
@@ -136,7 +134,7 @@ class DatasetManager(
         assoc_class = type(dataset_assoc)
         assoc_id = audit_id(dataset_assoc)
         try:
-            with audit_read_session(self.app) as session:
+            with audit_read_session(self.app.model.engine) as session:
                 assoc = session.get(assoc_class, assoc_id) if assoc_id is not None else None
                 if assoc is None:
                     raise exceptions.ObjectNotFound(f"No {assoc_class.__name__} {assoc_id}")

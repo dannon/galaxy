@@ -11,7 +11,10 @@ from galaxy import (
     exceptions,
     web,
 )
-from galaxy.managers.audit import AuditService
+from galaxy.managers.audit import (
+    AuditService,
+    begin_audit_attempt,
+)
 from galaxy.managers.audit_actions.datasets import ExternalFetchDetails
 from galaxy.managers.histories import HistoryManager
 from galaxy.model import HistoryDatasetAssociation
@@ -20,7 +23,6 @@ from galaxy.structured_app import StructuredApp
 from galaxy.util import is_safe_local_redirect
 from galaxy.webapps.base import controller
 from galaxy.webapps.base.webapp import GalaxyWebTransaction
-from galaxy.webapps.galaxy.services.datasets import begin_audit_attempt
 from .authnz import LOGIN_NEXT_COOKIE_NAME
 from ..api import depends
 

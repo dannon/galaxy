@@ -31,6 +31,7 @@ from galaxy.managers import (
 from galaxy.managers.audit import (
     AuditAttempt,
     AuditService,
+    begin_audit_attempt,
     NULL_ATTEMPT,
 )
 from galaxy.managers.audit_actions.datasets import LibraryDownloadDetails
@@ -57,7 +58,6 @@ from galaxy.web import (
 )
 from galaxy.webapps.base.controller import UsesVisualizationMixin
 from galaxy.webapps.base.webapp import GalaxyWebTransaction
-from galaxy.webapps.galaxy.services.datasets import begin_audit_attempt
 from . import BaseGalaxyAPIController
 
 log = logging.getLogger(__name__)

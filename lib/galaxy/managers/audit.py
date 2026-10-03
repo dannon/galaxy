@@ -43,6 +43,16 @@ from pydantic import (
     ConfigDict,
     Field,
 )
+from sqlalchemy import inspect as sa_inspect
+from sqlalchemy.engine import (
+    Connection,
+    Engine,
+)
+from sqlalchemy.orm import Session
+from sqlalchemy.pool import (
+    SingletonThreadPool,
+    StaticPool,
+)
 
 from galaxy import (
     exceptions,
@@ -412,11 +422,13 @@ class AuditService:
         user = {"id": user_id, "encoded_id": self._encode(user_id), "username": None, "email": None}
         if self.include_names:
             try:
-                # An identity-map hit on the request's session in the usual case.
-                instance = self.sa_session.get(model.User, user_id)
-                if instance is not None:
-                    user["username"] = _clip(instance.username)
-                    user["email"] = _clip(instance.email)
+                # Not the request's session: after a commit this is a query, and a failed one
+                # there would leave the request's transaction unable to commit.
+                with audit_read_session(self.sa_session.get_bind()) as session:
+                    instance = session.get(model.User, user_id)
+                    if instance is not None:
+                        user["username"] = _clip(instance.username)
+                        user["email"] = _clip(instance.email)
             except Exception:
                 truncated.append(f"{label}.names")
         return user
@@ -610,6 +622,95 @@ class _NullAttempt(AuditAttempt):
 
 
 NULL_ATTEMPT = _NullAttempt()
+
+
+# -- Call-site helpers ------------------------------------------------------------
+
+
+def audit_service_for(app: Any) -> AuditService:
+    """The application's audit service.
+
+    Galaxy registers it at startup. A container that never did (scripts building a
+    partial app) gets one built from its own config, rather than letting the container
+    construct a whole new Galaxy configuration to satisfy it.
+    """
+    if AuditService in getattr(app, "defined_types", (AuditService,)):
+        service: AuditService = app[AuditService]
+        return service
+    return AuditService(app.config, app.security, app.model.context)
+
+
+def _build_for_audit(factory: Callable[[], Any] | None, action: str) -> Any:
+    # Request values go into these models, and one that doesn't fit (a repeated query
+    # parameter arrives as a list) must cost the event its details, never the request its answer.
+    if factory is None:
+        return None
+    try:
+        return factory()
+    except Exception:
+        audit_failures.report("details", "Could not build audit details for action %s", action)
+        return None
+
+
+def begin_audit_attempt(
+    audit: AuditService,
+    action: AuditAction,
+    requested_id: int | None = None,
+    details: Callable[[], AuditDetails] | None = None,
+    requested_type: str | None = "hda",
+    record_success: bool = True,
+) -> AuditAttempt:
+    """Start an attempt, building what it records only when the action is audited."""
+    if not audit.wants(action):
+        return NULL_ATTEMPT
+    requested = None
+    if requested_type is not None:
+        requested = _build_for_audit(lambda: AuditObject(type=requested_type, id=requested_id), action)
+    return audit.attempt(action, requested, _build_for_audit(details, action), record_success=record_success)
+
+
+def record_audit_event(
+    audit: AuditService,
+    action: AuditAction,
+    obj: Any,
+    outcome: AuditOutcome,
+    details: Callable[[], AuditDetails] | None = None,
+    reason: AuditReason | None = None,
+    stage: AuditStage | None = None,
+) -> None:
+    """Record one event, building its details only when the action is audited."""
+    if not audit.wants(action):
+        return
+    audit.record(action, obj, outcome, details=_build_for_audit(details, action), reason=reason, stage=stage)
+
+
+def audit_id(obj: Any) -> int | None:
+    """The primary key of a persistent ``obj``, read from its identity without a query.
+
+    A commit expires every attribute, ``id`` included, so reading ``obj.id`` afterwards
+    refreshes the object through the request's session.
+    """
+    state = sa_inspect(obj, raiseerr=False)
+    identity = state.identity if state is not None else None
+    return identity[0] if identity else None
+
+
+@contextmanager
+def audit_read_session(bind: Engine | Connection) -> Iterator[Session]:
+    """A short-lived session for the reads behind an audit event.
+
+    A failed query on the request's session leaves its transaction needing a rollback, and
+    the request's own commit then fails over nothing but an audit read. A session of its own
+    keeps audit reads out of that transaction, and sees only committed rows, so an event
+    built from it never claims a change that was rolled back. It holds a second pooled
+    connection while the request holds its own, but only briefly and only when auditing.
+    """
+    if isinstance(bind.engine.pool, (SingletonThreadPool, StaticPool)):
+        # Every session shares one connection (in-memory SQLite): a second session would see
+        # the request's uncommitted changes and roll them back on close, so no reads at all.
+        raise RuntimeError("Audit reads need a database that gives each session its own connection")
+    with Session(bind.engine, autoflush=False) as session:
+        yield session
 
 
 def _object_type(obj: Any) -> str:

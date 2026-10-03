@@ -15,13 +15,15 @@ from galaxy.exceptions import (
     AcceptedRetryLater,
     ObjectNotFound,
 )
-from galaxy.managers.audit import AuditService
+from galaxy.managers.audit import (
+    AuditService,
+    begin_audit_attempt,
+)
 from galaxy.managers.audit_actions.datasets import DrsDetails
 from galaxy.managers.context import ProvidesHistoryContext
 from galaxy.schema.drs import DrsObject
 from galaxy.webapps.base.audit import audited_response
 from galaxy.webapps.galaxy.services.datasets import (
-    begin_audit_attempt,
     DatasetsService,
 )
 from galaxy.webapps.galaxy.services.ga4gh import build_service_info

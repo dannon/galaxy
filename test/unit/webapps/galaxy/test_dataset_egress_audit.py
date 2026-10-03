@@ -38,6 +38,7 @@ from galaxy.exceptions import (
 from galaxy.managers.audit import (
     AUDIT_LOGGER_NAME,
     AuditService,
+    begin_audit_attempt,
     NULL_ATTEMPT,
 )
 from galaxy.schema.fields import Security as IdSecurity
@@ -57,7 +58,6 @@ from galaxy.webapps.galaxy.api.datasets import (
 )
 from galaxy.webapps.galaxy.api.drs import router as drs_router
 from galaxy.webapps.galaxy.services.datasets import (
-    begin_audit_attempt,
     DatasetsService,
     RequestDataType,
     signed_url_facts,

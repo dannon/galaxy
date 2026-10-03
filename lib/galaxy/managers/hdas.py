@@ -45,17 +45,17 @@ from galaxy.managers import (
     taggable,
     users,
 )
-from galaxy.managers.audit import audit_failures
+from galaxy.managers.audit import (
+    audit_failures,
+    audit_id,
+    audit_read_session,
+)
 from galaxy.managers.audit_actions import AuditObject
 from galaxy.managers.audit_actions.sharing import DatasetCopyDetails
 from galaxy.managers.context import (
     ProvidesAppContext,
     ProvidesHistoryContext,
     ProvidesUserContext,
-)
-from galaxy.managers.sharable import (
-    audit_id,
-    audit_read_session,
 )
 from galaxy.model import (
     HistoryDatasetAssociation,
@@ -259,7 +259,7 @@ class HDAManager(
         # The commit expired these; their identities give the ids without a query.
         source_id, copy_id, history_id = audit_id(source), audit_id(copy), audit_id(history)
         try:
-            with audit_read_session(self.app) as session:
+            with audit_read_session(self.app.model.engine) as session:
                 source_hda = session.get(HistoryDatasetAssociation, source_id)
                 target_history = session.get(model.History, history_id)
                 if source_hda is None or target_history is None:
@@ -284,7 +284,7 @@ class HDAManager(
         copy_ids = [audit_id(copy) for copy in copies]
         events = []
         try:
-            with audit_read_session(self.app) as session:
+            with audit_read_session(self.app.model.engine) as session:
                 for copy_id in copy_ids:
                     copy = session.get(HistoryDatasetAssociation, copy_id) if copy_id is not None else None
                     if copy is None:

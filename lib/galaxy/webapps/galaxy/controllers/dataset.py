@@ -27,7 +27,9 @@ from galaxy.exceptions import (
 )
 from galaxy.managers.audit import (
     AuditService,
+    begin_audit_attempt,
     classify_failure,
+    record_audit_event,
 )
 from galaxy.managers.audit_actions.datasets import (
     ExternalFetchDetails,
@@ -59,9 +61,7 @@ from galaxy.webapps.base.controller import (
 )
 from galaxy.webapps.base.webapp import GalaxyWebTransaction
 from galaxy.webapps.galaxy.services.datasets import (
-    begin_audit_attempt,
     DatasetsService,
-    record_audit_event,
 )
 from ..api import depends
 

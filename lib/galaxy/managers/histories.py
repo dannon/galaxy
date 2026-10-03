@@ -40,7 +40,11 @@ from galaxy.managers import (
     history_contents,
     sharable,
 )
-from galaxy.managers.audit import audit_failures
+from galaxy.managers.audit import (
+    audit_failures,
+    audit_id,
+    audit_read_session,
+)
 from galaxy.managers.audit_actions.sharing import HistoryImportDetails
 from galaxy.managers.base import (
     apply_sort_column,
@@ -547,9 +551,9 @@ class HistoryManager(sharable.SharableModelManager[model.History], deletable.Pur
         """
         if not self.audit.wants("history.import"):
             return
-        source_id, new_history_id = sharable.audit_id(source), sharable.audit_id(new_history)
+        source_id, new_history_id = audit_id(source), audit_id(new_history)
         try:
-            with sharable.audit_read_session(self.app) as session:
+            with audit_read_session(self.app.model.engine) as session:
                 source_history = session.get(model.History, source_id)
                 copy = session.get(model.History, new_history_id)
                 if source_history is None or copy is None:

@@ -11,8 +11,6 @@ A sharable Galaxy object:
 """
 
 import logging
-from collections.abc import Iterator
-from contextlib import contextmanager
 from functools import cached_property
 from typing import (
     Any,
@@ -24,14 +22,8 @@ from slugify import slugify
 from sqlalchemy import (
     exists,
     false,
-    inspect as sa_inspect,
     select,
     true,
-)
-from sqlalchemy.orm import Session
-from sqlalchemy.pool import (
-    SingletonThreadPool,
-    StaticPool,
 )
 
 from galaxy import (
@@ -48,6 +40,9 @@ from galaxy.managers import (
 )
 from galaxy.managers.audit import (
     audit_failures,
+    audit_id,
+    audit_read_session,
+    audit_service_for,
     AuditService,
 )
 from galaxy.managers.audit_actions import AuditObject
@@ -76,48 +71,6 @@ from galaxy.util.hash_util import md5_hash_str
 log = logging.getLogger(__name__)
 # Only model classes that have `users_shared_with` field
 U = TypeVar("U", model.History, model.Page, model.StoredWorkflow, model.Visualization)
-
-
-def audit_service_for(app: Any) -> AuditService:
-    """The application's audit service.
-
-    Galaxy registers it at startup. A container that never did (unit tests, scripts
-    building a partial app) gets one built from its own config, rather than letting
-    the container construct a whole new Galaxy configuration to satisfy it.
-    """
-    if AuditService in getattr(app, "defined_types", (AuditService,)):
-        return app[AuditService]
-    return AuditService(app.config, app.security, app.model.context)
-
-
-def audit_id(obj: Any) -> int | None:
-    """The primary key of a persistent ``obj``, read from its identity without a query.
-
-    A commit expires every attribute, ``id`` included, so reading ``obj.id`` afterwards
-    refreshes the object through the request's session.
-    """
-    state = sa_inspect(obj, raiseerr=False)
-    identity = state.identity if state is not None else None
-    return identity[0] if identity else None
-
-
-@contextmanager
-def audit_read_session(app: Any) -> Iterator[Session]:
-    """A short-lived session for the reads behind an audit event.
-
-    A failed query on the request's session leaves its transaction needing a rollback, and
-    the request's own commit then fails over nothing but an audit read. A session of its own
-    keeps audit reads out of that transaction, and sees only committed rows, so an event
-    built from it never claims a change that was rolled back. It holds a second pooled
-    connection while the request holds its own, but only briefly and only when auditing.
-    """
-    engine = app.model.engine
-    if isinstance(engine.pool, (SingletonThreadPool, StaticPool)):
-        # Every session shares one connection (in-memory SQLite): a second session would see
-        # the request's uncommitted changes and roll them back on close, so no reads at all.
-        raise RuntimeError("Audit reads need a database that gives each session its own connection")
-    with Session(engine, autoflush=False) as session:
-        yield session
 
 
 class SharingState(NamedTuple):
@@ -373,7 +326,7 @@ class SharableModelManager(
     def _read_sharing_state(self, item_id: int | None) -> SharingState | None:
         """The committed sharing state of the item and its description, from a session of their own."""
         try:
-            with audit_read_session(self.app) as session:
+            with audit_read_session(self.app.model.engine) as session:
                 item = session.get(self.model_class, item_id) if item_id is not None else None
                 if item is None:
                     raise exceptions.ObjectNotFound(f"No {self.model_class.__name__} {item_id}")

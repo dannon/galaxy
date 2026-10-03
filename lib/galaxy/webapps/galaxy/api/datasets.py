@@ -31,6 +31,7 @@ from starlette.responses import (
 from galaxy.datatypes.dataproviders.base import MAX_LIMIT
 from galaxy.managers.audit import (
     AuditService,
+    begin_audit_attempt,
 )
 from galaxy.managers.audit_actions import DatasetContentDetails
 from galaxy.managers.audit_actions.datasets import (
@@ -73,7 +74,6 @@ from galaxy.webapps.galaxy.api.common import (
     UpdateDatasetPermissionsBody,
 )
 from galaxy.webapps.galaxy.services.datasets import (
-    begin_audit_attempt,
     ComputeDatasetHashPayload,
     ConvertedDatasetsMap,
     DatasetContentType,

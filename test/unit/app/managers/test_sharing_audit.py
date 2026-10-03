@@ -25,6 +25,7 @@ from galaxy.managers import hdas
 from galaxy.managers.audit import (
     audit_failures,
     AUDIT_LOGGER_NAME,
+    audit_read_session,
     AuditService,
 )
 from galaxy.managers.audit_actions.sharing import describe_sharable
@@ -34,7 +35,6 @@ from galaxy.managers.histories import (
     HistoryManager,
     HistorySerializer,
 )
-from galaxy.managers.sharable import audit_read_session
 from galaxy.schema.fields import Security
 from galaxy.schema.schema import (
     SetSlugPayload,
@@ -395,6 +395,22 @@ class TestSharingAudit(AuditTestCase):
         assert event["object"]["owner_id"] == self.owner.id
         assert event["details"]["published_after"] is True
 
+    def test_user_names_are_read_without_the_request_session(self):
+        self.history_manager.audit = self.make_audit(include_names=True)
+        before = self.history_manager.sharing_state(self.history)
+        self.history_manager.publish(self.history)
+        with self.as_user(self.owner, actor=self.admin_user):
+            # As a commit leaves them: reading the users' names on this session is a query.
+            self.trans.sa_session.expire_all()
+            with self.request_reads_fail():
+                self.history_manager.record_sharing_change(self.history, "publish", before)
+            self.trans.sa_session.commit()
+
+        (event,) = self.events
+        assert event["actor"]["username"] == self.admin_user.username
+        assert event["effective_user"]["email"] == "owner@example.org"
+        assert event["truncated"] == []
+
     def test_disabled_auditing_skips_the_share_query(self):
         self.history_manager.audit = self.make_audit(enabled=False)
         assert self.history_manager.sharing_state(self.history) is None
@@ -604,9 +620,9 @@ class TestDatasetPermissionsAudit(AuditTestCase):
 
     def test_an_in_memory_database_records_nothing_rather_than_reading_uncommitted_state(self):
         engine = mock.Mock(pool=mock.Mock(spec=SingletonThreadPool))
-        app = SimpleNamespace(model=SimpleNamespace(engine=engine))
+        engine.engine = engine
         with pytest.raises(RuntimeError):
-            with audit_read_session(app):
+            with audit_read_session(engine):
                 pass
 
     def test_a_broken_snapshot_never_fails_the_change(self):
