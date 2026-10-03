@@ -3,6 +3,7 @@ API operations on the contents of a history.
 """
 
 import logging
+from collections.abc import Callable
 from typing import (
     Annotated,
     Literal,
@@ -24,7 +25,17 @@ from starlette.responses import (
 
 from galaxy import util
 from galaxy.exceptions.utils import validation_error_to_message_exception
+from galaxy.managers.audit import AuditService
+from galaxy.managers.audit_actions import AuditObject
+from galaxy.managers.audit_actions.exports import (
+    ArchiveDetails,
+    ExportDetails,
+)
 from galaxy.managers.context import ProvidesHistoryContext
+from galaxy.managers.export_audit import (
+    ExportAudit,
+    store_export_details,
+)
 from galaxy.schema import (
     FilterQueryParams,
     SerializationParams,
@@ -68,6 +79,7 @@ from galaxy.schema.tasks import (
     CopyDatasetsResponse,
 )
 from galaxy.webapps.base.api import GalaxyStreamingResponse
+from galaxy.webapps.base.audit import audited_response
 from galaxy.webapps.galaxy.api import (
     depends,
     DependsOnTrans,
@@ -443,6 +455,7 @@ HistoryIndexResponsesSchema = {
 @router.cbv
 class FastAPIHistoryContents:
     service: HistoriesContentsService = depends(HistoriesContentsService)
+    audit: AuditService = depends(AuditService)
 
     @router.get(
         "/api/histories/{history_id}/contents/{type}s",
@@ -613,12 +626,15 @@ class FastAPIHistoryContents:
         type: HistoryContentType = ContentTypePathParam,
         payload: StoreExportPayload = Body(...),
     ) -> AsyncFile:
-        return self.service.prepare_store_download(
-            trans,
-            id,
-            contents_type=type,
-            payload=payload,
-        )
+        export = self._content_export(type, id, lambda: store_export_details(payload))
+        with export.guard():
+            return self.service.prepare_store_download(
+                trans,
+                id,
+                contents_type=type,
+                payload=payload,
+                export_audit=export,
+            )
 
     @router.post(
         "/api/histories/{history_id}/contents/{type}s/{id}/write_store",
@@ -632,12 +648,15 @@ class FastAPIHistoryContents:
         type: HistoryContentType = ContentTypePathParam,
         payload: WriteStoreToPayload = Body(...),
     ) -> AsyncTaskResultSummary:
-        return self.service.write_store(
-            trans,
-            id,
-            contents_type=type,
-            payload=payload,
-        )
+        export = self._content_export(type, id, lambda: store_export_details(payload, payload.target_uri))
+        with export.guard():
+            return self.service.write_store(
+                trans,
+                id,
+                contents_type=type,
+                payload=payload,
+                export_audit=export,
+            )
 
     @router.post(
         "/api/histories/{history_id}/copy_contents",
@@ -736,7 +755,14 @@ class FastAPIHistoryContents:
         returned short term storage object. Progress tracking this file's creation
         can be tracked with the short_term_storage API.
         """
-        return self.service.prepare_collection_download(trans, hdca_id)
+        export = ExportAudit(
+            self.audit,
+            "collection.export",
+            AuditObject(type="hdca", id=hdca_id),
+            lambda: ExportDetails(destination="download", format="zip"),
+        )
+        with export.guard():
+            return self.service.prepare_collection_download(trans, hdca_id, export_audit=export)
 
     @router.post(
         "/api/histories/{history_id}/contents/{type}s",
@@ -1142,10 +1168,7 @@ class FastAPIHistoryContents:
         filter_query_params: FilterQueryParams = Depends(get_filter_query_params),
     ):
         """Build and return a compressed archive of the selected history contents."""
-        archive = self.service.archive(trans, history_id, filter_query_params, filename, dry_run)
-        if isinstance(archive, HistoryContentsArchiveDryRunResult):
-            return archive
-        return GalaxyStreamingResponse(archive.response(), headers=archive.get_headers())
+        return self._archive(trans, history_id, filter_query_params, filename, dry_run)
 
     @router.get(
         "/api/histories/{history_id}/contents/archive",
@@ -1162,10 +1185,7 @@ class FastAPIHistoryContents:
         filter_query_params: FilterQueryParams = Depends(get_filter_query_params),
     ):
         """Build and return a compressed archive of the selected history contents."""
-        archive = self.service.archive(trans, history_id, filter_query_params, filename, dry_run)
-        if isinstance(archive, HistoryContentsArchiveDryRunResult):
-            return archive
-        return GalaxyStreamingResponse(archive.response(), headers=archive.get_headers())
+        return self._archive(trans, history_id, filter_query_params, filename, dry_run)
 
     @router.post(
         "/api/histories/{history_id}/contents_from_store",
@@ -1223,5 +1243,38 @@ class FastAPIHistoryContents:
         return rval
 
     def _download_collection(self, trans: ProvidesHistoryContext, id):
-        archive = self.service.get_dataset_collection_archive_for_download(trans, id)
-        return GalaxyStreamingResponse(archive.response(), headers=archive.get_headers())
+        attempt = self.audit.attempt("collection.download", AuditObject(type="hdca", id=id))
+        with attempt.guard():
+            archive = self.service.get_dataset_collection_archive_for_download(trans, id, audit_attempt=attempt)
+            return audited_response(GalaxyStreamingResponse(archive.response(), headers=archive.get_headers()), attempt)
+
+    def _archive(
+        self,
+        trans: ProvidesHistoryContext,
+        history_id: DecodedDatabaseIdField,
+        filter_query_params: FilterQueryParams,
+        filename: str | None,
+        dry_run: bool | None,
+    ):
+        if dry_run:
+            # Lists the files an archive would hold, without their contents.
+            return self.service.archive(trans, history_id, filter_query_params, filename, dry_run)
+        attempt = self.audit.attempt(
+            "history.download", AuditObject(type="history", id=history_id), ArchiveDetails(filename=filename)
+        )
+        with attempt.guard():
+            archive = self.service.archive(
+                trans, history_id, filter_query_params, filename, dry_run, audit_attempt=attempt
+            )
+            assert not isinstance(archive, HistoryContentsArchiveDryRunResult)
+            return audited_response(GalaxyStreamingResponse(archive.response(), headers=archive.get_headers()), attempt)
+
+    def _content_export(
+        self,
+        contents_type: HistoryContentType,
+        content_id: DecodedDatabaseIdField,
+        details: Callable[[], ExportDetails],
+    ) -> ExportAudit:
+        if contents_type == HistoryContentType.dataset_collection:
+            return ExportAudit(self.audit, "collection.export", AuditObject(type="hdca", id=content_id), details)
+        return ExportAudit(self.audit, "dataset.export", AuditObject(type="hda", id=content_id), details)

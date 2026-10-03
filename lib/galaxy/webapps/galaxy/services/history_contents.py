@@ -36,6 +36,10 @@ from galaxy.managers import (
     hdcas,
     histories,
 )
+from galaxy.managers.audit import (
+    AuditAttempt,
+    NULL_ATTEMPT,
+)
 from galaxy.managers.base import ModelSerializer
 from galaxy.managers.collections import DatasetCollectionManager
 from galaxy.managers.collections_util import (
@@ -48,6 +52,7 @@ from galaxy.managers.context import (
     ProvidesUserContext,
 )
 from galaxy.managers.dataset_storage_operations import DatasetStorageOperationManager
+from galaxy.managers.export_audit import ExportAudit
 from galaxy.managers.genomes import GenomesManager
 from galaxy.managers.history_contents import (
     HistoryContentsFilters,
@@ -381,18 +386,20 @@ class HistoriesContentsService(ServiceBase, ServesExportStores, ConsumesModelSto
         id: DecodedDatabaseIdField,
         payload: StoreExportPayload,
         contents_type: HistoryContentType = HistoryContentType.dataset,
+        export_audit: ExportAudit | None = None,
     ) -> AsyncFile:
         model_store_format = payload.model_store_format
+        content: HistoryDatasetAssociation | HistoryDatasetCollectionAssociation
         if contents_type == HistoryContentType.dataset:
-            hda = self.hda_manager.get_accessible(id, trans.user)
-            content_id = hda.id
-            content_name = hda.name
+            content = self.hda_manager.get_accessible(id, trans.user)
         elif contents_type == HistoryContentType.dataset_collection:
-            dataset_collection_instance = self.__get_accessible_collection(trans, id)
-            content_id = dataset_collection_instance.id
-            content_name = dataset_collection_instance.name
+            content = self.__get_accessible_collection(trans, id)
         else:
             raise exceptions.UnknownContentsType(f"Unknown contents type: {contents_type}")
+        if export_audit:
+            export_audit.authorized(content)
+        content_id = content.id
+        content_name = content.name
         if not content_name:
             raise exceptions.RequestParameterInvalidException("Content must have a name")
         short_term_storage_target = model_store_storage_target(
@@ -408,7 +415,11 @@ class HistoriesContentsService(ServiceBase, ServesExportStores, ConsumesModelSto
             **payload.model_dump(),
         )
         result = prepare_history_content_download.delay(request=request, task_user_id=getattr(trans.user, "id", None))
-        return AsyncFile(storage_request_id=short_term_storage_target.request_id, task=async_task_summary(result))
+        if export_audit:
+            # Accepted by the broker is what counts; reading task metadata or committing below can still fail.
+            export_audit.queued(task_id=result.id, storage_request_id=short_term_storage_target.request_id)
+        task_summary = async_task_summary(result)
+        return AsyncFile(storage_request_id=short_term_storage_target.request_id, task=task_summary)
 
     def write_store(
         self,
@@ -416,21 +427,28 @@ class HistoriesContentsService(ServiceBase, ServesExportStores, ConsumesModelSto
         id: DecodedDatabaseIdField,
         payload: WriteStoreToPayload,
         contents_type: HistoryContentType = HistoryContentType.dataset,
+        export_audit: ExportAudit | None = None,
     ):
         ensure_celery_tasks_enabled(trans.app.config)
+        content: HistoryDatasetAssociation | HistoryDatasetCollectionAssociation
         if contents_type == HistoryContentType.dataset:
-            hda = self.hda_manager.get_accessible(id, trans.user)
-            content_id = hda.id
+            content = self.hda_manager.get_accessible(id, trans.user)
         elif contents_type == HistoryContentType.dataset_collection:
-            dataset_collection_instance = self.__get_accessible_collection(trans, id)
-            content_id = dataset_collection_instance.id
+            content = self.__get_accessible_collection(trans, id)
         else:
             raise exceptions.UnknownContentsType(f"Unknown contents type: {contents_type}")
+        if export_audit:
+            export_audit.authorized(content)
+        content_id = content.id
         request = WriteHistoryContentTo(
             user=trans.async_request_user, content_id=content_id, contents_type=contents_type, **payload.model_dump()
         )
         result = write_history_content_to.delay(request=request, task_user_id=getattr(trans.user, "id", None))
-        return async_task_summary(result)
+        if export_audit:
+            # Accepted by the broker is what counts; reading task metadata or committing below can still fail.
+            export_audit.queued(task_id=result.id)
+        task_summary = async_task_summary(result)
+        return task_summary
 
     def index_jobs_summary(
         self,
@@ -489,7 +507,9 @@ class HistoriesContentsService(ServiceBase, ServesExportStores, ConsumesModelSto
         assert job is None or implicit_collection_jobs is None
         return self.encode_all_ids(summarize_jobs_to_dict(trans.sa_session, job or implicit_collection_jobs))
 
-    def get_dataset_collection_archive_for_download(self, trans: ProvidesHistoryContext, id: DecodedDatabaseIdField):
+    def get_dataset_collection_archive_for_download(
+        self, trans: ProvidesHistoryContext, id: DecodedDatabaseIdField, audit_attempt: AuditAttempt = NULL_ATTEMPT
+    ):
         """
         Download the content of a HistoryDatasetCollection as a tgz archive
         while maintaining approximate collection structure.
@@ -497,11 +517,16 @@ class HistoriesContentsService(ServiceBase, ServesExportStores, ConsumesModelSto
         :param id: encoded HistoryDatasetCollectionAssociation (HDCA) id
         """
         dataset_collection_instance = self.__get_accessible_collection(trans, id)
+        audit_attempt.authorized(dataset_collection_instance)
         return self.__stream_dataset_collection(trans, dataset_collection_instance)
 
-    def prepare_collection_download(self, trans: ProvidesHistoryContext, id: DecodedDatabaseIdField) -> AsyncFile:
+    def prepare_collection_download(
+        self, trans: ProvidesHistoryContext, id: DecodedDatabaseIdField, export_audit: ExportAudit | None = None
+    ) -> AsyncFile:
         ensure_celery_tasks_enabled(trans.app.config)
         dataset_collection_instance = self.__get_accessible_collection(trans, id)
+        if export_audit:
+            export_audit.authorized(dataset_collection_instance)
         archive_name = f"{dataset_collection_instance.hid}: {dataset_collection_instance.name}"
         short_term_storage_target = self.short_term_storage_allocator.new_target(
             filename=archive_name, mime_type="application/x-zip-compressed"
@@ -513,7 +538,11 @@ class HistoriesContentsService(ServiceBase, ServesExportStores, ConsumesModelSto
         result = prepare_dataset_collection_download.delay(
             request=request, task_user_id=getattr(trans.user, "id", None)
         )
-        return AsyncFile(storage_request_id=short_term_storage_target.request_id, task=async_task_summary(result))
+        if export_audit:
+            # Accepted by the broker is what counts; reading task metadata or committing below can still fail.
+            export_audit.queued(task_id=result.id, storage_request_id=short_term_storage_target.request_id)
+        task_summary = async_task_summary(result)
+        return AsyncFile(storage_request_id=short_term_storage_target.request_id, task=task_summary)
 
     def __stream_dataset_collection(self, trans: ProvidesUserContext, dataset_collection_instance):
         archive = hdcas.stream_dataset_collection(
@@ -904,6 +933,7 @@ class HistoriesContentsService(ServiceBase, ServesExportStores, ConsumesModelSto
         filter_query_params: FilterQueryParams,
         filename: str | None = "",
         dry_run: bool | None = True,
+        audit_attempt: AuditAttempt = NULL_ATTEMPT,
     ) -> HistoryContentsArchiveDryRunResult | ZipstreamWrapper:
         """
         Build and return a compressed archive of the selected history contents
@@ -943,6 +973,7 @@ class HistoriesContentsService(ServiceBase, ServesExportStores, ConsumesModelSto
 
         # get the history used for the contents query and check for accessibility
         history = self.history_manager.get_accessible(history_id, trans.user)
+        audit_attempt.authorized(history)
         archive_base_name = filename or name_to_filename(history.name)
 
         # this is the fn applied to each dataset contained in the query

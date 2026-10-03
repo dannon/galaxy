@@ -35,6 +35,7 @@ from galaxy.managers.context import (
     ProvidesHistoryContext,
     ProvidesUserContext,
 )
+from galaxy.managers.export_audit import ExportAudit
 from galaxy.managers.histories import (
     CurrentHistoryContext,
     HistoryDeserializer,
@@ -462,9 +463,15 @@ class HistoriesService(ServiceBase, ConsumesModelStores, ServesExportStores):
         return row.hid
 
     def prepare_download(
-        self, trans: ProvidesHistoryContext, history_id: DecodedDatabaseIdField, payload: StoreExportPayload
+        self,
+        trans: ProvidesHistoryContext,
+        history_id: DecodedDatabaseIdField,
+        payload: StoreExportPayload,
+        export_audit: ExportAudit | None = None,
     ) -> AsyncFile:
         history = self.manager.get_accessible(history_id, trans.user, current_history=trans.history)
+        if export_audit:
+            export_audit.authorized(history)
         short_term_storage_target = model_store_storage_target(
             self.short_term_storage_allocator,
             history.name or "Unnamed history",
@@ -480,15 +487,24 @@ class HistoriesService(ServiceBase, ConsumesModelStores, ServesExportStores):
             **payload.model_dump(),
         )
         result = prepare_history_download.delay(request=request, task_user_id=getattr(trans.user, "id", None))
+        if export_audit:
+            # Accepted by the broker is what counts; reading task metadata or committing below can still fail.
+            export_audit.queued(task_id=result.id, storage_request_id=short_term_storage_target.request_id)
         task_summary = async_task_summary(result)
         export_association.task_uuid = task_summary.id
         trans.sa_session.commit()
         return AsyncFile(storage_request_id=short_term_storage_target.request_id, task=task_summary)
 
     def write_store(
-        self, trans: ProvidesHistoryContext, history_id: DecodedDatabaseIdField, payload: WriteStoreToPayload
+        self,
+        trans: ProvidesHistoryContext,
+        history_id: DecodedDatabaseIdField,
+        payload: WriteStoreToPayload,
+        export_audit: ExportAudit | None = None,
     ) -> AsyncTaskResultSummary:
         history = self.manager.get_accessible(history_id, trans.user, current_history=trans.history)
+        if export_audit:
+            export_audit.authorized(history)
         export_association = self.history_export_manager.create_export_association(history.id)
         request = WriteHistoryTo(
             user=trans.async_request_user,
@@ -497,6 +513,9 @@ class HistoriesService(ServiceBase, ConsumesModelStores, ServesExportStores):
             **payload.model_dump(),
         )
         result = write_history_to.delay(request=request, task_user_id=getattr(trans.user, "id", None))
+        if export_audit:
+            # Accepted by the broker is what counts; reading task metadata or committing below can still fail.
+            export_audit.queued(task_id=result.id)
         task_summary = async_task_summary(result)
         export_association.task_uuid = task_summary.id
         trans.sa_session.commit()
@@ -677,6 +696,7 @@ class HistoriesService(ServiceBase, ConsumesModelStores, ServesExportStores):
         trans: ProvidesHistoryContext,
         history_id: DecodedDatabaseIdField,
         payload: ExportHistoryArchivePayload | None = None,
+        export_audit: ExportAudit | None = None,
     ) -> tuple[HistoryArchiveExportResult, bool]:
         """
         start job (if needed) to create history export for corresponding
@@ -689,6 +709,8 @@ class HistoriesService(ServiceBase, ConsumesModelStores, ServesExportStores):
         if payload is None:
             payload = ExportHistoryArchivePayload()
         history = self.manager.get_accessible(history_id, trans.user, current_history=trans.history)
+        if export_audit:
+            export_audit.authorized(history)
         jeha = history.latest_export
         exporting_to_uri = payload.directory_uri
         # always just issue a new export when exporting to a URI.
@@ -705,8 +727,13 @@ class HistoriesService(ServiceBase, ConsumesModelStores, ServesExportStores):
                 directory_uri=payload.directory_uri,
                 file_name=payload.file_name,
             )
+            if export_audit:
+                export_audit.queued(job_id=job.id)
         else:
             job = jeha.job
+            if export_audit:
+                # The archive already built is reused; fetching it is recorded as archive.download.
+                export_audit.not_started()
 
         ready = bool((up_to_date and jeha.ready) or exporting_to_uri)
 

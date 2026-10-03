@@ -14,6 +14,15 @@ from typing import (
     TYPE_CHECKING,
 )
 
+from galaxy.managers.audit import (
+    audit_failures,
+    AuditOutcome,
+    AuditReason,
+    AuditService,
+    classify_failure,
+)
+from galaxy.managers.audit_actions.exports import sanitize_target_uri
+from galaxy.managers.export_audit import store_export_details
 from galaxy.managers.export_tracker import StoreExportTracker
 from galaxy.schema.schema import (
     ExportObjectType,
@@ -23,10 +32,17 @@ from galaxy.schema.tasks import (
     RequestUser,
     WriteInvocationTo,
 )
+from galaxy.web.framework.request_scope import (
+    request_scope,
+    RequestIdentity,
+)
 from galaxy.workflow.completion_hooks.base import WorkflowCompletionHook
 
 if TYPE_CHECKING:
-    from galaxy.model import WorkflowInvocationCompletion
+    from galaxy.model import (
+        WorkflowInvocation,
+        WorkflowInvocationCompletion,
+    )
 
 log = logging.getLogger(__name__)
 
@@ -136,7 +152,8 @@ class ExportToFileSourceHook(WorkflowCompletionHook):
         log.info(
             "Queuing export of invocation %d to %s (format: %s, export_association_id: %d)",
             invocation.id,
-            target_uri,
+            # The URI as given can hold credentials for the file source.
+            sanitize_target_uri(target_uri),
             model_store_format,
             export_association.id,
         )
@@ -146,11 +163,46 @@ class ExportToFileSourceHook(WorkflowCompletionHook):
 
         # Queue the export via Celery task
         # The task handles dependency injection for ModelStoreManager
-        result = write_invocation_to.delay(request=request, task_user_id=user.id)
+        try:
+            result = write_invocation_to.delay(request=request, task_user_id=user.id)
+        except Exception as exc:
+            self._audit_export(invocation, user.id, request, *classify_failure(exc))
+            raise
+        # Before the commit below: the export is under way whether or not that succeeds.
+        self._audit_export(invocation, user.id, request, "success", task_id=result.id)
 
         # Store the task UUID for tracking
         export_association.task_uuid = result.id
         self.app.model.context.commit()
+
+    def _audit_export(
+        self,
+        invocation: "WorkflowInvocation",
+        owner_id: int,
+        request: WriteInvocationTo,
+        outcome: AuditOutcome,
+        reason: AuditReason | None = None,
+        task_id: str | None = None,
+    ) -> None:
+        """Record the export as the invocation's owner, the only identity this hook has.
+
+        No request asked for this export and no credential is presented: the owner asked
+        for it when submitting the workflow, and it runs with their permissions. So the
+        event names the owner as effective user, no actor, and no credential (auth method
+        "anonymous"), and ``trigger`` says where it came from. Never raises.
+        """
+        try:
+            audit = self.app[AuditService]
+            if not audit.wants("invocation.export"):
+                return
+            details = store_export_details(request, request.target_uri).model_copy(
+                update={"task_id": task_id, "trigger": "workflow_completion"}
+            )
+            with request_scope() as scope:
+                scope.identity = RequestIdentity("anonymous", user_id=owner_id)
+                audit.record("invocation.export", invocation, outcome, details=details, reason=reason, stage="prepare")
+        except Exception:
+            audit_failures.report("prepare", "Failed to record the export of invocation %d", invocation.id)
 
     def _get_export_config(self, invocation) -> "dict[str, Any] | None":
         """
