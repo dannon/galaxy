@@ -717,7 +717,13 @@ class DatasetInterface(BaseUIController, UsesAnnotations, UsesItemRatings, UsesE
                                 trans.response.send_redirect(display_url)
                             except webob.exc.HTTPFound:
                                 if trans.request.method != "HEAD":
-                                    self._record_display_link_issued(attempt, data, app_name, link_name, display_url)
+                                    # Where the user is sent is only known now.
+                                    attempt.succeeded(
+                                        details=lambda: ExternalLinkDetails(
+                                            via="display_application", target_host=_url_host(display_url)
+                                        ),
+                                        stage="respond",
+                                    )
                                 else:
                                     attempt.withdraw()
                                 raise
@@ -746,25 +752,6 @@ class DatasetInterface(BaseUIController, UsesAnnotations, UsesItemRatings, UsesE
             return trans.show_error_message(
                 "You do not have permission to view this dataset at an external display application."
             )
-
-    def _record_display_link_issued(self, attempt, data, app_name, link_name, display_url) -> None:
-        if not attempt.active:
-            return
-        # Where the user is sent is only known now, so the success is recorded in place of the attempt.
-        attempt.withdraw()
-        record_audit_event(
-            self.audit,
-            "dataset.external_link",
-            data,
-            "success",
-            lambda: ExternalLinkDetails(
-                via="display_application",
-                app_name=app_name,
-                link_name=link_name,
-                target_host=_url_host(display_url),
-            ),
-            stage="respond",
-        )
 
 
 def _url_host(url) -> str | None:

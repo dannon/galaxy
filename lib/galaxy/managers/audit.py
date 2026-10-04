@@ -524,7 +524,8 @@ class AuditAttempt:
     def add_details(self, details: AuditDetails | Callable[[], AuditDetails]) -> None:
         """Add facts only known once the attempt is under way (a task id, an issued URL's expiry).
 
-        Fields set here replace the same fields given at the start. ``details`` may be a
+        Fields set here to other than their defaults replace the same fields given at the
+        start; a default (None, False) can't clear an earlier value. ``details`` may be a
         factory, called only for an audited action, so request values are parsed only then;
         if it fails, the event loses these details and the request never sees why.
         """

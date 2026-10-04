@@ -394,10 +394,13 @@ def test_mock_app_registers_the_service(monkeypatch):
     # Galaxy's config points tempfile.tempdir at the mock app's directory; don't leak it.
     monkeypatch.setattr(tempfile, "tempdir", tempfile.tempdir)
     app = MockApp()
-    # Registered, not built on demand: the container would build a whole Galaxy configuration.
-    assert AuditService in app.defined_types
-    assert audit.audit_service_for(app) is app[AuditService]
-    assert not app[AuditService].enabled
+    tempdir = tempfile.tempdir
+    service = app[AuditService]
+    # Built on demand, the container would make a whole Galaxy configuration, which repoints
+    # tempfile's directory for every later test in the process.
+    assert tempfile.tempdir == tempdir
+    assert audit.audit_service_for(app) is service
+    assert not service.enabled
 
 
 # -- attempts -----------------------------------------------------------------------
