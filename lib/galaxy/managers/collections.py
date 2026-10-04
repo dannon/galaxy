@@ -74,7 +74,10 @@ class _CopyTracker:
         self.made: list[model.HistoryDatasetAssociation] = []
         self.committed: list[model.HistoryDatasetAssociation] = []
 
-    def note_commit(self, _session) -> None:
+    def note_commit(self, session) -> None:
+        if session.in_nested_transaction():
+            # A savepoint released, not a commit: the outer transaction can still roll back.
+            return
         # Everything made so far was in the session the commit just wrote out.
         self.committed = [copy for copy in self.made if audit_id(copy) is not None]
 

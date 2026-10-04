@@ -452,6 +452,21 @@ class TestSharingAudit(AuditTestCase):
         # Undone with the savepoint, so never committed.
         assert event["details"]["published_after"] is False
 
+    def test_a_released_savepoint_is_not_a_commit(self):
+        session = self.trans.sa_session
+        with self.as_user(self.owner):
+            with self.history_manager.recording_sharing_change(self.history, "update"):
+                self.history.importable = True
+                session.flush()
+                with session.begin_nested():
+                    self.history.published = True
+                # The savepoint was released, but the transaction holding it never commits.
+                session.rollback()
+
+        session.expire_all()
+        assert (self.history.importable, self.history.published) == (False, False)
+        assert self.events == []
+
     def test_refusing_queries_can_nest(self):
         session = self.trans.sa_session()
         with audit_module._queries_refused(session):
@@ -918,6 +933,19 @@ class TestCrossUserCopyAudit(AuditTestCase):
         assert (event["action"], event["outcome"]) == ("dataset.copy", "denied")
         assert event["object"]["id"] == self.hda.id
         assert event["details"] == {"target_history_id": target.id}
+
+    def test_copies_in_a_released_savepoint_that_never_commits_record_nothing(self):
+        target = self.history_manager.create(name="mine", user=self.recipient)
+        collections = self.collections()
+        session = self.trans.sa_session
+        with self.as_user(self.recipient):
+            with collections._recording_copies(self.trans, True) as tracker:
+                assert tracker is not None
+                with session.begin_nested():
+                    tracker.made.append(self.hda_manager.copy(self.hda, history=target, flush=False))
+                session.rollback()
+                assert tracker.committed == []
+        assert self.events == []
 
     def collections(self) -> DatasetCollectionManager:
         collections = self.app[DatasetCollectionManager]

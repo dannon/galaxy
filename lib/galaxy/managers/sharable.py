@@ -147,7 +147,10 @@ class _SharingWrites:
             # Never fail the flush over its audit event; the event still says what it saw.
             audit_failures.report("prepare", "Could not follow a sharing change of item %s", self._item_id)
 
-    def committed(self, _session) -> None:
+    def committed(self, session) -> None:
+        if session.in_nested_transaction():
+            # A savepoint released into a transaction that can still roll back: nothing is durable yet.
+            return
         added, removed = set(self.users_added), set(self.users_removed)
         for _transaction, values, shares in self._pending:
             self.values.update(values)
