@@ -43,7 +43,10 @@ from pydantic import (
     ConfigDict,
     Field,
 )
-from sqlalchemy import inspect as sa_inspect
+from sqlalchemy import (
+    event as sa_event,
+    inspect as sa_inspect,
+)
 from sqlalchemy.engine import (
     Connection,
     Engine,
@@ -372,7 +375,7 @@ class AuditService:
             event["actor"] = self._user(identity.actor_id, truncated, "actor")
             event["effective_user"] = self._user(identity.user_id, truncated, "effective_user")
         try:
-            target = self.describe(obj)
+            target = self.describe_isolated(obj)
             event["object"] = target.model_dump() if target is not None else None
         except Exception:
             # Keep the event: what was touched matters more than how well it is described.
@@ -449,6 +452,33 @@ class AuditService:
         except Exception:
             return None
 
+    def describe_isolated(self, obj: Any) -> AuditObject | None:
+        """Describe ``obj`` without a query on the session it belongs to.
+
+        Describers follow relationships (an item's history, its owner), and once a commit
+        has expired them each one is a query on the request's session. One that fails
+        leaves that session needing a rollback, so the request's own commit then fails over
+        an audit read. What the request already loaded is described for free; anything
+        else is read through a session of the audit's own.
+        """
+        state = sa_inspect(obj, raiseerr=False) if obj is not None and not isinstance(obj, AuditObject) else None
+        session = state.session if state is not None else None
+        if state is None or session is None:
+            return self.describe(obj)
+        try:
+            with session.no_autoflush, _queries_refused(session):
+                return self.describe(obj)
+        except _QueryRefused:
+            pass
+        identity = state.identity
+        if identity is None:
+            raise exceptions.ObjectNotFound(f"Cannot describe an unsaved {type(obj).__name__} without a query")
+        with audit_read_session(session.get_bind()) as read_session:
+            fresh = read_session.get(type(obj), identity)
+            if fresh is None:
+                raise exceptions.ObjectNotFound(f"No {type(obj).__name__} {identity}")
+            return self.describe(fresh)
+
     def describe(self, obj: Any) -> AuditObject | None:
         if obj is None or isinstance(obj, AuditObject):
             return obj
@@ -513,7 +543,7 @@ class AuditAttempt:
     def authorized(self, obj: Any) -> None:
         """Access was granted to ``obj``; describe it now, while its session is open."""
         try:
-            target = self._service.describe(obj)
+            target = self._service.describe_isolated(obj)
             if target is not None:
                 self._event["object"] = target.model_dump()
         except Exception:
@@ -728,6 +758,24 @@ def audit_read_session(bind: Engine | Connection) -> Iterator[Session]:
         raise RuntimeError("Audit reads need a database that gives each session its own connection")
     with Session(bind.engine, autoflush=False) as session:
         yield session
+
+
+class _QueryRefused(Exception):
+    pass
+
+
+def _refuse_query(orm_execute_state: Any) -> None:
+    raise _QueryRefused()
+
+
+@contextmanager
+def _queries_refused(session: Session) -> Iterator[None]:
+    # Raised before anything reaches the database, so the session's transaction is untouched.
+    sa_event.listen(session, "do_orm_execute", _refuse_query)
+    try:
+        yield
+    finally:
+        sa_event.remove(session, "do_orm_execute", _refuse_query)
 
 
 def _object_type(obj: Any) -> str:

@@ -5,14 +5,19 @@ import json
 import logging
 import os
 import tempfile
+import uuid
 from types import SimpleNamespace
-from typing import cast
+from typing import (
+    Any,
+    cast,
+)
 from unittest import mock
 
 import pytest
 from sqlalchemy import (
     event,
     exc,
+    select as sa_select,
 )
 from sqlalchemy.pool import SingletonThreadPool
 
@@ -21,6 +26,7 @@ from galaxy import (
     model,
 )
 from galaxy.app_unittest_utils import galaxy_mock
+from galaxy.celery import tasks as celery_tasks
 from galaxy.managers import (
     audit as audit_module,
     hdas,
@@ -31,6 +37,7 @@ from galaxy.managers.audit import (
     audit_read_session,
     AuditService,
 )
+from galaxy.managers.audit_actions.exports import ExportDetails
 from galaxy.managers.audit_actions.sharing import (
     describe_sharable,
     SharingChangeDetails,
@@ -61,6 +68,7 @@ from galaxy.webapps.galaxy.services.histories import HistoriesService
 from galaxy.webapps.galaxy.services.history_contents import HistoriesContentsService
 from galaxy.webapps.galaxy.services.sharable import ShareableService
 from galaxy.work.context import SessionRequestContext
+from galaxy.workflow.completion_hooks.export import ExportToFileSourceHook
 from .base import (
     admin_users,
     BaseTestCase,
@@ -443,8 +451,8 @@ class TestSharingAudit(AuditTestCase):
 
     def test_loaded_user_names_take_no_connection_of_their_own(self):
         audit = self.make_audit(include_names=True)
-        # Loaded, as a request's own user is.
-        assert self.owner.username and self.admin_user.email
+        # Loaded, as a request's own user and the item it acts on are.
+        assert self.owner.username and self.admin_user.email and self.history.name
         with mock.patch.object(audit_module, "audit_read_session", side_effect=AssertionError("second connection")):
             with self.as_user(self.owner, actor=self.admin_user):
                 audit.record("history.share", self.history, details=SharingChangeDetails(change="publish"))
@@ -1157,3 +1165,84 @@ def test_every_sharable_type_is_described(model_class, attribute, expected_type)
 
 def test_unknown_objects_are_left_to_other_describers():
     assert describe_sharable(SimpleNamespace(), model.User()) is None
+
+
+class TestDescribingAfterACommit(AuditTestCase):
+    def set_up_managers(self):
+        super().set_up_managers()
+        # The hook takes the app's own service.
+        self.audit = self.app[AuditService]
+        self.audit.enabled = True
+        self.app.config.galaxy_infrastructure_url = None
+        self.owner = self.create_user("owner")
+        session = self.trans.sa_session
+        history = model.History(name="results", user=self.owner)
+        self.invocation = model.WorkflowInvocation()
+        self.invocation.history = history
+        self.invocation.workflow = model.Workflow()
+        self.invocation.on_complete = [{"export_to_file_source": {"target_uri": "gxftp://exports/run.zip"}}]
+        session.add_all([history, self.invocation])
+        session.commit()
+
+    @contextlib.contextmanager
+    def history_loads_break_the_session(self):
+        """After the next commit, a history query reaching the database through the request's
+        session fails as a dropped connection does; other sessions' queries go through."""
+        session = self.trans.sa_session()
+        engine = self.app.model.engine
+        armed = [False]
+        request_connections: list = []
+        failed: list[str] = []
+
+        def arm(_session):
+            armed[0] = True
+
+        def note_connection(orm_execute_state):
+            if armed[0]:
+                request_connections.append(orm_execute_state.session.connection())
+
+        def fail(conn, cursor, statement, parameters, context, executemany):
+            if any(conn is known for known in request_connections) and "FROM history " in statement:
+                failed.append(statement)
+                conn.invalidate()
+                raise exc.OperationalError(statement, parameters, Exception("connection lost"))
+
+        event.listen(session, "after_commit", arm)
+        event.listen(session, "do_orm_execute", note_connection)
+        event.listen(engine, "before_cursor_execute", fail)
+        try:
+            yield failed
+        finally:
+            event.remove(engine, "before_cursor_execute", fail)
+            event.remove(session, "do_orm_execute", note_connection)
+            event.remove(session, "after_commit", arm)
+
+    def test_the_completion_export_event_leaves_the_final_commit_working(self):
+        task = mock.Mock()
+        task_id = str(uuid.uuid4())
+        task.delay.return_value = SimpleNamespace(id=task_id)
+        completion = SimpleNamespace(workflow_invocation=self.invocation)
+        hook = ExportToFileSourceHook(cast(Any, self.app))
+        with mock.patch.object(celery_tasks, "write_invocation_to", task):
+            with self.history_loads_break_the_session() as failed:
+                hook.execute(cast(Any, completion))
+
+        assert failed == []
+        association = self.trans.sa_session.scalars(sa_select(model.StoreExportAssociation)).one()
+        assert str(association.task_uuid) == task_id
+        (event_,) = self.events
+        assert (event_["action"], event_["outcome"]) == ("invocation.export", "success")
+        assert event_["object"]["id"] == self.invocation.id
+        assert event_["object"]["owner_id"] == self.owner.id
+        assert event_["truncated"] == []
+
+    def test_objects_the_request_loaded_are_described_without_a_connection_of_their_own(self):
+        # Loaded, as the hook has them before its first commit.
+        assert self.invocation.history.user_id and self.invocation.workflow_id
+        with mock.patch.object(audit_module, "audit_read_session", side_effect=AssertionError("second connection")):
+            with self.as_user(self.owner):
+                self.audit.record("invocation.export", self.invocation, details=ExportDetails(destination="download"))
+
+        (event_,) = self.events
+        assert event_["object"]["owner_id"] == self.owner.id
+        assert event_["truncated"] == []
