@@ -11,6 +11,8 @@ A sharable Galaxy object:
 """
 
 import logging
+from collections.abc import Iterator
+from contextlib import contextmanager
 from functools import cached_property
 from typing import (
     Any,
@@ -20,11 +22,18 @@ from typing import (
 
 from slugify import slugify
 from sqlalchemy import (
+    event,
     exists,
     false,
+    inspect as sa_inspect,
     select,
     true,
 )
+from sqlalchemy.orm import (
+    class_mapper,
+    object_session,
+)
+from sqlalchemy.orm.attributes import instance_state
 
 from galaxy import (
     exceptions,
@@ -83,6 +92,69 @@ class SharingState(NamedTuple):
 
     def access(self) -> tuple[bool, bool, str | None, frozenset[int]]:
         return self.importable, self.published, self.slug, self.user_ids
+
+
+# Item columns that change who can reach it.
+SHARING_COLUMNS = ("importable", "published", "slug")
+
+
+class _SharingWrites:
+    """What one request's own flushes wrote to an item's sharing, kept once a commit carries it.
+
+    Read from the attribute history and the session's new and deleted share rows at each
+    flush, so nothing here queries, and values another request committed never appear.
+    """
+
+    def __init__(self, item, share_model: type[UserShareAssociation], item_relationship: str) -> None:
+        self._item = item
+        self._item_id = audit_id(item)
+        self._share_model = share_model
+        mapper = class_mapper(share_model)
+        (item_column,) = mapper.relationships[item_relationship].local_columns
+        self._item_key = mapper.get_property_by_column(item_column).key
+        self._pending: dict[str, Any] = {}
+        self._pending_users: dict[int, bool] = {}
+        self.values: dict[str, Any] = {}
+        self.users_added: frozenset[int] = frozenset()
+        self.users_removed: frozenset[int] = frozenset()
+
+    def flushed(self, session, _flush_context) -> None:
+        try:
+            state = sa_inspect(self._item)
+            for key in SHARING_COLUMNS:
+                added = state.attrs[key].history.added
+                if added:
+                    self._pending[key] = added[-1]
+            for objects, shared in ((session.new, True), (session.deleted, False)):
+                for obj in objects:
+                    user_id = self._share_user_id(obj)
+                    if user_id is not None:
+                        self._pending_users[user_id] = shared
+        except Exception:
+            # Never fail the flush over its audit event; the event still says what it saw.
+            audit_failures.report("prepare", "Could not follow a sharing change of item %s", self._item_id)
+
+    def committed(self, _session) -> None:
+        self.values.update(self._pending)
+        added, removed = set(self.users_added), set(self.users_removed)
+        for user_id, shared in self._pending_users.items():
+            (added if shared else removed).add(user_id)
+            (removed if shared else added).discard(user_id)
+        self.users_added, self.users_removed = frozenset(added), frozenset(removed)
+        self.rolled_back(_session)
+
+    def rolled_back(self, _session) -> None:
+        self._pending = {}
+        self._pending_users = {}
+
+    def _share_user_id(self, obj) -> int | None:
+        if not isinstance(obj, self._share_model):
+            return None
+        # Column values only: following a relationship here would be a query mid-flush.
+        values = instance_state(obj).dict
+        if values.get(self._item_key) != self._item_id:
+            return None
+        return values.get("user_id")
 
 
 class SharableModelManager(
@@ -317,11 +389,36 @@ class SharableModelManager(
     def share_action(self) -> SharingAction:
         return SHARE_ACTIONS[SHARABLE_TYPES[self.model_class]]
 
-    def sharing_state(self, item) -> SharingState | None:
-        """Who can reach ``item`` right now, or None when sharing changes aren't audited."""
+    @contextmanager
+    def recording_sharing_change(self, item, change: SharingChange) -> Iterator[None]:
+        """Record what the block's own commits changed about who can reach ``item``.
+
+        Only values this request wrote and committed count. Comparing the item's committed
+        state before and after would also take in another request's change made meanwhile,
+        and credit it to this one, refused or not.
+        """
         if not self.audit.wants(self.share_action):
-            return None
-        return self._read_sharing_state(audit_id(item))
+            yield
+            return
+        before = self._read_sharing_state(audit_id(item))
+        session = object_session(item)
+        if before is None or session is None:
+            yield
+            return
+        writes = _SharingWrites(item, self.user_share_model, self.foreign_key_name)
+        listeners = (
+            ("after_flush", writes.flushed),
+            ("after_commit", writes.committed),
+            ("after_rollback", writes.rolled_back),
+        )
+        for name, listener in listeners:
+            event.listen(session, name, listener)
+        try:
+            yield
+        finally:
+            for name, listener in listeners:
+                event.remove(session, name, listener)
+            self._record_sharing_writes(change, before, writes)
 
     def _read_sharing_state(self, item_id: int | None) -> SharingState | None:
         """The committed sharing state of the item and its description, from a session of their own."""
@@ -339,14 +436,18 @@ class SharableModelManager(
             audit_failures.report("prepare", "Could not read the sharing state of %s %s", self.share_action, item_id)
             return None
 
-    def record_sharing_change(self, item, change: SharingChange, before: SharingState | None) -> None:
-        """Record a committed sharing change; a request that changed nothing records nothing."""
-        if before is None:
-            return
-        item_id = audit_id(item)
-        after = self._read_sharing_state(item_id)
-        if after is None:
-            audit_failures.report("prepare", "Lost the audit event for a %s on %s", self.share_action, item_id)
+    def _record_sharing_writes(self, change: SharingChange, before: SharingState, writes: "_SharingWrites") -> None:
+        try:
+            values = writes.values
+            after = SharingState(
+                bool(values.get("importable", before.importable)),
+                bool(values.get("published", before.published)),
+                values.get("slug", before.slug),
+                (before.user_ids | writes.users_added) - writes.users_removed,
+                before.target,
+            )
+        except Exception:
+            audit_failures.report("prepare", "Lost the audit event for a %s on %s", self.share_action, before.target.id)
             return
         if after.access() == before.access():
             return
@@ -361,7 +462,7 @@ class SharableModelManager(
             slug_before=before.slug,
             slug_after=after.slug,
         )
-        self.audit.record(self.share_action, after.target, "success", details=details)
+        self.audit.record(self.share_action, before.target, "success", details=details)
 
     def record_sharing_denied(self, item_id: int, change: SharingChange) -> None:
         if not self.audit.wants(self.share_action):
@@ -559,15 +660,12 @@ class SharableModelDeserializer(
         )
 
     def deserialize(self, item, data, flush=True, **context):
-        before = None
-        if flush and SHARING_KEYS.intersection(data):
-            before = self.manager.sharing_state(item)
-        try:
+        if not (flush and SHARING_KEYS.intersection(data)):
             return super().deserialize(item, data, flush=flush, **context)
-        finally:
-            # users_shared_with commits on its own (taking any keys set before it along), so a
-            # later key failing doesn't undo everything; the event reads what actually committed.
-            self.manager.record_sharing_change(item, "update", before)
+        # users_shared_with commits on its own (taking any keys set before it along), so a
+        # later key failing doesn't undo everything; the event says what actually committed.
+        with self.manager.recording_sharing_change(item, "update"):
+            return super().deserialize(item, data, flush=flush, **context)
 
     def deserialize_published(self, item, key, val, **context):
         """ """

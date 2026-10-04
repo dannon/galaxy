@@ -19,6 +19,7 @@ from sqlalchemy import (
     exc,
     select as sa_select,
 )
+from sqlalchemy.orm import Session
 from sqlalchemy.pool import SingletonThreadPool
 
 from galaxy import (
@@ -392,6 +393,47 @@ class TestSharingAudit(AuditTestCase):
         assert event["details"]["published_after"] is True
         assert event["details"]["users_added"] == [self.other.id]
 
+    def commit_elsewhere(self, change):
+        """Commit ``change(history)`` through a session of its own, as a concurrent request would."""
+        with Session(self.app.model.engine) as session:
+            change(session.get(model.History, self.history.id), session)
+            session.commit()
+
+    def test_a_refused_update_never_claims_a_concurrent_change(self):
+        deserializer = self.app[HistoryDeserializer]
+        deserializer.manager.audit = self.history_manager.audit
+        validate_importable = deserializer.deserializers["importable"]
+
+        def published_meanwhile(item, key, val, **context):
+            self.commit_elsewhere(lambda history, _session: setattr(history, "published", True))
+            return validate_importable(item, key, val, **context)
+
+        with mock.patch.dict(deserializer.deserializers, {"importable": published_meanwhile}):
+            with self.as_user(self.owner):
+                with pytest.raises(exceptions.RequestParameterInvalidException):
+                    deserializer.deserialize(self.history, {"importable": None}, user=self.owner, trans=self.trans)
+        self.trans.sa_session.rollback()
+
+        assert self.history.published
+        assert self.events == []
+
+    def test_a_change_never_claims_a_concurrent_share(self):
+        def make_members_public(trans, item):
+            self.commit_elsewhere(
+                lambda history, session: session.add(
+                    model.HistoryUserShareAssociation(history=history, user=session.get(model.User, self.other.id))
+                )
+            )
+
+        with mock.patch.object(self.history_manager, "make_members_public", make_members_public):
+            with self.as_user(self.owner):
+                self.service.publish(self.trans, self.history.id)
+
+        (event,) = self.events
+        assert event["details"]["published_after"] is True
+        assert "users_added" not in event["details"]
+        assert self.history_manager.get_share_assocs(self.history)
+
     def test_a_failed_audit_read_leaves_the_request_able_to_commit(self):
         with self.audit_read_fails("SELECT history_user_share_association"):
             with self.as_user(self.owner):
@@ -406,11 +448,10 @@ class TestSharingAudit(AuditTestCase):
         assert self.events == []
 
     def test_recording_reads_nothing_through_the_request_session(self):
-        before = self.history_manager.sharing_state(self.history)
-        self.history_manager.publish(self.history)
         with self.as_user(self.owner):
-            with self.request_reads_fail():
-                self.history_manager.record_sharing_change(self.history, "publish", before)
+            with self.request_reads_fail(after_commit=True):
+                with self.history_manager.recording_sharing_change(self.history, "publish"):
+                    self.history_manager.publish(self.history)
 
         (event,) = self.events
         assert event["object"]["id"] == self.history.id
@@ -435,13 +476,11 @@ class TestSharingAudit(AuditTestCase):
 
     def test_user_names_are_read_without_the_request_session(self):
         self.history_manager.audit = self.make_audit(include_names=True)
-        before = self.history_manager.sharing_state(self.history)
-        self.history_manager.publish(self.history)
         with self.as_user(self.owner, actor=self.admin_user):
-            # As a commit leaves them: reading the users' names on this session is a query.
-            self.trans.sa_session.expire_all()
-            with self.request_reads_fail():
-                self.history_manager.record_sharing_change(self.history, "publish", before)
+            # The commit expires the users' names, so reading them on this session is a query.
+            with self.request_reads_fail(after_commit=True):
+                with self.history_manager.recording_sharing_change(self.history, "publish"):
+                    self.history_manager.publish(self.history)
             self.trans.sa_session.commit()
 
         (event,) = self.events
@@ -463,7 +502,6 @@ class TestSharingAudit(AuditTestCase):
 
     def test_disabled_auditing_skips_the_share_query(self):
         self.history_manager.audit = self.make_audit(enabled=False)
-        assert self.history_manager.sharing_state(self.history) is None
         with mock.patch.object(self.history_manager, "_read_sharing_state") as spy:
             with self.as_user(self.owner):
                 self.service.publish(self.trans, self.history.id)
