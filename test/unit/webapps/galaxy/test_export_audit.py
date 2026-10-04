@@ -476,9 +476,19 @@ def test_disabled_audit_parses_no_target_and_builds_no_audit_models(tmp_path, mo
     target.path.write_bytes(b"history archive")
     harness.storage.finalize(target)
 
-    monkeypatch.setattr(exports_actions, "sanitize_target_uri", refuse)
+    # Recorded, not only raised: the audit helpers swallow exceptions from what they build.
+    built: list[str] = []
+
+    def note_construction(name):
+        def construct(*args, **kwargs):
+            built.append(name)
+            raise AssertionError(f"{name} built while auditing is off")
+
+        return construct
+
+    monkeypatch.setattr(exports_actions, "sanitize_target_uri", note_construction("target"))
     for audit_model in (AuditObject, ExportDetails, ArchiveDetails, ArchiveDownloadDetails):
-        monkeypatch.setattr(audit_model, "__init__", refuse)
+        monkeypatch.setattr(audit_model, "__init__", note_construction(audit_model.__name__))
     for method, url, body, task in EXPORT_REQUESTS:
         response = harness.client.request(method, url, json=body)
         assert response.status_code == 200, url
@@ -496,6 +506,7 @@ def test_disabled_audit_parses_no_target_and_builds_no_audit_models(tmp_path, mo
     for url in downloads:
         assert harness.client.get(url).status_code == 200, url
     assert audit_events == []
+    assert built == []
 
 
 def test_details_that_cannot_be_built_never_fail_the_export(harness, audit_events, monkeypatch):
