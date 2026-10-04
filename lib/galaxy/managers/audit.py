@@ -320,9 +320,9 @@ class AuditService:
 
         Call it before that commit, while what the session holds is still loaded; the
         commit's outcome is then all that is left to say. The description reads through
-        the request's own session and transaction, so a database error during those reads
-        fails the request like any other query would: the error itself is reported rather
-        than raised, but the transaction it breaks is the request's.
+        the request's own session and transaction. A database error during those reads is
+        not raised here, but it can leave that transaction unusable (PostgreSQL aborts it),
+        and the request then fails at its next statement like after any other failed query.
         """
         if not self.wants(action):
             return NULL_PREPARED
