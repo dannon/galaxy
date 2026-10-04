@@ -538,14 +538,11 @@ class FastAPIDatasets:
                     query_params={"to_ext": to_ext},
                 )
                 return RedirectResponse(url, status_code=302)
-            response = RedirectResponse(url, status_code=302)
-            # What the URL is good for is only known now it exists, so those facts join the
-            # attempt here, once the redirect carrying it is built.
+            # What the URL is good for is only known now it exists; the redirect carrying it
+            # settles the attempt when it starts.
             issued_url = url
-            attempt.succeeded(
-                details=lambda: _issued_url_details(to_ext, dataset_instance, issued_url), stage="respond"
-            )
-            return response
+            attempt.add_details(lambda: _issued_url_details(to_ext, dataset_instance, issued_url))
+            return audited_response(RedirectResponse(url, status_code=302), attempt)
 
     def _display(
         self,

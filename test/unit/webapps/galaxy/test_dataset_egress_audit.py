@@ -23,6 +23,7 @@ from fastapi import (
 from fastapi.security import APIKeyCookie
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import make_transient_to_detached
+from starlette.responses import Response
 
 from galaxy import (
     app as galaxy_app,
@@ -422,6 +423,35 @@ def test_presigned_success_waits_for_the_redirect_response(harness, audit_events
     with pytest.raises(RuntimeError):
         harness.client.get(f"/api/datasets/{ENCODED}/download", follow_redirects=False)
     assert outcomes(audit_events) == [("dataset.download_url", "error", "internal_error", "prepare")]
+
+
+class RefusesResponseStart:
+    """ASGI middleware standing in for a server that fails as the response starts."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        async def failing_send(message):
+            if message["type"] == "http.response.start":
+                raise OSError("connection reset")
+            await send(message)
+
+        try:
+            await self.app(scope, receive, failing_send)
+        except OSError:
+            await Response(status_code=500)(scope, receive, send)
+
+
+def test_presigned_redirect_that_never_starts_is_an_error(harness, audit_events):
+    harness.stub_app.object_store.get_direct_download_url.return_value = PRESIGNED
+    harness.client.app.add_middleware(RefusesResponseStart)
+    harness.client.get(f"/api/datasets/{ENCODED}/download", follow_redirects=False)
+
+    (event,) = audit_events
+    assert outcomes([event]) == [("dataset.download_url", "error", "internal_error", "respond")]
+    # What was issued is still said, though the client never got it.
+    assert event["details"]["url_host"] == "bucket.s3.example.org"
 
 
 def test_audit_models_are_built_only_while_auditing(tmp_path, monkeypatch, audit_events):
