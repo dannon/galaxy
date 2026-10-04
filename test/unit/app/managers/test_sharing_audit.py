@@ -673,7 +673,7 @@ class TestDatasetPermissionsAudit(AuditTestCase):
         # Only a missing action means set_permissions; an empty one is invalid.
         assert empty["details"] == {}
 
-    def test_an_in_memory_database_records_nothing_rather_than_reading_uncommitted_state(self):
+    def test_audit_reads_are_refused_on_a_database_whose_sessions_share_a_connection(self):
         engine = mock.Mock(pool=mock.Mock(spec=SingletonThreadPool))
         engine.engine = engine
         with pytest.raises(RuntimeError):
@@ -910,6 +910,54 @@ class TestCrossUserCopyAudit(AuditTestCase):
             "recipient_id": self.recipient.id,
         }
 
+    def add_library_dataset(self) -> model.LibraryDatasetDatasetAssociation:
+        session = self.trans.sa_session
+        folder = model.LibraryFolder(name="root")
+        library = model.Library(name="shared", root_folder=folder)
+        library_dataset = model.LibraryDataset(folder=folder, name="reads")
+        ldda = model.LibraryDatasetDatasetAssociation(
+            name="reads",
+            extension="txt",
+            library_dataset=library_dataset,
+            dataset=self.hda_manager.dataset_manager.create(),
+            user=self.owner,
+            create_dataset=False,
+            sa_session=session,
+        )
+        library_dataset.library_dataset_dataset_association = ldda
+        session.add_all([library, folder, library_dataset, ldda])
+        session.commit()
+        return ldda
+
+    def test_copies_are_recorded_when_a_later_element_commits_the_session(self):
+        ldda = self.add_library_dataset()
+        other_hda = self.hda_manager.create(
+            history=self.source_history, dataset=self.hda_manager.dataset_manager.create()
+        )
+        self.trans.sa_session.commit()
+        target = self.history_manager.create(name="mine", user=self.recipient)
+        # MockTrans has no role lookup; library access checks need the current user's.
+        self.mock_trans.get_current_user_roles = lambda: self.trans.user.all_roles()  # type: ignore[attr-defined]
+        with self.as_user(self.recipient):
+            self.trans.set_history(target)
+            self.collections().create(
+                self.trans,
+                parent=target,
+                name="mixed",
+                collection_type="list",
+                element_identifiers=[
+                    {"src": "hda", "id": self.hda.id, "name": "first"},
+                    # Bringing a library dataset into the history commits the session.
+                    {"src": "ldda", "id": ldda.id, "name": "second"},
+                    {"src": "hda", "id": other_hda.id, "name": "third"},
+                ],
+                copy_elements=True,
+                history=target,
+            )
+
+        assert sorted(event["object"]["id"] for event in self.events) == sorted([self.hda.id, other_hda.id])
+        assert {event["action"] for event in self.events} == {"dataset.copy"}
+
     def test_collections_scan_for_copies_only_when_audited(self):
         collections = self.collections()
         collections.hda_manager.dataset_manager.audit = self.make_audit(enabled=False)
@@ -956,6 +1004,17 @@ class TestCrossUserCopyAudit(AuditTestCase):
         (event,) = self.events
         assert (event["action"], event["outcome"], event["reason"]) == ("history.import", "denied", "not_accessible")
         assert (event["object"]["type"], event["object"]["id"]) == ("history", self.source_history.id)
+
+    def test_a_copy_that_cant_be_read_loses_only_its_own_event(self):
+        target = self.history_manager.create(name="mine", user=self.recipient)
+        with self.as_user(self.recipient):
+            copy = self.hda_manager.copy(self.hda, history=target, flush=False)
+            self.trans.sa_session.commit()
+            never_saved = model.HistoryDatasetAssociation(create_dataset=False, sa_session=None)
+            self.hda_manager.record_copies([never_saved, copy])
+
+        (event,) = self.events
+        assert event["details"]["new_hda_id"] == copy.id
 
     def test_refusal_recorders_never_raise_on_bad_input(self):
         failures = audit_failures.count

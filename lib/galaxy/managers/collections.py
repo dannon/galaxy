@@ -1,4 +1,6 @@
 import logging
+from collections.abc import Iterator
+from contextlib import contextmanager
 from typing import (
     Any,
     Literal,
@@ -8,6 +10,7 @@ from typing import (
 )
 from zipfile import ZipFile
 
+from sqlalchemy import event
 from sqlalchemy.orm import (
     joinedload,
     Query,
@@ -258,24 +261,24 @@ class DatasetCollectionManager:
         if element_identifiers and not trusted_identifiers:
             validate_input_element_identifiers(element_identifiers)
 
+        new_copies: list[model.HistoryDatasetAssociation] = []
         if completed_job and output_name:
             jtodca = next(a for a in completed_job.output_dataset_collection_instances if a.name == output_name)
             dataset_collection = jtodca.dataset_collection_instance.collection
         else:
-            dataset_collection = self.create_dataset_collection(
-                trans=trans,
-                collection_type=collection_type,
-                element_identifiers=element_identifiers,
-                elements=elements,
-                hide_source_items=hide_source_items,
-                copy_elements=copy_elements,
-                history=history,
-                fields=fields,
-                column_definitions=column_definitions,
-                rows=rows,
-            )
-        # Taken now: the new collection can also hold existing copies it only references.
-        new_copies = self._unflushed_copies(trans) if copy_elements else []
+            with self._copies_made(trans, copy_elements) as new_copies:
+                dataset_collection = self.create_dataset_collection(
+                    trans=trans,
+                    collection_type=collection_type,
+                    element_identifiers=element_identifiers,
+                    elements=elements,
+                    hide_source_items=hide_source_items,
+                    copy_elements=copy_elements,
+                    history=history,
+                    fields=fields,
+                    column_definitions=column_definitions,
+                    rows=rows,
+                )
 
         implicit_inputs = []
         if implicit_collection_info:
@@ -300,16 +303,37 @@ class DatasetCollectionManager:
             self.hda_manager.record_copies(new_copies)
         return instance
 
-    def _unflushed_copies(self, trans: ProvidesHistoryContext) -> list[model.HistoryDatasetAssociation]:
-        """The dataset copies this request has made and not yet flushed, when copies are audited."""
-        if not self.hda_manager.dataset_manager.audit.wants("dataset.copy"):
-            return []
-        return [
-            obj
-            for obj in trans.sa_session.new
-            if isinstance(obj, model.HistoryDatasetAssociation)
-            and obj.copied_from_history_dataset_association_id is not None
-        ]
+    @contextmanager
+    def _copies_made(
+        self, trans: ProvidesHistoryContext, copy_elements: bool
+    ) -> Iterator[list[model.HistoryDatasetAssociation]]:
+        """Collect the dataset copies made inside the block, when copies are audited.
+
+        Taken from what's pending, at every flush and at the end, since loading some elements
+        commits the session midway, and a new collection can also hold existing copies it
+        only references.
+        """
+        copies: list[model.HistoryDatasetAssociation] = []
+        if not copy_elements or not self.hda_manager.dataset_manager.audit.wants("dataset.copy"):
+            yield copies
+            return
+        session = trans.sa_session()
+
+        def note_copies(*_args) -> None:
+            for obj in session.new:
+                if (
+                    isinstance(obj, model.HistoryDatasetAssociation)
+                    and obj.copied_from_history_dataset_association_id is not None
+                    and obj not in copies
+                ):
+                    copies.append(obj)
+
+        event.listen(session, "before_flush", note_copies)
+        try:
+            yield copies
+        finally:
+            event.remove(session, "before_flush", note_copies)
+        note_copies()
 
     def _create_instance_for_collection(
         self,
@@ -568,15 +592,15 @@ class DatasetCollectionManager:
         assert source == HistoryContentSource.hdca  # for now
         source_hdca = self.__get_history_collection_instance(trans, encoded_source_id)
         element_destination = parent if copy_elements else None
-        new_hdca = source_hdca.copy(
-            flush=False,
-            element_destination=element_destination,
-            dataset_instance_attributes=dataset_instance_attributes,
-            target_user=trans.get_user(),
-        )
+        with self._copies_made(trans, copy_elements) as new_copies:
+            new_hdca = source_hdca.copy(
+                flush=False,
+                element_destination=element_destination,
+                dataset_instance_attributes=dataset_instance_attributes,
+                target_user=trans.get_user(),
+            )
         if not copy_elements:
             parent.add_dataset_collection(new_hdca)
-        new_copies = self._unflushed_copies(trans) if copy_elements else []
         trans.sa_session.commit()
         if new_copies:
             self.hda_manager.record_copies(new_copies)

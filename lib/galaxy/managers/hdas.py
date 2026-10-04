@@ -286,14 +286,18 @@ class HDAManager(
         try:
             with audit_read_session(self.app.model.engine) as session:
                 for copy_id in copy_ids:
-                    copy = session.get(HistoryDatasetAssociation, copy_id) if copy_id is not None else None
-                    if copy is None:
-                        raise exceptions.ObjectNotFound(f"No dataset {copy_id}")
-                    source = copy.copied_from_history_dataset_association
-                    if source is not None and copy.history is not None:
-                        event = self._cross_user_copy_event(source, copy_id, copy.history)
-                        if event is not None:
-                            events.append(event)
+                    # One copy that can't be read loses its own event, not its siblings'.
+                    try:
+                        copy = session.get(HistoryDatasetAssociation, copy_id) if copy_id is not None else None
+                        if copy is None:
+                            raise exceptions.ObjectNotFound(f"No dataset {copy_id}")
+                        source = copy.copied_from_history_dataset_association
+                        if source is not None and copy.history is not None:
+                            event = self._cross_user_copy_event(source, copy_id, copy.history)
+                            if event is not None:
+                                events.append(event)
+                    except Exception:
+                        audit_failures.report("prepare", "Lost the audit event for copy %s", copy_id)
         except Exception:
             audit_failures.report("prepare", "Lost the audit events for copies %s", copy_ids)
             return
