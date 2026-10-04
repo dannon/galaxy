@@ -5,6 +5,7 @@ Manager and Serializer for Datasets.
 import glob
 import logging
 import os
+from collections import Counter
 from collections.abc import Iterator
 from contextlib import contextmanager
 from functools import cached_property
@@ -97,6 +98,22 @@ class PermissionsSnapshot(NamedTuple):
         return self.access, self.manage, self.modify
 
 
+# Snapshot field -> role id -> how many permission rows grant it; None where the field doesn't apply.
+PermissionRows = dict[str, Counter[int] | None]
+
+
+def _snapshot(rows: PermissionRows) -> PermissionsSnapshot:
+    def held(field: str) -> list[int] | None:
+        counts = rows.get(field)
+        if counts is None:
+            return None
+        return sorted(role_id for role_id, count in counts.items() if count > 0)
+
+    access, manage = held("access"), held("manage")
+    assert access is not None and manage is not None
+    return PermissionsSnapshot(access=access, manage=manage, modify=held("modify"))
+
+
 def _within(transaction, ancestor) -> bool:
     while transaction is not None:
         if transaction is ancestor:
@@ -112,35 +129,42 @@ class PermissionsRecording:
     values only, and count once the outermost commit carries them. Nothing is queried:
     re-reading the roles inside the flush would be a query whose failure, once swallowed,
     could leave the transaction aborted just as its commit runs.
+
+    Rows are counted rather than replayed in order: Galaxy sets permissions by deleting
+    every row and adding the new ones, often in one flush, so a role that is kept shows
+    up as one deletion and one addition that cancel out.
     """
 
     def __init__(
         self,
-        before: PermissionsSnapshot,
+        before: PermissionRows,
         prepared: PreparedEvent,
         dataset_id: int,
         library_dataset_id: int | None,
         actions: dict[str, str],
     ) -> None:
-        self.before = before
+        self._before_rows = before
+        self.before = _snapshot(before)
         self.prepared = prepared
         self._dataset_id = dataset_id
         self._library_dataset_id = library_dataset_id
         # Permission action -> the snapshot field it belongs to.
         self._fields = actions
-        # Per flush, with the transaction (or savepoint) that flush wrote into.
-        self._pending: list[tuple[Any, list[tuple[str, int, bool]]]] = []
-        self._committed: dict[tuple[str, int], bool] = {}
+        # Per flush, with the transaction (or savepoint) that flush wrote into: rows added minus
+        # rows deleted for each (field, role).
+        self._pending: list[tuple[Any, Counter[tuple[str, int]]]] = []
+        self._committed: Counter[tuple[str, int]] = Counter()
+        self._touched = False
 
     def flushed(self, session, _flush_context) -> None:
         try:
-            changes: list[tuple[str, int, bool]] = []
-            for objects, added in ((session.new, True), (session.deleted, False)):
+            changes: Counter[tuple[str, int]] = Counter()
+            for objects, delta in ((session.new, 1), (session.deleted, -1)):
                 for obj in objects:
                     field = self._field(obj)
                     role_id = instance_state(obj).dict.get("role_id")
                     if field is not None and role_id is not None:
-                        changes.append((field, role_id, added))
+                        changes[(field, role_id)] += delta
             if changes:
                 transaction = session.get_nested_transaction() or session.get_transaction()
                 self._pending.append((transaction, changes))
@@ -169,8 +193,9 @@ class PermissionsRecording:
             # A savepoint released into a transaction that can still roll back.
             return
         for _transaction, changes in self._pending:
-            for field, role_id, added in changes:
-                self._committed[(field, role_id)] = added
+            # update() keeps the negative counts deletions leave; + would drop them.
+            self._committed.update(changes)
+            self._touched = True
         self._pending = []
 
     def rolled_back(self, _session, previous_transaction) -> None:
@@ -180,22 +205,16 @@ class PermissionsRecording:
     @property
     def after(self) -> PermissionsSnapshot | None:
         """The roles as this request's commits left them, or None if none of its commits touched them."""
-        if not self._committed:
+        if not self._touched:
             return None
-
-        def applied(field: str, roles: list[int] | None) -> list[int] | None:
-            if roles is None:
-                return None
-            result = set(roles)
-            for (changed_field, role_id), added in self._committed.items():
-                if changed_field == field:
-                    (result.add if added else result.discard)(role_id)
-            return sorted(result)
-
-        before = self.before
-        access, manage = applied("access", before.access), applied("manage", before.manage)
-        assert access is not None and manage is not None
-        return PermissionsSnapshot(access=access, manage=manage, modify=applied("modify", before.modify))
+        rows: PermissionRows = {}
+        for field, counts in self._before_rows.items():
+            rows[field] = None if counts is None else Counter(counts)
+        for (field, role_id), delta in self._committed.items():
+            counts = rows.get(field)
+            if counts is not None:
+                counts[role_id] += delta
+        return _snapshot(rows)
 
 
 class DatasetManager(
@@ -280,9 +299,9 @@ class DatasetManager(
             for name, listener in listeners:
                 event.remove(session, name, listener)
 
-    def _read_permissions(self, session, dataset_id: int, library_dataset_id: int | None) -> PermissionsSnapshot:
+    def _read_permissions(self, session, dataset_id: int, library_dataset_id: int | None) -> PermissionRows:
         actions = self.app.security_agent.permitted_actions
-        modify = None
+        modify: Counter[int] | None = None
         if library_dataset_id is not None:
             modify = self._role_ids(
                 session,
@@ -291,13 +310,13 @@ class DatasetManager(
                     LibraryDatasetPermissions.action == actions.LIBRARY_MODIFY.action,
                 ),
             )
-        return PermissionsSnapshot(
-            access=self._dataset_role_ids(session, dataset_id, actions.DATASET_ACCESS.action),
-            manage=self._dataset_role_ids(session, dataset_id, actions.DATASET_MANAGE_PERMISSIONS.action),
-            modify=modify,
-        )
+        return {
+            "access": self._dataset_role_ids(session, dataset_id, actions.DATASET_ACCESS.action),
+            "manage": self._dataset_role_ids(session, dataset_id, actions.DATASET_MANAGE_PERMISSIONS.action),
+            "modify": modify,
+        }
 
-    def _dataset_role_ids(self, session, dataset_id: int, action: str) -> list[int]:
+    def _dataset_role_ids(self, session, dataset_id: int, action: str) -> Counter[int]:
         return self._role_ids(
             session,
             select(DatasetPermissions.role_id).where(
@@ -305,8 +324,8 @@ class DatasetManager(
             ),
         )
 
-    def _role_ids(self, session, stmt) -> list[int]:
-        return sorted({role_id for role_id in session.scalars(stmt) if role_id is not None})
+    def _role_ids(self, session, stmt) -> Counter[int]:
+        return Counter(role_id for role_id in session.scalars(stmt) if role_id is not None)
 
     def record_permissions_change(
         self,

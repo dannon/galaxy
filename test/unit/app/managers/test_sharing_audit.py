@@ -609,6 +609,70 @@ class TestDatasetPermissionsAudit(AuditTestCase):
             self.hda_manager.update_permissions(self.trans, self.hda, action="make_private")
         assert self.events == []
 
+    def set_roles(self, access: list[model.Role], manage: list[model.Role]) -> None:
+        self.hda_manager.update_permissions(
+            self.trans,
+            self.hda,
+            action="set_permissions",
+            access=[role.id for role in access],
+            manage=[role.id for role in manage],
+        )
+
+    def test_setting_the_same_roles_again_changes_nothing(self):
+        # Galaxy replaces every permission row, so each role is deleted and added back in one flush.
+        dataset_manager = self.hda_manager.dataset_manager
+        with self.as_user(self.owner):
+            with dataset_manager.recording_permissions(self.hda) as recording:
+                self.set_roles(access=[self.private_role], manage=[self.private_role])
+            assert recording is not None
+            assert recording.after == recording.before
+            self.set_roles(access=[self.private_role], manage=[self.private_role])
+        assert self.app.security_agent.dataset_is_private_to_user(self.trans, self.hda.dataset)
+        assert self.events == []
+
+    def test_removing_one_role_keeps_the_other(self):
+        other_private = self.app.security_agent.get_private_user_role(self.other)
+        with self.as_user(self.owner):
+            self.set_roles(access=[self.private_role], manage=[self.private_role, other_private])
+            self.set_roles(access=[self.private_role], manage=[self.private_role])
+
+        details = self.permission_events()[-1]["details"]
+        assert details["manage_roles_before"] == sorted([self.private_role.id, other_private.id])
+        assert details["manage_roles_after"] == [self.private_role.id]
+        assert details["access_roles_before"] == details["access_roles_after"] == [self.private_role.id]
+        assert details["may_widen_access"] is False
+
+    def test_adding_a_role_keeps_the_existing_one(self):
+        other_private = self.app.security_agent.get_private_user_role(self.other)
+        with self.as_user(self.owner):
+            self.set_roles(access=[self.private_role], manage=[self.private_role, other_private])
+
+        (event,) = self.events
+        details = event["details"]
+        assert details["manage_roles_before"] == [self.private_role.id]
+        assert details["manage_roles_after"] == sorted([self.private_role.id, other_private.id])
+        assert details["access_roles_before"] == details["access_roles_after"] == [self.private_role.id]
+        assert details["may_widen_access"] is False
+
+    def test_a_role_removed_and_restored_across_commits_is_unchanged(self):
+        dataset_manager = self.hda_manager.dataset_manager
+        security_agent = self.app.security_agent
+        with self.as_user(self.owner):
+            with dataset_manager.recording_permissions(self.hda) as recording:
+                security_agent.make_dataset_public(self.hda.dataset)
+                actions = security_agent.permitted_actions
+                security_agent.set_all_dataset_permissions(
+                    self.hda.dataset,
+                    {
+                        actions.DATASET_MANAGE_PERMISSIONS: [self.private_role],
+                        actions.DATASET_ACCESS: [self.private_role],
+                    },
+                )
+                assert not dataset_manager.record_permissions_change(recording, "set_permissions")
+            assert recording is not None
+            assert recording.after == recording.before
+        assert self.events == []
+
     def test_refusal_is_recorded_as_denied(self):
         with self.as_user(self.other):
             with pytest.raises(exceptions.InsufficientPermissionsException):
