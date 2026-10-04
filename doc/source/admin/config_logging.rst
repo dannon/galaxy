@@ -101,7 +101,8 @@ selects:
     ``dataset.external_fetch`` when the external site fetches the content. Also in this family: ``dataset.export``
     (a dataset exported from a history), ``dataset.permissions`` (a permission change, with the access and manage
     roles before and after, and whether access may have widened) and ``dataset.copy`` (a copy of a dataset owned by
-    someone else, including copies made while building or copying a collection).
+    someone else, including copies made while building or copying a collection; a collection that fails part way
+    still records the copies already committed).
 ``library_dataset``
     Library downloads, one event per dataset in the request.
 ``drs``
@@ -109,7 +110,8 @@ selects:
 ``history``
     ``history.export`` (to a download or a remote file source), ``history.download`` (a contents archive),
     ``history.share`` (sharing with users, link access, publishing and slug changes, with the state before and
-    after) and ``history.import`` (a copy of someone else's history).
+    after; the after state is what the request itself wrote and committed, so a concurrent change by another
+    request is never attributed to it) and ``history.import`` (a copy of someone else's history).
 ``collection``
     ``collection.download`` (a collection zip) and ``collection.export``.
 ``invocation``
@@ -140,7 +142,7 @@ to ``task``: the effective user is the one it runs for, and there is no actor, c
     and reads the file itself). It does not prove every byte was delivered, or even that the client was still
     connected: the application server may accept a response after the client has gone. For routes that return a JSON
     body, and on legacy (non-FastAPI) routes, ``success`` is recorded when the route hands its result to the server;
-    for a presigned redirect it means the URL was issued; for an export, that the work was queued, not that it
+    for a presigned redirect it means the redirect carrying the URL started; for an export, that the work was queued, not that it
     finished; and for a change such as a share or a permission update, that the change was committed.
 ``denied``
     Galaxy refused the request. The event names the requested object by id.
