@@ -20,6 +20,7 @@ from sqlalchemy import (
     select,
 )
 from sqlalchemy.orm import object_session
+from sqlalchemy.orm.attributes import instance_state
 
 from galaxy import (
     exceptions,
@@ -105,38 +106,96 @@ def _within(transaction, ancestor) -> bool:
 
 
 class PermissionsRecording:
-    """A dataset's roles before a change, and as the change left them once a commit carried it.
+    """A dataset's roles before a change, and what this request's own commits changed about them.
 
-    The roles are read again in the request's own transaction after each flush, and the
-    last reading counts once the outermost commit carries it. Nothing is read after a
-    commit, and a savepoint that rolls back takes its readings with it.
+    The permission rows each flush adds and deletes are taken from the session, column
+    values only, and count once the outermost commit carries them. Nothing is queried:
+    re-reading the roles inside the flush would be a query whose failure, once swallowed,
+    could leave the transaction aborted just as its commit runs.
     """
 
-    def __init__(self, read, before: PermissionsSnapshot, prepared: PreparedEvent) -> None:
-        self._read = read
+    def __init__(
+        self,
+        before: PermissionsSnapshot,
+        prepared: PreparedEvent,
+        dataset_id: int,
+        library_dataset_id: int | None,
+        actions: dict[str, str],
+    ) -> None:
         self.before = before
         self.prepared = prepared
-        self.after: PermissionsSnapshot | None = None
-        self._pending: list[tuple[Any, PermissionsSnapshot]] = []
+        self._dataset_id = dataset_id
+        self._library_dataset_id = library_dataset_id
+        # Permission action -> the snapshot field it belongs to.
+        self._fields = actions
+        # Per flush, with the transaction (or savepoint) that flush wrote into.
+        self._pending: list[tuple[Any, list[tuple[str, int, bool]]]] = []
+        self._committed: dict[tuple[str, int], bool] = {}
 
     def flushed(self, session, _flush_context) -> None:
         try:
-            snapshot = self._read(session)
+            changes: list[tuple[str, int, bool]] = []
+            for objects, added in ((session.new, True), (session.deleted, False)):
+                for obj in objects:
+                    field = self._field(obj)
+                    role_id = instance_state(obj).dict.get("role_id")
+                    if field is not None and role_id is not None:
+                        changes.append((field, role_id, added))
+            if changes:
+                transaction = session.get_nested_transaction() or session.get_transaction()
+                self._pending.append((transaction, changes))
         except Exception:
-            audit_failures.report("prepare", "Could not read the permissions a flush left")
-            return
-        self._pending.append((session.get_nested_transaction() or session.get_transaction(), snapshot))
+            # Never fail the flush over its audit event.
+            audit_failures.report("prepare", "Could not follow a permission change on dataset %s", self._dataset_id)
+
+    def _field(self, obj) -> str | None:
+        # Column values only: following a relationship here would be a query mid-flush.
+        values = instance_state(obj).dict
+        if isinstance(obj, DatasetPermissions):
+            if values.get("dataset_id") != self._dataset_id:
+                return None
+        elif isinstance(obj, LibraryDatasetPermissions):
+            if self._library_dataset_id is None or values.get("library_dataset_id") != self._library_dataset_id:
+                return None
+        else:
+            return None
+        field = self._fields.get(str(values.get("action")))
+        if field == "modify" and not isinstance(obj, LibraryDatasetPermissions):
+            return None
+        return field
 
     def committed(self, session) -> None:
         if session.in_nested_transaction():
             # A savepoint released into a transaction that can still roll back.
             return
-        if self._pending:
-            self.after = self._pending[-1][1]
+        for _transaction, changes in self._pending:
+            for field, role_id, added in changes:
+                self._committed[(field, role_id)] = added
         self._pending = []
 
     def rolled_back(self, _session, previous_transaction) -> None:
+        # A savepoint rolling back undoes only what was flushed inside it.
         self._pending = [entry for entry in self._pending if not _within(entry[0], previous_transaction)]
+
+    @property
+    def after(self) -> PermissionsSnapshot | None:
+        """The roles as this request's commits left them, or None if none of its commits touched them."""
+        if not self._committed:
+            return None
+
+        def applied(field: str, roles: list[int] | None) -> list[int] | None:
+            if roles is None:
+                return None
+            result = set(roles)
+            for (changed_field, role_id), added in self._committed.items():
+                if changed_field == field:
+                    (result.add if added else result.discard)(role_id)
+            return sorted(result)
+
+        before = self.before
+        access, manage = applied("access", before.access), applied("manage", before.manage)
+        assert access is not None and manage is not None
+        return PermissionsSnapshot(access=access, manage=manage, modify=applied("modify", before.modify))
 
 
 class DatasetManager(
@@ -173,7 +232,7 @@ class DatasetManager(
 
         Yields None when permission changes aren't audited or the roles couldn't be read.
         The roles and the description are read before the change, through the request's
-        own session; what the change committed is read inside the transaction carrying it.
+        own session; what the change committed comes from the rows its flushes wrote.
         """
         if not self.audit.wants("dataset.permissions"):
             yield None
@@ -189,20 +248,27 @@ class DatasetManager(
                 instance = dataset_assoc
                 library_dataset_id = None
             dataset_id = instance.dataset_id
-
-            def read(on_session) -> PermissionsSnapshot:
-                return self._read_permissions(on_session, dataset_id, library_dataset_id)
-
             with session.no_autoflush:
-                before = read(session)
-            recording = PermissionsRecording(read, before, self.audit.prepare("dataset.permissions", instance))
+                before = self._read_permissions(session, dataset_id, library_dataset_id)
+            actions = self.app.security_agent.permitted_actions
+            recording = PermissionsRecording(
+                before,
+                self.audit.prepare("dataset.permissions", instance),
+                dataset_id,
+                library_dataset_id,
+                {
+                    actions.DATASET_ACCESS.action: "access",
+                    actions.DATASET_MANAGE_PERMISSIONS.action: "manage",
+                    actions.LIBRARY_MODIFY.action: "modify",
+                },
+            )
         except Exception:
             # The change itself must go ahead; a missing audit event is reported, not raised.
             audit_failures.report("prepare", "Could not read the permissions of %s", audit_id(dataset_assoc))
             yield None
             return
         listeners = (
-            ("after_flush_postexec", recording.flushed),
+            ("after_flush", recording.flushed),
             ("after_commit", recording.committed),
             ("after_soft_rollback", recording.rolled_back),
         )

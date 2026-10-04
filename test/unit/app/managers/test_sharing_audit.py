@@ -687,27 +687,36 @@ class TestDatasetPermissionsAudit(AuditTestCase):
         assert event["details"]["access_roles_after"] == []
         assert event["details"]["may_widen_access"] is True
 
-    def test_a_failed_read_after_a_flush_never_fails_the_change(self):
+    def test_the_roles_are_read_once_before_the_change(self):
         dataset_manager = self.hda_manager.dataset_manager
-        read = dataset_manager._read_permissions
-        reads: list[int] = []
-
-        def only_the_first_read_works(*args):
-            reads.append(1)
-            if len(reads) > 1:
-                raise RuntimeError("db gone")
-            return read(*args)
-
-        failures = audit_failures.count
-        with mock.patch.object(dataset_manager, "_read_permissions", side_effect=only_the_first_read_works):
+        with mock.patch.object(
+            dataset_manager, "_read_permissions", wraps=dataset_manager._read_permissions
+        ) as read_permissions:
             with self.as_user(self.owner):
                 self.hda_manager.update_permissions(self.trans, self.hda, action="remove_restrictions")
 
-        assert len(reads) > 1
-        assert self.app.security_agent.dataset_is_public(self.hda.dataset)
-        # What the change left was never read, so nothing is claimed; that is reported.
+        # What the change committed comes from the rows its flush wrote, not another read.
+        assert read_permissions.call_count == 1
+        (event_,) = self.events
+        assert event_["details"]["access_roles_before"] == [self.private_role.id]
+        assert event_["details"]["access_roles_after"] == []
+
+    def test_a_change_in_a_released_savepoint_that_never_commits_records_nothing(self):
+        dataset_manager = self.hda_manager.dataset_manager
+        session = self.trans.sa_session
+        with self.as_user(self.owner):
+            with dataset_manager.recording_permissions(self.hda) as recording:
+                self.hda.name = "renamed"
+                session.flush()
+                access = self.app.security_agent.permitted_actions.DATASET_ACCESS.action
+                with session.begin_nested():
+                    for permission in self.hda.dataset.actions:
+                        if permission.action == access:
+                            session.delete(permission)
+                session.rollback()
+                assert not dataset_manager.record_permissions_change(recording, "remove_restrictions")
+        assert not self.app.security_agent.dataset_is_public(self.hda.dataset)
         assert self.events == []
-        assert audit_failures.count > failures
 
     def test_recording_a_permission_change_reads_nothing_after_the_commit(self):
         dataset_manager = self.hda_manager.dataset_manager
@@ -910,11 +919,18 @@ class TestCrossUserCopyAudit(AuditTestCase):
         with self.as_user(self.recipient):
             with collections._recording_copies(self.trans, True) as tracker:
                 assert tracker is not None
+                # Write first, so the savepoint sits inside a real transaction (pysqlite
+                # commits a savepoint that opens one on release).
+                target.name = "renamed"
+                session.flush()
                 with session.begin_nested():
                     tracker.add(self.hda_manager.copy(self.hda, history=target, flush=False), self.hda, target)
                 session.rollback()
                 assert tracker.committed == []
         assert self.events == []
+        assert not session.scalars(
+            sa_select(model.HistoryDatasetAssociation).where(model.HistoryDatasetAssociation.history_id == target.id)
+        ).all()
 
     def collections(self) -> DatasetCollectionManager:
         collections = self.app[DatasetCollectionManager]
@@ -1345,34 +1361,28 @@ class TestAuditHoldsOneConnection(AuditTestCase):
 
     @contextlib.contextmanager
     def one_connection(self):
-        """Swap in a pool of exactly one connection, yielding the most ever checked out at once."""
+        """Swap in a pool of exactly one connection.
+
+        A second checkout would time out rather than show up, so what proves there was none
+        is that audit swallowed no failure (a timeout) and lost nothing it should describe.
+        """
         engine = self.app.model.engine
         # Hand back whatever the session holds, so the request starts with nothing checked out.
         self.trans.sa_session.commit()
         original = engine.pool
         pool = QueuePool(original._creator, pool_size=1, max_overflow=0, timeout=0.2, dialect=original._dialect)
-        held = [0]
-        most = [0]
-
-        def checkout(*args):
-            held[0] += 1
-            most[0] = max(most[0], held[0])
-
-        def checkin(*args):
-            held[0] -= 1
-
-        event.listen(pool, "checkout", checkout)
-        event.listen(pool, "checkin", checkin)
+        failures = audit_failures.count
         engine.pool = pool
         try:
-            yield most
+            yield
         finally:
             engine.pool = original
             pool.dispose()
+        assert audit_failures.count == failures
 
     def test_display_authorization_describes_through_the_request_connection(self):
         hda_id = self.hda.id
-        with self.one_connection() as most:
+        with self.one_connection():
             with self.as_user(self.owner):
                 attempt = begin_audit_attempt(self.audit, "dataset.display", hda_id)
                 with attempt.guard():
@@ -1381,7 +1391,6 @@ class TestAuditHoldsOneConnection(AuditTestCase):
                     attempt.authorized(dataset)
                     attempt.succeeded()
 
-        assert most[0] == 1
         (event_,) = self.events
         assert event_["object"]["owner_id"] == self.owner.id
         assert event_["effective_user"]["username"] == "owner"
@@ -1389,8 +1398,7 @@ class TestAuditHoldsOneConnection(AuditTestCase):
 
     def test_authorization_after_a_commit_uses_only_what_is_loaded(self):
         hda_id = self.hda.id
-        failures = audit_failures.count
-        with self.one_connection() as most:
+        with self.one_connection():
             with self.as_user(self.owner):
                 attempt = begin_audit_attempt(self.audit, "dataset.display", hda_id)
                 with attempt.guard():
@@ -1400,7 +1408,6 @@ class TestAuditHoldsOneConnection(AuditTestCase):
                     attempt.authorized(dataset)
                     attempt.succeeded()
 
-        assert most[0] == 1
         (event_,) = self.events
         # Only what the request asked for: describing more would refresh what the commit expired.
         assert (event_["object"]["type"], event_["object"]["id"], event_["object"]["owner_id"]) == (
@@ -1410,9 +1417,34 @@ class TestAuditHoldsOneConnection(AuditTestCase):
         )
         # Names were read when the attempt started, before the commit.
         assert event_["effective_user"]["username"] == "owner"
+        # Left out, not failed: one_connection checks nothing was reported.
         assert event_["truncated"] == ["object"]
-        # Left out, not failed.
-        assert audit_failures.count == failures
+
+    def test_user_names_not_yet_loaded_are_read_through_the_request_connection(self):
+        owner_id, recipient_id, hda_id = self.owner.id, self.recipient.id, self.hda.id
+        with self.one_connection():
+            session = self.trans.sa_session
+            session.expunge_all()
+            # As display does: the request holds its connection from here on.
+            assert session.get(model.HistoryDatasetAssociation, hda_id) is not None
+            with request_scope(request_id="req-1"):
+                set_request_identity(RequestIdentity("session", owner_id, actor_id=recipient_id))
+                begin_audit_attempt(self.audit, "dataset.display", hda_id).denied()
+
+        (event_,) = self.events
+        assert (event_["actor"]["username"], event_["effective_user"]["username"]) == ("recipient", "owner")
+        assert event_["truncated"] == []
+
+    def test_a_released_savepoint_is_not_counted_as_a_commit(self):
+        session = self.trans.sa_session()
+        commits = audit_module._commit_count(session)
+        self.history.name = "renamed"
+        session.flush()
+        with session.begin_nested():
+            self.history.importable = True
+        assert audit_module._commit_count(session) == commits
+        session.commit()
+        assert audit_module._commit_count(session) == commits + 1
 
     def test_sharing_and_its_permission_changes(self):
         security_agent = self.app.security_agent
@@ -1424,11 +1456,10 @@ class TestAuditHoldsOneConnection(AuditTestCase):
         )
         service = ShareableService(self.history_manager, self.app[HistorySerializer], mock.MagicMock())
         history_id = self.history.id
-        with self.one_connection() as most:
+        with self.one_connection():
             with self.as_user(self.owner):
                 service.publish(self.trans, history_id)
 
-        assert most[0] == 1
         assert [event_["action"] for event_ in self.events] == ["dataset.permissions", "history.share"]
         for event_ in self.events:
             assert event_["object"]["owner_id"] == self.owner.id
@@ -1442,7 +1473,7 @@ class TestAuditHoldsOneConnection(AuditTestCase):
         collections = self.app[DatasetCollectionManager]
         collections.hda_manager.dataset_manager.audit = self.audit
         hda_id = self.hda.id
-        with self.one_connection() as most:
+        with self.one_connection():
             with self.as_user(self.recipient):
                 self.trans.set_history(target)
                 self.hda_manager.copy(self.hda, history=target)
@@ -1456,7 +1487,6 @@ class TestAuditHoldsOneConnection(AuditTestCase):
                     history=target,
                 )
 
-        assert most[0] == 1
         assert [event_["action"] for event_ in self.events] == ["dataset.copy", "dataset.copy"]
         for event_ in self.events:
             assert event_["object"]["owner_id"] == self.owner.id
@@ -1479,13 +1509,12 @@ class TestAuditHoldsOneConnection(AuditTestCase):
         task = mock.Mock()
         task.delay.return_value = SimpleNamespace(id=str(uuid.uuid4()))
         hook = ExportToFileSourceHook(cast(Any, self.app))
-        with self.one_connection() as most:
+        with self.one_connection():
             # As the completion monitor hands it over: loaded, with what it refers to expired.
             completion = SimpleNamespace(workflow_invocation=session.get(model.WorkflowInvocation, invocation.id))
             with mock.patch.object(celery_tasks, "write_invocation_to", task):
                 hook.execute(cast(Any, completion))
 
-        assert most[0] == 1
         (event_,) = self.events
         assert (event_["action"], event_["outcome"]) == ("invocation.export", "success")
         assert event_["object"]["owner_id"] == self.owner.id
