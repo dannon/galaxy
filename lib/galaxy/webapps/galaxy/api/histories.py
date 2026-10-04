@@ -28,8 +28,10 @@ from pydantic.fields import Field
 from pydantic.main import BaseModel
 
 from galaxy.managers.audit import (
+    AuditAttempt,
     AuditService,
     begin_audit_attempt,
+    NULL_ATTEMPT,
 )
 from galaxy.managers.audit_actions import AuditObject
 from galaxy.managers.audit_actions.exports import (
@@ -737,11 +739,13 @@ class FastAPIHistories:
         **Deprecation notice**: Please use `/api/histories/{id}/prepare_store_download` or
         `/api/histories/{id}/write_store` instead.
         """
-        attempt = self.audit.attempt(
-            "archive.download",
-            AuditObject(type="history_export", id=None if jeha_id == "latest" else jeha_id, history_id=history_id),
-            ArchiveDownloadDetails(source="job_export"),
-        )
+        attempt: AuditAttempt = NULL_ATTEMPT
+        if self.audit.wants("archive.download"):
+            attempt = self.audit.attempt(
+                "archive.download",
+                AuditObject(type="history_export", id=None if jeha_id == "latest" else jeha_id, history_id=history_id),
+                ArchiveDownloadDetails(source="job_export"),
+            )
         with attempt.guard():
             jeha = self.service.get_ready_history_export(trans, history_id, jeha_id)
             attempt.authorized(jeha)

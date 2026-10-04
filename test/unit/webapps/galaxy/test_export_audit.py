@@ -44,9 +44,12 @@ from galaxy.managers.audit import (
     begin_audit_attempt,
 )
 from galaxy.managers.audit_actions import (
+    AuditObject,
     exports as exports_actions,
 )
 from galaxy.managers.audit_actions.exports import (
+    ArchiveDetails,
+    ArchiveDownloadDetails,
     ExportDetails,
     sanitize_target_uri,
     storage_request_digest,
@@ -460,17 +463,38 @@ def refuse(*args, **kwargs):
     raise AssertionError("audit work done while auditing is off")
 
 
-def test_disabled_audit_parses_no_target_and_builds_no_details(tmp_path, monkeypatch, audit_events):
+def test_disabled_audit_parses_no_target_and_builds_no_audit_models(tmp_path, monkeypatch, audit_events):
     harness = Harness(tmp_path, monkeypatch, {"enabled": False})
+    archive = tmp_path / "export.tgz"
+    archive.write_bytes(b"tarball")
+    jeha = MagicMock(spec=model.JobExportHistoryArchive)
+    jeha.id, jeha.history_id, jeha.compressed, jeha.export_name = 8, 3, True, "export.tgz"
+    cast(MagicMock, harness.histories.history_export_manager).get_ready_jeha.return_value = jeha
+    harness.history_manager.get_ready_history_export_file_path.return_value = str(archive)
+    prepared = harness.client.post(f"{HISTORY_URL}/prepare_store_download", json={}).json()
+    target = harness.storage.recover_target(uuid.UUID(prepared["storage_request_id"]))
+    target.path.write_bytes(b"history archive")
+    harness.storage.finalize(target)
+
     monkeypatch.setattr(exports_actions, "sanitize_target_uri", refuse)
-    monkeypatch.setattr(ExportDetails, "__init__", refuse)
+    for audit_model in (AuditObject, ExportDetails, ArchiveDetails, ArchiveDownloadDetails):
+        monkeypatch.setattr(audit_model, "__init__", refuse)
     for method, url, body, task in EXPORT_REQUESTS:
         response = harness.client.request(method, url, json=body)
         assert response.status_code == 200, url
-        assert len(harness.tasks[task].requests) == 1
+        assert len(harness.tasks[task].requests) == 1 + (task == "prepare_history_download")
     response = harness.client.put(f"{HISTORY_URL}/exports", json={"directory_uri": "ftp:/\n/host"})
     assert response.status_code == 200
     harness.history_manager.queue_history_export.assert_called_once()
+    downloads = [
+        f"{HISTORY_URL}/exports/{encoded(8)}",
+        f"{COLLECTION_URL}/download",
+        f"/api/dataset_collections/{encoded(21)}/download",
+        f"{HISTORY_URL}/contents/archive/run.zip?dry_run=false",
+        f"/api/short_term_storage/{prepared['storage_request_id']}",
+    ]
+    for url in downloads:
+        assert harness.client.get(url).status_code == 200, url
     assert audit_events == []
 
 

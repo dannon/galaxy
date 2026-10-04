@@ -77,7 +77,6 @@ class FastAPIShortTermStorage:
         },
     )
     def serve(self, storage_request_id: UUID, request: Request):
-        requested = AuditObject(type="short_term_storage")
         attempt: AuditAttempt = NULL_ATTEMPT
         if self.audit.wants("archive.download"):
             self._note_downloader(request)
@@ -85,7 +84,7 @@ class FastAPIShortTermStorage:
             # the export event that asked for this storage also carries.
             attempt = self.audit.attempt(
                 "archive.download",
-                requested,
+                AuditObject(type="short_term_storage"),
                 ArchiveDownloadDetails(
                     source="short_term_storage", storage_request_digest=storage_request_digest(storage_request_id)
                 ),
@@ -93,7 +92,8 @@ class FastAPIShortTermStorage:
         with attempt.guard():
             storage_target = self.short_term_storage_monitor.recover_target(storage_request_id)
             serve_info = self.short_term_storage_monitor.get_serve_info(storage_target)
-            attempt.authorized(requested)
+            # Nothing to describe beyond the storage the request named.
+            attempt.authorized(None)
             if isinstance(serve_info, ShortTermStorageServeCompletedInformation):
                 response = GalaxyFileResponse(
                     path=serve_info.target.path,

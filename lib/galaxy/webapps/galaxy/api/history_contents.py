@@ -30,7 +30,6 @@ from galaxy.managers.audit import (
     AuditService,
     begin_audit_attempt,
 )
-from galaxy.managers.audit_actions import AuditObject
 from galaxy.managers.audit_actions.exports import (
     ArchiveDetails,
     ExportDetails,
@@ -1245,7 +1244,7 @@ class FastAPIHistoryContents:
         return rval
 
     def _download_collection(self, trans: ProvidesHistoryContext, id):
-        attempt = self.audit.attempt("collection.download", AuditObject(type="hdca", id=id))
+        attempt = begin_audit_attempt(self.audit, "collection.download", id, requested_type="hdca")
         with attempt.guard():
             archive = self.service.get_dataset_collection_archive_for_download(trans, id, audit_attempt=attempt)
             return audited_response(GalaxyStreamingResponse(archive.response(), headers=archive.get_headers()), attempt)
@@ -1261,8 +1260,12 @@ class FastAPIHistoryContents:
         if dry_run:
             # Lists the files an archive would hold, without their contents.
             return self.service.archive(trans, history_id, filter_query_params, filename, dry_run)
-        attempt = self.audit.attempt(
-            "history.download", AuditObject(type="history", id=history_id), ArchiveDetails(filename=filename)
+        attempt = begin_audit_attempt(
+            self.audit,
+            "history.download",
+            history_id,
+            lambda: ArchiveDetails(filename=filename),
+            requested_type="history",
         )
         with attempt.guard():
             archive = self.service.archive(
