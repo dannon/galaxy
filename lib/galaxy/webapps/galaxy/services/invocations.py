@@ -14,12 +14,16 @@ from galaxy.exceptions import (
     InconsistentDatabase,
     ObjectNotFound,
 )
+from galaxy.managers.audit import (
+    AuditAttempt,
+    NULL_ATTEMPT,
+)
 from galaxy.managers.context import (
     ProvidesAppContext,
     ProvidesHistoryContext,
     ProvidesUserContext,
 )
-from galaxy.managers.export_audit import ExportAudit
+from galaxy.managers.export_audit import export_queued
 from galaxy.managers.export_tracker import StoreExportTracker
 from galaxy.managers.histories import HistoryManager
 from galaxy.managers.jobs import (
@@ -213,7 +217,7 @@ class InvocationsService(ServiceBase, ConsumesModelStores):
         trans: SessionRequestContext,
         invocation_id: DecodedDatabaseIdField,
         payload: PrepareStoreDownloadPayload,
-        export_audit: ExportAudit | None = None,
+        export_audit: AuditAttempt = NULL_ATTEMPT,
     ) -> AsyncFile:
         ensure_celery_tasks_enabled(trans.app.config)
         model_store_format = payload.model_store_format
@@ -222,8 +226,7 @@ class InvocationsService(ServiceBase, ConsumesModelStores):
         )
         if not workflow_invocation:
             raise ObjectNotFound()
-        if export_audit:
-            export_audit.authorized(workflow_invocation)
+        export_audit.authorized(workflow_invocation)
         try:
             invocation_name = f"Invocation of {workflow_invocation.workflow.stored_workflow.name} at {workflow_invocation.create_time.isoformat()}"
         except AttributeError:
@@ -245,9 +248,8 @@ class InvocationsService(ServiceBase, ConsumesModelStores):
             **payload.model_dump(),
         )
         result = prepare_invocation_download.delay(request=request, task_user_id=getattr(trans.user, "id", None))
-        if export_audit:
-            # Accepted by the broker is what counts; reading task metadata or committing below can still fail.
-            export_audit.queued(task_id=result.id, storage_request_id=short_term_storage_target.request_id)
+        # Accepted by the broker is what counts; reading task metadata or committing below can still fail.
+        export_queued(export_audit, task_id=result.id, storage_request_id=short_term_storage_target.request_id)
         task_summary = async_task_summary(result)
         export_association.task_uuid = task_summary.id
         trans.sa_session.commit()
@@ -258,7 +260,7 @@ class InvocationsService(ServiceBase, ConsumesModelStores):
         trans: SessionRequestContext,
         invocation_id: DecodedDatabaseIdField,
         payload: WriteInvocationStoreToPayload,
-        export_audit: ExportAudit | None = None,
+        export_audit: AuditAttempt = NULL_ATTEMPT,
     ) -> AsyncTaskResultSummary:
         ensure_celery_tasks_enabled(trans.app.config)
         workflow_invocation = self._workflows_manager.get_invocation(
@@ -266,8 +268,7 @@ class InvocationsService(ServiceBase, ConsumesModelStores):
         )
         if not workflow_invocation:
             raise ObjectNotFound()
-        if export_audit:
-            export_audit.authorized(workflow_invocation)
+        export_audit.authorized(workflow_invocation)
         request = WriteInvocationTo(
             galaxy_url=trans.request.url_path,
             user=trans.async_request_user,
@@ -275,9 +276,8 @@ class InvocationsService(ServiceBase, ConsumesModelStores):
             **payload.model_dump(),
         )
         result = write_invocation_to.delay(request=request, task_user_id=getattr(trans.user, "id", None))
-        if export_audit:
-            # Accepted by the broker is what counts; reading task metadata or committing below can still fail.
-            export_audit.queued(task_id=result.id)
+        # Accepted by the broker is what counts; reading task metadata or committing below can still fail.
+        export_queued(export_audit, task_id=result.id)
         rval = async_task_summary(result)
         return rval
 

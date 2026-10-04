@@ -41,9 +41,9 @@ from galaxy.managers.audit import (
     audit_failures,
     AUDIT_LOGGER_NAME,
     AuditService,
+    begin_audit_attempt,
 )
 from galaxy.managers.audit_actions import (
-    AuditObject,
     exports as exports_actions,
 )
 from galaxy.managers.audit_actions.exports import (
@@ -51,7 +51,7 @@ from galaxy.managers.audit_actions.exports import (
     sanitize_target_uri,
     storage_request_digest,
 )
-from galaxy.managers.export_audit import ExportAudit
+from galaxy.managers.export_audit import export_queued
 from galaxy.managers.session import GalaxySessionManager
 from galaxy.managers.users import UserManager
 from galaxy.schema.fields import Security as IdSecurity
@@ -1055,26 +1055,28 @@ def test_details_strip_credentials_whoever_builds_them():
     assert details.target == "s3://bucket/x"
 
 
-def test_export_audit_settles_once(harness, audit_events):
-    export = ExportAudit(
-        harness.audit,
-        "history.export",
-        AuditObject(type="history", id=3),
-        lambda: ExportDetails(destination="download"),
+def start_history_export(harness):
+    return begin_audit_attempt(
+        harness.audit, "history.export", 3, lambda: ExportDetails(destination="download"), requested_type="history"
     )
+
+
+def test_a_queued_export_settles_once(harness, audit_events):
+    export = start_history_export(harness)
     with export.guard():
-        export.queued(task_id="a")
-        export.queued(task_id="b")
-    assert [event["details"]["task_id"] for event in audit_events] == ["a"]
+        export_queued(export, task_id="a", storage_request_id="storage-1")
+        export_queued(export, task_id="b")
+    (event,) = audit_events
+    # The ids join the details the request started with.
+    assert event["details"] == {
+        "destination": "download",
+        "task_id": "a",
+        "storage_request_digest": storage_request_digest("storage-1"),
+    }
 
 
 def test_export_audit_that_never_says_how_it_ended_is_an_error(harness, audit_events):
-    export = ExportAudit(
-        harness.audit,
-        "history.export",
-        AuditObject(type="history", id=3),
-        lambda: ExportDetails(destination="download"),
-    )
+    export = start_history_export(harness)
     with export.guard():
         pass
     assert outcomes(audit_events) == [("history.export", "error", "internal_error", "authorize")]

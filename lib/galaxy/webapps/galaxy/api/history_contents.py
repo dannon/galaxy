@@ -25,17 +25,18 @@ from starlette.responses import (
 
 from galaxy import util
 from galaxy.exceptions.utils import validation_error_to_message_exception
-from galaxy.managers.audit import AuditService
+from galaxy.managers.audit import (
+    AuditAttempt,
+    AuditService,
+    begin_audit_attempt,
+)
 from galaxy.managers.audit_actions import AuditObject
 from galaxy.managers.audit_actions.exports import (
     ArchiveDetails,
     ExportDetails,
 )
 from galaxy.managers.context import ProvidesHistoryContext
-from galaxy.managers.export_audit import (
-    ExportAudit,
-    store_export_details,
-)
+from galaxy.managers.export_audit import store_export_details
 from galaxy.schema import (
     FilterQueryParams,
     SerializationParams,
@@ -755,11 +756,12 @@ class FastAPIHistoryContents:
         returned short term storage object. Progress tracking this file's creation
         can be tracked with the short_term_storage API.
         """
-        export = ExportAudit(
+        export = begin_audit_attempt(
             self.audit,
             "collection.export",
-            AuditObject(type="hdca", id=hdca_id),
+            hdca_id,
             lambda: ExportDetails(destination="download", format="zip"),
+            requested_type="hdca",
         )
         with export.guard():
             return self.service.prepare_collection_download(trans, hdca_id, export_audit=export)
@@ -1274,7 +1276,7 @@ class FastAPIHistoryContents:
         contents_type: HistoryContentType,
         content_id: DecodedDatabaseIdField,
         details: Callable[[], ExportDetails],
-    ) -> ExportAudit:
+    ) -> AuditAttempt:
         if contents_type == HistoryContentType.dataset_collection:
-            return ExportAudit(self.audit, "collection.export", AuditObject(type="hdca", id=content_id), details)
-        return ExportAudit(self.audit, "dataset.export", AuditObject(type="hda", id=content_id), details)
+            return begin_audit_attempt(self.audit, "collection.export", content_id, details, requested_type="hdca")
+        return begin_audit_attempt(self.audit, "dataset.export", content_id, details, requested_type="hda")

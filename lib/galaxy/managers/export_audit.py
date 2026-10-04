@@ -2,30 +2,16 @@
 
 An export is prepared later, in a Celery task or a job, so nothing about the request
 that asked for it reaches the work: there is no request scope in a worker. The event
-is therefore recorded by the request, once the work is queued, carrying the id that
-joins it to the task or job. Like an :class:`~galaxy.managers.audit.AuditAttempt`,
-an :class:`ExportAudit` ends in exactly one event, whether the request was refused,
-failed, or queued the work -- unless the call site says no export was started.
+is therefore recorded by the request, through an ordinary
+:class:`~galaxy.managers.audit.AuditAttempt`, once the work is queued, carrying the id
+that joins it to the task or job. A request that starts no export (an earlier one is
+reused) withdraws its attempt.
 """
 
-from collections.abc import (
-    Callable,
-    Iterator,
-)
-from contextlib import contextmanager
 from typing import Any
 
-from galaxy.managers.audit import (
-    audit_failures,
-    AuditOutcome,
-    AuditReason,
-    AuditService,
-    AuditStage,
-    classify_failure,
-)
-from galaxy.managers.audit_actions import AuditObject
+from galaxy.managers.audit import AuditAttempt
 from galaxy.managers.audit_actions.exports import (
-    ExportAction,
     ExportDetails,
     storage_request_digest,
 )
@@ -45,88 +31,20 @@ def store_export_details(payload: StoreExportPayload, target_uri: str | None = N
     )
 
 
-class ExportAudit:
-    """One request to start an export, recorded when the request has queued the work."""
-
-    def __init__(
-        self,
-        audit: AuditService,
-        action: ExportAction,
-        requested: AuditObject,
-        details: Callable[[], ExportDetails],
-    ) -> None:
-        """``details`` is only called when the action is audited: it parses user input (the target)."""
-        self._audit = audit
-        self._action = action
-        self.active = audit.wants(action)
-        # Nothing to settle when the action isn't audited; every method is then a no-op.
-        self.settled = not self.active
-        self.stage: AuditStage = "authorize"
-        self._details: ExportDetails | None = None
-        self._target: Any = requested
-        if not self.active:
-            return
-        # Never break the export over its audit event.
-        try:
-            self._details = details()
-        except Exception:
-            audit_failures.report("details", "Invalid details for audit action %s", action)
-        if requested.encoded_id is None and requested.id is not None:
-            try:
-                self._target = requested.model_copy(update={"encoded_id": audit.security.encode_id(requested.id)})
-            except Exception:
-                # The numeric id is still there.
-                pass
-
-    def authorized(self, obj: Any) -> None:
-        """Access to ``obj`` was granted; describe it now, before a commit expires it."""
-        if not self.active:
-            return
-        try:
-            self._target = self._audit.describe(obj)
-        except Exception:
-            # record() describes it again and reports the failure if it still can't.
-            self._target = obj
-        self.stage = "prepare"
-
-    def queued(self, *, task_id: str | None = None, storage_request_id: Any = None, job_id: int | None = None) -> None:
-        """The work was queued: record the request as a success with the ids that join it to the work."""
-        if self.settled:
-            return
-        details = self._details
-        if details is not None:
-            updates: dict[str, Any] = {"task_id": task_id, "job_id": job_id}
-            if storage_request_id is not None:
-                updates["storage_request_digest"] = storage_request_digest(storage_request_id)
-            # Already validated, target included; these ids are ours, not user input.
-            details = details.model_copy(update=updates)
-        self._settle("success", None, details)
-
-    def not_started(self) -> None:
-        """The request was valid but started no export (an earlier one is reused); record nothing."""
-        self.settled = True
-
-    def _settle(self, outcome: AuditOutcome, reason: AuditReason | None, details: ExportDetails | None = None) -> None:
-        self.settled = True
-        self._audit.record(
-            self._action,
-            self._target,
-            outcome,
-            details=details if details is not None else self._details,
-            reason=reason,
-            stage=self.stage,
+def export_queued(
+    attempt: AuditAttempt,
+    *,
+    task_id: str | None = None,
+    storage_request_id: Any = None,
+    job_id: int | None = None,
+) -> None:
+    """The work was queued: the request succeeded, with the ids that join it to the work."""
+    attempt.succeeded(
+        details=lambda: ExportDetails(
+            task_id=task_id,
+            job_id=job_id,
+            storage_request_digest=(
+                storage_request_digest(storage_request_id) if storage_request_id is not None else None
+            ),
         )
-
-    @contextmanager
-    def guard(self) -> Iterator["ExportAudit"]:
-        """Settle from whatever escapes the block, unless the request already did."""
-        try:
-            yield self
-        except BaseException as exc:
-            if not self.settled:
-                outcome, reason = classify_failure(exc)
-                self._settle(outcome, reason)
-            raise
-        if not self.settled:
-            # The call site returned without saying whether it queued anything.
-            self._settle("error", "internal_error")
+    )

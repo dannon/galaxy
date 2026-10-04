@@ -27,7 +27,10 @@ from pydantic import (
 from pydantic.fields import Field
 from pydantic.main import BaseModel
 
-from galaxy.managers.audit import AuditService
+from galaxy.managers.audit import (
+    AuditService,
+    begin_audit_attempt,
+)
 from galaxy.managers.audit_actions import AuditObject
 from galaxy.managers.audit_actions.exports import (
     ArchiveDownloadDetails,
@@ -37,10 +40,7 @@ from galaxy.managers.context import (
     ProvidesHistoryContext,
     ProvidesUserContext,
 )
-from galaxy.managers.export_audit import (
-    ExportAudit,
-    store_export_details,
-)
+from galaxy.managers.export_audit import store_export_details
 from galaxy.schema import (
     FilterQueryParams,
     SerializationParams,
@@ -438,11 +438,12 @@ class FastAPIHistories:
         trans: ProvidesHistoryContext = DependsOnTrans,
         payload: StoreExportPayload = Body(...),
     ) -> AsyncFile:
-        export = ExportAudit(
+        export = begin_audit_attempt(
             self.audit,
             "history.export",
-            AuditObject(type="history", id=history_id),
+            history_id,
             lambda: store_export_details(payload),
+            requested_type="history",
         )
         with export.guard():
             return self.service.prepare_download(trans, history_id, payload=payload, export_audit=export)
@@ -457,11 +458,12 @@ class FastAPIHistories:
         trans: ProvidesHistoryContext = DependsOnTrans,
         payload: WriteStoreToPayload = Body(...),
     ) -> AsyncTaskResultSummary:
-        export = ExportAudit(
+        export = begin_audit_attempt(
             self.audit,
             "history.export",
-            AuditObject(type="history", id=history_id),
+            history_id,
             lambda: store_export_details(payload, payload.target_uri),
+            requested_type="history",
         )
         with export.guard():
             return self.service.write_store(trans, history_id, payload=payload, export_audit=export)
@@ -689,10 +691,10 @@ class FastAPIHistories:
         `/api/histories/{id}/write_store` instead.
         """
         directory_uri = payload.directory_uri if payload else None
-        export = ExportAudit(
+        export = begin_audit_attempt(
             self.audit,
             "history.export",
-            AuditObject(type="history", id=history_id),
+            history_id,
             lambda: ExportDetails(
                 # The service picks the export-to-URI tool on "is not None", so match it.
                 destination="remote" if directory_uri is not None else "download",
@@ -701,6 +703,7 @@ class FastAPIHistories:
                 include_hidden=bool(payload and payload.include_hidden),
                 include_deleted=bool(payload and payload.include_deleted),
             ),
+            requested_type="history",
         )
         with export.guard():
             export_result, ready = self.service.archive_export(trans, history_id, payload, export_audit=export)

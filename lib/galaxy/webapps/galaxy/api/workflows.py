@@ -35,16 +35,15 @@ from galaxy.files.uris import (
     stream_url_to_str,
     validate_uri_access,
 )
-from galaxy.managers.audit import AuditService
-from galaxy.managers.audit_actions import AuditObject
+from galaxy.managers.audit import (
+    AuditService,
+    begin_audit_attempt,
+)
 from galaxy.managers.context import (
     ProvidesHistoryContext,
     ProvidesUserContext,
 )
-from galaxy.managers.export_audit import (
-    ExportAudit,
-    store_export_details,
-)
+from galaxy.managers.export_audit import store_export_details
 from galaxy.managers.landing import LandingRequestManager
 from galaxy.managers.workflows import (
     MissingToolsException,
@@ -1522,11 +1521,12 @@ class FastAPIInvocations:
         trans: SessionRequestContext = DependsOnTrans,
         payload: PrepareStoreDownloadPayload = Body(...),
     ) -> AsyncFile:
-        export = ExportAudit(
+        export = begin_audit_attempt(
             self.audit,
             "invocation.export",
-            AuditObject(type="invocation", id=invocation_id),
+            invocation_id,
             lambda: store_export_details(payload),
+            requested_type="invocation",
         )
         with export.guard():
             return self.invocations_service.prepare_store_download(trans, invocation_id, payload, export_audit=export)
@@ -1541,11 +1541,12 @@ class FastAPIInvocations:
         trans: SessionRequestContext = DependsOnTrans,
         payload: WriteInvocationStoreToPayload = Body(...),
     ) -> AsyncTaskResultSummary:
-        export = ExportAudit(
+        export = begin_audit_attempt(
             self.audit,
             "invocation.export",
-            AuditObject(type="invocation", id=invocation_id),
+            invocation_id,
             lambda: store_export_details(payload, payload.target_uri),
+            requested_type="invocation",
         )
         with export.guard():
             return self.invocations_service.write_store(trans, invocation_id, payload, export_audit=export)

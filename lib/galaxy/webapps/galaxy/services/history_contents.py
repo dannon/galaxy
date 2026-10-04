@@ -52,7 +52,7 @@ from galaxy.managers.context import (
     ProvidesUserContext,
 )
 from galaxy.managers.dataset_storage_operations import DatasetStorageOperationManager
-from galaxy.managers.export_audit import ExportAudit
+from galaxy.managers.export_audit import export_queued
 from galaxy.managers.genomes import GenomesManager
 from galaxy.managers.history_contents import (
     HistoryContentsFilters,
@@ -386,7 +386,7 @@ class HistoriesContentsService(ServiceBase, ServesExportStores, ConsumesModelSto
         id: DecodedDatabaseIdField,
         payload: StoreExportPayload,
         contents_type: HistoryContentType = HistoryContentType.dataset,
-        export_audit: ExportAudit | None = None,
+        export_audit: AuditAttempt = NULL_ATTEMPT,
     ) -> AsyncFile:
         model_store_format = payload.model_store_format
         content: HistoryDatasetAssociation | HistoryDatasetCollectionAssociation
@@ -396,8 +396,7 @@ class HistoriesContentsService(ServiceBase, ServesExportStores, ConsumesModelSto
             content = self.__get_accessible_collection(trans, id)
         else:
             raise exceptions.UnknownContentsType(f"Unknown contents type: {contents_type}")
-        if export_audit:
-            export_audit.authorized(content)
+        export_audit.authorized(content)
         content_id = content.id
         content_name = content.name
         if not content_name:
@@ -415,9 +414,8 @@ class HistoriesContentsService(ServiceBase, ServesExportStores, ConsumesModelSto
             **payload.model_dump(),
         )
         result = prepare_history_content_download.delay(request=request, task_user_id=getattr(trans.user, "id", None))
-        if export_audit:
-            # Accepted by the broker is what counts; reading task metadata or committing below can still fail.
-            export_audit.queued(task_id=result.id, storage_request_id=short_term_storage_target.request_id)
+        # Accepted by the broker is what counts; reading task metadata or committing below can still fail.
+        export_queued(export_audit, task_id=result.id, storage_request_id=short_term_storage_target.request_id)
         task_summary = async_task_summary(result)
         return AsyncFile(storage_request_id=short_term_storage_target.request_id, task=task_summary)
 
@@ -427,7 +425,7 @@ class HistoriesContentsService(ServiceBase, ServesExportStores, ConsumesModelSto
         id: DecodedDatabaseIdField,
         payload: WriteStoreToPayload,
         contents_type: HistoryContentType = HistoryContentType.dataset,
-        export_audit: ExportAudit | None = None,
+        export_audit: AuditAttempt = NULL_ATTEMPT,
     ):
         ensure_celery_tasks_enabled(trans.app.config)
         content: HistoryDatasetAssociation | HistoryDatasetCollectionAssociation
@@ -437,16 +435,14 @@ class HistoriesContentsService(ServiceBase, ServesExportStores, ConsumesModelSto
             content = self.__get_accessible_collection(trans, id)
         else:
             raise exceptions.UnknownContentsType(f"Unknown contents type: {contents_type}")
-        if export_audit:
-            export_audit.authorized(content)
+        export_audit.authorized(content)
         content_id = content.id
         request = WriteHistoryContentTo(
             user=trans.async_request_user, content_id=content_id, contents_type=contents_type, **payload.model_dump()
         )
         result = write_history_content_to.delay(request=request, task_user_id=getattr(trans.user, "id", None))
-        if export_audit:
-            # Accepted by the broker is what counts; reading task metadata or committing below can still fail.
-            export_audit.queued(task_id=result.id)
+        # Accepted by the broker is what counts; reading task metadata or committing below can still fail.
+        export_queued(export_audit, task_id=result.id)
         task_summary = async_task_summary(result)
         return task_summary
 
@@ -521,12 +517,11 @@ class HistoriesContentsService(ServiceBase, ServesExportStores, ConsumesModelSto
         return self.__stream_dataset_collection(trans, dataset_collection_instance)
 
     def prepare_collection_download(
-        self, trans: ProvidesHistoryContext, id: DecodedDatabaseIdField, export_audit: ExportAudit | None = None
+        self, trans: ProvidesHistoryContext, id: DecodedDatabaseIdField, export_audit: AuditAttempt = NULL_ATTEMPT
     ) -> AsyncFile:
         ensure_celery_tasks_enabled(trans.app.config)
         dataset_collection_instance = self.__get_accessible_collection(trans, id)
-        if export_audit:
-            export_audit.authorized(dataset_collection_instance)
+        export_audit.authorized(dataset_collection_instance)
         archive_name = f"{dataset_collection_instance.hid}: {dataset_collection_instance.name}"
         short_term_storage_target = self.short_term_storage_allocator.new_target(
             filename=archive_name, mime_type="application/x-zip-compressed"
@@ -538,9 +533,8 @@ class HistoriesContentsService(ServiceBase, ServesExportStores, ConsumesModelSto
         result = prepare_dataset_collection_download.delay(
             request=request, task_user_id=getattr(trans.user, "id", None)
         )
-        if export_audit:
-            # Accepted by the broker is what counts; reading task metadata or committing below can still fail.
-            export_audit.queued(task_id=result.id, storage_request_id=short_term_storage_target.request_id)
+        # Accepted by the broker is what counts; reading task metadata or committing below can still fail.
+        export_queued(export_audit, task_id=result.id, storage_request_id=short_term_storage_target.request_id)
         task_summary = async_task_summary(result)
         return AsyncFile(storage_request_id=short_term_storage_target.request_id, task=task_summary)
 

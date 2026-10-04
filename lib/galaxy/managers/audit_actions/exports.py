@@ -123,7 +123,9 @@ def _sanitize(uri: str) -> str | None:
 class ExportDetails(AuditDetails):
     """A request to export an object as a download or to a remote file source."""
 
-    destination: Literal["download", "remote"]
+    # Always given by the request that starts the export; left unset by the ids added once
+    # the work is queued, which can't clear it.
+    destination: Literal["download", "remote"] | None = None
     # The model store format, or "zip" for a collection archive.
     format: str | None = None
     # Remote target, credentials and query stripped (see sanitize_target_uri).
