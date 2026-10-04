@@ -782,6 +782,27 @@ class TestDatasetPermissionsAudit(AuditTestCase):
         assert not self.app.security_agent.dataset_is_public(self.hda.dataset)
         assert self.events == []
 
+    def test_a_savepoint_rollback_drops_only_its_own_rows(self):
+        dataset_manager = self.hda_manager.dataset_manager
+        session = self.trans.sa_session
+        access = self.app.security_agent.permitted_actions.DATASET_ACCESS.action
+        with self.as_user(self.owner):
+            with dataset_manager.recording_permissions(self.hda) as recording:
+                for permission in list(self.hda.dataset.actions):
+                    if permission.action == access:
+                        session.delete(permission)
+                session.flush()
+                savepoint = session.begin_nested()
+                session.add(model.DatasetPermissions(access, self.hda.dataset, self.private_role))
+                session.flush()
+                savepoint.rollback()
+                session.commit()
+            assert recording is not None
+            after = recording.after
+        assert after is not None
+        assert after.access == []
+        assert after.manage == [self.private_role.id]
+
     def test_recording_a_permission_change_reads_nothing_after_the_commit(self):
         dataset_manager = self.hda_manager.dataset_manager
         with self.as_user(self.owner):
