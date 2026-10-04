@@ -958,7 +958,67 @@ class TestCrossUserCopyAudit(AuditTestCase):
         assert sorted(event["object"]["id"] for event in self.events) == sorted([self.hda.id, other_hda.id])
         assert {event["action"] for event in self.events} == {"dataset.copy"}
 
-    def test_collections_scan_for_copies_only_when_audited(self):
+    def test_copies_committed_before_a_later_element_fails_are_recorded(self):
+        ldda = self.add_library_dataset()
+        private_hda = self.hda_manager.create(
+            history=self.source_history, dataset=self.hda_manager.dataset_manager.create()
+        )
+        self.trans.sa_session.commit()
+        security_agent = self.app.security_agent
+        private_role = security_agent.get_private_user_role(self.owner)
+        actions = security_agent.permitted_actions
+        security_agent.set_all_dataset_permissions(
+            private_hda.dataset,
+            {actions.DATASET_MANAGE_PERMISSIONS: [private_role], actions.DATASET_ACCESS: [private_role]},
+        )
+        target = self.history_manager.create(name="mine", user=self.recipient)
+        self.mock_trans.get_current_user_roles = lambda: self.trans.user.all_roles()  # type: ignore[attr-defined]
+        with self.as_user(self.recipient):
+            self.trans.set_history(target)
+            with pytest.raises(exceptions.ItemAccessibilityException):
+                self.collections().create(
+                    self.trans,
+                    parent=target,
+                    name="mixed",
+                    collection_type="list",
+                    element_identifiers=[
+                        {"src": "hda", "id": self.hda.id, "name": "first"},
+                        # Commits the copy of "first" before "third" is refused.
+                        {"src": "ldda", "id": ldda.id, "name": "second"},
+                        {"src": "hda", "id": private_hda.id, "name": "third"},
+                    ],
+                    copy_elements=True,
+                    history=target,
+                )
+        self.trans.sa_session.rollback()
+
+        (event,) = self.events
+        assert (event["action"], event["outcome"]) == ("dataset.copy", "success")
+        assert event["object"]["id"] == self.hda.id
+        committed_copy = self.trans.sa_session.get(model.HistoryDatasetAssociation, event["details"]["new_hda_id"])
+        assert committed_copy is not None and committed_copy.history_id == target.id
+
+    def test_a_failed_build_that_committed_nothing_records_nothing(self):
+        target = self.history_manager.create(name="mine", user=self.recipient)
+        with self.as_user(self.recipient):
+            self.trans.set_history(target)
+            with pytest.raises(exceptions.RequestParameterInvalidException):
+                self.collections().create(
+                    self.trans,
+                    parent=target,
+                    name="broken",
+                    collection_type="list",
+                    element_identifiers=[
+                        {"src": "hda", "id": self.hda.id, "name": "first"},
+                        {"src": "nonsense", "id": self.hda.id, "name": "second"},
+                    ],
+                    copy_elements=True,
+                    history=target,
+                )
+        self.trans.sa_session.rollback()
+        assert self.events == []
+
+    def test_collections_track_copies_only_when_audited(self):
         collections = self.collections()
         collections.hda_manager.dataset_manager.audit = self.make_audit(enabled=False)
         target = self.history_manager.create(name="mine", user=self.recipient)

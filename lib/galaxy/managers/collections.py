@@ -1,6 +1,7 @@
 import logging
 from collections.abc import Iterator
 from contextlib import contextmanager
+from contextvars import ContextVar
 from typing import (
     Any,
     Literal,
@@ -23,6 +24,7 @@ from galaxy.exceptions import (
     MessageException,
     RequestParameterInvalidException,
 )
+from galaxy.managers.audit import audit_id
 from galaxy.managers.collections_util import validate_input_element_identifiers
 from galaxy.managers.context import (
     ProvidesAppContext,
@@ -63,6 +65,32 @@ if TYPE_CHECKING:
     from galaxy.tool_util_models.tool_source import FieldDict
 
 log = logging.getLogger(__name__)
+
+
+class _CopyTracker:
+    """The dataset copies one collection operation made, and which of them have committed."""
+
+    def __init__(self) -> None:
+        self.made: list[model.HistoryDatasetAssociation] = []
+        self.committed: list[model.HistoryDatasetAssociation] = []
+
+    def note_commit(self, _session) -> None:
+        # Everything made so far was in the session the commit just wrote out.
+        self.committed = [copy for copy in self.made if audit_id(copy) is not None]
+
+
+# Set while a collection is built with copies audited, so the element loader can say what it copied.
+_building_copies: ContextVar[_CopyTracker | None] = ContextVar("_building_copies", default=None)
+
+
+def _element_datasets(collection: DatasetCollection) -> Iterator[model.HistoryDatasetAssociation]:
+    # Walks what's in memory: DatasetCollection.dataset_instances queries once the collection has an id.
+    for element in collection.elements:
+        if element.child_collection is not None:
+            yield from _element_datasets(element.child_collection)
+        elif element.hda is not None:
+            yield element.hda
+
 
 ERROR_INVALID_ELEMENTS_SPECIFICATION = "Create called with invalid parameters, must specify element identifiers."
 ERROR_NO_COLLECTION_TYPE = "Create called without specifying a collection type."
@@ -261,12 +289,11 @@ class DatasetCollectionManager:
         if element_identifiers and not trusted_identifiers:
             validate_input_element_identifiers(element_identifiers)
 
-        new_copies: list[model.HistoryDatasetAssociation] = []
-        if completed_job and output_name:
-            jtodca = next(a for a in completed_job.output_dataset_collection_instances if a.name == output_name)
-            dataset_collection = jtodca.dataset_collection_instance.collection
-        else:
-            with self._copies_made(trans, copy_elements) as new_copies:
+        with self._recording_copies(trans, copy_elements):
+            if completed_job and output_name:
+                jtodca = next(a for a in completed_job.output_dataset_collection_instances if a.name == output_name)
+                dataset_collection = jtodca.dataset_collection_instance.collection
+            else:
                 dataset_collection = self.create_dataset_collection(
                     trans=trans,
                     collection_type=collection_type,
@@ -280,60 +307,48 @@ class DatasetCollectionManager:
                     rows=rows,
                 )
 
-        implicit_inputs = []
-        if implicit_collection_info:
-            implicit_inputs = implicit_collection_info.get("implicit_inputs", [])
+            implicit_inputs = []
+            if implicit_collection_info:
+                implicit_inputs = implicit_collection_info.get("implicit_inputs", [])
 
-        implicit_output_name = None
-        if implicit_collection_info:
-            implicit_output_name = implicit_collection_info["implicit_output_name"]
+            implicit_output_name = None
+            if implicit_collection_info:
+                implicit_output_name = implicit_collection_info["implicit_output_name"]
 
-        instance = self._create_instance_for_collection(
-            trans,
-            parent,
-            name,
-            dataset_collection,
-            implicit_inputs=implicit_inputs,
-            implicit_output_name=implicit_output_name,
-            tags=tags,
-            set_hid=set_hid,
-            flush=flush,
-        )
-        if new_copies and flush:
-            self.hda_manager.record_copies(new_copies)
-        return instance
+            return self._create_instance_for_collection(
+                trans,
+                parent,
+                name,
+                dataset_collection,
+                implicit_inputs=implicit_inputs,
+                implicit_output_name=implicit_output_name,
+                tags=tags,
+                set_hid=set_hid,
+                flush=flush,
+            )
 
     @contextmanager
-    def _copies_made(
-        self, trans: ProvidesHistoryContext, copy_elements: bool
-    ) -> Iterator[list[model.HistoryDatasetAssociation]]:
-        """Collect the dataset copies made inside the block, when copies are audited.
+    def _recording_copies(self, trans: ProvidesHistoryContext, copy_elements: bool) -> Iterator[_CopyTracker | None]:
+        """Record the dataset copies made inside the block once they have committed.
 
-        Taken from what's pending, at every flush and at the end, since loading some elements
-        commits the session midway, and a new collection can also hold existing copies it
-        only references.
+        Loading a library dataset as an element commits the session midway, so copies
+        made before it are in the database even if a later element then fails the
+        request; those are recorded too. Copies that never commit are not.
         """
-        copies: list[model.HistoryDatasetAssociation] = []
         if not copy_elements or not self.hda_manager.dataset_manager.audit.wants("dataset.copy"):
-            yield copies
+            yield None
             return
+        tracker = _CopyTracker()
         session = trans.sa_session()
-
-        def note_copies(*_args) -> None:
-            for obj in session.new:
-                if (
-                    isinstance(obj, model.HistoryDatasetAssociation)
-                    and obj.copied_from_history_dataset_association_id is not None
-                    and obj not in copies
-                ):
-                    copies.append(obj)
-
-        event.listen(session, "before_flush", note_copies)
+        token = _building_copies.set(tracker)
+        event.listen(session, "after_commit", tracker.note_commit)
         try:
-            yield copies
+            yield tracker
         finally:
-            event.remove(session, "before_flush", note_copies)
-        note_copies()
+            event.remove(session, "after_commit", tracker.note_commit)
+            _building_copies.reset(token)
+            if tracker.committed:
+                self.hda_manager.record_copies(tracker.committed)
 
     def _create_instance_for_collection(
         self,
@@ -592,18 +607,19 @@ class DatasetCollectionManager:
         assert source == HistoryContentSource.hdca  # for now
         source_hdca = self.__get_history_collection_instance(trans, encoded_source_id)
         element_destination = parent if copy_elements else None
-        with self._copies_made(trans, copy_elements) as new_copies:
+        with self._recording_copies(trans, copy_elements) as copies:
             new_hdca = source_hdca.copy(
                 flush=False,
                 element_destination=element_destination,
                 dataset_instance_attributes=dataset_instance_attributes,
                 target_user=trans.get_user(),
             )
-        if not copy_elements:
-            parent.add_dataset_collection(new_hdca)
-        trans.sa_session.commit()
-        if new_copies:
-            self.hda_manager.record_copies(new_copies)
+            if copies is not None:
+                # Copying into a destination copies every dataset in the collection.
+                copies.made.extend(_element_datasets(new_hdca.collection))
+            if not copy_elements:
+                parent.add_dataset_collection(new_hdca)
+            trans.sa_session.commit()
         return new_hdca
 
     def _set_from_dict(self, trans: ProvidesUserContext, dataset_collection_instance, new_data):
@@ -810,6 +826,8 @@ class DatasetCollectionManager:
             hda = self.hda_manager.get_accessible(element_id, trans.user)
             if copy_elements:
                 element = self.hda_manager.copy(hda, history=history or trans.history, hide_copy=True, flush=False)
+                if (copies := _building_copies.get()) is not None:
+                    copies.made.append(element)
             else:
                 element = hda
             if hide_source_items and self.hda_manager.get_owned(
