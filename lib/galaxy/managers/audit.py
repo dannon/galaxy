@@ -318,9 +318,11 @@ class AuditService:
     def prepare(self, action: AuditAction, obj: Any = None) -> "PreparedEvent":
         """Describe ``obj`` and the request's users now, to record once a later commit carries the change.
 
-        Call it before that commit: the description may read through the request's own
-        session, which is free of trouble until a commit expires what it holds, and the
-        commit's outcome is all that is left to say.
+        Call it before that commit, while what the session holds is still loaded; the
+        commit's outcome is then all that is left to say. The description reads through
+        the request's own session and transaction, so a database error during those reads
+        fails the request like any other query would: the error itself is reported rather
+        than raised, but the transaction it breaks is the request's.
         """
         if not self.wants(action):
             return NULL_PREPARED
