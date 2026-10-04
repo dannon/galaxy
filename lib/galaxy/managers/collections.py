@@ -89,9 +89,12 @@ class _CopyTracker:
         source: model.HistoryDatasetAssociation,
         history: model.History | None,
     ) -> None:
-        self.made.append((copy, history, self._hda_manager.prepare_copy_event(source, history)))
+        pending = self._hda_manager.prepare_copy_event(source, history) if history is not None else None
+        self.made.append((copy, history, pending))
 
-    def add_copy_of(self, source_id: int | None, copy: model.HistoryDatasetAssociation, history: model.History) -> None:
+    def add_copy_of(
+        self, source_id: int | None, copy: model.HistoryDatasetAssociation, history: model.History | None
+    ) -> None:
         # A copied element holds only its source's id. The source was loaded to be copied,
         # so this is usually found in the identity map without a query.
         try:

@@ -154,9 +154,9 @@ to ``task``: the effective user is the one it runs for, and there is no actor, c
 By default events carry numeric and encoded ids only. Set ``include_names: true`` under ``audit_log`` to also record
 usernames, email addresses, the names of datasets, histories, files and shared items (workflows, pages,
 visualizations), and sharing slugs. Strings are JSON-escaped to ASCII, so user-supplied
-values cannot break a line apart. Events for a change are described before the change commits; recording one never
-takes a database connection of its own, and never reads again what a commit has expired. Anything that can't be
-described from what the request already read is left out and named in ``truncated`` (``object``,
+values cannot break a line apart. Events for a change are described before the change commits, through the request's
+own database connection; recording one never takes a connection of its own, and nothing is read once the change has
+committed. Anything that can't be described from what the request already read is left out and named in ``truncated`` (``object``,
 ``actor.names``, ``effective_user.names``). An event over 4 KiB loses its user agent, names and details, and its ``truncated``
 field says ``optional_fields``; identifiers are never dropped. If it is still over 4 KiB after that (only possible with
 very long admin-configured values such as the instance URL), it is written anyway and marked ``over_budget``, rather

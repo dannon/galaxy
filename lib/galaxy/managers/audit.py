@@ -48,6 +48,7 @@ from sqlalchemy import (
     inspect as sa_inspect,
 )
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.exc import DetachedInstanceError
 from sqlalchemy.orm.util import identity_key
 
 from galaxy import (
@@ -479,10 +480,13 @@ class AuditService:
             target = self._describe_within(obj, window)
             if target is not None:
                 event["object"] = target.model_dump()
-        except _QueryRefused:
-            event["truncated"].append("object")
+        except (_QueryRefused, DetachedInstanceError):
+            # Only what is loaded could be described; leaving the rest out is not a failure.
+            if "object" not in event["truncated"]:
+                event["truncated"].append("object")
         except Exception:
-            event["truncated"].append("object")
+            if "object" not in event["truncated"]:
+                event["truncated"].append("object")
             audit_failures.report("describe", "Could not describe the object of audit action %s", event["action"])
 
     def _describe_within(self, obj: Any, window: "_ReadWindow") -> AuditObject | None:
@@ -826,7 +830,9 @@ def audit_id(obj: Any) -> int | None:
 
 
 # Outer commits of a session, counted so an audit read can tell whether one has expired
-# what it would read. Kept on the session, which Galaxy opens anew for every request.
+# what it would read. Kept on the session: Galaxy opens one per web request, but a
+# thread's session in background work lives on, so there the count only grows and
+# events describe only what is loaded.
 _COMMITS = "galaxy.audit.commits"
 
 # Opened on a session, and the number of its commits then; None: reads are safe now.
