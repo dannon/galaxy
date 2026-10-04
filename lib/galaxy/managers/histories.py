@@ -43,7 +43,7 @@ from galaxy.managers import (
 from galaxy.managers.audit import (
     audit_failures,
     audit_id,
-    audit_read_session,
+    PreparedEvent,
 )
 from galaxy.managers.audit_actions import AuditObject
 from galaxy.managers.audit_actions.sharing import HistoryImportDetails
@@ -510,13 +510,15 @@ class HistoryManager(sharable.SharableModelManager[model.History], deletable.Pur
                 )
                 if option and owner_can_manage_dataset:
                     dataset_manager = self.hda_manager.dataset_manager
-                    before = dataset_manager.permissions_snapshot(hda)
-                    if option == sharable.SharingOptions.make_accessible_to_shared:
-                        trans.app.security_agent.privately_share_dataset(hda.dataset, users=[owner, user])
-                        dataset_manager.record_permissions_change(hda, "share_privately", before, via="history_sharing")
-                    elif option == sharable.SharingOptions.make_public:
-                        trans.app.security_agent.make_dataset_public(hda.dataset)
-                        dataset_manager.record_permissions_change(hda, "make_public", before, via="history_sharing")
+                    with dataset_manager.recording_permissions(hda) as recording:
+                        if option == sharable.SharingOptions.make_accessible_to_shared:
+                            trans.app.security_agent.privately_share_dataset(hda.dataset, users=[owner, user])
+                            dataset_manager.record_permissions_change(
+                                recording, "share_privately", via="history_sharing"
+                            )
+                        elif option == sharable.SharingOptions.make_public:
+                            trans.app.security_agent.make_dataset_public(hda.dataset)
+                            dataset_manager.record_permissions_change(recording, "make_public", via="history_sharing")
                 else:
                     hda_id = hda.id
                     hda_info = HDABasicInfo(id=hda_id, name=hda.name)
@@ -544,32 +546,36 @@ class HistoryManager(sharable.SharableModelManager[model.History], deletable.Pur
         )
         return bool(self.session().scalar(stmt))
 
-    def record_history_import(self, source: model.History, new_history: model.History, all_datasets: bool) -> None:
-        """Record a committed copy of someone else's history.
+    def prepare_history_import(self, source: model.History, recipient_id: int | None) -> PreparedEvent | None:
+        """Before the copy commits, an event for copying someone else's history.
 
         The event's object is the source history, so its owner is the person whose data
-        moved; the recipient is the new history's owner.
+        moved; the recipient is the new history's owner. Copying commits, so the source is
+        described now, while reading it is still a read before any commit.
         """
         if not self.audit.wants("history.import"):
-            return
-        source_id, new_history_id = audit_id(source), audit_id(new_history)
+            return None
         try:
-            with audit_read_session(self.app.model.engine) as session:
-                source_history = session.get(model.History, source_id)
-                copy = session.get(model.History, new_history_id)
-                if source_history is None or copy is None:
-                    raise ObjectNotFound(f"No history {source_id} or {new_history_id}")
-                if source_history.user_id == copy.user_id:
-                    return
-                target = self.audit.describe(source_history)
-                details = HistoryImportDetails(
-                    new_history_id=new_history_id, recipient_id=copy.user_id, all_datasets=all_datasets
-                )
+            if source.user_id == recipient_id:
+                return None
+            return self.audit.prepare("history.import", source)
         except Exception:
-            # The copy has committed; a missing audit event is reported, not raised.
-            audit_failures.report("prepare", "Lost the audit event for an import of history %s", source_id)
+            # The copy must go ahead; a missing audit event is reported, not raised.
+            audit_failures.report("prepare", "Lost the audit event for an import of history %s", audit_id(source))
+            return None
+
+    def record_history_import(
+        self, pending: PreparedEvent | None, new_history: model.History, recipient_id: int | None, all_datasets: bool
+    ) -> None:
+        """Record a committed copy prepared by :meth:`prepare_history_import`."""
+        if pending is None:
             return
-        self.audit.record("history.import", target, "success", details=details)
+        # The new history's id from its identity: the commit expired it.
+        pending.record(
+            details=lambda: HistoryImportDetails(
+                new_history_id=audit_id(new_history), recipient_id=recipient_id, all_datasets=all_datasets
+            )
+        )
 
     def record_history_import_denied(self, history_id: int) -> None:
         """Record a refused copy of history ``history_id``, naming only what the request asked for."""
@@ -592,13 +598,13 @@ class HistoryManager(sharable.SharableModelManager[model.History], deletable.Pur
             if not trans.app.security_agent.dataset_is_public(dataset):
                 if trans.app.security_agent.can_manage_dataset(trans.user.all_roles(), dataset):
                     dataset_manager = self.hda_manager.dataset_manager
-                    before = dataset_manager.permissions_snapshot(hda)
-                    try:
-                        trans.app.security_agent.make_dataset_public(hda.dataset)
-                    except Exception:
-                        log.warning(f"Unable to make dataset with id: {dataset.id} public")
-                        continue
-                    dataset_manager.record_permissions_change(hda, "make_public", before, via="history_sharing")
+                    with dataset_manager.recording_permissions(hda) as recording:
+                        try:
+                            trans.app.security_agent.make_dataset_public(hda.dataset)
+                        except Exception:
+                            log.warning(f"Unable to make dataset with id: {dataset.id} public")
+                            continue
+                        dataset_manager.record_permissions_change(recording, "make_public", via="history_sharing")
                 else:
                     log.warning(f"User without permissions tried to make dataset with id: {dataset.id} public")
 

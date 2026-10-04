@@ -50,9 +50,9 @@ from galaxy.managers import (
 from galaxy.managers.audit import (
     audit_failures,
     audit_id,
-    audit_read_session,
     audit_service_for,
     AuditService,
+    PreparedEvent,
 )
 from galaxy.managers.audit_actions import AuditObject
 from galaxy.managers.audit_actions.sharing import (
@@ -87,11 +87,19 @@ class SharingState(NamedTuple):
     published: bool
     slug: str | None
     user_ids: frozenset[int]
-    # The item, described while it was read.
-    target: AuditObject
 
     def access(self) -> tuple[bool, bool, str | None, frozenset[int]]:
         return self.importable, self.published, self.slug, self.user_ids
+
+
+def _loaded_value(state, key: str) -> Any:
+    """The value ``key`` had when loaded, before any change this request hasn't flushed yet."""
+    history = state.attrs[key].history
+    if history.deleted:
+        return history.deleted[0]
+    if history.unchanged:
+        return history.unchanged[0]
+    return getattr(state.obj(), key)
 
 
 def _within(transaction, ancestor) -> bool:
@@ -115,7 +123,7 @@ class _SharingWrites:
 
     def __init__(self, item, share_model: type[UserShareAssociation], item_relationship: str) -> None:
         self._item = item
-        self._item_id = audit_id(item)
+        self.item_id = audit_id(item)
         self._share_model = share_model
         mapper = class_mapper(share_model)
         (item_column,) = mapper.relationships[item_relationship].local_columns
@@ -145,7 +153,7 @@ class _SharingWrites:
                 self._pending.append((transaction, values, shares))
         except Exception:
             # Never fail the flush over its audit event; the event still says what it saw.
-            audit_failures.report("prepare", "Could not follow a sharing change of item %s", self._item_id)
+            audit_failures.report("prepare", "Could not follow a sharing change of item %s", self.item_id)
 
     def committed(self, session) -> None:
         if session.in_nested_transaction():
@@ -169,7 +177,7 @@ class _SharingWrites:
             return None
         # Column values only: following a relationship here would be a query mid-flush.
         values = instance_state(obj).dict
-        if values.get(self._item_key) != self._item_id:
+        if values.get(self._item_key) != self.item_id:
             return None
         return values.get("user_id")
 
@@ -410,22 +418,29 @@ class SharableModelManager(
     def recording_sharing_change(self, item, change: SharingChange) -> Iterator[None]:
         """Record what the block's own commits changed about who can reach ``item``.
 
-        Only values this request wrote and committed count. Comparing the item's committed
-        state before and after would also take in another request's change made meanwhile,
-        and credit it to this one, refused or not.
+        ``before`` is the item as this request loaded it, and the after state is that
+        plus only what this request wrote and a commit carried. Re-reading the committed
+        state afterwards would also take in another request's change made meanwhile, and
+        credit it to this one; reading it beforehand from a session of its own would hold
+        a second connection while the request holds one. Everything is read before the
+        block, through the request's own session, so nothing is read after a commit.
         """
         if not self.audit.wants(self.share_action):
             yield
             return
-        before = self._read_sharing_state(audit_id(item))
         session = object_session(item)
-        if before is None or session is None:
+        if session is None:
             yield
             return
         try:
+            prepared = self.audit.prepare(self.share_action, item)
+            before = self._sharing_state(item, session)
             writes = _SharingWrites(item, self.user_share_model, self.foreign_key_name)
         except Exception:
-            audit_failures.report("prepare", "Could not follow sharing changes of %s %s", self.share_action, item)
+            # The change itself must go ahead; a missing audit event is reported, not raised.
+            audit_failures.report(
+                "prepare", "Could not follow sharing changes of %s %s", self.share_action, audit_id(item)
+            )
             yield
             return
         listeners = (
@@ -440,25 +455,22 @@ class SharableModelManager(
         finally:
             for name, listener in listeners:
                 event.remove(session, name, listener)
-            self._record_sharing_writes(change, before, writes)
+            self._record_sharing_writes(change, before, writes, prepared)
 
-    def _read_sharing_state(self, item_id: int | None) -> SharingState | None:
-        """The committed sharing state of the item and its description, from a session of their own."""
-        try:
-            with audit_read_session(self.app.model.engine) as session:
-                item = session.get(self.model_class, item_id) if item_id is not None else None
-                if item is None:
-                    raise exceptions.ObjectNotFound(f"No {self.model_class.__name__} {item_id}")
-                target = self.audit.describe(item)
-                assert target is not None
-                user_ids = frozenset(share.user_id for share in item.users_shared_with)
-                return SharingState(bool(item.importable), bool(item.published), item.slug, user_ids, target)
-        except Exception:
-            # The change itself must go ahead; a missing audit event is reported, not raised.
-            audit_failures.report("prepare", "Could not read the sharing state of %s %s", self.share_action, item_id)
-            return None
+    def _sharing_state(self, item, session) -> SharingState:
+        """The item's sharing as this request loaded it, read through the request's own session."""
+        state = sa_inspect(item)
+        with session.no_autoflush:
+            columns = [_loaded_value(state, key) for key in SHARING_COLUMNS]
+            # Only shares already in the database: one added to the collection but not yet
+            # flushed is this request's own write, which the block's flushes will report.
+            user_ids = frozenset(share.user_id for share in item.users_shared_with if sa_inspect(share).persistent)
+        importable, published, slug = columns
+        return SharingState(bool(importable), bool(published), slug, user_ids)
 
-    def _record_sharing_writes(self, change: SharingChange, before: SharingState, writes: "_SharingWrites") -> None:
+    def _record_sharing_writes(
+        self, change: SharingChange, before: SharingState, writes: "_SharingWrites", prepared: PreparedEvent
+    ) -> None:
         try:
             values = writes.values
             after = SharingState(
@@ -466,25 +478,25 @@ class SharableModelManager(
                 bool(values.get("published", before.published)),
                 values.get("slug", before.slug),
                 (before.user_ids | writes.users_added) - writes.users_removed,
-                before.target,
             )
         except Exception:
-            audit_failures.report("prepare", "Lost the audit event for a %s on %s", self.share_action, before.target.id)
+            audit_failures.report("prepare", "Lost the audit event for a %s on %s", self.share_action, writes.item_id)
             return
         if after.access() == before.access():
             return
-        details = SharingChangeDetails(
-            change=change,
-            importable_before=before.importable,
-            importable_after=after.importable,
-            published_before=before.published,
-            published_after=after.published,
-            users_added=sorted(after.user_ids - before.user_ids),
-            users_removed=sorted(before.user_ids - after.user_ids),
-            slug_before=before.slug,
-            slug_after=after.slug,
+        prepared.record(
+            details=SharingChangeDetails(
+                change=change,
+                importable_before=before.importable,
+                importable_after=after.importable,
+                published_before=before.published,
+                published_after=after.published,
+                users_added=sorted(after.user_ids - before.user_ids),
+                users_removed=sorted(before.user_ids - after.user_ids),
+                slug_before=before.slug,
+                slug_after=after.slug,
+            )
         )
-        self.audit.record(self.share_action, before.target, "success", details=details)
 
     def record_sharing_denied(self, item_id: int, change: SharingChange) -> None:
         if not self.audit.wants(self.share_action):

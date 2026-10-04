@@ -20,7 +20,7 @@ from sqlalchemy import (
     select as sa_select,
 )
 from sqlalchemy.orm import Session
-from sqlalchemy.pool import SingletonThreadPool
+from sqlalchemy.pool import QueuePool
 
 from galaxy import (
     exceptions,
@@ -35,8 +35,8 @@ from galaxy.managers import (
 from galaxy.managers.audit import (
     audit_failures,
     AUDIT_LOGGER_NAME,
-    audit_read_session,
     AuditService,
+    begin_audit_attempt,
 )
 from galaxy.managers.audit_actions.exports import ExportDetails
 from galaxy.managers.audit_actions.sharing import (
@@ -90,7 +90,7 @@ class CapturingHandler(logging.Handler):
 class AuditTestCase(BaseTestCase):
     def set_up_mocks(self):
         # A database file rather than in-memory SQLite, whose sessions all share one connection:
-        # audit reads go through a session of their own, and these tests need that to be real.
+        # these tests commit concurrently from sessions of their own and count pool checkouts.
         self._database_dir = tempfile.TemporaryDirectory()
         database = os.path.join(self._database_dir.name, "audit.sqlite")
         admin_users_list = [u for u in admin_users.split(",") if u]
@@ -123,25 +123,6 @@ class AuditTestCase(BaseTestCase):
     @property
     def events(self) -> list[dict]:
         return self.handler.events
-
-    @contextlib.contextmanager
-    def audit_read_fails(self, statement_prefix: str):
-        """Drop the connection under the first statement starting with ``statement_prefix``."""
-        armed = [True]
-
-        def fail(conn, cursor, statement, parameters, context, executemany):
-            if armed[0] and statement.startswith(statement_prefix):
-                armed[0] = False
-                conn.invalidate()
-                raise exc.OperationalError(statement, parameters, Exception("connection lost"))
-
-        engine = self.app.model.engine
-        event.listen(engine, "before_cursor_execute", fail)
-        try:
-            yield
-        finally:
-            event.remove(engine, "before_cursor_execute", fail)
-        assert not armed[0], "the audit read never ran"
 
     @contextlib.contextmanager
     def request_reads_fail(self, after_commit: bool = False):
@@ -477,18 +458,17 @@ class TestSharingAudit(AuditTestCase):
                 assert self.history.name
         session.rollback()
 
-    def test_a_failed_audit_read_leaves_the_request_able_to_commit(self):
-        with self.audit_read_fails("SELECT history_user_share_association"):
+    def test_a_before_state_that_cant_be_read_never_fails_the_change(self):
+        failures = audit_failures.count
+        with mock.patch.object(self.history_manager, "_sharing_state", side_effect=RuntimeError("broken")):
             with self.as_user(self.owner):
                 self.service.publish(self.trans, self.history.id)
-        self.history.name = "still writable"
-        self.trans.sa_session.commit()
 
         self.trans.sa_session.expire_all()
         assert self.history.published
-        assert self.history.name == "still writable"
-        # The before-read was lost, so there is nothing to compare against; that is reported, not raised.
+        # Nothing to compare against; that is reported, not raised.
         assert self.events == []
+        assert audit_failures.count > failures
 
     def test_recording_reads_nothing_through_the_request_session(self):
         with self.as_user(self.owner):
@@ -517,7 +497,7 @@ class TestSharingAudit(AuditTestCase):
         assert event["details"] == {"change": "update"}
         service.deserializer.deserialize.assert_not_called()
 
-    def test_user_names_are_read_without_the_request_session(self):
+    def test_user_names_are_captured_before_the_commit(self):
         self.history_manager.audit = self.make_audit(include_names=True)
         with self.as_user(self.owner, actor=self.admin_user):
             # The commit expires the users' names, so reading them on this session is a query.
@@ -531,11 +511,11 @@ class TestSharingAudit(AuditTestCase):
         assert event["effective_user"]["email"] == "owner@example.org"
         assert event["truncated"] == []
 
-    def test_loaded_user_names_take_no_connection_of_their_own(self):
+    def test_loaded_user_names_are_read_without_a_query(self):
         audit = self.make_audit(include_names=True)
         # Loaded, as a request's own user and the item it acts on are.
         assert self.owner.username and self.admin_user.email and self.history.name
-        with mock.patch.object(audit_module, "audit_read_session", side_effect=AssertionError("second connection")):
+        with self.request_reads_fail():
             with self.as_user(self.owner, actor=self.admin_user):
                 audit.record("history.share", self.history, details=SharingChangeDetails(change="publish"))
 
@@ -545,7 +525,7 @@ class TestSharingAudit(AuditTestCase):
 
     def test_disabled_auditing_skips_the_share_query(self):
         self.history_manager.audit = self.make_audit(enabled=False)
-        with mock.patch.object(self.history_manager, "_read_sharing_state") as spy:
+        with mock.patch.object(self.history_manager, "_sharing_state") as spy:
             with self.as_user(self.owner):
                 self.service.publish(self.trans, self.history.id)
         spy.assert_not_called()
@@ -707,25 +687,35 @@ class TestDatasetPermissionsAudit(AuditTestCase):
         assert event["details"]["access_roles_after"] == []
         assert event["details"]["may_widen_access"] is True
 
-    def test_a_failed_permissions_read_leaves_the_request_able_to_commit(self):
-        with self.audit_read_fails("SELECT dataset_permissions.role_id"):
+    def test_a_failed_read_after_a_flush_never_fails_the_change(self):
+        dataset_manager = self.hda_manager.dataset_manager
+        read = dataset_manager._read_permissions
+        reads: list[int] = []
+
+        def only_the_first_read_works(*args):
+            reads.append(1)
+            if len(reads) > 1:
+                raise RuntimeError("db gone")
+            return read(*args)
+
+        failures = audit_failures.count
+        with mock.patch.object(dataset_manager, "_read_permissions", side_effect=only_the_first_read_works):
             with self.as_user(self.owner):
                 self.hda_manager.update_permissions(self.trans, self.hda, action="remove_restrictions")
-        self.hda.name = "still writable"
-        self.trans.sa_session.commit()
 
-        self.trans.sa_session.expire_all()
+        assert len(reads) > 1
         assert self.app.security_agent.dataset_is_public(self.hda.dataset)
-        assert self.hda.name == "still writable"
+        # What the change left was never read, so nothing is claimed; that is reported.
         assert self.events == []
+        assert audit_failures.count > failures
 
-    def test_recording_a_permission_change_reads_nothing_through_the_request_session(self):
+    def test_recording_a_permission_change_reads_nothing_after_the_commit(self):
         dataset_manager = self.hda_manager.dataset_manager
-        before = dataset_manager.permissions_snapshot(self.hda)
-        self.app.security_agent.make_dataset_public(self.hda.dataset)
         with self.as_user(self.owner):
-            with self.request_reads_fail():
-                assert dataset_manager.record_permissions_change(self.hda, "remove_restrictions", before)
+            with dataset_manager.recording_permissions(self.hda) as recording:
+                self.app.security_agent.make_dataset_public(self.hda.dataset)
+                with self.request_reads_fail():
+                    assert dataset_manager.record_permissions_change(recording, "remove_restrictions")
 
         (event,) = self.events
         assert event["object"]["id"] == self.hda.id
@@ -734,7 +724,7 @@ class TestDatasetPermissionsAudit(AuditTestCase):
 
     def test_a_failure_that_breaks_the_session_is_still_recorded_without_reading_it(self):
         dataset_manager = self.hda_manager.dataset_manager
-        with mock.patch.object(dataset_manager, "_read_permissions", return_value=None):
+        with mock.patch.object(dataset_manager, "_read_permissions", side_effect=RuntimeError("db gone")):
             with self.as_user(self.other):
                 with self.request_reads_fail():
                     with pytest.raises(exc.OperationalError):
@@ -761,13 +751,6 @@ class TestDatasetPermissionsAudit(AuditTestCase):
         assert unnamed["details"] == {}
         # Only a missing action means set_permissions; an empty one is invalid.
         assert empty["details"] == {}
-
-    def test_audit_reads_are_refused_on_a_database_whose_sessions_share_a_connection(self):
-        engine = mock.Mock(pool=mock.Mock(spec=SingletonThreadPool))
-        engine.engine = engine
-        with pytest.raises(RuntimeError):
-            with audit_read_session(engine):
-                pass
 
     def test_a_broken_snapshot_never_fails_the_change(self):
         dataset_manager = self.hda_manager.dataset_manager
@@ -835,13 +818,13 @@ class TestCrossUserCopyAudit(AuditTestCase):
         assert event["object"]["owner_id"] == self.owner.id
         assert event["details"]["target_history_id"] == target_id
 
-    def test_a_copy_whose_audit_reads_all_fail_still_succeeds(self):
+    def test_a_copy_whose_event_cant_be_prepared_still_succeeds(self):
         target = self.history_manager.create(name="mine", user=self.recipient)
         failures = audit_failures.count
-        with mock.patch.object(hdas, "audit_read_session", side_effect=RuntimeError("db gone")):
+        with mock.patch.object(self.audit, "prepare", side_effect=RuntimeError("db gone")):
             with self.as_user(self.recipient):
-                with self.request_reads_fail(after_commit=True):
-                    self.hda_manager.copy(self.hda, history=target)
+                copy = self.hda_manager.copy(self.hda, history=target)
+        assert copy.id is not None
         assert self.events == []
         assert audit_failures.count > failures
 
@@ -857,10 +840,8 @@ class TestCrossUserCopyAudit(AuditTestCase):
         assert event["details"] == {"target_history_id": target.id}
 
     def build_collection(self, target: model.History, element_identifiers: list[dict], collection_type="list"):
-        """Build a collection the way the API does, returning it and the copies it made."""
-        collections = self.app[DatasetCollectionManager]
-        session = self.trans.sa_session
-        hdca = collections.create(
+        """Build a collection the way the API does, returning it and the datasets it holds."""
+        hdca = self.collections().create(
             self.trans,
             parent=target,
             name="copied",
@@ -868,24 +849,14 @@ class TestCrossUserCopyAudit(AuditTestCase):
             element_identifiers=element_identifiers,
             copy_elements=True,
             history=target,
-            flush=False,
         )
-        copies = [
-            obj
-            for obj in session.new
-            if isinstance(obj, model.HistoryDatasetAssociation)
-            and obj.copied_from_history_dataset_association_id is not None
-        ]
-        session.commit()
-        return hdca, copies
+        return hdca, hdca.collection.dataset_instances
 
     def test_collection_element_copies_from_another_user_are_recorded(self):
         target = self.history_manager.create(name="mine", user=self.recipient)
         with self.as_user(self.recipient):
             self.trans.set_history(target)
             _, copies = self.build_collection(target, [{"src": "hda", "id": self.hda.id, "name": "first"}])
-            assert self.events == []
-            self.hda_manager.record_copies(copies)
 
         (event,) = self.events
         (copy,) = copies
@@ -902,20 +873,18 @@ class TestCrossUserCopyAudit(AuditTestCase):
         with self.as_user(self.recipient):
             self.trans.set_history(target)
             first, _ = self.build_collection(target, [{"src": "hda", "id": self.hda.id, "name": "first"}])
+            assert len(self.events) == 1
             # Nested collections are referenced, not copied, even with copy_elements.
-            _, copies = self.build_collection(
+            self.build_collection(
                 target, [{"src": "hdca", "id": first.id, "name": "outer"}], collection_type="list:list"
             )
-            self.hda_manager.record_copies(copies)
-        assert copies == []
-        assert self.events == []
+        assert len(self.events) == 1
 
     def test_collection_copies_of_ones_own_datasets_record_nothing(self):
         target = self.history_manager.create(name="also mine", user=self.owner)
         with self.as_user(self.owner):
             self.trans.set_history(target)
             _, copies = self.build_collection(target, [{"src": "hda", "id": self.hda.id, "name": "first"}])
-            self.hda_manager.record_copies(copies)
         assert len(copies) == 1
         assert self.events == []
 
@@ -942,7 +911,7 @@ class TestCrossUserCopyAudit(AuditTestCase):
             with collections._recording_copies(self.trans, True) as tracker:
                 assert tracker is not None
                 with session.begin_nested():
-                    tracker.made.append(self.hda_manager.copy(self.hda, history=target, flush=False))
+                    tracker.add(self.hda_manager.copy(self.hda, history=target, flush=False), self.hda, target)
                 session.rollback()
                 assert tracker.committed == []
         assert self.events == []
@@ -1124,7 +1093,7 @@ class TestCrossUserCopyAudit(AuditTestCase):
         collections = self.collections()
         collections.hda_manager.dataset_manager.audit = self.make_audit(enabled=False)
         target = self.history_manager.create(name="mine", user=self.recipient)
-        with mock.patch.object(collections.hda_manager, "record_copies") as record_copies:
+        with mock.patch.object(collections.hda_manager, "prepare_copy_event") as prepare_copy_event:
             with self.as_user(self.recipient):
                 self.trans.set_history(target)
                 collections.create(
@@ -1136,7 +1105,7 @@ class TestCrossUserCopyAudit(AuditTestCase):
                     copy_elements=True,
                     history=target,
                 )
-        record_copies.assert_not_called()
+        prepare_copy_event.assert_not_called()
 
     def history_service(self) -> mock.Mock:
         service = mock.Mock(manager=self.history_manager, user_manager=self.user_manager)
@@ -1167,16 +1136,31 @@ class TestCrossUserCopyAudit(AuditTestCase):
         assert (event["action"], event["outcome"], event["reason"]) == ("history.import", "denied", "not_accessible")
         assert (event["object"]["type"], event["object"]["id"]) == ("history", self.source_history.id)
 
-    def test_a_copy_that_cant_be_read_loses_only_its_own_event(self):
+    def test_a_copy_whose_event_cant_be_prepared_loses_only_its_own_event(self):
         target = self.history_manager.create(name="mine", user=self.recipient)
+        prepare = self.audit.prepare
+        calls: list[int] = []
+
+        def first_fails(*args, **kwargs):
+            calls.append(1)
+            if len(calls) == 1:
+                raise RuntimeError("broken")
+            return prepare(*args, **kwargs)
+
+        collections = self.collections()
         with self.as_user(self.recipient):
-            copy = self.hda_manager.copy(self.hda, history=target, flush=False)
-            self.trans.sa_session.commit()
-            never_saved = model.HistoryDatasetAssociation(create_dataset=False, sa_session=None)
-            self.hda_manager.record_copies([never_saved, copy])
+            with mock.patch.object(self.audit, "prepare", side_effect=first_fails):
+                with collections._recording_copies(self.trans, True) as tracker:
+                    assert tracker is not None
+                    lost = self.hda_manager.copy(self.hda, history=target, flush=False)
+                    tracker.add(lost, self.hda, target)
+                    kept = self.hda_manager.copy(self.hda, history=target, flush=False)
+                    tracker.add(kept, self.hda, target)
+                    target.add_pending_items()
+                    self.trans.sa_session.commit()
 
         (event,) = self.events
-        assert event["details"]["new_hda_id"] == copy.id
+        assert event["details"]["new_hda_id"] == kept.id
 
     def test_refusal_recorders_never_raise_on_bad_input(self):
         failures = audit_failures.count
@@ -1194,9 +1178,10 @@ class TestCrossUserCopyAudit(AuditTestCase):
 
     def test_importing_another_users_history(self):
         with self.as_user(self.recipient):
+            pending = self.history_manager.prepare_history_import(self.source_history, self.recipient.id)
             new_history = self.source_history.copy(name="Copy", target_user=self.recipient, all_datasets=True)
             self.trans.sa_session.commit()
-            self.history_manager.record_history_import(self.source_history, new_history, all_datasets=True)
+            self.history_manager.record_history_import(pending, new_history, self.recipient.id, all_datasets=True)
 
         (event,) = self.events
         assert event["action"] == "history.import"
@@ -1209,14 +1194,16 @@ class TestCrossUserCopyAudit(AuditTestCase):
             "all_datasets": True,
         }
 
-    def test_recording_an_import_reads_nothing_through_the_request_session(self):
+    def test_recording_an_import_reads_nothing_after_the_commit(self):
+        recipient_id = self.recipient.id
         with self.as_user(self.recipient):
+            pending = self.history_manager.prepare_history_import(self.source_history, recipient_id)
             new_history = self.source_history.copy(name="Copy", target_user=self.recipient)
             self.trans.sa_session.commit()
             new_history_id = new_history.id
             self.trans.sa_session.expire_all()
             with self.request_reads_fail():
-                self.history_manager.record_history_import(self.source_history, new_history, all_datasets=False)
+                self.history_manager.record_history_import(pending, new_history, recipient_id, all_datasets=False)
 
         (event,) = self.events
         assert event["object"]["owner_id"] == self.owner.id
@@ -1224,9 +1211,7 @@ class TestCrossUserCopyAudit(AuditTestCase):
 
     def test_copying_ones_own_history_records_nothing(self):
         with self.as_user(self.owner):
-            new_history = self.source_history.copy(name="Copy", target_user=self.owner)
-            self.trans.sa_session.commit()
-            self.history_manager.record_history_import(self.source_history, new_history, all_datasets=False)
+            assert self.history_manager.prepare_history_import(self.source_history, self.owner.id) is None
         assert self.events == []
 
 
@@ -1330,13 +1315,200 @@ class TestDescribingAfterACommit(AuditTestCase):
         assert event_["object"]["owner_id"] == self.owner.id
         assert event_["truncated"] == []
 
-    def test_objects_the_request_loaded_are_described_without_a_connection_of_their_own(self):
+    def test_objects_the_request_loaded_are_described_without_a_query(self):
         # Loaded, as the hook has them before its first commit.
         assert self.invocation.history.user_id and self.invocation.workflow_id
-        with mock.patch.object(audit_module, "audit_read_session", side_effect=AssertionError("second connection")):
-            with self.as_user(self.owner):
+        with self.as_user(self.owner):
+            with self.request_reads_fail():
                 self.audit.record("invocation.export", self.invocation, details=ExportDetails(destination="download"))
 
         (event_,) = self.events
         assert event_["object"]["owner_id"] == self.owner.id
         assert event_["truncated"] == []
+
+
+class TestAuditHoldsOneConnection(AuditTestCase):
+    """A request holds one pooled connection; recording its events must never wait for a second."""
+
+    def set_up_managers(self):
+        super().set_up_managers()
+        self.audit = self.make_audit(include_names=True)
+        self.history_manager = self.app[HistoryManager]
+        self.history_manager.audit = self.audit
+        self.hda_manager = self.history_manager.hda_manager
+        self.hda_manager.dataset_manager.audit = self.audit
+        self.owner = self.create_user("owner")
+        self.recipient = self.create_user("recipient")
+        self.history = self.history_manager.create(name="source", user=self.owner)
+        self.hda = self.hda_manager.create(history=self.history, dataset=self.hda_manager.dataset_manager.create())
+        self.trans.sa_session.commit()
+
+    @contextlib.contextmanager
+    def one_connection(self):
+        """Swap in a pool of exactly one connection, yielding the most ever checked out at once."""
+        engine = self.app.model.engine
+        # Hand back whatever the session holds, so the request starts with nothing checked out.
+        self.trans.sa_session.commit()
+        original = engine.pool
+        pool = QueuePool(original._creator, pool_size=1, max_overflow=0, timeout=0.2, dialect=original._dialect)
+        held = [0]
+        most = [0]
+
+        def checkout(*args):
+            held[0] += 1
+            most[0] = max(most[0], held[0])
+
+        def checkin(*args):
+            held[0] -= 1
+
+        event.listen(pool, "checkout", checkout)
+        event.listen(pool, "checkin", checkin)
+        engine.pool = pool
+        try:
+            yield most
+        finally:
+            engine.pool = original
+            pool.dispose()
+
+    def test_display_authorization_describes_through_the_request_connection(self):
+        hda_id = self.hda.id
+        with self.one_connection() as most:
+            with self.as_user(self.owner):
+                attempt = begin_audit_attempt(self.audit, "dataset.display", hda_id)
+                with attempt.guard():
+                    # Loaded as display loads it: the history it belongs to is not.
+                    dataset = self.hda_manager.get_accessible(hda_id, self.owner)
+                    attempt.authorized(dataset)
+                    attempt.succeeded()
+
+        assert most[0] == 1
+        (event_,) = self.events
+        assert event_["object"]["owner_id"] == self.owner.id
+        assert event_["effective_user"]["username"] == "owner"
+        assert event_["truncated"] == []
+
+    def test_authorization_after_a_commit_uses_only_what_is_loaded(self):
+        hda_id = self.hda.id
+        failures = audit_failures.count
+        with self.one_connection() as most:
+            with self.as_user(self.owner):
+                attempt = begin_audit_attempt(self.audit, "dataset.display", hda_id)
+                with attempt.guard():
+                    dataset = self.hda_manager.get_accessible(hda_id, self.owner)
+                    self.trans.sa_session.commit()
+                    assert dataset.id == hda_id
+                    attempt.authorized(dataset)
+                    attempt.succeeded()
+
+        assert most[0] == 1
+        (event_,) = self.events
+        # Only what the request asked for: describing more would refresh what the commit expired.
+        assert (event_["object"]["type"], event_["object"]["id"], event_["object"]["owner_id"]) == (
+            "hda",
+            hda_id,
+            None,
+        )
+        # Names were read when the attempt started, before the commit.
+        assert event_["effective_user"]["username"] == "owner"
+        assert event_["truncated"] == ["object"]
+        # Left out, not failed.
+        assert audit_failures.count == failures
+
+    def test_sharing_and_its_permission_changes(self):
+        security_agent = self.app.security_agent
+        private_role = security_agent.get_private_user_role(self.owner)
+        actions = security_agent.permitted_actions
+        security_agent.set_all_dataset_permissions(
+            self.hda.dataset,
+            {actions.DATASET_MANAGE_PERMISSIONS: [private_role], actions.DATASET_ACCESS: [private_role]},
+        )
+        service = ShareableService(self.history_manager, self.app[HistorySerializer], mock.MagicMock())
+        history_id = self.history.id
+        with self.one_connection() as most:
+            with self.as_user(self.owner):
+                service.publish(self.trans, history_id)
+
+        assert most[0] == 1
+        assert [event_["action"] for event_ in self.events] == ["dataset.permissions", "history.share"]
+        for event_ in self.events:
+            assert event_["object"]["owner_id"] == self.owner.id
+            assert event_["effective_user"]["email"] == "owner@example.org"
+            assert event_["truncated"] == []
+        assert self.events[0]["details"]["access_roles_after"] == []
+
+    def test_copies(self):
+        self.history.importable = True
+        target = self.history_manager.create(name="mine", user=self.recipient)
+        collections = self.app[DatasetCollectionManager]
+        collections.hda_manager.dataset_manager.audit = self.audit
+        hda_id = self.hda.id
+        with self.one_connection() as most:
+            with self.as_user(self.recipient):
+                self.trans.set_history(target)
+                self.hda_manager.copy(self.hda, history=target)
+                collections.create(
+                    self.trans,
+                    parent=target,
+                    name="copied",
+                    collection_type="list",
+                    element_identifiers=[{"src": "hda", "id": hda_id, "name": "first"}],
+                    copy_elements=True,
+                    history=target,
+                )
+
+        assert most[0] == 1
+        assert [event_["action"] for event_ in self.events] == ["dataset.copy", "dataset.copy"]
+        for event_ in self.events:
+            assert event_["object"]["owner_id"] == self.owner.id
+            assert event_["details"]["recipient_id"] == self.recipient.id
+            assert event_["effective_user"]["username"] == "recipient"
+            assert event_["truncated"] == []
+
+    def test_the_completion_export_hook(self):
+        audit = self.app[AuditService]
+        audit.enabled = True
+        audit.include_names = True
+        self.app.config.galaxy_infrastructure_url = None
+        session = self.trans.sa_session
+        invocation = model.WorkflowInvocation()
+        invocation.history = self.history
+        invocation.workflow = model.Workflow()
+        invocation.on_complete = [{"export_to_file_source": {"target_uri": "gxftp://exports/run.zip"}}]
+        session.add(invocation)
+        session.commit()
+        task = mock.Mock()
+        task.delay.return_value = SimpleNamespace(id=str(uuid.uuid4()))
+        hook = ExportToFileSourceHook(cast(Any, self.app))
+        with self.one_connection() as most:
+            # As the completion monitor hands it over: loaded, with what it refers to expired.
+            completion = SimpleNamespace(workflow_invocation=session.get(model.WorkflowInvocation, invocation.id))
+            with mock.patch.object(celery_tasks, "write_invocation_to", task):
+                hook.execute(cast(Any, completion))
+
+        assert most[0] == 1
+        (event_,) = self.events
+        assert (event_["action"], event_["outcome"]) == ("invocation.export", "success")
+        assert event_["object"]["owner_id"] == self.owner.id
+        assert event_["effective_user"]["email"] == "owner@example.org"
+        assert event_["truncated"] == []
+
+    def test_a_record_after_a_commit_sends_no_query(self):
+        statements: list[str] = []
+
+        def note(conn, cursor, statement, *args):
+            statements.append(statement)
+
+        engine = self.app.model.engine
+        with self.as_user(self.owner, actor=self.recipient):
+            self.trans.sa_session.commit()
+            event.listen(engine, "before_cursor_execute", note)
+            try:
+                self.audit.record("history.share", self.history, details=SharingChangeDetails(change="publish"))
+            finally:
+                event.remove(engine, "before_cursor_execute", note)
+
+        assert statements == []
+        (event_,) = self.events
+        assert (event_["object"]["type"], event_["object"]["id"]) == ("history", self.history.id)
+        assert event_["effective_user"]["id"] == self.owner.id
+        assert event_["truncated"] == ["actor.names", "effective_user.names", "object"]

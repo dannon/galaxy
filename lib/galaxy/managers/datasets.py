@@ -5,6 +5,8 @@ Manager and Serializer for Datasets.
 import glob
 import logging
 import os
+from collections.abc import Iterator
+from contextlib import contextmanager
 from functools import cached_property
 from typing import (
     Any,
@@ -13,7 +15,11 @@ from typing import (
     TypeVar,
 )
 
-from sqlalchemy import select
+from sqlalchemy import (
+    event,
+    select,
+)
+from sqlalchemy.orm import object_session
 
 from galaxy import (
     exceptions,
@@ -31,12 +37,12 @@ from galaxy.managers import (
 from galaxy.managers.audit import (
     audit_failures,
     audit_id,
-    audit_read_session,
     audit_service_for,
     AuditOutcome,
     AuditReason,
     AuditService,
     classify_failure,
+    PreparedEvent,
 )
 from galaxy.managers.audit_actions import AuditObject
 from galaxy.managers.audit_actions.sharing import (
@@ -85,11 +91,52 @@ class PermissionsSnapshot(NamedTuple):
     manage: list[int]
     # Library datasets only.
     modify: list[int] | None
-    # The dataset instance, described while it was read.
-    target: AuditObject
 
     def roles(self) -> tuple[list[int], list[int], list[int] | None]:
         return self.access, self.manage, self.modify
+
+
+def _within(transaction, ancestor) -> bool:
+    while transaction is not None:
+        if transaction is ancestor:
+            return True
+        transaction = transaction.parent
+    return False
+
+
+class PermissionsRecording:
+    """A dataset's roles before a change, and as the change left them once a commit carried it.
+
+    The roles are read again in the request's own transaction after each flush, and the
+    last reading counts once the outermost commit carries it. Nothing is read after a
+    commit, and a savepoint that rolls back takes its readings with it.
+    """
+
+    def __init__(self, read, before: PermissionsSnapshot, prepared: PreparedEvent) -> None:
+        self._read = read
+        self.before = before
+        self.prepared = prepared
+        self.after: PermissionsSnapshot | None = None
+        self._pending: list[tuple[Any, PermissionsSnapshot]] = []
+
+    def flushed(self, session, _flush_context) -> None:
+        try:
+            snapshot = self._read(session)
+        except Exception:
+            audit_failures.report("prepare", "Could not read the permissions a flush left")
+            return
+        self._pending.append((session.get_nested_transaction() or session.get_transaction(), snapshot))
+
+    def committed(self, session) -> None:
+        if session.in_nested_transaction():
+            # A savepoint released into a transaction that can still roll back.
+            return
+        if self._pending:
+            self.after = self._pending[-1][1]
+        self._pending = []
+
+    def rolled_back(self, _session, previous_transaction) -> None:
+        self._pending = [entry for entry in self._pending if not _within(entry[0], previous_transaction)]
 
 
 class DatasetManager(
@@ -120,51 +167,69 @@ class DatasetManager(
     def audit(self) -> AuditService:
         return audit_service_for(self.app)
 
-    def permissions_snapshot(self, dataset_assoc) -> PermissionsSnapshot | None:
-        """The role ids on the dataset behind ``dataset_assoc`` (an HDA, LDDA or library dataset).
+    @contextmanager
+    def recording_permissions(self, dataset_assoc) -> Iterator[PermissionsRecording | None]:
+        """Follow a permission change on the dataset behind ``dataset_assoc`` (an HDA, LDDA or library dataset).
 
-        None when permission changes aren't audited or the roles couldn't be read.
+        Yields None when permission changes aren't audited or the roles couldn't be read.
+        The roles and the description are read before the change, through the request's
+        own session; what the change committed is read inside the transaction carrying it.
         """
         if not self.audit.wants("dataset.permissions"):
-            return None
-        return self._read_permissions(dataset_assoc)
-
-    def _read_permissions(self, dataset_assoc) -> PermissionsSnapshot | None:
-        """The committed roles on the dataset and a description of its instance, from a session of their own."""
-        assoc_class = type(dataset_assoc)
-        assoc_id = audit_id(dataset_assoc)
+            yield None
+            return
+        session = object_session(dataset_assoc)
         try:
-            with audit_read_session(self.app.model.engine) as session:
-                assoc = session.get(assoc_class, assoc_id) if assoc_id is not None else None
-                if assoc is None:
-                    raise exceptions.ObjectNotFound(f"No {assoc_class.__name__} {assoc_id}")
-                actions = self.app.security_agent.permitted_actions
-                modify = None
-                if isinstance(assoc, LibraryDataset):
-                    instance = assoc.library_dataset_dataset_association
-                    modify = self._role_ids(
-                        session,
-                        select(LibraryDatasetPermissions.role_id).where(
-                            LibraryDatasetPermissions.library_dataset_id == assoc.id,
-                            LibraryDatasetPermissions.action == actions.LIBRARY_MODIFY.action,
-                        ),
-                    )
-                else:
-                    instance = assoc
-                target = self.audit.describe(instance)
-                assert target is not None
-                return PermissionsSnapshot(
-                    access=self._dataset_role_ids(session, instance.dataset_id, actions.DATASET_ACCESS.action),
-                    manage=self._dataset_role_ids(
-                        session, instance.dataset_id, actions.DATASET_MANAGE_PERMISSIONS.action
-                    ),
-                    modify=modify,
-                    target=target,
-                )
+            if session is None:
+                raise exceptions.ObjectNotFound("The dataset is not in a session")
+            if isinstance(dataset_assoc, LibraryDataset):
+                instance = dataset_assoc.library_dataset_dataset_association
+                library_dataset_id = dataset_assoc.id
+            else:
+                instance = dataset_assoc
+                library_dataset_id = None
+            dataset_id = instance.dataset_id
+
+            def read(on_session) -> PermissionsSnapshot:
+                return self._read_permissions(on_session, dataset_id, library_dataset_id)
+
+            with session.no_autoflush:
+                before = read(session)
+            recording = PermissionsRecording(read, before, self.audit.prepare("dataset.permissions", instance))
         except Exception:
             # The change itself must go ahead; a missing audit event is reported, not raised.
-            audit_failures.report("prepare", "Could not read the permissions of %s %s", assoc_class.__name__, assoc_id)
-            return None
+            audit_failures.report("prepare", "Could not read the permissions of %s", audit_id(dataset_assoc))
+            yield None
+            return
+        listeners = (
+            ("after_flush_postexec", recording.flushed),
+            ("after_commit", recording.committed),
+            ("after_soft_rollback", recording.rolled_back),
+        )
+        for name, listener in listeners:
+            event.listen(session, name, listener)
+        try:
+            yield recording
+        finally:
+            for name, listener in listeners:
+                event.remove(session, name, listener)
+
+    def _read_permissions(self, session, dataset_id: int, library_dataset_id: int | None) -> PermissionsSnapshot:
+        actions = self.app.security_agent.permitted_actions
+        modify = None
+        if library_dataset_id is not None:
+            modify = self._role_ids(
+                session,
+                select(LibraryDatasetPermissions.role_id).where(
+                    LibraryDatasetPermissions.library_dataset_id == library_dataset_id,
+                    LibraryDatasetPermissions.action == actions.LIBRARY_MODIFY.action,
+                ),
+            )
+        return PermissionsSnapshot(
+            access=self._dataset_role_ids(session, dataset_id, actions.DATASET_ACCESS.action),
+            manage=self._dataset_role_ids(session, dataset_id, actions.DATASET_MANAGE_PERMISSIONS.action),
+            modify=modify,
+        )
 
     def _dataset_role_ids(self, session, dataset_id: int, action: str) -> list[int]:
         return self._role_ids(
@@ -179,65 +244,63 @@ class DatasetManager(
 
     def record_permissions_change(
         self,
-        dataset_assoc,
+        recording: PermissionsRecording | None,
         change: DatasetPermissionsChange,
-        before: PermissionsSnapshot | None,
         via: PermissionsVia = "permissions",
         outcome: AuditOutcome = "success",
         reason: AuditReason | None = None,
     ) -> bool:
-        """Record a committed permission change on the dataset behind ``dataset_assoc``.
+        """Record a committed permission change followed by :meth:`recording_permissions`.
 
         Returns whether the permissions had changed, so a failure after a partial commit
         can still say what changed.
         """
-        if before is None:
+        if recording is None:
             return False
-        after = self._read_permissions(dataset_assoc)
-        if after is None:
-            audit_failures.report("prepare", "Lost the audit event for a permission change on %s", change)
+        before, after = recording.before, recording.after
+        if after is None or after.roles() == before.roles():
             return False
-        if after.roles() == before.roles():
-            return False
-        details = DatasetPermissionsDetails(
-            change=change,
-            via=via,
-            access_roles_before=before.access,
-            access_roles_after=after.access,
-            manage_roles_before=before.manage,
-            manage_roles_after=after.manage,
-            modify_roles_before=before.modify,
-            modify_roles_after=after.modify,
-            may_widen_access=bool(set(before.access) - set(after.access)),
+        recording.prepared.record(
+            outcome,
+            details=DatasetPermissionsDetails(
+                change=change,
+                via=via,
+                access_roles_before=before.access,
+                access_roles_after=after.access,
+                manage_roles_before=before.manage,
+                manage_roles_after=after.manage,
+                modify_roles_before=before.modify,
+                modify_roles_after=after.modify,
+                may_widen_access=bool(set(before.access) - set(after.access)),
+            ),
+            reason=reason,
         )
-        self.audit.record("dataset.permissions", after.target, outcome, details=details, reason=reason)
         return True
 
     def record_permissions_refused(
         self,
         dataset_assoc,
         change: DatasetPermissionsChange,
-        before: PermissionsSnapshot | None,
+        recording: PermissionsRecording | None,
         outcome: AuditOutcome,
         reason: AuditReason,
     ) -> None:
         """Record a permission change that failed without changing anything."""
         if not self.audit.wants("dataset.permissions"):
             return
-        if before is not None:
-            target = before.target
+        details = DatasetPermissionsDetails(change=change)
+        if recording is not None:
+            recording.prepared.record(outcome, details=details, reason=reason)
+            return
+        # Read nothing: the failure may have left the request's session needing a rollback.
+        if isinstance(dataset_assoc, LibraryDataset):
+            object_type = "library_dataset"
+        elif isinstance(dataset_assoc, LibraryDatasetDatasetAssociation):
+            object_type = "ldda"
         else:
-            # Read nothing: the failure may have left the request's session needing a rollback.
-            if isinstance(dataset_assoc, LibraryDataset):
-                object_type = "library_dataset"
-            elif isinstance(dataset_assoc, LibraryDatasetDatasetAssociation):
-                object_type = "ldda"
-            else:
-                object_type = "hda"
-            target = self.requested_object(object_type, audit_id(dataset_assoc))
-        self.audit.record(
-            "dataset.permissions", target, outcome, details=DatasetPermissionsDetails(change=change), reason=reason
-        )
+            object_type = "hda"
+        target = self.requested_object(object_type, audit_id(dataset_assoc))
+        self.audit.record("dataset.permissions", target, outcome, details=details, reason=reason)
 
     def requested_object(self, object_type: str, object_id: int | None) -> AuditObject:
         encoded_id = self.audit.security.encode_id(object_id) if object_id is not None else None
@@ -766,18 +829,16 @@ class DatasetAssociationManager(
             )
         change = cast(DatasetPermissionsChange, action)
         dataset_manager = self.dataset_manager
-        before = dataset_manager.permissions_snapshot(dataset_assoc)
-        try:
-            self._update_permissions(trans, dataset_assoc, action, kwd)
-        except Exception as exc:
-            outcome, reason = classify_failure(exc)
-            # Some actions commit before their final check fails; say what changed if anything did.
-            if not dataset_manager.record_permissions_change(
-                dataset_assoc, change, before, outcome=outcome, reason=reason
-            ):
-                dataset_manager.record_permissions_refused(dataset_assoc, change, before, outcome, reason)
-            raise
-        dataset_manager.record_permissions_change(dataset_assoc, change, before)
+        with dataset_manager.recording_permissions(dataset_assoc) as recording:
+            try:
+                self._update_permissions(trans, dataset_assoc, action, kwd)
+            except Exception as exc:
+                outcome, reason = classify_failure(exc)
+                # Some actions commit before their final check fails; say what changed if anything did.
+                if not dataset_manager.record_permissions_change(recording, change, outcome=outcome, reason=reason):
+                    dataset_manager.record_permissions_refused(dataset_assoc, change, recording, outcome, reason)
+                raise
+            dataset_manager.record_permissions_change(recording, change)
 
     def record_permissions_denied(self, object_id: int, action: str | None) -> None:
         """Record a permission change refused before the dataset could be loaded."""

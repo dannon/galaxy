@@ -8,7 +8,6 @@ history.
 import gettext
 import logging
 import os
-from collections.abc import Iterable
 from typing import (
     Any,
     TYPE_CHECKING,
@@ -48,7 +47,7 @@ from galaxy.managers import (
 from galaxy.managers.audit import (
     audit_failures,
     audit_id,
-    audit_read_session,
+    PreparedEvent,
 )
 from galaxy.managers.audit_actions import AuditObject
 from galaxy.managers.audit_actions.sharing import DatasetCopyDetails
@@ -104,6 +103,22 @@ log = logging.getLogger(__name__)
 
 class HistoryDatasetAssociationNoHistoryException(Exception):
     pass
+
+
+class PendingCopyEvent:
+    """A cross-user copy described before its commit, recorded once the commit carries it."""
+
+    def __init__(self, prepared: PreparedEvent, recipient_id: int | None) -> None:
+        self.prepared = prepared
+        self.recipient_id = recipient_id
+
+    def record(self, copy: HistoryDatasetAssociation, history) -> None:
+        # Ids from identity keys: the commit expired both objects, and reading them would be a query.
+        self.prepared.record(
+            details=lambda: DatasetCopyDetails(
+                new_hda_id=audit_id(copy), target_history_id=audit_id(history), recipient_id=self.recipient_id
+            )
+        )
 
 
 class HDAManager(
@@ -245,76 +260,33 @@ class HDAManager(
                 history.add_pending_items()
             session = object_session(copy)
             assert session
+            pending = self.prepare_copy_event(hda, history) if history is not None else None
             session.commit()
-            if history is not None:
-                self._record_cross_user_copy(hda, copy, history)
+            if pending is not None:
+                pending.record(copy, history)
 
         return copy
 
-    def _record_cross_user_copy(self, source: HistoryDatasetAssociation, copy: HistoryDatasetAssociation, history):
-        """Record a committed copy into a history whose owner doesn't own the source."""
-        audit = self.dataset_manager.audit
-        if not audit.wants("dataset.copy"):
-            return
-        # The commit expired these; their identities give the ids without a query.
-        source_id, copy_id, history_id = audit_id(source), audit_id(copy), audit_id(history)
-        try:
-            with audit_read_session(self.app.model.engine) as session:
-                source_hda = session.get(HistoryDatasetAssociation, source_id)
-                target_history = session.get(model.History, history_id)
-                if source_hda is None or target_history is None:
-                    raise exceptions.ObjectNotFound(f"No dataset {source_id} or history {history_id}")
-                event = self._cross_user_copy_event(source_hda, copy_id, target_history)
-        except Exception:
-            # The copy has committed; a missing audit event is reported, not raised.
-            audit_failures.report("prepare", "Lost the audit event for a copy of dataset %s", source_id)
-            return
-        if event is not None:
-            audit.record("dataset.copy", event[0], "success", details=event[1])
+    def prepare_copy_event(self, source: HistoryDatasetAssociation, history) -> "PendingCopyEvent | None":
+        """Before the commit, an event for copying ``source`` into ``history`` if someone else owns the source.
 
-    def record_copies(self, copies: Iterable[HistoryDatasetAssociation]) -> None:
-        """Record committed copies, made without flushing, whose sources someone else owns.
-
-        Only the caller knows which datasets it copied: a new collection can also hold
-        existing copies it merely references, so they can't be found from the collection.
+        Everything the event says is read now: once the commit has expired source and
+        history, describing them would be a read on the request's session after its commit.
         """
         audit = self.dataset_manager.audit
         if not audit.wants("dataset.copy"):
-            return
-        copy_ids = [audit_id(copy) for copy in copies]
-        events = []
-        try:
-            with audit_read_session(self.app.model.engine) as session:
-                for copy_id in copy_ids:
-                    # One copy that can't be read loses its own event, not its siblings'.
-                    try:
-                        copy = session.get(HistoryDatasetAssociation, copy_id) if copy_id is not None else None
-                        if copy is None:
-                            raise exceptions.ObjectNotFound(f"No dataset {copy_id}")
-                        source = copy.copied_from_history_dataset_association
-                        if source is not None and copy.history is not None:
-                            event = self._cross_user_copy_event(source, copy_id, copy.history)
-                            if event is not None:
-                                events.append(event)
-                    except Exception:
-                        audit_failures.report("prepare", "Lost the audit event for copy %s", copy_id)
-        except Exception:
-            audit_failures.report("prepare", "Lost the audit events for copies %s", copy_ids)
-            return
-        for target, details in events:
-            audit.record("dataset.copy", target, "success", details=details)
-
-    def _cross_user_copy_event(
-        self, source: HistoryDatasetAssociation, copy_id: int | None, history: model.History
-    ) -> tuple[AuditObject, DatasetCopyDetails] | None:
-        source_owner_id = source.history.user_id if source.history is not None else None
-        if source_owner_id == history.user_id:
             return None
-        target = self.dataset_manager.audit.describe(source)
-        assert target is not None
-        return target, DatasetCopyDetails(
-            new_hda_id=copy_id, target_history_id=history.id, recipient_id=history.user_id
-        )
+        try:
+            recipient_id = history.user_id
+            source_owner_id = source.history.user_id if source.history is not None else None
+            if source_owner_id == recipient_id:
+                return None
+            prepared = audit.prepare("dataset.copy", source)
+        except Exception:
+            # The copy must go ahead; a missing audit event is reported, not raised.
+            audit_failures.report("prepare", "Lost the audit event for a copy of dataset %s", audit_id(source))
+            return None
+        return PendingCopyEvent(prepared, recipient_id)
 
     def record_copy_denied(self, source_id: int, history: model.History | None) -> None:
         """Record a refused copy of dataset ``source_id``, naming only what the request asked for."""

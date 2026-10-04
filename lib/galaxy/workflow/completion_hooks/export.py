@@ -16,10 +16,13 @@ from typing import (
 
 from galaxy.managers.audit import (
     audit_failures,
+    audit_id,
     AuditOutcome,
     AuditReason,
     AuditService,
     classify_failure,
+    NULL_PREPARED,
+    PreparedEvent,
 )
 from galaxy.managers.audit_actions.exports import sanitize_target_uri
 from galaxy.managers.export_audit import store_export_details
@@ -127,6 +130,10 @@ class ExportToFileSourceHook(WorkflowCompletionHook):
             )
             return
 
+        # Before the export association's commit, while describing the invocation is a read
+        # on this session that no commit has expired.
+        audit_event = self._prepare_audit(invocation, user.id)
+
         # Get galaxy URL for RO-Crate metadata
         galaxy_url = self.app.config.galaxy_infrastructure_url or ""
 
@@ -166,43 +173,56 @@ class ExportToFileSourceHook(WorkflowCompletionHook):
         try:
             result = write_invocation_to.delay(request=request, task_user_id=user.id)
         except Exception as exc:
-            self._audit_export(invocation, user.id, request, *classify_failure(exc))
+            self._audit_export(audit_event, request, *classify_failure(exc))
             raise
         # Before the commit below: the export is under way whether or not that succeeds.
-        self._audit_export(invocation, user.id, request, "success", task_id=result.id)
+        self._audit_export(audit_event, request, "success", task_id=result.id)
 
         # Store the task UUID for tracking
         export_association.task_uuid = result.id
         self.app.model.context.commit()
 
+    def _prepare_audit(self, invocation: "WorkflowInvocation", owner_id: int) -> PreparedEvent:
+        """The export's event, as the invocation's owner, the only identity this hook has.
+
+        No request asked for this export and no credential is presented: the owner asked
+        for it when submitting the workflow, and it runs with their permissions. So the
+        event is background work (auth method "task") for the owner as effective user,
+        with no actor and no credential. Never raises.
+        """
+        try:
+            audit = self.app[AuditService]
+            if not audit.wants("invocation.export"):
+                return NULL_PREPARED
+            with request_scope() as scope:
+                scope.identity = RequestIdentity("task", user_id=owner_id)
+                return audit.prepare("invocation.export", invocation)
+        except Exception:
+            audit_failures.report(
+                "prepare", "Failed to prepare the export event of invocation %s", audit_id(invocation)
+            )
+            return NULL_PREPARED
+
     def _audit_export(
         self,
-        invocation: "WorkflowInvocation",
-        owner_id: int,
+        audit_event: PreparedEvent,
         request: WriteInvocationTo,
         outcome: AuditOutcome,
         reason: AuditReason | None = None,
         task_id: str | None = None,
     ) -> None:
-        """Record the export as the invocation's owner, the only identity this hook has.
-
-        No request asked for this export and no credential is presented: the owner asked
-        for it when submitting the workflow, and it runs with their permissions. So the
-        event is background work (auth method "task") for the owner as effective user,
-        with no actor and no credential, and ``trigger`` says where it came from. Never raises.
-        """
+        """Record the export; ``trigger`` says where it came from. Never raises."""
         try:
-            audit = self.app[AuditService]
-            if not audit.wants("invocation.export"):
-                return
-            details = store_export_details(request, request.target_uri).model_copy(
-                update={"task_id": task_id, "trigger": "workflow_completion"}
+            audit_event.record(
+                outcome,
+                details=lambda: store_export_details(request, request.target_uri).model_copy(
+                    update={"task_id": task_id, "trigger": "workflow_completion"}
+                ),
+                reason=reason,
+                stage="prepare",
             )
-            with request_scope() as scope:
-                scope.identity = RequestIdentity("task", user_id=owner_id)
-                audit.record("invocation.export", invocation, outcome, details=details, reason=reason, stage="prepare")
         except Exception:
-            audit_failures.report("prepare", "Failed to record the export of invocation %d", invocation.id)
+            audit_failures.report("prepare", "Failed to record the export of invocation %s", request.invocation_id)
 
     def _get_export_config(self, invocation) -> "dict[str, Any] | None":
         """

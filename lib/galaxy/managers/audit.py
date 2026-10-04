@@ -47,16 +47,8 @@ from sqlalchemy import (
     event as sa_event,
     inspect as sa_inspect,
 )
-from sqlalchemy.engine import (
-    Connection,
-    Engine,
-)
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.util import identity_key
-from sqlalchemy.pool import (
-    SingletonThreadPool,
-    StaticPool,
-)
 
 from galaxy import (
     exceptions,
@@ -287,6 +279,8 @@ class AuditService:
         self._warned_unrouted = False
         if statsd_client is not None:
             audit_failures.statsd_client = statsd_client
+        if self.enabled:
+            _count_commits(sa_session)
         if self.enabled and not audit_logger_routed():
             self._warned_unrouted = True
             log.warning(
@@ -313,11 +307,27 @@ class AuditService:
         if not self.wants(action):
             return
         try:
-            event = self._prepare(action, obj, details)
+            # Usually called once the change has committed, so only what is loaded is described.
+            event = self._prepare(action, obj, details, _BEFORE_ANY_COMMIT)
         except Exception:
             audit_failures.report("prepare", "Failed to build audit event for action %s", action)
             return
         self._emit(event, outcome, reason, stage)
+
+    def prepare(self, action: AuditAction, obj: Any = None) -> "PreparedEvent":
+        """Describe ``obj`` and the request's users now, to record once a later commit carries the change.
+
+        Call it before that commit: the description may read through the request's own
+        session, which is free of trouble until a commit expires what it holds, and the
+        commit's outcome is all that is left to say.
+        """
+        if not self.wants(action):
+            return NULL_PREPARED
+        try:
+            return PreparedEvent(self, self._prepare(action, obj, None, None))
+        except Exception:
+            audit_failures.report("prepare", "Failed to prepare audit event for action %s", action)
+            return NULL_PREPARED
 
     def attempt(
         self,
@@ -337,13 +347,19 @@ class AuditService:
         try:
             if requested is not None and requested.encoded_id is None and requested.id is not None:
                 requested = requested.model_copy(update={"encoded_id": self._encode(requested.id)})
-            return AuditAttempt(self, self._prepare(action, requested, details), record_success)
+            # Started before the attempt's own work, so reading through the request's session is safe.
+            window = self._read_window()
+            return AuditAttempt(self, self._prepare(action, requested, details, None), record_success, window)
         except Exception:
             audit_failures.report("prepare", "Failed to start audit attempt for action %s", action)
             return NULL_ATTEMPT
 
-    def _prepare(self, action: str, obj: Any, details: AuditDetails | None) -> dict[str, Any]:
-        """Capture everything except the outcome, while the request's database session is still open."""
+    def _prepare(self, action: str, obj: Any, details: AuditDetails | None, window: "_ReadWindow") -> dict[str, Any]:
+        """Capture everything except the outcome.
+
+        Reads go through the request's own session, and only while ``window`` says no
+        commit has expired what they would read; otherwise loaded state is all there is.
+        """
         truncated: list[str] = []
         scope = current_request_scope()
         identity = scope.identity if scope is not None else None
@@ -372,16 +388,13 @@ class AuditService:
                 "credential_id": identity.credential_id,
                 "switch": identity.switch,
             }
-            event["actor"] = self._user(identity.actor_id, truncated, "actor")
-            event["effective_user"] = self._user(identity.user_id, truncated, "effective_user")
-        try:
-            target = self.describe_isolated(obj)
-            event["object"] = target.model_dump() if target is not None else None
-        except Exception:
-            # Keep the event: what was touched matters more than how well it is described.
+            may_read = self._may_read(self._request_session(), window)
+            event["actor"] = self._user(identity.actor_id, truncated, "actor", may_read)
+            event["effective_user"] = self._user(identity.user_id, truncated, "effective_user", may_read)
+        if obj is not None:
+            # Keep the event however this goes: what was touched matters more than how well it is described.
             event["object"] = {"type": _object_type(obj), "id": model_id(obj)}
-            truncated.append("object")
-            audit_failures.report("describe", "Could not describe the object of audit action %s", action)
+            self._describe_into(event, obj, window)
         if details is not None:
             try:
                 event["details"] = self._details(action, details)
@@ -420,7 +433,7 @@ class AuditService:
         values = details.model_dump(exclude=exclude, exclude_defaults=True)
         return {key: _clip(value) for key, value in values.items()}
 
-    def _user(self, user_id: int | None, truncated: list[str], label: str) -> dict[str, Any] | None:
+    def _user(self, user_id: int | None, truncated: list[str], label: str, may_read: bool) -> dict[str, Any] | None:
         if user_id is None:
             return None
         user = {"id": user_id, "encoded_id": self._encode(user_id), "username": None, "email": None}
@@ -428,11 +441,12 @@ class AuditService:
             try:
                 names = self._loaded_names(user_id)
                 if names is None:
-                    # Not the request's session: a query there that failed would leave the
-                    # request's transaction unable to commit.
-                    with audit_read_session(self.sa_session.get_bind()) as session:
+                    if not may_read:
+                        raise _QueryRefused()
+                    session = self.sa_session
+                    with session.no_autoflush:
                         instance = session.get(model.User, user_id)
-                        names = (instance.username, instance.email) if instance is not None else (None, None)
+                    names = (instance.username, instance.email) if instance is not None else (None, None)
                 user["username"], user["email"] = (_clip(name) for name in names)
             except Exception:
                 truncated.append(f"{label}.names")
@@ -441,8 +455,8 @@ class AuditService:
     def _loaded_names(self, user_id: int) -> tuple[str | None, str | None] | None:
         """The user's names if the request's session already holds them, read without a query.
 
-        The usual case: the request loaded its user. Only after a commit has expired them
-        does recording an event need a connection of its own.
+        The usual case: the request loaded its user. A commit expires them, and then they
+        come only from an event prepared before it.
         """
         try:
             instance = self.sa_session.identity_map.get(identity_key(model.User, user_id))
@@ -452,32 +466,56 @@ class AuditService:
         except Exception:
             return None
 
-    def describe_isolated(self, obj: Any) -> AuditObject | None:
-        """Describe ``obj`` without a query on the session it belongs to.
+    def _describe_into(self, event: dict[str, Any], obj: Any, window: "_ReadWindow") -> None:
+        """Describe ``obj`` into ``event``, leaving what is already there if that can't be done.
 
-        Describers follow relationships (an item's history, its owner), and once a commit
-        has expired them each one is a query on the request's session. One that fails
-        leaves that session needing a rollback, so the request's own commit then fails over
-        an audit read. What the request already loaded is described for free; anything
-        else is read through a session of the audit's own.
+        Describers follow relationships (an item's history, its owner). Before a commit
+        those are reads on the request's own session and connection. After one, they
+        would refresh what the commit expired: a query on a transaction the request may
+        still need, so only loaded state is used. No read ever takes a connection of its own,
+        which a request already holding one could wait on for as long as the pool's timeout.
         """
+        try:
+            target = self._describe_within(obj, window)
+            if target is not None:
+                event["object"] = target.model_dump()
+        except _QueryRefused:
+            event["truncated"].append("object")
+        except Exception:
+            event["truncated"].append("object")
+            audit_failures.report("describe", "Could not describe the object of audit action %s", event["action"])
+
+    def _describe_within(self, obj: Any, window: "_ReadWindow") -> AuditObject | None:
         state = sa_inspect(obj, raiseerr=False) if obj is not None and not isinstance(obj, AuditObject) else None
         session = state.session if state is not None else None
-        if state is None or session is None:
+        if session is None:
             return self.describe(obj)
-        try:
-            with session.no_autoflush, _queries_refused(session):
+        with session.no_autoflush:
+            if self._may_read(session, window):
                 return self.describe(obj)
-        except _QueryRefused:
-            pass
-        identity = state.identity
-        if identity is None:
-            raise exceptions.ObjectNotFound(f"Cannot describe an unsaved {type(obj).__name__} without a query")
-        with audit_read_session(session.get_bind()) as read_session:
-            fresh = read_session.get(type(obj), identity)
-            if fresh is None:
-                raise exceptions.ObjectNotFound(f"No {type(obj).__name__} {identity}")
-            return self.describe(fresh)
+            with _queries_refused(session):
+                return self.describe(obj)
+
+    def _request_session(self) -> Session | None:
+        try:
+            session: Session = self.sa_session()
+            return session
+        except Exception:
+            return None
+
+    def _read_window(self) -> "_ReadWindow":
+        session = self._request_session()
+        return (session, _commit_count(session)) if session is not None else _BEFORE_ANY_COMMIT
+
+    @staticmethod
+    def _may_read(session: Session | None, window: "_ReadWindow") -> bool:
+        """Whether reads through ``session`` are still safe for an event begun at ``window``."""
+        if window is None:
+            return True
+        if session is None:
+            return False
+        opened_on, commits = window
+        return _commit_count(session) == (commits if session is opened_on else 0)
 
     def describe(self, obj: Any) -> AuditObject | None:
         if obj is None or isinstance(obj, AuditObject):
@@ -528,10 +566,17 @@ class AuditAttempt:
     it when the response starts.
     """
 
-    def __init__(self, service: AuditService, event: dict[str, Any], record_success: bool) -> None:
+    def __init__(
+        self,
+        service: AuditService,
+        event: dict[str, Any],
+        record_success: bool,
+        window: "_ReadWindow" = None,
+    ) -> None:
         self._service = service
         self._event = event
         self._record_success = record_success
+        self._window = window
         self.stage: AuditStage = "authorize"
         self.settled = False
         self.handed_off = False
@@ -541,14 +586,12 @@ class AuditAttempt:
         return True
 
     def authorized(self, obj: Any) -> None:
-        """Access was granted to ``obj``; describe it now, while its session is open."""
-        try:
-            target = self._service.describe_isolated(obj)
-            if target is not None:
-                self._event["object"] = target.model_dump()
-        except Exception:
-            self._event["truncated"].append("object")
-            audit_failures.report("describe", "Could not describe the object of audit action %s", self._event["action"])
+        """Access was granted to ``obj``; describe it now, while its session is open.
+
+        Reads through the request's session are used only if nothing has committed since
+        the attempt started; otherwise ``obj`` is described from what is loaded.
+        """
+        self._service._describe_into(self._event, obj, self._window)
         self.stage = "prepare"
 
     def add_details(self, details: AuditDetails | Callable[[], AuditDetails]) -> None:
@@ -671,6 +714,46 @@ class _NullAttempt(AuditAttempt):
 NULL_ATTEMPT = _NullAttempt()
 
 
+class PreparedEvent:
+    """An event described before a commit, recorded at most once after it."""
+
+    def __init__(self, service: AuditService, event: dict[str, Any]) -> None:
+        self._service = service
+        self._event = event
+        self.recorded = False
+
+    def record(
+        self,
+        outcome: AuditOutcome = "success",
+        *,
+        details: AuditDetails | Callable[[], AuditDetails] | None = None,
+        reason: AuditReason | None = None,
+        stage: AuditStage | None = None,
+    ) -> None:
+        if self.recorded:
+            return
+        self.recorded = True
+        if details is not None:
+            try:
+                built = details() if callable(details) else details
+                self._event["details"] = self._service._details(self._event["action"], built)
+            except Exception:
+                self._event["truncated"].append("details")
+                audit_failures.report("details", "Invalid details for audit action %s", self._event["action"])
+        self._service._emit(self._event, outcome, reason, stage)
+
+
+class _NullPrepared(PreparedEvent):
+    def __init__(self) -> None:
+        self.recorded = True
+
+    def record(self, *args: Any, **kwargs: Any) -> None:
+        pass
+
+
+NULL_PREPARED = _NullPrepared()
+
+
 # -- Call-site helpers ------------------------------------------------------------
 
 
@@ -742,22 +825,37 @@ def audit_id(obj: Any) -> int | None:
     return identity[0] if identity else None
 
 
-@contextmanager
-def audit_read_session(bind: Engine | Connection) -> Iterator[Session]:
-    """A short-lived session for the reads behind an audit event.
+# Outer commits of a session, counted so an audit read can tell whether one has expired
+# what it would read. Kept on the session, which Galaxy opens anew for every request.
+_COMMITS = "galaxy.audit.commits"
 
-    A failed query on the request's session leaves its transaction needing a rollback, and
-    the request's own commit then fails over nothing but an audit read. A session of its own
-    keeps audit reads out of that transaction, and sees only committed rows, so an event
-    built from it never claims a change that was rolled back. It holds a second pooled
-    connection while the request holds its own, but only briefly and only when auditing.
-    """
-    if isinstance(bind.engine.pool, (SingletonThreadPool, StaticPool)):
-        # Every session shares one connection (in-memory SQLite): a second session would see
-        # the request's uncommitted changes and roll them back on close, so no reads at all.
-        raise RuntimeError("Audit reads need a database that gives each session its own connection")
-    with Session(bind.engine, autoflush=False) as session:
-        yield session
+# Opened on a session, and the number of its commits then; None: reads are safe now.
+_ReadWindow = tuple[Session | None, int] | None
+# For events recorded at any point: reads are safe only if the session has never committed.
+_BEFORE_ANY_COMMIT: _ReadWindow = (None, 0)
+
+
+def _on_commit(session: Session) -> None:
+    # A released savepoint fires this too, but expires nothing.
+    if not session.in_nested_transaction():
+        session.info[_COMMITS] = session.info.get(_COMMITS, 0) + 1
+
+
+def _commit_count(session: Session) -> int:
+    try:
+        return int(session.info.get(_COMMITS, 0))
+    except Exception:
+        return 0
+
+
+def _count_commits(sessions: Any) -> None:
+    """Count the commits of every session ``sessions`` (a scoped session or factory) makes."""
+    try:
+        if not sa_event.contains(sessions, "after_commit", _on_commit):
+            sa_event.listen(sessions, "after_commit", _on_commit)
+    except Exception:
+        # Not a session factory (a stand-in in scripts and tests): nothing is counted.
+        log.debug("Audit cannot follow commits of %r", sessions)
 
 
 class _QueryRefused(Exception):

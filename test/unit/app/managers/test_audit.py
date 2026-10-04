@@ -85,23 +85,23 @@ ALICE = SimpleNamespace(username="alice", email="alice@example.org")
 
 
 class FakeSession:
-    """Stands in for both the request's session and its engine; reads go through ``audit_read_session``."""
+    """Stands in for the request's scoped session, which has never committed."""
 
     def __init__(self, users=None):
         self.users = users if users is not None else {1: ADMIN, 7: ALICE}
+        self.info: dict = {}
+        self.identity_map: dict = {}
 
-    def get_bind(self):
+    def __call__(self):
         return self
+
+    @property
+    def no_autoflush(self):
+        return contextlib.nullcontext()
 
     def get(self, model_class, user_id):
         assert model_class is model.User
         return self.users.get(user_id)
-
-
-@pytest.fixture(autouse=True)
-def read_sessions_from_the_fake(monkeypatch):
-    # The names lookup opens a session on the engine; the fake engine is its own session.
-    monkeypatch.setattr(audit, "audit_read_session", contextlib.nullcontext)
 
 
 def make_service(enabled=True, actions=None, include_names=False, session=None, statsd_client=None) -> AuditService:
@@ -207,10 +207,7 @@ def test_include_names_adds_identifying_fields(audit_handler):
 
 
 def test_names_that_fail_to_load_leave_the_ids(audit_handler):
-    class BrokenSession:
-        def get_bind(self):
-            return self
-
+    class BrokenSession(FakeSession):
         def get(self, model_class, user_id):
             raise RuntimeError("session closed")
 

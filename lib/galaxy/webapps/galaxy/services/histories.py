@@ -334,6 +334,8 @@ class HistoriesService(ServiceBase, ConsumesModelStores, ServesExportStores):
                 self.manager.record_history_import_denied(copy_this_history_id)
                 raise
             hist_name = hist_name or (f"Copy of '{original_history.name}'")
+            recipient_id = trans.user.id if trans.user else None
+            pending_import = self.manager.prepare_history_import(original_history, recipient_id)
             new_history = original_history.copy(
                 name=hist_name, target_user=trans.user, all_datasets=payload.all_datasets
             )
@@ -346,7 +348,7 @@ class HistoriesService(ServiceBase, ConsumesModelStores, ServesExportStores):
         trans.sa_session.add(new_history)
         trans.sa_session.commit()
         if copy_this_history_id:
-            self.manager.record_history_import(original_history, new_history, bool(payload.all_datasets))
+            self.manager.record_history_import(pending_import, new_history, recipient_id, bool(payload.all_datasets))
 
         # an anonymous user can only have one history
         if self.user_manager.is_anonymous(trans.user):

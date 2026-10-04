@@ -24,7 +24,10 @@ from galaxy.exceptions import (
     MessageException,
     RequestParameterInvalidException,
 )
-from galaxy.managers.audit import audit_id
+from galaxy.managers.audit import (
+    audit_failures,
+    audit_id,
+)
 from galaxy.managers.collections_util import validate_input_element_identifiers
 from galaxy.managers.context import (
     ProvidesAppContext,
@@ -34,6 +37,7 @@ from galaxy.managers.context import (
 from galaxy.managers.hdas import (
     HDAManager,
     HistoryDatasetAssociationNoHistoryException,
+    PendingCopyEvent,
 )
 from galaxy.managers.hdcas import write_dataset_collection
 from galaxy.managers.histories import HistoryManager
@@ -68,18 +72,49 @@ log = logging.getLogger(__name__)
 
 
 class _CopyTracker:
-    """The dataset copies one collection operation made, and which of them have committed."""
+    """The dataset copies one collection operation made, and which of them have committed.
 
-    def __init__(self) -> None:
-        self.made: list[model.HistoryDatasetAssociation] = []
-        self.committed: list[model.HistoryDatasetAssociation] = []
+    Each copy's event is prepared as the copy is made, while its source and target
+    history are loaded; after a commit, describing them would mean reading them again.
+    """
+
+    def __init__(self, hda_manager: HDAManager) -> None:
+        self._hda_manager = hda_manager
+        self.made: list[tuple[model.HistoryDatasetAssociation, model.History | None, PendingCopyEvent | None]] = []
+        self.committed: list[tuple[model.HistoryDatasetAssociation, model.History | None, PendingCopyEvent | None]] = []
+
+    def add(
+        self,
+        copy: model.HistoryDatasetAssociation,
+        source: model.HistoryDatasetAssociation,
+        history: model.History | None,
+    ) -> None:
+        self.made.append((copy, history, self._hda_manager.prepare_copy_event(source, history)))
+
+    def add_copy_of(self, source_id: int | None, copy: model.HistoryDatasetAssociation, history: model.History) -> None:
+        # A copied element holds only its source's id. The source was loaded to be copied,
+        # so this is usually found in the identity map without a query.
+        try:
+            source = self._hda_manager.session().get(model.HistoryDatasetAssociation, source_id)
+        except Exception:
+            source = None
+        if source is None:
+            audit_failures.report("prepare", "Lost the audit event for a copy of dataset %s", source_id)
+            self.made.append((copy, history, None))
+            return
+        self.add(copy, source, history)
 
     def note_commit(self, session) -> None:
         if session.in_nested_transaction():
             # A savepoint released, not a commit: the outer transaction can still roll back.
             return
         # Everything made so far was in the session the commit just wrote out.
-        self.committed = [copy for copy in self.made if audit_id(copy) is not None]
+        self.committed = [entry for entry in self.made if audit_id(entry[0]) is not None]
+
+    def record_committed(self) -> None:
+        for copy, history, pending in self.committed:
+            if pending is not None:
+                pending.record(copy, history)
 
 
 # Set while a collection is built with copies audited, so the element loader can say what it copied.
@@ -341,7 +376,7 @@ class DatasetCollectionManager:
         if not copy_elements or not self.hda_manager.dataset_manager.audit.wants("dataset.copy"):
             yield None
             return
-        tracker = _CopyTracker()
+        tracker = _CopyTracker(self.hda_manager)
         session = trans.sa_session()
         token = _building_copies.set(tracker)
         event.listen(session, "after_commit", tracker.note_commit)
@@ -350,8 +385,7 @@ class DatasetCollectionManager:
         finally:
             event.remove(session, "after_commit", tracker.note_commit)
             _building_copies.reset(token)
-            if tracker.committed:
-                self.hda_manager.record_copies(tracker.committed)
+            tracker.record_committed()
 
     def _create_instance_for_collection(
         self,
@@ -619,7 +653,8 @@ class DatasetCollectionManager:
             )
             if copies is not None:
                 # Copying into a destination copies every dataset in the collection.
-                copies.made.extend(_element_datasets(new_hdca.collection))
+                for copy in _element_datasets(new_hdca.collection):
+                    copies.add_copy_of(copy.copied_from_history_dataset_association_id, copy, parent)
             if not copy_elements:
                 parent.add_dataset_collection(new_hdca)
             trans.sa_session.commit()
@@ -830,7 +865,7 @@ class DatasetCollectionManager:
             if copy_elements:
                 element = self.hda_manager.copy(hda, history=history or trans.history, hide_copy=True, flush=False)
                 if (copies := _building_copies.get()) is not None:
-                    copies.made.append(element)
+                    copies.add(element, hda, history or trans.history)
             else:
                 element = hda
             if hide_source_items and self.hda_manager.get_owned(
