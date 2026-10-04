@@ -764,18 +764,18 @@ class _QueryRefused(Exception):
     pass
 
 
-def _refuse_query(orm_execute_state: Any) -> None:
-    raise _QueryRefused()
-
-
 @contextmanager
 def _queries_refused(session: Session) -> Iterator[None]:
     # Raised before anything reaches the database, so the session's transaction is untouched.
-    sa_event.listen(session, "do_orm_execute", _refuse_query)
+    # A listener of its own per call, so a nested use can't remove the outer one.
+    def refuse(orm_execute_state: Any) -> None:
+        raise _QueryRefused()
+
+    sa_event.listen(session, "do_orm_execute", refuse)
     try:
         yield
     finally:
-        sa_event.remove(session, "do_orm_execute", _refuse_query)
+        sa_event.remove(session, "do_orm_execute", refuse)
 
 
 def _object_type(obj: Any) -> str:

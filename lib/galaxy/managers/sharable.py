@@ -94,6 +94,14 @@ class SharingState(NamedTuple):
         return self.importable, self.published, self.slug, self.user_ids
 
 
+def _within(transaction, ancestor) -> bool:
+    while transaction is not None:
+        if transaction is ancestor:
+            return True
+        transaction = transaction.parent
+    return False
+
+
 # Item columns that change who can reach it.
 SHARING_COLUMNS = ("importable", "published", "slug")
 
@@ -112,8 +120,8 @@ class _SharingWrites:
         mapper = class_mapper(share_model)
         (item_column,) = mapper.relationships[item_relationship].local_columns
         self._item_key = mapper.get_property_by_column(item_column).key
-        self._pending: dict[str, Any] = {}
-        self._pending_users: dict[int, bool] = {}
+        # Per flush, with the transaction (or savepoint) that flush wrote into.
+        self._pending: list[tuple[Any, dict[str, Any], dict[int, bool]]] = []
         self.values: dict[str, Any] = {}
         self.users_added: frozenset[int] = frozenset()
         self.users_removed: frozenset[int] = frozenset()
@@ -121,31 +129,37 @@ class _SharingWrites:
     def flushed(self, session, _flush_context) -> None:
         try:
             state = sa_inspect(self._item)
+            values: dict[str, Any] = {}
+            shares: dict[int, bool] = {}
             for key in SHARING_COLUMNS:
                 added = state.attrs[key].history.added
                 if added:
-                    self._pending[key] = added[-1]
+                    values[key] = added[-1]
             for objects, shared in ((session.new, True), (session.deleted, False)):
                 for obj in objects:
                     user_id = self._share_user_id(obj)
                     if user_id is not None:
-                        self._pending_users[user_id] = shared
+                        shares[user_id] = shared
+            if values or shares:
+                transaction = session.get_nested_transaction() or session.get_transaction()
+                self._pending.append((transaction, values, shares))
         except Exception:
             # Never fail the flush over its audit event; the event still says what it saw.
             audit_failures.report("prepare", "Could not follow a sharing change of item %s", self._item_id)
 
     def committed(self, _session) -> None:
-        self.values.update(self._pending)
         added, removed = set(self.users_added), set(self.users_removed)
-        for user_id, shared in self._pending_users.items():
-            (added if shared else removed).add(user_id)
-            (removed if shared else added).discard(user_id)
+        for _transaction, values, shares in self._pending:
+            self.values.update(values)
+            for user_id, shared in shares.items():
+                (added if shared else removed).add(user_id)
+                (removed if shared else added).discard(user_id)
         self.users_added, self.users_removed = frozenset(added), frozenset(removed)
-        self.rolled_back(_session)
+        self._pending = []
 
-    def rolled_back(self, _session) -> None:
-        self._pending = {}
-        self._pending_users = {}
+    def rolled_back(self, _session, previous_transaction) -> None:
+        # A savepoint rolling back undoes only what was flushed inside it.
+        self._pending = [entry for entry in self._pending if not _within(entry[0], previous_transaction)]
 
     def _share_user_id(self, obj) -> int | None:
         if not isinstance(obj, self._share_model):
@@ -405,11 +419,16 @@ class SharableModelManager(
         if before is None or session is None:
             yield
             return
-        writes = _SharingWrites(item, self.user_share_model, self.foreign_key_name)
+        try:
+            writes = _SharingWrites(item, self.user_share_model, self.foreign_key_name)
+        except Exception:
+            audit_failures.report("prepare", "Could not follow sharing changes of %s %s", self.share_action, item)
+            yield
+            return
         listeners = (
             ("after_flush", writes.flushed),
             ("after_commit", writes.committed),
-            ("after_rollback", writes.rolled_back),
+            ("after_soft_rollback", writes.rolled_back),
         )
         for name, listener in listeners:
             event.listen(session, name, listener)

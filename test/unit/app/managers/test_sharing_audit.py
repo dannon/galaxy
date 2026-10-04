@@ -434,6 +434,34 @@ class TestSharingAudit(AuditTestCase):
         assert "users_added" not in event["details"]
         assert self.history_manager.get_share_assocs(self.history)
 
+    def test_a_rolled_back_savepoint_keeps_what_was_flushed_before_it(self):
+        session = self.trans.sa_session
+        with self.as_user(self.owner):
+            with self.history_manager.recording_sharing_change(self.history, "update"):
+                self.history.importable = True
+                session.flush()
+                with pytest.raises(RuntimeError):
+                    with session.begin_nested():
+                        self.history.published = True
+                        session.flush()
+                        raise RuntimeError("savepoint fails")
+                session.commit()
+
+        (event,) = self.events
+        assert event["details"]["importable_after"] is True
+        # Undone with the savepoint, so never committed.
+        assert event["details"]["published_after"] is False
+
+    def test_refusing_queries_can_nest(self):
+        session = self.trans.sa_session()
+        with audit_module._queries_refused(session):
+            with audit_module._queries_refused(session):
+                pass
+            session.expire(self.history)
+            with pytest.raises(audit_module._QueryRefused):
+                assert self.history.name
+        session.rollback()
+
     def test_a_failed_audit_read_leaves_the_request_able_to_commit(self):
         with self.audit_read_fails("SELECT history_user_share_association"):
             with self.as_user(self.owner):

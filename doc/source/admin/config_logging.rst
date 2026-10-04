@@ -111,7 +111,7 @@ selects:
     ``history.export`` (to a download or a remote file source), ``history.download`` (a contents archive),
     ``history.share`` (sharing with users, link access, publishing and slug changes, with the state before and
     after; the after state is what the request itself wrote and committed, so a concurrent change by another
-    request is never attributed to it) and ``history.import`` (a copy of someone else's history).
+    request is never attributed to it, and fields the request didn't write repeat their before values) and ``history.import`` (a copy of someone else's history).
 ``collection``
     ``collection.download`` (a collection zip) and ``collection.export``.
 ``invocation``
