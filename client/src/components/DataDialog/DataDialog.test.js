@@ -1,4 +1,5 @@
 import { shallowMount } from "@vue/test-utils";
+import axios from "axios";
 import { describe, expect, it, vi } from "vitest";
 
 import { Model } from "./model";
@@ -50,6 +51,17 @@ describe("model.js", () => {
         expect(model.count()).toBe(1);
         result = model.finalize();
         expect(result[0]).toBe("tag_2");
+    });
+});
+
+describe("services/Services:get", () => {
+    // Browsers leave statusText empty over HTTP/2.
+    it("names a failed status without relying on the status text", async () => {
+        vi.spyOn(axios, "get").mockRejectedValueOnce({
+            response: { status: 413, statusText: "", data: "<html><body>nginx</body></html>" },
+        });
+        const services = new Services(mockOptions);
+        await expect(services.get("/api/datasets")).rejects.toBe("The request was too large (413)");
     });
 });
 
