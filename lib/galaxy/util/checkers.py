@@ -28,6 +28,8 @@ HTML_REGEXPS = (
     re.compile(r"<META[\W][^>]*>", re.I),
     re.compile(r"<SCRIPT[^>]*>", re.I),
 )
+# A local file header, or the end record of an empty archive.
+ZIP_LEADING_SIGNATURES = (b"PK\x03\x04", b"PK\x05\x06")
 
 
 class CompressionChecker(Protocol):
@@ -157,8 +159,19 @@ def check_bz2(file_path: str, check_content: bool = True) -> tuple[bool, bool]:
     return (True, True)
 
 
+def _starts_with_zip_signature(file_path: str) -> bool:
+    try:
+        with open(file_path, "rb") as fh:
+            return fh.read(4) in ZIP_LEADING_SIGNATURES
+    except OSError:
+        return False
+
+
 def check_zip(file_path: str, check_content: bool = True, files=1) -> tuple[bool, bool]:
-    if not zipfile.is_zipfile(file_path):
+    # zipfile.is_zipfile searches backwards from the end of the file for the end record, so on
+    # its own it also accepts a tar whose last member is a zip (as well as self-extracting and
+    # other prepended-data zips, which we deliberately reject too).
+    if not (_starts_with_zip_signature(file_path) and zipfile.is_zipfile(file_path)):
         return (False, False)
 
     if not check_content:
