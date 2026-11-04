@@ -3,6 +3,12 @@ import shutil
 import tempfile
 import zipfile
 
+import pytest
+
+from galaxy.util.checkers import (
+    check_zip,
+    is_zip,
+)
 from galaxy.util.compression_utils import (
     CompressedFile,
     get_fileobj_raw,
@@ -90,3 +96,81 @@ def test_compressed_file_tar_with_stray_zip_end_record(tmp_path):
         assert cf.file_type == "tar"
         outdir = cf.extract(str(tmp_path))
     assert os.path.isfile(os.path.join(outdir, "member.bin"))
+
+
+TAR_WITH_ZIP_LAST_MEMBER = "test-data/tar_with_zip_last_member.tar"
+
+
+def test_get_fileobj_raw_tar_with_zip_last_member_read_raw():
+    # zipfile finds the end record of the trailing zip member and happily opens the whole tar as that zip.
+    with open(TAR_WITH_ZIP_LAST_MEMBER, "rb") as expected:
+        expected_bytes = expected.read()
+    fmt, fh = get_fileobj_raw(TAR_WITH_ZIP_LAST_MEMBER, "rb")
+    with fh:
+        assert fmt is None
+        assert fh.read() == expected_bytes
+
+
+def test_compressed_file_tar_with_zip_last_member(tmp_path):
+    assert CompressedFile.can_decompress(TAR_WITH_ZIP_LAST_MEMBER)
+    with CompressedFile(TAR_WITH_ZIP_LAST_MEMBER) as cf:
+        assert cf.file_type == "tar"
+        outdir = cf.extract(str(tmp_path))
+    assert sorted(os.listdir(outdir)) == ["inner.zip", "readme.txt"]
+
+
+def test_zip_with_prepended_data_not_treated_as_zip(tmp_path):
+    # Self-extracting and other prepended-data zips are deliberately no longer detected.
+    path = tmp_path / "prepended.zip"
+    with zipfile.ZipFile(path, "w") as zf:
+        zf.writestr("a.txt", "content\n")
+    path.write_bytes(b"#!/bin/sh\nexit 0\n" + path.read_bytes())
+    assert zipfile.is_zipfile(path)
+    assert not is_zip(str(path))
+    assert not CompressedFile.can_decompress(path)
+    fmt, fh = get_fileobj_raw(str(path), "rb")
+    with fh:
+        assert fmt is None
+
+
+@pytest.mark.parametrize(
+    "path,expected",
+    [
+        ("test-data/4.bed.zip", True),
+        ("test-data/testdir1.zip", True),
+        ("test-data/testdir.tar", False),
+        (TAR_WITH_ZIP_LAST_MEMBER, False),
+        ("test-data/tar_with_stray_zip_end_record.tar", False),
+        ("test-data/does-not-exist.zip", False),
+        ("test-data", False),
+    ],
+)
+def test_is_zip(path, expected):
+    assert is_zip(path) is expected
+
+
+def test_is_zip_empty_and_short_files(tmp_path):
+    empty = tmp_path / "empty.zip"
+    zipfile.ZipFile(empty, "w").close()
+    assert is_zip(str(empty))
+    for content in (b"", b"PK", b"PK\x03"):
+        short = tmp_path / "short"
+        short.write_bytes(content)
+        assert not is_zip(str(short))
+
+
+def test_check_zip_tar_with_zip_last_member():
+    assert check_zip(TAR_WITH_ZIP_LAST_MEMBER) == (False, False)
+
+
+def test_get_fileobj_raw_corrupt_zip_read_raw(tmp_path):
+    path = tmp_path / "corrupt.zip"
+    with zipfile.ZipFile(path, "w") as zf:
+        zf.writestr("a.txt", "content\n")
+    # Keep the leading local header and the end record, break the central directory.
+    corrupt = path.read_bytes().replace(b"PK\x01\x02", b"XX\x01\x02")
+    path.write_bytes(corrupt)
+    fmt, fh = get_fileobj_raw(str(path), "rb")
+    with fh:
+        assert fmt is None
+        assert fh.read() == corrupt
