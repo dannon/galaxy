@@ -49,7 +49,7 @@ from galaxy.model.orm.now import now
 from galaxy.structured_app import BasicSharedApp
 
 if TYPE_CHECKING:
-    from galaxy.tools import Tool
+    from galaxy.tool_util.toolbox.base import ToolLike
 
 log = logging.getLogger(__name__)
 
@@ -255,7 +255,7 @@ def history_constraint_clause(credential: Credential | None = None) -> ColumnEle
     return or_(*clauses)
 
 
-def credential_permits_tool(tool: "Tool", credential: Credential | None = None) -> bool:
+def credential_permits_tool(tool: "ToolLike", credential: Credential | None = None) -> bool:
     """Apply the ``tools`` constraint, if the active credential has one. Upload tools always pass."""
     credential = credential if credential is not None else current_credential()
     if credential is None:

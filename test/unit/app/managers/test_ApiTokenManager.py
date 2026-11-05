@@ -353,7 +353,8 @@ class TestConstraintsThroughManagers(BaseTestCase):
             assert not self.history_manager.is_owner(self.theirs, self.user)
             assert self.history_manager.is_accessible(self.mine, self.user)
             assert not self.history_manager.is_accessible(self.theirs, self.user)
-            with pytest.raises(exceptions.ItemAccessibilityException):
+            # loading by id goes through the filtered query, so the history doesn't exist for the token
+            with pytest.raises(exceptions.ObjectNotFound):
                 self.history_manager.get_accessible(self.theirs.id, self.user)
         # the same calls with no credential are unchanged
         assert self.history_manager.is_owner(self.theirs, self.user)

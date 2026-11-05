@@ -26,7 +26,10 @@ from sqlalchemy import (
     select,
     true,
 )
-from sqlalchemy.orm import aliased
+from sqlalchemy.orm import (
+    aliased,
+    Query,
+)
 
 from galaxy import model
 from galaxy.exceptions import (
@@ -259,6 +262,12 @@ class HistoryManager(sharable.SharableModelManager[model.History], deletable.Pur
         if payload.offset is not None:
             stmt = stmt.offset(payload.offset)
         return trans.sa_session.scalars(stmt), total_matches
+
+    def query(self, eagerloads: bool = True, filters=None, order_by=None, limit=None, offset=None) -> Query:
+        # Every listing built on the manager sees only what a constrained token may open.
+        if (constraint_clause := history_constraint_clause()) is not None:
+            filters = combine_lists(filters, [constraint_clause])
+        return super().query(eagerloads=eagerloads, filters=filters, order_by=order_by, limit=limit, offset=offset)
 
     # .... sharable
     # overriding to handle anonymous users' current histories in both cases

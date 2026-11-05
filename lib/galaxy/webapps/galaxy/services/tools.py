@@ -122,6 +122,7 @@ def validate_tool_for_running(trans: ProvidesHistoryContext, tool_ref: ToolRunRe
     tool = get_tool_from_trans(trans, tool_ref)
     if not tool.allow_user_access(trans.user):
         raise exceptions.ItemAccessibilityException("Tool not accessible.")
+    _check_tool_constraint(tool)
     return tool
 
 

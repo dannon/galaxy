@@ -379,6 +379,7 @@ class FastAPIDatasets:
         summary="Downloads the dataset, redirecting to the object store when possible.",
         tags=["histories"],
         response_class=StreamingResponse,
+        scope="datasets:read",
         responses={302: DIRECT_DOWNLOAD_REDIRECT_RESPONSE},
     )
     @router.head(
@@ -386,6 +387,7 @@ class FastAPIDatasets:
         name="history_contents_download",
         summary="Returns download metadata (size, filename) for the dataset.",
         tags=["histories"],
+        scope="datasets:read",
     )
     def download_history_content(
         self,
@@ -403,10 +405,12 @@ class FastAPIDatasets:
         summary="Downloads the dataset, redirecting to the object store when possible.",
         response_class=StreamingResponse,
         responses={302: DIRECT_DOWNLOAD_REDIRECT_RESPONSE},
+        scope="datasets:read",
     )
     @router.head(
         "/api/datasets/{history_content_id}/download",
         summary="Returns download metadata (size, filename) for the dataset.",
+        scope="datasets:read",
     )
     def download(
         self,
