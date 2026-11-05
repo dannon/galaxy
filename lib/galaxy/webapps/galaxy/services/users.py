@@ -1,4 +1,7 @@
-from typing import TYPE_CHECKING
+from typing import (
+    Any,
+    TYPE_CHECKING,
+)
 
 import galaxy.managers.base as managers_base
 from galaxy import (
@@ -7,6 +10,10 @@ from galaxy import (
 )
 from galaxy.celery.helpers import async_task_summary
 from galaxy.managers import api_keys
+from galaxy.managers.api_tokens import (
+    ApiTokenManager,
+    PRESETS,
+)
 from galaxy.managers.context import (
     ProvidesHistoryContext,
     ProvidesUserContext,
@@ -17,13 +24,19 @@ from galaxy.managers.users import (
     UserManager,
     UserSerializer,
 )
-from galaxy.model import User
+from galaxy.model import (
+    APIToken,
+    User,
+)
 from galaxy.model.db.user import get_users_for_index
 from galaxy.queue_worker import send_local_control_task
 from galaxy.quota import QuotaAgent
 from galaxy.schema import APIKeyModel
 from galaxy.schema.schema import (
     AnonUserModel,
+    ApiTokenCreatedModel,
+    ApiTokenCreatePayload,
+    ApiTokenModel,
     DetailedUserModel,
     FlexibleUserIdType,
     GroupModel,
@@ -56,6 +69,7 @@ class UsersService(ServiceBase):
         security: IdEncodingHelper,
         user_manager: UserManager,
         api_key_manager: api_keys.ApiKeyManager,
+        api_token_manager: ApiTokenManager,
         user_serializer: UserSerializer,
         user_deserializer: UserDeserializer,
         quota_agent: QuotaAgent,
@@ -64,6 +78,7 @@ class UsersService(ServiceBase):
         super().__init__(security)
         self.user_manager = user_manager
         self.api_key_manager = api_key_manager
+        self.api_token_manager = api_token_manager
         self.user_serializer = user_serializer
         self.user_deserializer = user_deserializer
         self.quota_agent = quota_agent
@@ -113,6 +128,49 @@ class UsersService(ServiceBase):
         """Deletes a particular API key"""
         user = self.get_user(trans, user_id)
         self.api_key_manager.delete_api_key(user)
+
+    def list_api_tokens(self, trans: ProvidesUserContext, user_id: int, include_inactive: bool) -> list[ApiTokenModel]:
+        user = self.get_user(trans, user_id)
+        return [self._token_to_model(t) for t in self.api_token_manager.tokens_for(user, include_inactive)]
+
+    def create_api_token(
+        self, trans: ProvidesUserContext, user_id: int, payload: ApiTokenCreatePayload
+    ) -> ApiTokenCreatedModel:
+        user = self.get_user(trans, user_id)
+        scopes = payload.scopes
+        if payload.preset:
+            if payload.preset not in PRESETS:
+                raise glx_exceptions.RequestParameterInvalidException(f"Unknown preset '{payload.preset}'.")
+            scopes = f"{PRESETS[payload.preset]} {scopes or ''}"
+        if not scopes:
+            raise glx_exceptions.RequestParameterMissingException("Either scopes or a preset is required.")
+        constraints = payload.constraints.model_dump(exclude_none=True) if payload.constraints else None
+        token, secret = self.api_token_manager.mint_token(
+            user, payload.name, scopes, constraints=constraints, expires_in=payload.expires_in, source="ui"
+        )
+        return ApiTokenCreatedModel(token=secret, **self._token_fields(token))
+
+    def revoke_api_token(self, trans: ProvidesUserContext, user_id: int, token_id: int) -> ApiTokenModel:
+        user = self.get_user(trans, user_id)
+        return self._token_to_model(self.api_token_manager.revoke(user, token_id))
+
+    def _token_to_model(self, token: APIToken) -> ApiTokenModel:
+        return ApiTokenModel(**self._token_fields(token))
+
+    def _token_fields(self, token: APIToken) -> dict[str, Any]:
+        return dict(
+            id=token.id,
+            name=token.name,
+            token_hint=token.token_hint,
+            scopes=token.scopes.split(),
+            constraints=token.constraints,
+            source=token.source,
+            create_time=token.create_time,
+            expires_at=token.expires_at,
+            last_used_at=token.last_used_at,
+            revoked_at=token.revoked_at,
+            active=token.active,
+        )
 
     def purge_user(self, user: User) -> None:
         """Purge a deleted user, including the extra preference values kept in the vault."""

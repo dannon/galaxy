@@ -563,6 +563,90 @@ class RemoteUserCreationPayload(Model):
     remote_user_email: Annotated[EmailAddress, UserEmailField]
 
 
+class ApiTokenHistoriesConstraint(Model):
+    ids: list[DecodedDatabaseIdField] | None = Field(
+        default=None, title="History IDs", description="Only these histories."
+    )
+    created_by_token: bool | None = Field(
+        default=None, title="Created by token", description="Only histories this token created."
+    )
+
+
+class ApiTokenToolsConstraint(Model):
+    ids: list[str] = Field(default=..., title="Tool IDs", description="Only these tools may be run or built.")
+
+
+class ApiTokenWorkflowsConstraint(Model):
+    ids: list[DecodedDatabaseIdField] = Field(
+        default=..., title="Workflow IDs", description="Only these stored workflows."
+    )
+
+
+class ApiTokenConstraints(Model):
+    """Instance constraints narrowing what a token's scopes may touch."""
+
+    histories: ApiTokenHistoriesConstraint | None = Field(default=None, title="Histories")
+    tools: ApiTokenToolsConstraint | None = Field(default=None, title="Tools")
+    workflows: ApiTokenWorkflowsConstraint | None = Field(default=None, title="Workflows")
+    surfaces: list[Literal["api", "mcp"]] | None = Field(
+        default=None,
+        title="Surfaces",
+        description="Where the token may be used: ``api`` (REST) and/or ``mcp``. Unset means anywhere.",
+    )
+
+
+class ApiTokenHistoriesConstraintView(Model):
+    ids: list[EncodedDatabaseIdField] | None = None
+    created_by_token: bool | None = None
+
+
+class ApiTokenWorkflowsConstraintView(Model):
+    ids: list[EncodedDatabaseIdField]
+
+
+class ApiTokenConstraintsView(Model):
+    histories: ApiTokenHistoriesConstraintView | None = None
+    tools: ApiTokenToolsConstraint | None = None
+    workflows: ApiTokenWorkflowsConstraintView | None = None
+    surfaces: list[str] | None = None
+
+
+class ApiTokenCreatePayload(Model):
+    name: str = Field(default=..., title="Name", description="A label for the token, shown in the token list.")
+    scopes: str | None = Field(
+        default=None,
+        title="Scopes",
+        description="Space-separated ``resource:action`` scopes. Required unless a preset is given.",
+    )
+    preset: str | None = Field(
+        default=None, title="Preset", description="A named scope set: read-only, agent, run-jobs or everything."
+    )
+    constraints: ApiTokenConstraints | None = Field(default=None, title="Constraints")
+    expires_in: int | None = Field(
+        default=None,
+        title="Expires in",
+        description="Lifetime in seconds, capped by the server's maximum. Defaults to the server's maximum.",
+    )
+
+
+class ApiTokenModel(Model):
+    id: EncodedDatabaseIdField = Field(default=..., title="ID")
+    name: str = Field(default=..., title="Name")
+    token_hint: str = Field(default=..., title="Token hint", description="The first characters of the secret.")
+    scopes: list[str] = Field(default=..., title="Scopes")
+    constraints: ApiTokenConstraintsView | None = Field(default=None, title="Constraints")
+    source: str = Field(default=..., title="Source", description="How the token was minted: ui, device, oauth or job.")
+    create_time: datetime = Field(default=..., title="Create time")
+    expires_at: datetime | None = Field(default=None, title="Expires at")
+    last_used_at: datetime | None = Field(default=None, title="Last used at")
+    revoked_at: datetime | None = Field(default=None, title="Revoked at")
+    active: bool = Field(default=..., title="Active", description="Neither revoked nor expired.")
+
+
+class ApiTokenCreatedModel(ApiTokenModel):
+    token: str = Field(default=..., title="Token", description="The secret. It is only ever shown here.")
+
+
 class UserPasswordResetPayload(Model):
     password: str = Field(default=..., title="Password", description="The new password of the user.")
 

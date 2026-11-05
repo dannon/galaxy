@@ -47,8 +47,12 @@ from galaxy.model import (
 )
 from galaxy.model.db.role import get_private_role_user_emails_dict
 from galaxy.schema import APIKeyModel
+from galaxy.schema.fields import DecodedDatabaseIdField
 from galaxy.schema.schema import (
     AnonUserModel,
+    ApiTokenCreatedModel,
+    ApiTokenCreatePayload,
+    ApiTokenModel,
     AsyncTaskResultSummary,
     CreatedUserModel,
     CustomBuildCreationPayload,
@@ -115,6 +119,7 @@ UsersDeletedQueryParam: bool = Query(
 FilterEmailQueryParam: str = Query(default=None, title="Email filter", description="An email address to filter on")
 FilterNameQueryParam: str = Query(default=None, title="Name filter", description="An username address to filter on")
 FilterAnyQueryParam: str = Query(default=None, title="Any filter", description="Filter on username OR email")
+TokenIdPathParam = Annotated[DecodedDatabaseIdField, Path(..., title="Token ID", description="The access token's ID.")]
 FlexibleUserIdPathParam: FlexibleUserIdType = Path(
     ..., title="User ID", description="The ID of the user to get or 'current'."
 )
@@ -319,6 +324,47 @@ class FastAPIUsers:
     ):
         self.service.delete_api_key(trans, user_id)
         return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+    @router.get(
+        "/api/users/{user_id}/tokens",
+        name="list_api_tokens",
+        summary="List the user's scoped access tokens.",
+    )
+    def list_api_tokens(
+        self,
+        user_id: UserIdPathParam,
+        trans: ProvidesUserContext = DependsOnTrans,
+        include_inactive: bool = Query(
+            default=False, title="Include inactive", description="Also list revoked and expired tokens."
+        ),
+    ) -> list[ApiTokenModel]:
+        return self.service.list_api_tokens(trans, user_id, include_inactive)
+
+    @router.post(
+        "/api/users/{user_id}/tokens",
+        name="create_api_token",
+        summary="Create a scoped access token. The secret is returned once and never shown again.",
+    )
+    def create_api_token(
+        self,
+        user_id: UserIdPathParam,
+        payload: ApiTokenCreatePayload = Body(...),
+        trans: ProvidesUserContext = DependsOnTrans,
+    ) -> ApiTokenCreatedModel:
+        return self.service.create_api_token(trans, user_id, payload)
+
+    @router.delete(
+        "/api/users/{user_id}/tokens/{token_id}",
+        name="revoke_api_token",
+        summary="Revoke one scoped access token. Other tokens and the API key are untouched.",
+    )
+    def revoke_api_token(
+        self,
+        user_id: UserIdPathParam,
+        token_id: TokenIdPathParam,
+        trans: ProvidesUserContext = DependsOnTrans,
+    ) -> ApiTokenModel:
+        return self.service.revoke_api_token(trans, user_id, token_id)
 
     @router.get(
         "/api/users/{user_id}/usage",
