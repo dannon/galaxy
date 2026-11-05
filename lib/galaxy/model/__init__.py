@@ -938,6 +938,10 @@ class User(Base, Dictifiable, RepresentById):
             )
         ),
     )
+    api_tokens: Mapped[list["APIToken"]] = relationship(
+        back_populates="user",
+        order_by=lambda: desc(APIToken.create_time),
+    )
     data_manager_histories: Mapped[list["DataManagerHistoryAssociation"]] = relationship(back_populates="user")
     roles: Mapped[list["UserRoleAssociation"]] = relationship(back_populates="user")
     stored_workflows: Mapped[list["StoredWorkflow"]] = relationship(
@@ -3697,6 +3701,9 @@ class History(Base, HasTags, UsesAnnotations, HasName, Serializable, UsesCreateA
     preferred_object_store_id: Mapped[str | None] = mapped_column(String(255))
     archived: Mapped[bool | None] = mapped_column(index=True, default=False, server_default=false())
     archive_export_id: Mapped[int | None] = mapped_column(ForeignKey("store_export_association.id"), default=None)
+    # Set when a scoped API token created the history, so a token constrained to
+    # the histories it made can be told apart from the rest of the account.
+    api_token_id: Mapped[int | None] = mapped_column(ForeignKey("api_token.id"), index=True, default=None)
 
     datasets: Mapped[list["HistoryDatasetAssociation"]] = relationship(
         primaryjoin=(lambda: HistoryDatasetAssociation.history_id == History.id),
@@ -12992,6 +12999,44 @@ class APIKeys(Base, RepresentById):
     key: Mapped[str | None] = mapped_column(TrimmedString(32), index=True, unique=True)
     user: Mapped[Optional["User"]] = relationship(back_populates="api_keys")
     deleted: Mapped[bool] = mapped_column(index=True, server_default=false())
+
+
+class APIToken(Base, RepresentById):
+    """A scoped, expiring, individually revocable API credential.
+
+    Unlike ``APIKeys`` the secret is stored hashed and shown once, a user may hold
+    many live tokens, and each carries a scope set plus optional instance
+    constraints that narrow what the user's account could otherwise do.
+    """
+
+    __tablename__ = "api_token"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    create_time: Mapped[datetime] = mapped_column(default=now, nullable=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("galaxy_user.id"), index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    token_hint: Mapped[str] = mapped_column(String(16))
+    name: Mapped[str] = mapped_column(TrimmedString(255))
+    scopes: Mapped[str] = mapped_column(TEXT)
+    constraints: Mapped[dict | None] = mapped_column(JSONType, nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(index=True, nullable=True)
+    last_used_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    source: Mapped[str] = mapped_column(String(32))
+    client_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    user: Mapped["User"] = relationship(back_populates="api_tokens")
+
+    @property
+    def revoked(self) -> bool:
+        return self.revoked_at is not None
+
+    @property
+    def expired(self) -> bool:
+        return self.expires_at is not None and self.expires_at <= now()
+
+    @property
+    def active(self) -> bool:
+        return not (self.revoked or self.expired)
 
 
 def copy_list(lst, *args, **kwds):
