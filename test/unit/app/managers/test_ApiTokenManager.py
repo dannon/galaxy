@@ -21,6 +21,7 @@ from galaxy.managers.api_tokens import (
     PRESETS,
     require_scope,
     reset_current_credential,
+    scoped_credential_refuses_tool,
     scopes_allow,
     set_current_credential,
     TOKEN_PREFIX,
@@ -75,7 +76,7 @@ def test_require_scope():
 
 def test_validate_constraints():
     assert validate_constraints(None) is None
-    assert validate_constraints({"histories": {}, "tools": {"ids": []}}) is None
+    assert validate_constraints({"histories": {}}) is None
     cleaned = validate_constraints(
         {"histories": {"created_by_token": True, "ids": [3, 1, 3]}, "tools": {"ids": ["b", "a"]}, "surfaces": ["mcp"]}
     )
@@ -90,6 +91,33 @@ def test_validate_constraints():
         validate_constraints({"histories": {"ids": ["not-an-int"]}})
     with pytest.raises(exceptions.RequestParameterInvalidException):
         validate_constraints({"surfaces": ["ftp"]})
+
+
+def test_validate_constraints_rejects_empty_allowlists():
+    empties: list[dict[str, Any]] = [{"tools": {"ids": []}}, {"workflows": {"ids": []}}, {"surfaces": []}]
+    for bad in empties:
+        with pytest.raises(exceptions.RequestParameterInvalidException, match="empty"):
+            validate_constraints(bad)
+
+
+def test_short_tool_ids_do_not_match_tool_shed_tools():
+    cred = Credential(kind="token", scopes=frozenset(), constraints={"tools": {"ids": ["kmindex"]}})
+    assert credential_permits_tool(FakeTool("kmindex"), cred)
+    assert not credential_permits_tool(FakeTool("toolshed/repos/x/kmindex/0.1.0", "kmindex"), cred)
+
+
+def test_scoped_credential_refuses_tools_that_carry_wider_credentials():
+    scoped = Credential(kind="token", scopes=frozenset({"tools:run"}))
+    assert scoped_credential_refuses_tool(FakeTool("cat"), scoped) is None
+    for inject in ("api_key", "oidc_keycloak"):
+        tool = FakeTool("gxit")
+        tool.environment_variables = [{"name": "X", "inject": inject}]
+        assert scoped_credential_refuses_tool(tool, scoped)
+        assert scoped_credential_refuses_tool(tool, None) is None
+    user_defined = FakeTool("udt")
+    user_defined.dynamic_tool = object()
+    assert scoped_credential_refuses_tool(user_defined, scoped)
+    assert scoped_credential_refuses_tool(user_defined, Credential(kind="legacy_key")) is None
 
 
 def test_tool_constraint_matches_versioned_and_upload_ids():
@@ -388,6 +416,59 @@ class TestConstraintsThroughManagers(BaseTestCase):
             assert [h.id for h in listed] == [self.mine.id]
         listed, _ = self.history_manager.index_query(self.trans, payload)
         assert {h.id for h in listed} == {self.mine.id, self.theirs.id}
+
+    def test_invocations_honour_the_history_constraint(self):
+        from galaxy.managers.workflows import WorkflowsManager
+
+        stored = model.StoredWorkflow(user=self.user, name="wf")
+        workflow = model.Workflow()
+        workflow.stored_workflow = stored
+        stored.latest_workflow = workflow
+        inside = model.WorkflowInvocation()
+        inside.workflow = workflow
+        inside.history = self.mine
+        outside = model.WorkflowInvocation()
+        outside.workflow = workflow
+        outside.history = self.theirs
+        self.trans.sa_session.add_all([stored, workflow, inside, outside])
+        self.trans.sa_session.commit()
+        manager = self.app[WorkflowsManager]
+        with self._with_credential(self.credential):
+            assert manager.get_invocation(self.trans, inside.id) == inside
+            with pytest.raises(exceptions.ItemAccessibilityException):
+                manager.get_invocation(self.trans, outside.id)
+            listed, total = manager.build_invocations_query(self.trans, user_id=self.user.id)
+            assert [i.id for i in listed] == [inside.id]
+            assert total == 1
+        listed, total = manager.build_invocations_query(self.trans, user_id=self.user.id)
+        assert {i.id for i in listed} == {inside.id, outside.id}
+        assert total == 2
+
+    def test_workflow_inputs_outside_the_constraint_are_refused(self):
+        from galaxy.tool_util_models.parameters import DataRequestHda
+        from galaxy.workflow.run_request import _get_input_or_not_found
+
+        own_hda = self.hda_manager.create(history=self.mine, dataset=None)
+        other_hda = self.hda_manager.create(history=self.theirs, dataset=None)
+        step = model.WorkflowStep()
+        step.label = "input1"
+        with self._with_credential(self.credential):
+            request = DataRequestHda(src="hda", id=self.trans.security.encode_id(own_hda.id))
+            assert _get_input_or_not_found(self.trans, model.HistoryDatasetAssociation, request, step) == own_hda
+            request = DataRequestHda(src="hda", id=self.trans.security.encode_id(other_hda.id))
+            with pytest.raises(exceptions.ItemAccessibilityException):
+                _get_input_or_not_found(self.trans, model.HistoryDatasetAssociation, request, step)
+        assert _get_input_or_not_found(self.trans, model.HistoryDatasetAssociation, request, step) == other_hda
+
+    def test_histories_made_for_a_workflow_run_belong_to_the_token(self):
+        from galaxy.workflow.run_request import _get_target_history
+
+        workflow = model.Workflow()
+        workflow.name = "wf"
+        with self._with_credential(self.credential):
+            history = _get_target_history(self.trans, workflow, {"new_history_name": "from the run"}, [[]])
+        assert history.api_token_id == self.credential.token_id
+        assert _get_target_history(self.trans, workflow, {"new_history_name": "plain"}, [[]]).api_token_id is None
 
     def test_workflow_constraint_through_the_manager(self):
         from galaxy.managers.workflows import WorkflowsManager

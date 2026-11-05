@@ -6,10 +6,23 @@ from urllib.parse import urljoin
 import requests
 
 from galaxy_test.base.mcp_util import mcp_request
-from galaxy_test.base.populators import DatasetPopulator
+from galaxy_test.base.populators import (
+    DatasetPopulator,
+    WorkflowPopulator,
+)
+from galaxy_test.base.workflow_fixtures import WORKFLOW_SIMPLE_CAT_TWICE
 from galaxy_test.driver.integration_util import IntegrationTestCase
 
 AGENT_PRESET = "agent"
+
+WORKFLOW_WITH_API_KEY_TOOL = """
+class: GalaxyWorkflow
+steps:
+  inject:
+    tool_id: environment_variables_inject
+    state:
+      inttest: 1
+"""
 
 
 class TestMCPOnlyToken(IntegrationTestCase):
@@ -94,6 +107,76 @@ class TestMCPOnlyToken(IntegrationTestCase):
         # ops outside the agent preset's scopes are refused on the MCP side too
         error = self._error(self._call("create_user_tool", {"representation": {}}, token))
         assert "not available to scoped access tokens" in error
+
+    def test_workflow_invocations_respect_the_token(self):
+        workflow_populator = WorkflowPopulator(self.galaxy_interactor)
+        cat_workflow = workflow_populator.upload_yaml_workflow(WORKFLOW_SIMPLE_CAT_TWICE)
+        inject_workflow = workflow_populator.upload_yaml_workflow(WORKFLOW_WITH_API_KEY_TOOL)
+        outside_history = self.populator.new_history(name="outside")
+        outside_hda = self.populator.new_dataset(outside_history, content="secret\n", wait=True)
+        outside_invocation = workflow_populator.invoke_workflow_and_wait(
+            cat_workflow, history_id=outside_history, inputs={"0": {"src": "hda", "id": outside_hda["id"]}}
+        ).json()["id"]
+        token = self._mint({"histories": {"created_by_token": True}})
+
+        own_history = self._result(self._call("create_history", {"name": "mine"}, token))["id"]
+        self._result(
+            self._call(
+                "upload_file_from_url",
+                {"history_id": own_history, "url": "base64://MSAyIDMK", "file_name": "numbers"},
+                token,
+            )
+        )
+        self.populator.wait_for_history(own_history, assert_ok=True)
+        own_hda = self._result(self._call("get_history_contents", {"history_id": own_history}, token))["contents"][0][
+            "id"
+        ]
+
+        # a dataset from a history the token can't see is not a workflow input
+        error = self._error(
+            self._call(
+                "invoke_workflow",
+                {
+                    "workflow_id": cat_workflow,
+                    "history_id": own_history,
+                    "inputs": {"0": {"src": "hda", "id": outside_hda["id"]}},
+                },
+                token,
+            )
+        )
+        assert "access token" in error, error
+        # a step that would hand the job the user's API key is refused before anything runs
+        error = self._error(
+            self._call("invoke_workflow", {"workflow_id": inject_workflow, "history_id": own_history}, token)
+        )
+        assert "own credentials" in error, error
+
+        # a run into a new history leaves that history, and its invocation, visible to the token
+        run = self._result(
+            self._call(
+                "invoke_workflow",
+                {
+                    "workflow_id": cat_workflow,
+                    "history_name": "from the workflow",
+                    "inputs": {"0": {"src": "hda", "id": own_hda}},
+                },
+                token,
+            )
+        )
+        new_history = run["history_id"]
+        self.populator.wait_for_history(new_history, assert_ok=True)
+        listed = self._result(self._call("list_histories", {}, token))["histories"]
+        listed_ids = [h["id"] for h in listed]
+        assert new_history in listed_ids and own_history in listed_ids
+        assert outside_history not in listed_ids
+        invocations = self._result(self._call("get_invocations", {}, token))["invocations"]
+        invocation_ids = [i["id"] for i in invocations]
+        assert run["id"] in invocation_ids
+        assert outside_invocation not in invocation_ids
+        assert self._result(self._call("get_invocation_details", {"invocation_id": run["id"]}, token))
+        for op in ("get_invocation_details", "cancel_workflow_invocation"):
+            error = self._error(self._call(op, {"invocation_id": outside_invocation}, token))
+            assert "access token" in error, (op, error)
 
     def test_agent_token_without_surface_works_on_both(self):
         token = self._mint(None)

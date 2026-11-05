@@ -186,6 +186,16 @@ class TestApiTokens(ApiTestCase):
                 ALLOWED_TOOL, {"input1": {"src": "hda", "id": outside_hda["id"]}}, history_id
             )
             self._assert_status_code_is(foreign_input, 400)
+            # and neither is the same dataset named by a bare id
+            bare_input = self.dataset_populator.run_tool_raw(ALLOWED_TOOL, {"input1": outside_hda["id"]}, history_id)
+            self._assert_status_code_is(bare_input, 403)
+            # the tool search still works, and only lists what the token may run
+            search = self._get("tools", data={"q": "cat"})
+            self._assert_status_code_is(search, 200)
+            assert ALLOWED_TOOL in search.json()
+            assert OTHER_TOOL not in search.json()
+            # a bare @web.expose route under /api is refused like any other unannotated route
+            self._assert_status_code_is(self._get("libraries/datasets/download/zip"), 403)
             # public routes identify the token's user too, so they are only open when annotated
             self._assert_status_code_is(self._get("version"), 200)
             self._assert_status_code_is(self._get("datatypes"), 403)
