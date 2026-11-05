@@ -210,7 +210,7 @@ def legacy_expose_api(func, to_json=True, user_required=True):
 
         # Perform api_run_as processing, possibly changing identity
         if "payload" in kwargs and isinstance(kwargs["payload"], dict) and "run_as" in kwargs["payload"]:
-            if not trans.user_can_do_run_as:
+            if not trans.user_can_do_run_as or (credential is not None and credential.scoped):
                 error_message = "User does not have permissions to run jobs as another user"
                 return error
             try:
@@ -235,6 +235,7 @@ def legacy_expose_api(func, to_json=True, user_required=True):
             log.exception("Uncaught exception in exposed API method:")
             raise paste.httpexceptions.HTTPServerError()
 
+    decorator.checks_scope = True
     return expose(_save_orig_fn(decorator, func))
 
 
@@ -403,6 +404,7 @@ def expose_api(func, to_json=True, user_required=True, user_or_session_required=
     if not hasattr(func, "_orig"):
         decorator._orig = func
     decorator.exposed = True
+    decorator.checks_scope = True
     return decorator
 
 

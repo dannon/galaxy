@@ -45,8 +45,8 @@ from galaxy.managers import (
 )
 from galaxy.managers.api_tokens import (
     credential_permits_history,
-    current_credential,
     history_constraint_clause,
+    stamp_history_for_credential,
 )
 from galaxy.managers.base import (
     apply_sort_column,
@@ -266,10 +266,7 @@ class HistoryManager(sharable.SharableModelManager[model.History], deletable.Pur
 
     def create(self, flush: bool = True, *args: Any, **kwargs: Any) -> model.History:
         history = super().create(False, *args, **kwargs)
-        # Lets a token constrained to the histories it created find this one later, whichever
-        # route created it (tool runs and workflow invocations make histories too).
-        if (credential := current_credential()) is not None and credential.token_id is not None:
-            history.api_token_id = credential.token_id
+        stamp_history_for_credential(history)
         if flush:
             self.session().commit()
         return history

@@ -45,6 +45,7 @@ from galaxy.managers import (
     taggable,
     tools,
 )
+from galaxy.managers.api_tokens import stamp_history_for_credential
 from galaxy.managers.context import ProvidesHistoryContext
 from galaxy.managers.job_connections import JobConnectionsManager
 from galaxy.model import batch_fetch_job_state_summaries
@@ -258,6 +259,7 @@ class HistoryContentsManager(base.SortableManager):
         decoded_target_ids: list[int] = []
         if payload.target_history_name:
             new_history = model.History(name=payload.target_history_name, user=user)
+            stamp_history_for_credential(new_history)
             trans.sa_session.add(new_history)
             trans.sa_session.commit()
             decoded_target_ids.append(new_history.id)

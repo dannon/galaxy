@@ -3703,7 +3703,9 @@ class History(Base, HasTags, UsesAnnotations, HasName, Serializable, UsesCreateA
     archive_export_id: Mapped[int | None] = mapped_column(ForeignKey("store_export_association.id"), default=None)
     # Set when a scoped API token created the history, so a token constrained to
     # the histories it made can be told apart from the rest of the account.
-    api_token_id: Mapped[int | None] = mapped_column(ForeignKey("api_token.id"), index=True, default=None)
+    api_token_id: Mapped[int | None] = mapped_column(
+        ForeignKey("api_token.id", ondelete="SET NULL"), index=True, default=None
+    )
 
     datasets: Mapped[list["HistoryDatasetAssociation"]] = relationship(
         primaryjoin=(lambda: HistoryDatasetAssociation.history_id == History.id),

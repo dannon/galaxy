@@ -59,7 +59,11 @@ from galaxy.managers import (
     deletable,
     sharable,
 )
-from galaxy.managers.api_tokens import credential_permits_workflow
+from galaxy.managers.api_tokens import (
+    credential_permits_history,
+    credential_permits_workflow,
+    history_constraint_clause,
+)
 from galaxy.managers.base import (
     apply_sort_column,
     decode_id,
@@ -504,9 +508,8 @@ class WorkflowsManager(sharable.SharableModelManager[model.StoredWorkflow], dele
                 # May have a subworkflow without attached StoredWorkflow object, this was the default prior to 20.09 release.
                 workflow = trans.sa_session.get(Workflow, workflow_id)
                 stored_workflow = self.attach_stored_workflow(trans=trans, workflow=workflow)
-                if stored_workflow:
-                    return stored_workflow
-            raise exceptions.ObjectNotFound("No such workflow found.")
+            if stored_workflow is None:
+                raise exceptions.ObjectNotFound("No such workflow found.")
         if not credential_permits_workflow(stored_workflow):
             raise exceptions.ItemAccessibilityException("This access token may not use this workflow.")
         return stored_workflow
@@ -571,6 +574,10 @@ class WorkflowsManager(sharable.SharableModelManager[model.StoredWorkflow], dele
             security_check(
                 trans, has_workflow.history, check_ownership=check_ownership, check_accessible=check_accessible
             )
+            if not credential_permits_history(has_workflow.history) or not credential_permits_workflow(
+                has_workflow.workflow.top_level_stored_workflow
+            ):
+                raise exceptions.ItemAccessibilityException("This access token may not use this workflow invocation.")
             return True
 
         # stored workflow contains security stuff - follow that workflow to
@@ -729,6 +736,8 @@ class WorkflowsManager(sharable.SharableModelManager[model.StoredWorkflow], dele
         """Get invocations owned by the current user."""
 
         stmt = select(WorkflowInvocation)
+        if (constraint_clause := history_constraint_clause()) is not None:
+            stmt = stmt.where(WorkflowInvocation.history_id.in_(select(History.id).where(constraint_clause)))
         if stored_workflow_id is not None:
             stored_workflow = trans.sa_session.get(StoredWorkflow, stored_workflow_id)
             if not stored_workflow:

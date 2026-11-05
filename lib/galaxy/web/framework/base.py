@@ -32,7 +32,10 @@ import webob.exc as httpexceptions
 # We will use some very basic HTTP/wsgi utilities from the paste library
 from paste.response import HeaderDict
 
-from galaxy.managers.api_tokens import set_current_credential
+from galaxy.managers.api_tokens import (
+    current_credential,
+    set_current_credential,
+)
 from galaxy.util import smart_str
 from galaxy.util.resources import resource_string
 
@@ -287,6 +290,14 @@ class WebApplication:
         kwargs.update(map_match)
         # Special key for AJAX debugging, remove to avoid confusing methods
         kwargs.pop("_", None)
+        if (
+            environ["is_api_request"]
+            and (credential := current_credential()) is not None
+            and credential.scoped
+            and not getattr(method, "checks_scope", False)
+        ):
+            # Catches bare @web.expose methods under /api; the API decorators check their own scope.
+            raise httpexceptions.HTTPForbidden("This route is not available to scoped access tokens.")
         try:
             body = method(trans, **kwargs)
         except Exception as e:

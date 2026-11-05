@@ -61,6 +61,7 @@ from galaxy.files import (
     ProvidesFileSourcesUserContext,
 )
 from galaxy.files.uris import stream_url_to_file
+from galaxy.managers.api_tokens import stamp_history_for_credential
 from galaxy.model.base import ensure_object_added_to_session
 from galaxy.model.mapping import GalaxyModelMapping
 from galaxy.model.metadata import MetadataCollection
@@ -426,6 +427,7 @@ class ModelImportStore(metaclass=abc.ABCMeta):
 
             # Create history.
             new_history = model.History(name=history_name, user=self.user)
+            stamp_history_for_credential(new_history)
             new_history.importing = True
             hid_counter = history_properties.get("hid_counter")
             genome_build = history_properties.get("genome_build")

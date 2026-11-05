@@ -24,7 +24,7 @@ from galaxy.exceptions import RequestParameterInvalidException
 from galaxy.exceptions.utils import api_error_to_dict
 from galaxy.managers.api_tokens import (
     credential_permits_tool,
-    current_credential,
+    scoped_credential_refuses_tool,
 )
 from galaxy.managers.collections_util import dictify_dataset_collection_instance
 from galaxy.managers.context import (
@@ -110,18 +110,12 @@ def get_tool(trans: ProvidesHistoryContext, tool_ref: ToolRunReference) -> Tool:
     return trans.app.toolbox.materialize_tool(tool, reason="execution")
 
 
-def _check_tool_constraint(tool: ToolLike) -> None:
+def _check_tool_constraint(tool: ToolLike, for_run: bool = True) -> None:
+    """Apply the credential's tools constraint; on the run path also refuse tools no scope can unlock."""
     if not credential_permits_tool(tool):
         raise exceptions.InsufficientPermissionsException(f"This access token may not use tool '{tool.id}'.")
-    if (credential := current_credential()) is not None and credential.scoped:
-        if getattr(tool, "dynamic_tool", None) is not None:
-            # User-defined tools stay outside the scope vocabulary for now, on every surface.
-            raise exceptions.InsufficientPermissionsException("Scoped access tokens cannot run user-defined tools.")
-        if any(ev.get("inject") == "api_key" for ev in getattr(tool, "environment_variables", None) or []):
-            # The job would be handed the user's full API key, which is more than the token holds.
-            raise exceptions.InsufficientPermissionsException(
-                f"Tool '{tool.id}' runs with the user's API key, which a scoped access token may not hand over."
-            )
+    if for_run and (reason := scoped_credential_refuses_tool(tool)) is not None:
+        raise exceptions.InsufficientPermissionsException(reason)
 
 
 def validate_tool_for_running(trans: ProvidesHistoryContext, tool_ref: ToolRunReference) -> Tool:
@@ -566,7 +560,7 @@ class ToolsService(ServiceBase):
                 raise exceptions.ObjectNotFound(f"Could not find tool with id '{id or tool_uuid}'.")
         if not tool.allow_user_access(user):
             raise exceptions.AuthenticationFailed(f"Access denied, please login for tool with id '{id}'.")
-        _check_tool_constraint(tool)
+        _check_tool_constraint(tool, for_run=False)
         # A Tool Shed tool's id is its full guid; it may also be requested by its short (old) id or
         # its versionless guid.
         if exact and not tool_uuid:
@@ -766,8 +760,10 @@ class ToolsService(ServiceBase):
                 tool_like = self._get_tool(trans, hit, user=trans.user)
                 if tool_like.id:
                     results.append(tool_like.id)
-            except exceptions.AuthenticationFailed:
-                pass
-            except exceptions.ObjectNotFound:
+            except (
+                exceptions.AuthenticationFailed,
+                exceptions.ObjectNotFound,
+                exceptions.InsufficientPermissionsException,
+            ):
                 pass
         return results

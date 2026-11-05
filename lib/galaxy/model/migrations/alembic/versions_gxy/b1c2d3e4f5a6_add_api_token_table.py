@@ -70,7 +70,7 @@ def _upgrade():
     )
     add_column(history_table, sa.Column(history_column, sa.Integer, nullable=True))
     create_index(history_index, history_table, [history_column])
-    create_foreign_key(history_fk, history_table, token_table, [history_column], ["id"])
+    create_foreign_key(history_fk, history_table, token_table, [history_column], ["id"], ondelete="SET NULL")
 
 
 def _downgrade():

@@ -585,9 +585,11 @@ class ToolsController(BaseGalaxyAPIController, UsesVisualizationMixin):
                             tool = self.service._get_tool(trans, hit, user=trans.user)
                             if tool.id:
                                 results.append(tool.id)
-                        except exceptions.AuthenticationFailed:
-                            pass
-                        except exceptions.ObjectNotFound:
+                        except (
+                            exceptions.AuthenticationFailed,
+                            exceptions.ObjectNotFound,
+                            exceptions.InsufficientPermissionsException,
+                        ):
                             pass
                 return results
             return self.service.search_tools(trans, q, view=view)

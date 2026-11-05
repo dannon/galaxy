@@ -29,6 +29,7 @@ from galaxy.job_execution.output_format import (
     get_ext_or_implicit_ext,
     resolve_format_source,
 )
+from galaxy.managers.api_tokens import credential_permits_input
 from galaxy.managers.context import (
     ProvidesHistoryContext,
     ProvidesUserContext,
@@ -244,6 +245,10 @@ class DefaultToolAction(ToolAction):
                     for action, roles in permissions.items():
                         for role in roles:
                             record_permission(action.action, model.cached_id(role))
+                if not credential_permits_input(data):
+                    raise ItemAccessibilityException(
+                        f"This access token may not use dataset ({data.name}) provided for input."
+                    )
                 return data
 
             if isinstance(input, DataToolParameter):
@@ -330,6 +335,8 @@ class DefaultToolAction(ToolAction):
                     collection = value.collection
 
                 assert collection
+                if not credential_permits_input(value):
+                    raise ItemAccessibilityException("This access token may not use a collection provided for input.")
                 action_tuples = collection.dataset_action_tuples
                 if not trans.user_is_admin and not trans.app.security_agent.can_access_datasets(
                     current_user_roles, action_tuples

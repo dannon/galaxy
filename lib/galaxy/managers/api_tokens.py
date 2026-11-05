@@ -286,11 +286,43 @@ def credential_permits_tool(tool: "ToolLike", credential: Credential | None = No
     if not ids:
         return True
     tool_id = tool.id or ""
-    candidates = {tool_id, getattr(tool, "old_id", None) or ""}
+    candidates = {tool_id}
     if "/" in tool_id:
         # Tool shed ids carry their version as the last path segment; accept the unversioned form too.
         candidates.add(tool_id.rsplit("/", 1)[0])
+    else:
+        # A short id only names a tool that has no guid, so an allowlisted "random_lines1" doesn't
+        # also let in every Tool Shed tool with that old_id.
+        candidates.add(getattr(tool, "old_id", None) or "")
     return bool(candidates & UPLOAD_TOOL_IDS) or bool(candidates & set(ids))
+
+
+def scoped_credential_refuses_tool(tool: "ToolLike", credential: Credential | None = None) -> str | None:
+    """Why a scoped credential may not run ``tool`` at all, or None if it may.
+
+    Some tools carry more of the user's identity than any scoped token holds, so no scope unlocks them.
+    """
+    credential = credential if credential is not None else current_credential()
+    if credential is None or not credential.scoped:
+        return None
+    if getattr(tool, "dynamic_tool", None) is not None:
+        # User-defined tools stay outside the scope vocabulary for now, on every surface.
+        return "Scoped access tokens cannot run user-defined tools."
+    for variable in getattr(tool, "environment_variables", None) or []:
+        inject = variable.get("inject") or ""
+        if inject == "api_key" or inject.startswith("oidc_"):
+            # The job would be handed the user's full API key or an OIDC token, which is more than the token holds.
+            return (
+                f"Tool '{tool.id}' runs with the user's own credentials, which a scoped access token may not hand over."
+            )
+    return None
+
+
+def stamp_history_for_credential(history: model.History, credential: Credential | None = None) -> None:
+    """Record which token created ``history`` so a ``created_by_token`` constraint can find it later."""
+    credential = credential if credential is not None else current_credential()
+    if credential is not None and credential.token_id is not None:
+        history.api_token_id = credential.token_id
 
 
 def validate_constraints(constraints: Mapping[str, Any] | None) -> dict[str, Any] | None:
@@ -323,14 +355,22 @@ def validate_constraints(constraints: Mapping[str, Any] | None) -> dict[str, Any
             continue
         if set(entry_in) - {"ids"}:
             raise exceptions.RequestParameterInvalidException(f"{resource} constraints only accept 'ids'.")
-        ids = entry_in.get("ids") or []
+        ids = entry_in.get("ids")
+        if ids is not None and not ids:
+            raise exceptions.RequestParameterInvalidException(
+                f"{resource}.ids is empty; leave the constraint out to allow any {resource.rstrip('s')}."
+            )
+        ids = ids or []
         if resource == "tools" and not all(isinstance(i, str) and i for i in ids):
             raise exceptions.RequestParameterInvalidException("tools.ids must be a list of tool ids.")
         if resource == "workflows" and not all(isinstance(i, int) for i in ids):
             raise exceptions.RequestParameterInvalidException("workflows.ids must be a list of workflow ids.")
         if ids:
             cleaned[resource] = {"ids": sorted(set(ids))}
-    if surfaces := constraints.get("surfaces"):
+    surfaces = constraints.get("surfaces")
+    if surfaces is not None and not surfaces:
+        raise exceptions.RequestParameterInvalidException("surfaces is empty; leave it out to allow every surface.")
+    if surfaces:
         unknown = set(surfaces) - SURFACES
         if unknown:
             raise exceptions.RequestParameterInvalidException(f"Unknown surface(s): {', '.join(sorted(unknown))}.")

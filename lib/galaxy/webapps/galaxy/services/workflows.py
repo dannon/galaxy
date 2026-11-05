@@ -12,6 +12,10 @@ from galaxy import (
 )
 from galaxy.config import GalaxyAppConfiguration
 from galaxy.exceptions import ConfigDoesNotAllowException
+from galaxy.managers.api_tokens import (
+    credential_permits_tool,
+    scoped_credential_refuses_tool,
+)
 from galaxy.managers.context import (
     ProvidesHistoryContext,
     ProvidesUserContext,
@@ -659,6 +663,14 @@ class WorkflowsService(ServiceBase):
             )
             if tool and not tool.is_workflow_compatible:
                 incompatible_tools.append(tool_reference)
+            if tool:
+                # A workflow step runs a tool just as a direct call would, so the token's limits apply here too.
+                if (reason := scoped_credential_refuses_tool(tool)) is not None:
+                    raise exceptions.InsufficientPermissionsException(reason)
+                if not credential_permits_tool(tool):
+                    raise exceptions.InsufficientPermissionsException(
+                        f"This access token may not use tool '{tool.id}'."
+                    )
         if missing_tools:
             raise exceptions.MessageException(
                 "Workflow was not invoked; the following required tools are not installed: "

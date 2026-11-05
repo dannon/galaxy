@@ -11,6 +11,10 @@ from pydantic import ValidationError
 
 from galaxy import exceptions
 from galaxy.exceptions.utils import validation_error_to_message_exception
+from galaxy.managers.api_tokens import (
+    credential_permits_input,
+    stamp_history_for_credential,
+)
 from galaxy.managers.hdas import (
     dereference_input_to_hda,
     dereference_input_to_hdca,
@@ -321,6 +325,7 @@ def _get_target_history(
         elif nids > 1:
             nh_name = f"{nh_name} on {', '.join(ids[0:-1])} and {ids[-1]}"
         new_history = History(user=trans.user, name=nh_name)
+        stamp_history_for_credential(new_history)
         trans.sa_session.add(new_history)
         trans.sa_session.commit()
         target_history = new_history
@@ -337,6 +342,10 @@ def _get_input_or_not_found(
     if item is None:
         raise exceptions.ObjectNotFound(
             f"{workflow_step_name(step)}: workflow input '{data_request.id}' ({data_request.src}) not found"
+        )
+    if not credential_permits_input(item):
+        raise exceptions.ItemAccessibilityException(
+            f"{workflow_step_name(step)}: this access token may not use workflow input '{data_request.id}'"
         )
     return item
 
