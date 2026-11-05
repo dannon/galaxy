@@ -5,6 +5,7 @@ The Galaxy web application framework
 from .framework import url_for
 from .framework.base import httpexceptions
 from .framework.decorators import (
+    api_scope,
     do_not_cache,
     error,
     expose,
@@ -26,6 +27,7 @@ from .framework.decorators import (
 )
 
 __all__ = (
+    "api_scope",
     "do_not_cache",
     "error",
     "expose",

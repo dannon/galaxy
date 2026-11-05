@@ -53,6 +53,7 @@ from typing import (
 from sqlalchemy import select
 
 from galaxy.exceptions import UserActivationRequiredException
+from galaxy.managers.api_tokens import Credential
 from galaxy.model import (
     Dataset,
     Event,
@@ -215,6 +216,8 @@ class ProvidesUserContext(ProvidesAppContext):
 
     workflow_building_mode: Literal[1, True, False] = False
     galaxy_session: GalaxySession | None = None
+    # What authenticated this request; None means unscoped (a session, the legacy key, no request at all).
+    credential: Credential | None = None
     _tag_handler: GalaxyTagHandlerSession | None = None
     _short_term_cache: dict[tuple[Hashable, ...], Any]
 
@@ -275,6 +278,9 @@ class ProvidesUserContext(ProvidesAppContext):
 
     @property
     def user_is_admin(self) -> bool:
+        # A scoped credential only carries admin authority if it says so, whoever the user is.
+        if self.credential is not None and not self.credential.allows("admin:*"):
+            return False
         return self.app.config.is_admin_user(self.user)
 
     @property

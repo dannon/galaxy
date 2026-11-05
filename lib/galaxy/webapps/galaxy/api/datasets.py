@@ -322,12 +322,14 @@ class FastAPIDatasets:
         summary="Displays (preview) or downloads dataset content.",
         tags=["histories"],
         response_class=StreamingResponse,
+        scope="datasets:read",
     )
     @router.head(
         "/api/histories/{history_id}/contents/{history_content_id}/display",
         name="history_contents_display",
         summary="Check if dataset content can be previewed or downloaded.",
         tags=["histories"],
+        scope="datasets:read",
     )
     def display_history_content(
         self,
@@ -349,10 +351,12 @@ class FastAPIDatasets:
         "/api/datasets/{history_content_id}/display",
         summary="Displays (preview) or downloads dataset content.",
         response_class=StreamingResponse,
+        scope="datasets:read",
     )
     @router.head(
         "/api/datasets/{history_content_id}/display",
         summary="Check if dataset content can be previewed or downloaded.",
+        scope="datasets:read",
     )
     def display(
         self,
@@ -528,6 +532,7 @@ class FastAPIDatasets:
     @router.get(
         "/api/datasets/{dataset_id}",
         summary="Displays information about and/or content of a dataset.",
+        scope="datasets:read",
     )
     def show(
         self,

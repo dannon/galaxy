@@ -36,6 +36,7 @@ from galaxy.managers import (
     taggable,
     users,
 )
+from galaxy.managers.api_tokens import credential_permits_item
 from galaxy.managers.base import combine_lists
 from galaxy.managers.context import ProvidesUserContext
 from galaxy.model import (
@@ -93,6 +94,8 @@ class SharableModelManager(
         """
         Return true if this sharable belongs to `user` (or `user` is an admin).
         """
+        if not credential_permits_item(item):
+            return False
         # ... effectively a good fit to have this here, but not semantically
         if self.user_manager.is_admin(user, trans=kwargs.get("trans", None)):
             return True
@@ -103,6 +106,8 @@ class SharableModelManager(
         If the item is importable, is owned by `user`, or (the valid) `user`
         is in 'users shared with' list for the item: return True.
         """
+        if not credential_permits_item(item):
+            return False
         if item.importable:
             return True
         # note: owners always have access - checking for accessible implicitly checks for ownership

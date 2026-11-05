@@ -17,6 +17,7 @@ from galaxy.managers import (
     secured,
     taggable,
 )
+from galaxy.managers.api_tokens import credential_permits_history
 from galaxy.managers.collections_util import get_hda_and_element_identifiers
 from galaxy.model.tags import GalaxyTagHandler
 from galaxy.objectstore import ObjectStoreAuth
@@ -116,6 +117,8 @@ class HDCAManager(
         """
         history = item.history
         assert history
+        if not credential_permits_history(history):
+            return False
         # allow anonymous user to access current history
         if history.user is None:
             current_history = kwargs.get("history")

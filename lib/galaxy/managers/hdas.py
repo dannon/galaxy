@@ -44,6 +44,7 @@ from galaxy.managers import (
     taggable,
     users,
 )
+from galaxy.managers.api_tokens import credential_permits_history
 from galaxy.managers.context import (
     ProvidesAppContext,
     ProvidesHistoryContext,
@@ -142,6 +143,8 @@ class HDAManager(
         """
         if not isinstance(item, HistoryDatasetAssociation):
             raise TypeError('"item" must be of type HistoryDatasetAssociation.')
+        if not credential_permits_history(item.history):
+            return False
         if self.user_manager.is_admin(user, trans=kwargs.get("trans", None)):
             return True
         history = item.history
@@ -153,6 +156,12 @@ class HDAManager(
         if self.user_manager.is_anonymous(user):
             return current_history is not None and history == current_history
         return history.user == user
+
+    def is_accessible(self, item: HistoryDatasetAssociation, user: model.User | None, **kwargs: Any) -> bool:
+        # A constrained token can't reach a dataset through a history it may not see, however it is shared.
+        if not credential_permits_history(item.history):
+            return False
+        return super().is_accessible(item, user, **kwargs)
 
     # .... create and copy
     def create(

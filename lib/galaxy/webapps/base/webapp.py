@@ -32,13 +32,16 @@ from webob.exc import HTTPException
 
 from galaxy import util
 from galaxy.exceptions import (
-    AuthenticationFailed,
     ConfigurationError,
     MalformedId,
     MessageException,
     RequestParameterMissingException,
 )
 from galaxy.managers import context
+from galaxy.managers.api_tokens import (
+    Credential,
+    set_current_credential,
+)
 from galaxy.managers.session import GalaxySessionManager
 from galaxy.managers.users import UserManager
 from galaxy.model import History
@@ -562,10 +565,11 @@ class GalaxyWebTransaction(base.DefaultWebTransaction, context.ProvidesHistoryCo
         if api_key_supplied:
             # Sessionless API transaction, we just need to associate a user.
             try:
-                user = self.user_manager.by_api_key(api_key)
-            except AuthenticationFailed as e:
+                user, credential = self.user_manager.resolve_credential(api_key, None)
+            except MessageException as e:
                 return str(e)
             self.set_user(user)
+            self._set_credential(credential)
         elif secure_id:
             # API authentication via active session
             # Associate user using existing session
@@ -582,15 +586,21 @@ class GalaxyWebTransaction(base.DefaultWebTransaction, context.ProvidesHistoryCo
             # Sessionless API transaction with oidc token, we just need to associate a user.
             oidc_access_token = oidc_access_token.replace("Bearer ", "")
             try:
-                user = self.user_manager.by_oidc_access_token(oidc_access_token)
-            except AuthenticationFailed as e:
+                user, credential = self.user_manager.resolve_credential(None, oidc_access_token)
+            except MessageException as e:
                 return str(e)
             self.set_user(user)
+            self._set_credential(credential)
         else:
             # Anonymous API interaction -- anything but @expose_api_anonymous will fail past here.
             self.user = None
             self.galaxy_session = None
         return None
+
+    def _set_credential(self, credential: Credential | None) -> None:
+        self.credential = credential
+        # Published for manager-level constraint checks; the WSGI app resets it when the request ends.
+        set_current_credential(credential)
 
     def _ensure_valid_session(self, session_cookie: str, create: bool = True) -> None:
         """

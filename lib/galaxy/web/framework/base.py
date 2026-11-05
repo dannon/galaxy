@@ -32,6 +32,7 @@ import webob.exc as httpexceptions
 # We will use some very basic HTTP/wsgi utilities from the paste library
 from paste.response import HeaderDict
 
+from galaxy.managers.api_tokens import set_current_credential
 from galaxy.util import smart_str
 from galaxy.util.resources import resource_string
 
@@ -182,6 +183,9 @@ class WebApplication:
                 session_factory.set_request_id(request_id)  # Start SQLAlchemy session scope
             return self.handle_request(request_id, path_info, environ, start_response)
         finally:
+            # The transaction publishes the request's credential for manager checks; this thread
+            # serves other requests next, so clear it along with the session scope.
+            set_current_credential(None)
             for session_factory in self.session_factories:
                 session_factory.unset_request_id(request_id)  # End SQLAlchemy session scope
             self.trace(message="Handle request finished")

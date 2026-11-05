@@ -22,13 +22,24 @@ from contextvars import (
     Token,
 )
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import (
+    datetime,
+    timedelta,
+)
 from typing import (
     Any,
     TYPE_CHECKING,
 )
 
-from sqlalchemy import select
+from sqlalchemy import (
+    or_,
+    select,
+)
+from sqlalchemy.orm import (
+    scoped_session,
+    Session,
+)
+from sqlalchemy.sql.expression import ColumnElement
 
 from galaxy import (
     exceptions,
@@ -66,6 +77,8 @@ CONSTRAINT_KEYS: frozenset[str] = frozenset({"histories", "tools", "workflows", 
 TOKEN_SOURCES: frozenset[str] = frozenset({"ui", "device", "oauth", "job"})
 # Tools every upload path runs; a token that may write datasets may run them without listing them.
 UPLOAD_TOOL_IDS: frozenset[str] = frozenset({"__DATA_FETCH__", "upload1"})
+# Marks an operation any credential may call, scoped or not (server info and the like).
+PUBLIC_SCOPE = "public"
 
 PRESETS: dict[str, str] = {
     "read-only": "*:read",
@@ -156,11 +169,11 @@ def current_credential() -> Credential | None:
     return CURRENT_CREDENTIAL.get()
 
 
-def set_current_credential(credential: Credential | None) -> Token:
+def set_current_credential(credential: Credential | None) -> Token[Credential | None]:
     return CURRENT_CREDENTIAL.set(credential)
 
 
-def reset_current_credential(token: Token) -> None:
+def reset_current_credential(token: Token[Credential | None]) -> None:
     CURRENT_CREDENTIAL.reset(token)
 
 
@@ -170,7 +183,7 @@ def require_scope(credential: Credential | None, scope: str | None, what: str = 
     ``scope=None`` means the caller was never annotated, and scoped credentials are refused
     there outright: the allowlist is only as good as what it names.
     """
-    if credential is None or not credential.scoped:
+    if credential is None or not credential.scoped or scope == PUBLIC_SCOPE:
         return
     if scope is None:
         raise exceptions.InsufficientPermissionsException(
@@ -201,6 +214,47 @@ def credential_permits_history(history: model.History | None, credential: Creden
     return history.id in ids
 
 
+def credential_permits_workflow(workflow: model.StoredWorkflow | None, credential: Credential | None = None) -> bool:
+    """Apply the ``workflows`` constraint, if the active credential has one."""
+    credential = credential if credential is not None else current_credential()
+    if credential is None:
+        return True
+    ids = (credential.constraint("workflows") or {}).get("ids") or []
+    if not ids:
+        return True
+    return workflow is not None and workflow.id in ids
+
+
+def credential_permits_item(item: Any, credential: Credential | None = None) -> bool:
+    """Dispatch to the constraint check for ``item``'s type; items with no constraint always pass."""
+    if isinstance(item, model.History):
+        return credential_permits_history(item, credential)
+    if isinstance(item, model.StoredWorkflow):
+        return credential_permits_workflow(item, credential)
+    return True
+
+
+def history_constraint_clause(credential: Credential | None = None) -> ColumnElement[bool] | None:
+    """A SQL clause selecting the histories the credential's constraint allows, or None if unconstrained.
+
+    Listing routes add it so a constrained token never sees a history it couldn't open.
+    """
+    credential = credential if credential is not None else current_credential()
+    if credential is None:
+        return None
+    constraint = credential.constraint("histories")
+    if not constraint:
+        return None
+    clauses: list[ColumnElement[bool]] = []
+    if constraint.get("created_by_token") and credential.token_id is not None:
+        clauses.append(model.History.api_token_id == credential.token_id)
+    if ids := constraint.get("ids"):
+        clauses.append(model.History.id.in_(ids))
+    if not clauses:
+        return None
+    return or_(*clauses)
+
+
 def credential_permits_tool(tool: "Tool", credential: Credential | None = None) -> bool:
     """Apply the ``tools`` constraint, if the active credential has one. Upload tools always pass."""
     credential = credential if credential is not None else current_credential()
@@ -210,8 +264,8 @@ def credential_permits_tool(tool: "Tool", credential: Credential | None = None) 
     ids = (constraint or {}).get("ids") or []
     if not ids:
         return True
-    tool_id = tool.id
-    candidates = {tool_id, getattr(tool, "old_id", None)}
+    tool_id = tool.id or ""
+    candidates = {tool_id, getattr(tool, "old_id", None) or ""}
     if "/" in tool_id:
         # Tool shed ids carry their version as the last path segment; accept the unversioned form too.
         candidates.add(tool_id.rsplit("/", 1)[0])
@@ -268,7 +322,7 @@ def hash_token_secret(secret: str) -> str:
 
 
 def is_token_secret(value: str | None) -> bool:
-    return bool(value) and value.startswith(TOKEN_PREFIX)
+    return value is not None and value.startswith(TOKEN_PREFIX)
 
 
 class ApiTokenManager:
@@ -281,7 +335,7 @@ class ApiTokenManager:
         self.app = app
 
     @property
-    def session(self):
+    def session(self) -> "scoped_session[Session]":
         return self.app.model.session
 
     @property
@@ -331,7 +385,7 @@ class ApiTokenManager:
         self.session.commit()
         return token, secret
 
-    def _expiry(self, expires_in: int | None):
+    def _expiry(self, expires_in: int | None) -> datetime | None:
         cap = self.max_lifetime
         if expires_in is not None:
             if expires_in <= 0:
@@ -344,7 +398,7 @@ class ApiTokenManager:
 
     def by_secret(self, secret: str) -> model.APIToken | None:
         stmt = select(model.APIToken).filter_by(token_hash=hash_token_secret(secret))
-        return self.session.execute(stmt).scalar_one_or_none()
+        return self.session.scalars(stmt).one_or_none()
 
     def resolve(self, secret: str, surface: str = "api") -> tuple[model.User, Credential]:
         """Turn a presented ``gxy_`` secret into its user and credential, or raise saying why not."""
@@ -388,7 +442,7 @@ class ApiTokenManager:
         return [t for t in tokens if t.active]
 
     def get_owned(self, user: model.User, token_id: int) -> model.APIToken:
-        token = self.session.get(model.APIToken, token_id)
+        token: model.APIToken | None = self.session.get(model.APIToken, token_id)
         if token is None or token.user_id != user.id:
             raise exceptions.ObjectNotFound("Access token not found.")
         return token

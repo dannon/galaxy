@@ -22,6 +22,7 @@ from galaxy import (
 from galaxy.config import GalaxyAppConfiguration
 from galaxy.exceptions import RequestParameterInvalidException
 from galaxy.exceptions.utils import api_error_to_dict
+from galaxy.managers.api_tokens import credential_permits_tool
 from galaxy.managers.collections_util import dictify_dataset_collection_instance
 from galaxy.managers.context import (
     ProvidesHistoryContext,
@@ -102,7 +103,13 @@ def get_tool(trans: ProvidesHistoryContext, tool_ref: ToolRunReference) -> Tool:
     if not tool:
         log.debug(f"Not found tool with kwds [{tool_ref}]")
         raise exceptions.ToolMissingException("Tool not found.")
+    _check_tool_constraint(tool)
     return trans.app.toolbox.materialize_tool(tool, reason="execution")
+
+
+def _check_tool_constraint(tool: ToolLike) -> None:
+    if not credential_permits_tool(tool):
+        raise exceptions.InsufficientPermissionsException(f"This access token may not use tool '{tool.id}'.")
 
 
 def validate_tool_for_running(trans: ProvidesHistoryContext, tool_ref: ToolRunReference) -> Tool:
@@ -546,6 +553,7 @@ class ToolsService(ServiceBase):
                 raise exceptions.ObjectNotFound(f"Could not find tool with id '{id or tool_uuid}'.")
         if not tool.allow_user_access(user):
             raise exceptions.AuthenticationFailed(f"Access denied, please login for tool with id '{id}'.")
+        _check_tool_constraint(tool)
         # A Tool Shed tool's id is its full guid; it may also be requested by its short (old) id or
         # its versionless guid.
         if exact and not tool_uuid:

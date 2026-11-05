@@ -297,6 +297,7 @@ class HistoriesService(ServiceBase, ConsumesModelStores, ServesExportStores):
                 # A name for a new history was supplied, so we will create a new history and do the import
                 # into that - only useful for non-history imports - e.g. workflow invocations.
                 target_history = self.manager.create(user=trans.user, name=hist_name)
+                self._stamp_creating_token(trans, target_history)
             log.info(f"target history for import: {target_history}")
             job = self.manager.queue_history_import(
                 trans, archive_type=archive_type, archive_source=archive_source, target_history=target_history
@@ -323,6 +324,7 @@ class HistoriesService(ServiceBase, ConsumesModelStores, ServesExportStores):
             new_history = self.manager.create(user=trans.user, name=hist_name)
 
         trans.app.security_agent.history_set_default_permissions(new_history)
+        self._stamp_creating_token(trans, new_history)
         trans.sa_session.add(new_history)
         trans.sa_session.commit()
 
@@ -331,6 +333,11 @@ class HistoriesService(ServiceBase, ConsumesModelStores, ServesExportStores):
             self.manager.set_current(trans, new_history)
 
         return self._serialize_history(trans, new_history, serialization_params)
+
+    def _stamp_creating_token(self, trans: ProvidesUserContext, history: model.History) -> None:
+        # Lets a token constrained to the histories it created find this one later.
+        if (credential := trans.credential) is not None and credential.token_id is not None:
+            history.api_token_id = credential.token_id
 
     def create_from_store(
         self,

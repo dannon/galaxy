@@ -240,3 +240,155 @@ class TestApiTokenManager(BaseTestCase):
         assert user == self.user
         assert credential is not None and credential.kind == "legacy_key" and not credential.scoped
         assert self.user_manager.resolve_credential(None, None) == (None, None)
+
+
+def test_every_agent_operation_declares_a_scope():
+    """Widening an MCP op's scope is a reviewed diff: this pins the map."""
+    import inspect
+
+    from galaxy.agents.operations import AgentOperationsManager
+    from galaxy.managers.api_tokens import PUBLIC_SCOPE
+
+    expected = {
+        "connect": "account:read",
+        "search_tools": "tools:read",
+        "get_tool_details": "tools:read",
+        "list_histories": "histories:read",
+        "run_tool": "tools:run",
+        "get_job_status": "jobs:read",
+        "create_history": "histories:write",
+        "get_history_details": "histories:read",
+        "get_history_contents": "histories:read",
+        "get_history_graph": "histories:read",
+        "get_dataset_details": "datasets:read",
+        "get_collection_details": "datasets:read",
+        "upload_file_from_url": "datasets:write",
+        "list_workflows": "workflows:read",
+        "get_workflow_details": "workflows:read",
+        "invoke_workflow": "workflows:run",
+        "get_invocations": "invocations:read",
+        "get_invocation_details": "invocations:read",
+        "cancel_workflow_invocation": "invocations:write",
+        "get_tool_panel": "tools:read",
+        "get_tool_run_examples": "tools:read",
+        "get_tool_citations": "tools:read",
+        "search_tools_by_keywords": "tools:read",
+        "list_history_ids": "histories:read",
+        "get_job_details": "jobs:read",
+        "get_job_errors": "jobs:read",
+        "peek_dataset_content": "datasets:read",
+        "download_dataset": "datasets:read",
+        "get_server_info": PUBLIC_SCOPE,
+        "search_iwc_workflows": "workflows:read",
+        "get_iwc_workflow_details": "workflows:read",
+        "import_workflow_from_iwc": "workflows:write",
+        "get_user": "account:read",
+        "list_user_tools": None,
+        "create_user_tool": None,
+        "delete_user_tool": None,
+        "run_user_tool": None,
+        "list_file_source_templates": None,
+        "list_user_file_sources": None,
+        "list_pages": "pages:read",
+        "get_page": "pages:read",
+        "create_page": "pages:write",
+        "update_page": "pages:write",
+        "list_page_revisions": "pages:read",
+        "get_page_revision": "pages:read",
+        "revert_page_revision": "pages:write",
+    }
+    actual = {}
+    for name, member in inspect.getmembers(AgentOperationsManager):
+        if name.startswith("_") or not inspect.isfunction(member):
+            continue
+        assert hasattr(member, "galaxy_scope"), f"AgentOperationsManager.{name} declares no scope"
+        actual[name] = member.galaxy_scope
+    assert actual == expected
+
+
+class TestConstraintsThroughManagers(BaseTestCase):
+    """Constraints hold where objects are loaded, whatever route got there."""
+
+    def set_up_managers(self):
+        super().set_up_managers()
+        from galaxy.managers.hdas import HDAManager
+        from galaxy.managers.histories import HistoryManager
+        from galaxy.schema.history import HistoryIndexQueryPayload
+
+        self.HistoryIndexQueryPayload = HistoryIndexQueryPayload
+        self.history_manager = self.app[HistoryManager]
+        self.hda_manager = self.app[HDAManager]
+        self.manager = ApiTokenManager(self.app)
+        self.user = self.user_manager.create(**user2_data)
+        token, _ = self.manager.mint_token(
+            self.user, "sandbox", PRESETS["run-jobs"], constraints={"histories": {"created_by_token": True}}
+        )
+        self.credential = self.manager.credential_for(token)
+        self.mine = self.history_manager.create(user=self.user, name="mine")
+        self.mine.api_token_id = token.id
+        self.theirs = self.history_manager.create(user=self.user, name="theirs")
+        self.trans.sa_session.commit()
+
+    def set_up_trans(self):
+        super().set_up_trans()
+        self.trans.set_user(self.user)
+        self.trans.user_is_admin = False
+
+    def _with_credential(self, credential):
+        from contextlib import contextmanager
+
+        @contextmanager
+        def scope():
+            token = set_current_credential(credential)
+            try:
+                yield
+            finally:
+                reset_current_credential(token)
+
+        return scope()
+
+    def test_history_ownership_and_access_follow_the_constraint(self):
+        with self._with_credential(self.credential):
+            assert self.history_manager.is_owner(self.mine, self.user)
+            assert not self.history_manager.is_owner(self.theirs, self.user)
+            assert self.history_manager.is_accessible(self.mine, self.user)
+            assert not self.history_manager.is_accessible(self.theirs, self.user)
+            with pytest.raises(exceptions.ItemAccessibilityException):
+                self.history_manager.get_accessible(self.theirs.id, self.user)
+        # the same calls with no credential are unchanged
+        assert self.history_manager.is_owner(self.theirs, self.user)
+
+    def test_admin_users_are_constrained_too(self):
+        self.trans.set_user(self.admin_user)
+        with self._with_credential(self.credential):
+            assert not self.history_manager.is_owner(self.theirs, self.admin_user)
+            assert not self.history_manager.is_accessible(self.theirs, self.admin_user)
+
+    def test_hdas_inherit_their_history(self):
+
+        own_hda = self.hda_manager.create(history=self.mine, dataset=None)
+        other_hda = self.hda_manager.create(history=self.theirs, dataset=None)
+        with self._with_credential(self.credential):
+            assert self.hda_manager.is_owner(own_hda, self.user)
+            assert not self.hda_manager.is_owner(other_hda, self.user)
+            assert not self.hda_manager.is_accessible(other_hda, self.user)
+
+    def test_history_listing_is_filtered(self):
+        payload = self.HistoryIndexQueryPayload(show_own=True)
+        with self._with_credential(self.credential):
+            listed, _ = self.history_manager.index_query(self.trans, payload)
+            assert [h.id for h in listed] == [self.mine.id]
+        listed, _ = self.history_manager.index_query(self.trans, payload)
+        assert {h.id for h in listed} == {self.mine.id, self.theirs.id}
+
+    def test_scoped_credential_without_admin_scope_is_not_admin(self):
+        from galaxy.work.context import WorkRequestContext
+
+        admin_token, _ = self.manager.mint_token(self.admin_user, "root", "admin:*")
+        plain_token, _ = self.manager.mint_token(self.admin_user, "plain", "*:*")
+        for token, expected in ((admin_token, True), (plain_token, False)):
+            trans = WorkRequestContext(
+                app=self.app, user=self.admin_user, credential=self.manager.credential_for(token)
+            )
+            assert trans.user_is_admin is expected
+        assert WorkRequestContext(app=self.app, user=self.admin_user).user_is_admin

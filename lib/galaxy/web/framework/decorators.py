@@ -19,6 +19,7 @@ from galaxy.exceptions.utils import (
     api_error_to_dict,
     validation_error_to_message_exception,
 )
+from galaxy.managers.api_tokens import require_scope
 from galaxy.util import (
     parse_non_hex_float,
     smart_str,
@@ -105,6 +106,20 @@ def require_login(verb="perform this action", use_panels=False):
         return decorator
 
     return argcatcher
+
+
+def api_scope(scope: str):
+    """Name the scope a legacy ``@expose_api`` route requires of scoped access tokens.
+
+    Place it below ``@expose_api`` (closer to the function). Unannotated legacy routes refuse
+    scoped credentials, as unannotated FastAPI routes do.
+    """
+
+    def decorator(func):
+        func.galaxy_scope = scope
+        return func
+
+    return decorator
 
 
 def require_admin(func):
@@ -306,6 +321,14 @@ def expose_api(func, to_json=True, user_required=True, user_or_session_required=
                     err_msg="API authentication or Galaxy session required for this request",
                 )
 
+        if (credential := getattr(trans, "credential", None)) is not None and credential.scoped:
+            try:
+                require_scope(
+                    credential, getattr(func, "galaxy_scope", None), what=f"{trans.request.method} {trans.request.path}"
+                )
+            except MessageException as e:
+                return __api_error_response(trans, exception=e)
+
         if trans.request.is_body_readable:
             try:
                 kwargs["payload"] = __extract_payload_from_request(trans, func, kwargs)
@@ -327,7 +350,7 @@ def expose_api(func, to_json=True, user_required=True, user_or_session_required=
         # TODO: Refactor next block out into a helper procedure.
         # Perform api_run_as processing, possibly changing identity
         if "payload" in kwargs and "run_as" in kwargs["payload"]:
-            if not trans.user_can_do_run_as:
+            if not trans.user_can_do_run_as or (credential is not None and credential.scoped):
                 error_code = error_codes.USER_CANNOT_RUN_AS
                 return __api_error_response(trans, err_code=error_code, status_code=403)
             try:

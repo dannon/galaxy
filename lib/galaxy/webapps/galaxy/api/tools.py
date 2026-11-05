@@ -84,6 +84,7 @@ from galaxy.util.hash_util import (
 )
 from galaxy.util.zipstream import ZipstreamWrapper
 from galaxy.web import (
+    api_scope,
     expose_api,
     expose_api_anonymous,
     expose_api_anonymous_and_sessionless,
@@ -180,7 +181,12 @@ class FetchTools:
     service: ToolsService = depends(ToolsService)
     landing_manager: LandingRequestManager = depends(LandingRequestManager)
 
-    @router.post("/api/tools/fetch", summary="Upload files to Galaxy", route_class_override=JsonApiRoute)
+    @router.post(
+        "/api/tools/fetch",
+        summary="Upload files to Galaxy",
+        route_class_override=JsonApiRoute,
+        scope="datasets:write",
+    )
     def fetch_json(self, payload: FetchDataPayload = Body(...), trans: ProvidesHistoryContext = DependsOnTrans):
         return self.service.create_fetch(trans, payload)
 
@@ -188,6 +194,7 @@ class FetchTools:
         "/api/tools/fetch",
         summary="Upload files to Galaxy",
         route_class_override=FormDataApiRoute,
+        scope="datasets:write",
     )
     def fetch_form(
         self,
@@ -536,6 +543,7 @@ class ToolsController(BaseGalaxyAPIController, UsesVisualizationMixin):
     service: ToolsService = depends(ToolsService)
 
     @expose_api_anonymous_and_sessionless
+    @api_scope("tools:read")
     def index(self, trans: GalaxyWebTransaction, **kwds):
         """
         GET /api/tools
@@ -628,6 +636,7 @@ class ToolsController(BaseGalaxyAPIController, UsesVisualizationMixin):
             raise exceptions.InternalServerError("Error: Could not convert toolbox to dictionary")
 
     @expose_api_anonymous_and_sessionless
+    @api_scope("tools:read")
     def show(self, trans: GalaxyWebTransaction, id, **kwd):
         """
         GET /api/tools/{tool_id}
@@ -660,6 +669,7 @@ class ToolsController(BaseGalaxyAPIController, UsesVisualizationMixin):
         return tool.to_dict(trans, io_details=io_details, link_details=link_details)
 
     @expose_api_anonymous
+    @api_scope("tools:read")
     def build(self, trans: GalaxyWebTransaction, id, **kwd):
         """
         GET /api/tools/{tool_id}/build
@@ -1045,6 +1055,7 @@ class ToolsController(BaseGalaxyAPIController, UsesVisualizationMixin):
         return global_tool_errors.error_stack
 
     @expose_api_anonymous
+    @api_scope("tools:run")
     def create(self, trans: GalaxyWebTransaction, payload=None, **kwd):
         if payload is None:
             raise exceptions.RequestParameterMissingException("A payload is required for tool execution.")

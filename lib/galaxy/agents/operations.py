@@ -5,16 +5,24 @@ Delegates to the Galaxy service layer for validation, permission checks, and pag
 """
 
 import logging
+from functools import wraps
 from typing import (
     Any,
+    cast,
     Literal,
+    TypeVar,
 )
+from collections.abc import Callable
 
 from sqlalchemy import select
 
 from galaxy.agents.base import (
     JOB_LOG_EXCERPT_CHARS,
     truncate_middle,
+)
+from galaxy.managers.api_tokens import (
+    PUBLIC_SCOPE,
+    require_scope,
 )
 from galaxy.managers.hdas import HDAManager
 from galaxy.managers.tools import DynamicToolManager
@@ -51,6 +59,8 @@ from galaxy.workflow import iwc
 
 log = logging.getLogger(__name__)
 
+F = TypeVar("F", bound=Callable[..., Any])
+
 ID_FIELDS = {
     "id",
     "history_id",
@@ -65,6 +75,26 @@ ID_FIELDS = {
     "creating_job",
     "implicit_collection_jobs_id",
 }
+
+
+def scoped(scope: str | None) -> Callable[[F], F]:
+    """Declare the scope an operation requires of a scoped access token.
+
+    ``None`` means the operation is only open to unscoped credentials (sessions, the legacy key),
+    ``PUBLIC_SCOPE`` that any credential may call it. Constraints are not checked here: they apply
+    underneath, where the managers load histories, datasets, jobs and tools.
+    """
+
+    def decorator(func: F) -> F:
+        @wraps(func)
+        def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
+            require_scope(self.trans.credential, scope, what=f"MCP operation '{func.__name__}'")
+            return func(self, *args, **kwargs)
+
+        wrapper.galaxy_scope = scope  # type: ignore[attr-defined]
+        return cast(F, wrapper)
+
+    return decorator
 
 
 class AgentOperationsManager:
@@ -197,6 +227,7 @@ class AgentOperationsManager:
             self._pages_service = self.app[PagesService]
         return self._pages_service
 
+    @scoped("account:read")
     def connect(self) -> dict[str, Any]:
         config = self.app.config
         user = self.trans.user
@@ -218,6 +249,7 @@ class AgentOperationsManager:
             },
         }
 
+    @scoped("tools:read")
     def search_tools(self, query: str) -> dict[str, Any]:
         tool_ids = self._search_toolbox(query)
 
@@ -240,6 +272,7 @@ class AgentOperationsManager:
 
         return {"query": query, "tools": tools, "count": len(tools)}
 
+    @scoped("tools:read")
     def get_tool_details(self, tool_id: str, io_details: bool = False) -> dict[str, Any]:
         tool = self._get_materialized_tool(tool_id, "detail")
 
@@ -279,6 +312,7 @@ class AgentOperationsManager:
 
         return tool_info
 
+    @scoped("histories:read")
     def list_histories(self, limit: int = 50, offset: int = 0, name: str | None = None) -> dict[str, Any]:
         serialization_params = SerializationParams(view="summary")
 
@@ -306,6 +340,7 @@ class AgentOperationsManager:
             "pagination": {"limit": limit, "offset": offset},
         }
 
+    @scoped("tools:run")
     def run_tool(self, history_id: str, tool_id: str, inputs: dict[str, Any]) -> dict[str, Any]:
         payload = {
             "history_id": history_id,
@@ -316,6 +351,7 @@ class AgentOperationsManager:
         result = self.tools_service._create(self.trans, payload)
         return self._encode_ids_in_response(result)
 
+    @scoped("jobs:read")
     def get_job_status(self, job_id: str) -> dict[str, Any]:
         decoded_job_id = self.trans.security.decode_id(job_id)
 
@@ -327,6 +363,7 @@ class AgentOperationsManager:
 
         return {"job": self._encode_ids_in_response(job_details), "job_id": job_id}
 
+    @scoped("histories:write")
     def create_history(self, name: str) -> dict[str, Any]:
         payload = CreateHistoryPayload(name=name)
         serialization_params = SerializationParams(view="summary")
@@ -339,6 +376,7 @@ class AgentOperationsManager:
 
         return self._encode_ids_in_response(history)
 
+    @scoped("histories:read")
     def get_history_details(self, history_id: str) -> dict[str, Any]:
         decoded_history_id = self.trans.security.decode_id(history_id)
         serialization_params = SerializationParams(view="detailed")
@@ -354,6 +392,7 @@ class AgentOperationsManager:
             "history_id": history_id,
         }
 
+    @scoped("histories:read")
     def get_history_contents(
         self,
         history_id: str,
@@ -404,6 +443,7 @@ class AgentOperationsManager:
             },
         }
 
+    @scoped("histories:read")
     def get_history_graph(
         self,
         history_id: str,
@@ -431,6 +471,7 @@ class AgentOperationsManager:
         )
         return response.model_dump()
 
+    @scoped("datasets:read")
     def get_dataset_details(self, dataset_id: str) -> dict[str, Any]:
         decoded_dataset_id = self.trans.security.decode_id(dataset_id)
         serialization_params = SerializationParams(view="detailed")
@@ -447,6 +488,7 @@ class AgentOperationsManager:
             "dataset_id": dataset_id,
         }
 
+    @scoped("datasets:read")
     def get_collection_details(self, collection_id: str, max_elements: int = 500) -> dict[str, Any]:
         decoded_collection_id = self.trans.security.decode_id(collection_id)
 
@@ -468,6 +510,7 @@ class AgentOperationsManager:
 
         return {"collection": result, "collection_id": collection_id}
 
+    @scoped("datasets:write")
     def upload_file_from_url(
         self,
         history_id: str,
@@ -496,6 +539,7 @@ class AgentOperationsManager:
         result = self.tools_service.create_fetch(self.trans, fetch_payload)
         return self._encode_ids_in_response(result)
 
+    @scoped("workflows:read")
     def list_workflows(
         self,
         limit: int = 50,
@@ -530,6 +574,7 @@ class AgentOperationsManager:
             },
         }
 
+    @scoped("workflows:read")
     def get_workflow_details(self, workflow_id: str, version: int | None = None) -> dict[str, Any]:
         decoded_workflow_id = self.trans.security.decode_id(workflow_id)
 
@@ -546,6 +591,7 @@ class AgentOperationsManager:
             "workflow_id": workflow_id,
         }
 
+    @scoped("workflows:run")
     def invoke_workflow(
         self,
         workflow_id: str,
@@ -574,6 +620,7 @@ class AgentOperationsManager:
 
         return self._encode_ids_in_response(result)
 
+    @scoped("invocations:read")
     def get_invocations(
         self,
         workflow_id: str | None = None,
@@ -615,6 +662,7 @@ class AgentOperationsManager:
             },
         }
 
+    @scoped("invocations:read")
     def get_invocation_details(self, invocation_id: str) -> dict[str, Any]:
         decoded_invocation_id = self.trans.security.decode_id(invocation_id)
         serialization_params = InvocationSerializationParams(view="element")
@@ -630,6 +678,7 @@ class AgentOperationsManager:
             "invocation_id": invocation_id,
         }
 
+    @scoped("invocations:write")
     def cancel_workflow_invocation(self, invocation_id: str) -> dict[str, Any]:
         decoded_invocation_id = self.trans.security.decode_id(invocation_id)
         serialization_params = InvocationSerializationParams(view="element")
@@ -646,6 +695,7 @@ class AgentOperationsManager:
             "cancelled": True,
         }
 
+    @scoped("tools:read")
     def get_tool_panel(self, view: str | None = None) -> dict[str, Any]:
         if view is None:
             view = self.app.toolbox._default_panel_view(self.trans)
@@ -654,6 +704,7 @@ class AgentOperationsManager:
 
         return {"tool_panel": tool_panel, "view": view}
 
+    @scoped("tools:read")
     def get_tool_run_examples(self, tool_id: str, tool_version: str | None = None) -> dict[str, Any]:
         tool = self._get_materialized_tool(tool_id, "tests")
         if tool and tool_version:
@@ -690,6 +741,7 @@ class AgentOperationsManager:
             "count": len(test_cases),
         }
 
+    @scoped("tools:read")
     def get_tool_citations(self, tool_id: str) -> dict[str, Any]:
         tool = self._get_materialized_tool(tool_id, "serialization")
 
@@ -718,6 +770,7 @@ class AgentOperationsManager:
             "count": len(citations),
         }
 
+    @scoped("tools:read")
     def search_tools_by_keywords(self, keywords: list[str]) -> dict[str, Any]:
         keywords_lower = [k.lower() for k in keywords]
         matching_tools: list[dict[str, Any]] = []
@@ -763,6 +816,7 @@ class AgentOperationsManager:
             "count": len(matching_tools),
         }
 
+    @scoped("histories:read")
     def list_history_ids(self, limit: int = 100) -> dict[str, Any]:
         serialization_params = SerializationParams(view="summary")
         filter_params = FilterQueryParams(limit=limit, offset=0)
@@ -785,6 +839,7 @@ class AgentOperationsManager:
 
         return {"histories": simplified, "count": len(simplified)}
 
+    @scoped("jobs:read")
     def get_job_details(self, dataset_id: str, history_id: str | None = None) -> dict[str, Any]:
         """Get details about the job that created a dataset."""
         decoded_dataset_id = self.trans.security.decode_id(dataset_id)
@@ -813,6 +868,7 @@ class AgentOperationsManager:
             },
         }
 
+    @scoped("jobs:read")
     def get_job_errors(self, dataset_id: str) -> dict[str, Any]:
         """Get error details (stderr, stdout, exit code) for a failed job."""
         decoded_dataset_id = self.trans.security.decode_id(dataset_id)
@@ -851,6 +907,7 @@ class AgentOperationsManager:
             ),
         }
 
+    @scoped("datasets:read")
     def peek_dataset_content(self, dataset_id: str) -> dict[str, Any]:
         """Preview the content of a dataset (text-based datasets only)."""
         decoded_dataset_id = self.trans.security.decode_id(dataset_id)
@@ -886,6 +943,7 @@ class AgentOperationsManager:
 
         return result
 
+    @scoped("datasets:read")
     def download_dataset(self, dataset_id: str) -> dict[str, Any]:
         """Get download URL and metadata for a dataset."""
         decoded_dataset_id = self.trans.security.decode_id(dataset_id)
@@ -913,6 +971,7 @@ class AgentOperationsManager:
             "download_url": download_url,
         }
 
+    @scoped(PUBLIC_SCOPE)
     def get_server_info(self) -> dict[str, Any]:
         config = self.app.config
 
@@ -934,6 +993,7 @@ class AgentOperationsManager:
 
     # ==================== IWC ====================
 
+    @scoped("workflows:read")
     def search_iwc_workflows(self, query: str, limit: int = 10) -> dict[str, Any]:
         """Rank IWC manifest workflows by token overlap against name, description, tags, and tools."""
         workflows = iwc.all_workflows(iwc.fetch_manifest())
@@ -944,6 +1004,7 @@ class AgentOperationsManager:
             "count": len(results),
         }
 
+    @scoped("workflows:read")
     def get_iwc_workflow_details(self, trs_id: str) -> dict[str, Any]:
         """Return the full enriched entry for a single IWC workflow."""
         workflows = iwc.all_workflows(iwc.fetch_manifest())
@@ -954,6 +1015,7 @@ class AgentOperationsManager:
             f"IWC workflow with trsID {trs_id!r} not found. Use search_iwc_workflows() to discover trsIDs."
         )
 
+    @scoped("workflows:write")
     def import_workflow_from_iwc(self, trs_id: str) -> dict[str, Any]:
         """Import an IWC workflow into the user's stored workflows by TRS id.
 
@@ -1003,6 +1065,7 @@ class AgentOperationsManager:
             "missing_tools": missing_tools,
         }
 
+    @scoped("account:read")
     def get_user(self) -> dict[str, Any]:
         user = self.trans.user
 
@@ -1021,6 +1084,7 @@ class AgentOperationsManager:
 
     # ==================== User-Defined Tools (UDT) ====================
 
+    @scoped(None)
     def list_user_tools(self, active: bool = True) -> dict[str, Any]:
         user = self.trans.user
         if not user:
@@ -1032,6 +1096,7 @@ class AgentOperationsManager:
             "count": len(tools),
         }
 
+    @scoped(None)
     def create_user_tool(self, representation: dict[str, Any]) -> dict[str, Any]:
         user = self.trans.user
         if not user:
@@ -1041,6 +1106,7 @@ class AgentOperationsManager:
         dynamic_tool = self.dynamic_tools_manager.create_unprivileged_tool(user, payload)
         return dynamic_tool.to_dict()
 
+    @scoped(None)
     def delete_user_tool(self, uuid: str) -> dict[str, Any]:
         user = self.trans.user
         if not user:
@@ -1053,6 +1119,7 @@ class AgentOperationsManager:
         self.dynamic_tools_manager.deactivate_unprivileged_tool(user, dynamic_tool)
         return {"uuid": uuid, "deactivated": True}
 
+    @scoped(None)
     def run_user_tool(self, history_id: str, tool_uuid: str, inputs: dict[str, Any]) -> dict[str, Any]:
         user = self.trans.user
         if not user:
@@ -1085,6 +1152,7 @@ class AgentOperationsManager:
 
     # ==================== File sources (remote data repositories) ====================
 
+    @scoped(None)
     def list_file_source_templates(self) -> dict[str, Any]:
         """Return the catalog of file source plugin templates available to configure.
 
@@ -1100,6 +1168,7 @@ class AgentOperationsManager:
             "count": len(templates),
         }
 
+    @scoped(None)
     def list_user_file_sources(self) -> dict[str, Any]:
         """Return the file source instances configured by the current user.
 
@@ -1128,6 +1197,7 @@ class AgentOperationsManager:
             result.pop("content", None)
         return result
 
+    @scoped("pages:read")
     def list_pages(
         self,
         history_id: str | None = None,
@@ -1161,6 +1231,7 @@ class AgentOperationsManager:
             "total_matches": total_matches,
         }
 
+    @scoped("pages:read")
     def get_page(self, page_id: str, include_rendered: bool = False) -> dict[str, Any]:
         """Return a page with its latest-revision content.
 
@@ -1172,6 +1243,7 @@ class AgentOperationsManager:
         details = self.pages_service.show(self.trans, decoded_page_id)
         return self._dump_page(details, include_rendered)
 
+    @scoped("pages:write")
     def create_page(
         self,
         history_id: str | None = None,
@@ -1195,6 +1267,7 @@ class AgentOperationsManager:
         details = self.pages_service.create(self.trans, payload)
         return self._dump_page(details)
 
+    @scoped("pages:write")
     def update_page(
         self,
         page_id: str,
@@ -1211,6 +1284,7 @@ class AgentOperationsManager:
         details = self.pages_service.update(self.trans, decoded_page_id, payload)
         return self._dump_page(details)
 
+    @scoped("pages:read")
     def list_page_revisions(self, page_id: str, sort_desc: bool = False) -> dict[str, Any]:
         """List the revision history of a page (provenance via edit_source)."""
         decoded_page_id = self.trans.security.decode_id(page_id)
@@ -1220,6 +1294,7 @@ class AgentOperationsManager:
             "count": len(revisions.root),
         }
 
+    @scoped("pages:read")
     def get_page_revision(self, page_id: str, revision_id: str, include_rendered: bool = False) -> dict[str, Any]:
         """Return a single page revision with its content.
 
@@ -1232,6 +1307,7 @@ class AgentOperationsManager:
         revision = self.pages_service.show_revision(self.trans, decoded_page_id, decoded_revision_id)
         return self._dump_page(revision, include_rendered)
 
+    @scoped("pages:write")
     def revert_page_revision(self, page_id: str, revision_id: str) -> dict[str, Any]:
         """Roll a page back to an earlier revision (creates a new 'restore' revision)."""
         decoded_page_id = self.trans.security.decode_id(page_id)

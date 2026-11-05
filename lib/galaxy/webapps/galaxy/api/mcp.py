@@ -30,6 +30,7 @@ from starlette.routing import Route
 
 from galaxy.agents.operations import AgentOperationsManager
 from galaxy.exceptions import AuthenticationFailed
+from galaxy.managers.api_tokens import set_current_credential
 from galaxy.managers.users import UserManager
 from galaxy.structured_app import StructuredApp
 from galaxy.tool_util.deps.mulled.recommend import (
@@ -247,7 +248,7 @@ def get_mcp_app(gx_app: StructuredApp):
             )
 
         try:
-            user = user_manager.by_credentials(api_key, access_token)
+            user, credential = user_manager.resolve_credential(api_key, access_token, surface="mcp")
         except AuthenticationFailed as e:
             if not access_token:
                 raise
@@ -255,6 +256,9 @@ def get_mcp_app(gx_app: StructuredApp):
         if not user:
             # Only an access token no OIDC provider can process gets here.
             raise AuthenticationFailed(f"Invalid access token. {BEARER_TOKEN_HINT}")
+        # Tool calls run in a worker thread with their own copy of the context, so this
+        # only lasts for the call: manager-level constraint checks read it from here.
+        set_current_credential(credential)
 
         url_builder = get_mcp_url_builder(base_url)
         trans = SessionRequestContext(
@@ -263,6 +267,7 @@ def get_mcp_app(gx_app: StructuredApp):
             url_builder=url_builder,
             request=_StaticRequest(base_url),
             response=_StaticResponse(),
+            credential=credential,
         )
 
         return AgentOperationsManager(app=gx_app, trans=trans)

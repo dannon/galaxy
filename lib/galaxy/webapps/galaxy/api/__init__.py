@@ -78,6 +78,13 @@ from galaxy.exceptions import (
     UserCannotRunAsException,
     UserRequiredException,
 )
+from galaxy.managers.api_tokens import (
+    Credential,
+    require_scope,
+    reset_current_credential,
+    set_current_credential,
+    UNSCOPED_SESSION,
+)
 from galaxy.managers.session import GalaxySessionManager
 from galaxy.managers.users import UserManager
 from galaxy.model import User
@@ -162,7 +169,7 @@ def get_session(
     return None
 
 
-def get_api_user(
+def get_api_credential(
     user_manager: UserManager = depends(UserManager),
     key: str = Security(api_key_query),
     x_api_key: str = Security(api_key_header),
@@ -175,19 +182,53 @@ def get_api_user(
             "Only admins and designated users can make API calls on behalf of other users."
         ),
     ),
-) -> User | None:
+) -> tuple[User | None, Credential | None]:
+    """Resolve the user and credential behind an API key, scoped token or bearer token."""
     api_key = key or x_api_key
     access_token = bearer_token.credentials if bearer_token else None
     if not (api_key or access_token):
         # Return before the run_as check: anonymous requests never run as anyone.
-        return None
-    user = user_manager.by_credentials(api_key, access_token)
+        return None, None
+    user, credential = user_manager.resolve_credential(api_key, access_token)
     if run_as:
+        if credential is not None and credential.scoped:
+            # A scoped token's ceiling is the token's, not another user's account.
+            raise UserCannotRunAsException
         if user_manager.user_can_do_run_as(user):
-            return user_manager.by_id(run_as)
+            return user_manager.by_id(run_as), credential
         else:
             raise UserCannotRunAsException
-    return user
+    return user, credential
+
+
+def get_api_user(
+    api_credential=cast(tuple[User | None, Credential | None], Depends(get_api_credential)),
+) -> User | None:
+    return api_credential[0]
+
+
+async def get_credential(
+    galaxy_session=cast(model.GalaxySession | None, Depends(get_session)),
+    api_credential=cast(tuple[User | None, Credential | None], Depends(get_api_credential)),
+) -> AsyncGenerator[Credential | None, None]:
+    """The credential for this request, also published through the request-local contextvar.
+
+    Async on purpose: a sync dependency runs in a worker thread with a copy of the context, so a
+    contextvar set there would never reach the endpoint. Set here it is inherited by the sync
+    endpoint and every dependency resolved after it.
+    """
+    if galaxy_session and galaxy_session.user:
+        credential: Credential | None = UNSCOPED_SESSION
+    else:
+        credential = api_credential[1]
+    token = set_current_credential(credential)
+    try:
+        yield credential
+    finally:
+        reset_current_credential(token)
+
+
+DependsOnCredential = cast(Credential | None, Depends(get_credential))
 
 
 def get_user(
@@ -208,6 +249,18 @@ def get_required_user(
     if api_user:
         return api_user
     raise UserRequiredException
+
+
+def scope_dependency(scope: str | None):
+    """A route dependency refusing scoped credentials that lack ``scope`` (or any, when ``scope`` is None)."""
+
+    async def check_scope(request: Request, credential: Credential | None = DependsOnCredential) -> None:
+        if credential is not None and credential.scoped:
+            route = request.scope.get("route")
+            what = f"{request.method} {getattr(route, 'path', request.url.path)}"
+            require_scope(credential, scope, what=what)
+
+    return Depends(check_scope)
 
 
 class UrlBuilder:
@@ -388,6 +441,7 @@ def get_trans(
     app: StructuredApp = DependsOnApp,
     user=cast(User | None, Depends(get_user)),
     galaxy_session=cast(model.GalaxySession | None, Depends(get_session)),
+    credential: Credential | None = DependsOnCredential,
 ) -> SessionRequestContext:
     url_builder = UrlBuilder(request)
     galaxy_request = GalaxyASGIRequest(request)
@@ -402,6 +456,7 @@ def get_trans(
         request=galaxy_request,
         response=galaxy_response,
         history=get_current_history_from_session(galaxy_session),
+        credential=credential,
     )
 
 
@@ -450,6 +505,9 @@ class FrameworkRouter(APIRouter):
     """A FastAPI Router tailored to Galaxy."""
 
     admin_user_dependency: Any
+    # Builds the dependency that enforces a route's ``scope=`` on scoped credentials. Routers that
+    # leave it unset (the Tool Shed) never see scoped credentials and get no check.
+    scope_dependency_factory: Callable[[str | None], Any] | None = None
 
     def wrap_with_alias(
         self, verb: RestVerb, *args: Any, alias: str | None = None, **kwd: Any
@@ -557,6 +615,11 @@ class FrameworkRouter(APIRouter):
                 kwd["dependencies"] = [self.admin_user_dependency]
 
         public = kwd.pop("public", False)
+        # Every route gets the scope check: a route that names no scope refuses scoped
+        # credentials outright, so the allowlist is exactly the set of annotated routes.
+        scope = kwd.pop("scope", None)
+        if self.scope_dependency_factory is not None and not public:
+            kwd.setdefault("dependencies", []).append(self.scope_dependency_factory(scope))
         openapi_extra = kwd.pop("openapi_extra", {})
         if public:
             openapi_extra["security"] = []
@@ -586,6 +649,7 @@ class FrameworkRouter(APIRouter):
 class Router(FrameworkRouter):
     admin_user_dependency = AdminUserRequired
     user_dependency = DependsOnUser
+    scope_dependency_factory = staticmethod(scope_dependency)
 
 
 class APICorsRoute(APIRoute):

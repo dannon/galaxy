@@ -59,6 +59,7 @@ from galaxy.managers import (
     deletable,
     sharable,
 )
+from galaxy.managers.api_tokens import credential_permits_workflow
 from galaxy.managers.base import (
     apply_sort_column,
     decode_id,
@@ -506,6 +507,8 @@ class WorkflowsManager(sharable.SharableModelManager[model.StoredWorkflow], dele
                 if stored_workflow:
                     return stored_workflow
             raise exceptions.ObjectNotFound("No such workflow found.")
+        if not credential_permits_workflow(stored_workflow):
+            raise exceptions.ItemAccessibilityException("This access token may not use this workflow.")
         return stored_workflow
 
     def get_stored_accessible_workflow(

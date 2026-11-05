@@ -50,6 +50,10 @@ from galaxy.job_metrics import (
     RawMetric,
     Safety,
 )
+from galaxy.managers.api_tokens import (
+    credential_permits_history,
+    history_constraint_clause,
+)
 from galaxy.managers.collections import DatasetCollectionManager
 from galaxy.managers.context import (
     ProvidesAppContext,
@@ -299,6 +303,8 @@ class JobManager:
             return stmt
 
         stmt = select(Job)
+        if (constraint_clause := history_constraint_clause()) is not None:
+            stmt = stmt.where(Job.history_id.in_(select(model.History.id).where(constraint_clause)))
 
         if is_admin:
             if decoded_user_id is not None:
@@ -364,6 +370,8 @@ class JobManager:
         job = trans.sa_session.get(Job, decoded_job_id)
         if job is None:
             raise ObjectNotFound()
+        if not credential_permits_history(job.history):
+            raise ItemAccessibilityException("You are not allowed to access this job.")
         belongs_to_user = False
         if trans.user:
             belongs_to_user = job.user_id == trans.user.id

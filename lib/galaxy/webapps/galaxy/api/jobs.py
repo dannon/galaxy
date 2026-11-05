@@ -281,7 +281,7 @@ class FastAPIJobs:
         validate_not_protected(job_request.tool_id)
         return self.service.create(trans, job_request)
 
-    @router.get("/api/jobs")
+    @router.get("/api/jobs", scope="jobs:read")
     def index(
         self,
         trans: ProvidesUserContext = DependsOnTrans,
@@ -606,6 +606,7 @@ class FastAPIJobs:
         "/api/jobs/{job_id}",
         name="show_job",
         summary="Return dictionary containing description of job data.",
+        scope="jobs:read",
     )
     def show(
         self,

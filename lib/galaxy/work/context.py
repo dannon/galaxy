@@ -9,6 +9,7 @@ from typing import (
 
 from starlette.datastructures import URL
 
+from galaxy.managers.api_tokens import Credential
 from galaxy.managers.context import ProvidesHistoryContext
 
 if TYPE_CHECKING:
@@ -41,9 +42,11 @@ class WorkRequestContext(ProvidesHistoryContext):
         url_builder=None,
         galaxy_session: Optional["GalaxySession"] = None,
         short_term_cache: dict[tuple[Hashable, ...], Any] | None = None,
+        credential: Credential | None = None,
     ):
         self._app = app
         self.__user = user
+        self.credential = credential
         self.__user_current_roles: list[Role] | None = None
         self.__history = history
         self._url_builder = url_builder
@@ -204,4 +207,5 @@ def proxy_work_context_for_history(
         workflow_building_mode=workflow_building_mode,
         galaxy_session=trans.galaxy_session,
         short_term_cache=trans._short_term_cache,
+        credential=trans.credential,
     )

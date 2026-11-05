@@ -212,6 +212,7 @@ class FastAPIHistories:
         "/api/histories",
         summary="Returns histories available to the current user.",
         response_model_exclude_unset=True,
+        scope="histories:read",
     )
     def index(
         self,
@@ -349,6 +350,7 @@ class FastAPIHistories:
         name="history",
         summary="Returns the history with the given ID.",
         response_model_exclude_unset=True,
+        scope="histories:read",
     )
     def show(
         self,
@@ -474,6 +476,7 @@ class FastAPIHistories:
         "/api/histories",
         summary="Creates a new history.",
         response_model_exclude_unset=True,
+        scope="histories:write",
     )
     def create(
         self,

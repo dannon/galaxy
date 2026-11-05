@@ -40,6 +40,10 @@ from galaxy.managers import (
     history_contents,
     sharable,
 )
+from galaxy.managers.api_tokens import (
+    credential_permits_history,
+    history_constraint_clause,
+)
 from galaxy.managers.base import (
     apply_sort_column,
     combine_lists,
@@ -166,6 +170,8 @@ class HistoryManager(sharable.SharableModelManager[model.History], deletable.Pur
             filters.append(self.user_share_model.user == user)
             stmt = stmt.outerjoin(self.model_class.users_shared_with)
         stmt = stmt.where(or_(*filters))
+        if (constraint_clause := history_constraint_clause()) is not None:
+            stmt = stmt.where(constraint_clause)
 
         if payload.search:
             search_query = payload.search
@@ -278,6 +284,8 @@ class HistoryManager(sharable.SharableModelManager[model.History], deletable.Pur
         """
         True if the current user is the owner of the given history.
         """
+        if not credential_permits_history(cast(model.History, item)):
+            return False
         # anon users are only allowed to view their current history
         if self.user_manager.is_anonymous(user):
             return current_history is not None and item == current_history
