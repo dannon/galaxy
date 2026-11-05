@@ -195,5 +195,6 @@ class StructuredApp(MinimalManagerApp):
     watchers: "ConfigWatchers"
     workflow_scheduling_manager: Any  # 'galaxy.workflow.scheduling_manager.WorkflowSchedulingManager'
     api_keys_manager: Any  # 'galaxy.managers.api_keys.ApiKeyManager'
+    api_token_manager: Any  # 'galaxy.managers.api_tokens.ApiTokenManager'
     visualizations_registry: Any  # 'galaxy.visualization.plugins.registry.VisualizationsRegistry'
     _toolbox_lock: threading.RLock

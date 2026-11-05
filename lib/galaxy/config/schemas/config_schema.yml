@@ -3448,6 +3448,15 @@ mapping:
           Optional list of email addresses of API users who can make calls on behalf of
           other users.
 
+      api_token_max_lifetime:
+        type: int
+        default: 90
+        required: false
+        desc: |
+          The longest lifetime, in days, a scoped access token may be minted with. Requests
+          for a longer lifetime are capped to this; requests with no lifetime get it. Set to
+          0 to allow tokens that never expire. The legacy API key is unaffected.
+
       bootstrap_admin_api_key:
         type: str
         required: false

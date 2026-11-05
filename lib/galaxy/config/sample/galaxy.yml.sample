@@ -2575,6 +2575,12 @@ galaxy:
   # behalf of other users.
   #api_allow_run_as: null
 
+  # The longest lifetime, in days, a scoped access token may be minted
+  # with. Requests for a longer lifetime are capped to this; requests
+  # with no lifetime get it. Set to 0 to allow tokens that never expire.
+  # The legacy API key is unaffected.
+  #api_token_max_lifetime: 90
+
   # API key that allows performing some admin actions without actually
   # having a real admin user in the database and config. Only set this
   # if you need to bootstrap Galaxy, in particular to create a real

@@ -4632,6 +4632,19 @@
 :Type: str
 
 
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+``api_token_max_lifetime``
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:Description:
+    The longest lifetime, in days, a scoped access token may be minted
+    with. Requests for a longer lifetime are capped to this; requests
+    with no lifetime get it. Set to 0 to allow tokens that never
+    expire. The legacy API key is unaffected.
+:Default: ``90``
+:Type: int
+
+
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ``bootstrap_admin_api_key``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~

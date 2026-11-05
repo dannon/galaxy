@@ -50,6 +50,7 @@ from galaxy.job_metrics import JobMetrics
 from galaxy.jobs.manager import JobManager
 from galaxy.managers.admin_extensions import AdminExtensionsManager
 from galaxy.managers.api_keys import ApiKeyManager
+from galaxy.managers.api_tokens import ApiTokenManager
 from galaxy.managers.citations import CitationsManager
 from galaxy.managers.collections import DatasetCollectionManager
 from galaxy.managers.dbkeys import GenomeBuilds
@@ -1045,6 +1046,7 @@ class UniverseApplication(StructuredApp, GalaxyManagerApplication, InstallationT
             TestDataResolver(file_dirs=self.config.tool_test_data_directories),
         )
         self.api_keys_manager = self._register_singleton(ApiKeyManager)
+        self.api_token_manager = self._register_singleton(ApiTokenManager)
 
         # Genomes
         self.genomes = self._register_singleton(Genomes)

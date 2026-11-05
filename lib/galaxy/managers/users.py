@@ -39,6 +39,14 @@ from galaxy.managers import (
     base,
     deletable,
 )
+from galaxy.managers.api_tokens import (
+    ApiTokenManager,
+    Credential,
+    is_token_secret,
+    UNSCOPED_BOOTSTRAP,
+    UNSCOPED_LEGACY_KEY,
+    UNSCOPED_OIDC,
+)
 from galaxy.managers.base import combine_lists
 from galaxy.managers.context import (
     ProvidesAppContext,
@@ -450,11 +458,27 @@ class UserManager(base.ModelManager, deletable.PurgableManagerMixin):
         The API key is tried first, and a bad one raises. An access token raises if an OIDC provider
         rejects it, and returns None if no provider is configured or none can process it.
         """
+        return self.resolve_credential(api_key, access_token)[0]
+
+    def resolve_credential(
+        self, api_key: str | None, access_token: str | None, surface: str = "api"
+    ) -> tuple[model.User | None, Credential | None]:
+        """Find the user and the credential behind an API key, scoped token or OIDC access token.
+
+        A ``gxy_`` scoped token is recognised wherever a key or bearer token may be sent, so every
+        client that already passes a key can pass a token instead. ``surface`` names the door the
+        credential came through (``api`` or ``mcp``) for tokens restricted to one of them.
+        """
+        presented = api_key or access_token
+        if presented and is_token_secret(presented):
+            return self.app[ApiTokenManager].resolve(presented, surface=surface)
         if api_key:
-            return self.by_api_key(api_key=api_key)
+            user = self.by_api_key(api_key=api_key)
+            return user, UNSCOPED_BOOTSTRAP if user.bootstrap_admin_user else UNSCOPED_LEGACY_KEY
         if access_token:
-            return self.by_oidc_access_token(access_token=access_token)
-        return None
+            user = self.by_oidc_access_token(access_token=access_token)
+            return user, UNSCOPED_OIDC if user else None
+        return None, None
 
     def by_oidc_access_token(self, access_token: str):
         if hasattr(self.app, "authnz_manager") and self.app.authnz_manager:

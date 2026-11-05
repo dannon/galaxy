@@ -353,6 +353,7 @@ class GalaxyAppConfigurationAttributes:
     oidc_scope_prefix: str
     auth_config_file: str
     api_allow_run_as: str | None
+    api_token_max_lifetime: int
     bootstrap_admin_api_key: str | None
     organization_name: str | None
     organization_url: str | None
