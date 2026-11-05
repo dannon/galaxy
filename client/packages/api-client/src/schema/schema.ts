@@ -6608,6 +6608,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/users/{user_id}/tokens": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the user's scoped access tokens. */
+        get: operations["list_api_tokens_api_users__user_id__tokens_get"];
+        put?: never;
+        /** Create a scoped access token. The secret is returned once and never shown again. */
+        post: operations["create_api_token_api_users__user_id__tokens_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users/{user_id}/tokens/{token_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke one scoped access token. Other tokens and the API key are untouched. */
+        delete: operations["revoke_api_token_api_users__user_id__tokens__token_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/users/{user_id}/usage": {
         parameters: {
             query?: never;
@@ -8187,6 +8222,182 @@ export interface components {
              * @description Size of all non-purged, unique datasets of the user in bytes.
              */
             total_disk_usage: number;
+        };
+        /**
+         * ApiTokenConstraints
+         * @description Instance constraints narrowing what a token's scopes may touch.
+         */
+        ApiTokenConstraints: {
+            /** Histories */
+            histories?: components["schemas"]["ApiTokenHistoriesConstraint"] | null;
+            /**
+             * Surfaces
+             * @description Where the token may be used: ``api`` (REST) and/or ``mcp``. Unset means anywhere.
+             */
+            surfaces?: ("api" | "mcp")[] | null;
+            /** Tools */
+            tools?: components["schemas"]["ApiTokenToolsConstraint"] | null;
+            /** Workflows */
+            workflows?: components["schemas"]["ApiTokenWorkflowsConstraint"] | null;
+        };
+        /** ApiTokenConstraintsView */
+        ApiTokenConstraintsView: {
+            histories?: components["schemas"]["ApiTokenHistoriesConstraintView"] | null;
+            /** Surfaces */
+            surfaces?: string[] | null;
+            tools?: components["schemas"]["ApiTokenToolsConstraint"] | null;
+            workflows?: components["schemas"]["ApiTokenWorkflowsConstraintView"] | null;
+        };
+        /** ApiTokenCreatePayload */
+        ApiTokenCreatePayload: {
+            /** Constraints */
+            constraints?: components["schemas"]["ApiTokenConstraints"] | null;
+            /**
+             * Expires in
+             * @description Lifetime in seconds, capped by the server's maximum. Defaults to the server's maximum.
+             */
+            expires_in?: number | null;
+            /**
+             * Name
+             * @description A label for the token, shown in the token list.
+             */
+            name: string;
+            /**
+             * Preset
+             * @description A named scope set: read-only, agent, run-jobs or everything.
+             */
+            preset?: string | null;
+            /**
+             * Scopes
+             * @description Space-separated ``resource:action`` scopes. Required unless a preset is given.
+             */
+            scopes?: string | null;
+        };
+        /** ApiTokenCreatedModel */
+        ApiTokenCreatedModel: {
+            /**
+             * Active
+             * @description Neither revoked nor expired.
+             */
+            active: boolean;
+            /** Constraints */
+            constraints?: components["schemas"]["ApiTokenConstraintsView"] | null;
+            /**
+             * Create time
+             * Format: date-time
+             */
+            create_time: string;
+            /** Expires at */
+            expires_at?: string | null;
+            /**
+             * ID
+             * @example 0123456789ABCDEF
+             */
+            id: string;
+            /** Last used at */
+            last_used_at?: string | null;
+            /** Name */
+            name: string;
+            /** Revoked at */
+            revoked_at?: string | null;
+            /** Scopes */
+            scopes: string[];
+            /**
+             * Source
+             * @description How the token was minted: ui, device, oauth or job.
+             */
+            source: string;
+            /**
+             * Token
+             * @description The secret. It is only ever shown here.
+             */
+            token: string;
+            /**
+             * Token hint
+             * @description The first characters of the secret.
+             */
+            token_hint: string;
+        };
+        /** ApiTokenHistoriesConstraint */
+        ApiTokenHistoriesConstraint: {
+            /**
+             * Created by token
+             * @description Only histories this token created.
+             */
+            created_by_token?: boolean | null;
+            /**
+             * History IDs
+             * @description Only these histories.
+             */
+            ids?: string[] | null;
+        };
+        /** ApiTokenHistoriesConstraintView */
+        ApiTokenHistoriesConstraintView: {
+            /** Created By Token */
+            created_by_token?: boolean | null;
+            /** Ids */
+            ids?: string[] | null;
+        };
+        /** ApiTokenModel */
+        ApiTokenModel: {
+            /**
+             * Active
+             * @description Neither revoked nor expired.
+             */
+            active: boolean;
+            /** Constraints */
+            constraints?: components["schemas"]["ApiTokenConstraintsView"] | null;
+            /**
+             * Create time
+             * Format: date-time
+             */
+            create_time: string;
+            /** Expires at */
+            expires_at?: string | null;
+            /**
+             * ID
+             * @example 0123456789ABCDEF
+             */
+            id: string;
+            /** Last used at */
+            last_used_at?: string | null;
+            /** Name */
+            name: string;
+            /** Revoked at */
+            revoked_at?: string | null;
+            /** Scopes */
+            scopes: string[];
+            /**
+             * Source
+             * @description How the token was minted: ui, device, oauth or job.
+             */
+            source: string;
+            /**
+             * Token hint
+             * @description The first characters of the secret.
+             */
+            token_hint: string;
+        };
+        /** ApiTokenToolsConstraint */
+        ApiTokenToolsConstraint: {
+            /**
+             * Tool IDs
+             * @description Only these tools may be run or built.
+             */
+            ids: string[];
+        };
+        /** ApiTokenWorkflowsConstraint */
+        ApiTokenWorkflowsConstraint: {
+            /**
+             * Workflow IDs
+             * @description Only these stored workflows.
+             */
+            ids: string[];
+        };
+        /** ApiTokenWorkflowsConstraintView */
+        ApiTokenWorkflowsConstraintView: {
+            /** Ids */
+            ids: string[];
         };
         /** ArchiveHistoryRequestPayload */
         ArchiveHistoryRequestPayload: {
@@ -34075,7 +34286,10 @@ export interface operations {
     get_api_key_api_authenticate_baseauth_get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -54628,6 +54842,147 @@ export interface operations {
                 };
                 content: {
                     "application/json": string;
+                };
+            };
+            /** @description Request Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+            /** @description Server Error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+        };
+    };
+    list_api_tokens_api_users__user_id__tokens_get: {
+        parameters: {
+            query?: {
+                /** @description Also list revoked and expired tokens. */
+                include_inactive?: boolean;
+            };
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
+            path: {
+                /** @description The ID of the user. */
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiTokenModel"][];
+                };
+            };
+            /** @description Request Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+            /** @description Server Error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+        };
+    };
+    create_api_token_api_users__user_id__tokens_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
+            path: {
+                /** @description The ID of the user. */
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApiTokenCreatePayload"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiTokenCreatedModel"];
+                };
+            };
+            /** @description Request Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+            /** @description Server Error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+        };
+    };
+    revoke_api_token_api_users__user_id__tokens__token_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
+            path: {
+                /** @description The ID of the user. */
+                user_id: string;
+                /** @description The access token's ID. */
+                token_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiTokenModel"];
                 };
             };
             /** @description Request Error */

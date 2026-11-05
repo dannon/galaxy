@@ -211,6 +211,17 @@ onMounted(async () => {
                     to="/user/permissions" />
 
                 <UserPreferencesElement
+                    id="edit-preferences-access-tokens"
+                    :icon="faKey"
+                    :title="localize('Manage Access Tokens')"
+                    :description="
+                        localize(
+                            'Create scoped, expiring tokens for scripts, AI agents and MCP clients, and revoke them one at a time.',
+                        )
+                    "
+                    to="/user/tokens" />
+
+                <UserPreferencesElement
                     id="edit-preferences-api-key"
                     :icon="faKey"
                     :title="localize('Manage Galaxy API Key')"

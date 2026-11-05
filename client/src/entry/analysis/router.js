@@ -83,6 +83,7 @@ import ToolOntologies from "@/components/ToolsList/ToolOntologies.vue";
 import ToolsList from "@/components/ToolsList/ToolsList.vue";
 import ToolsJson from "@/components/ToolsView/ToolsSchemaJson/ToolsJson.vue";
 import TourList from "@/components/Tour/TourList.vue";
+import AccessTokens from "@/components/User/AccessTokens/AccessTokens.vue";
 import CredentialsManagement from "@/components/User/Credentials/CredentialsManagement.vue";
 import CustomBuilds from "@/components/User/CustomBuilds.vue";
 import HistoryStorageOverview from "@/components/User/DiskUsage/Visualizations/HistoryStorageOverview.vue";
@@ -668,6 +669,11 @@ export function getRouter(Galaxy) {
                     {
                         path: "user/api_key",
                         component: APIKey,
+                        redirect: redirectAnon(),
+                    },
+                    {
+                        path: "user/tokens",
+                        component: AccessTokens,
                         redirect: redirectAnon(),
                     },
                     {
