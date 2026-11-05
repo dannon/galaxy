@@ -22,7 +22,10 @@ from galaxy import (
 from galaxy.config import GalaxyAppConfiguration
 from galaxy.exceptions import RequestParameterInvalidException
 from galaxy.exceptions.utils import api_error_to_dict
-from galaxy.managers.api_tokens import credential_permits_tool
+from galaxy.managers.api_tokens import (
+    credential_permits_tool,
+    current_credential,
+)
 from galaxy.managers.collections_util import dictify_dataset_collection_instance
 from galaxy.managers.context import (
     ProvidesHistoryContext,
@@ -110,6 +113,15 @@ def get_tool(trans: ProvidesHistoryContext, tool_ref: ToolRunReference) -> Tool:
 def _check_tool_constraint(tool: ToolLike) -> None:
     if not credential_permits_tool(tool):
         raise exceptions.InsufficientPermissionsException(f"This access token may not use tool '{tool.id}'.")
+    if (credential := current_credential()) is not None and credential.scoped:
+        if getattr(tool, "dynamic_tool", None) is not None:
+            # User-defined tools stay outside the scope vocabulary for now, on every surface.
+            raise exceptions.InsufficientPermissionsException("Scoped access tokens cannot run user-defined tools.")
+        if any(ev.get("inject") == "api_key" for ev in getattr(tool, "environment_variables", None) or []):
+            # The job would be handed the user's full API key, which is more than the token holds.
+            raise exceptions.InsufficientPermissionsException(
+                f"Tool '{tool.id}' runs with the user's API key, which a scoped access token may not hand over."
+            )
 
 
 def validate_tool_for_running(trans: ProvidesHistoryContext, tool_ref: ToolRunReference) -> Tool:

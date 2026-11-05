@@ -27,6 +27,7 @@ from webob.compat import cgi_FieldStorage
 from galaxy import util
 from galaxy.exceptions import ToolExecutionError
 from galaxy.files import ProvidesFileSourcesUserContext
+from galaxy.managers.api_tokens import credential_permits_input
 from galaxy.managers.dbkeys import read_dbnames
 from galaxy.model import (
     cached_id,
@@ -2501,6 +2502,8 @@ def src_id_to_item(
     except KeyError:
         raise ValueError(f"Unknown input source {value['src']} passed to job submission API.")
     if not item:
+        raise ValueError("Invalid input id passed to job submission API.")
+    if not credential_permits_input(item):
         raise ValueError("Invalid input id passed to job submission API.")
     if adapter_model is not None:
         item = recover_adapter(item, adapter_model)

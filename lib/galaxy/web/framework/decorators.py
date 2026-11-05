@@ -182,6 +182,14 @@ def legacy_expose_api(func, to_json=True, user_required=True):
         if user_required and trans.anonymous:
             error_message = "API Authentication Required for this request"
             return error
+        if (credential := getattr(trans, "credential", None)) is not None and credential.scoped:
+            try:
+                require_scope(
+                    credential, getattr(func, "galaxy_scope", None), what=f"{trans.request.method} {trans.request.path}"
+                )
+            except MessageException as e:
+                error_message = e.err_msg
+                return error
         if trans.request.is_body_readable:
             try:
                 kwargs["payload"] = __extract_payload_from_request(trans, func, kwargs)

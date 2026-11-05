@@ -4,7 +4,9 @@ Shared operations layer for AI agents (MCP and internal pydantic-ai).
 Delegates to the Galaxy service layer for validation, permission checks, and pagination.
 """
 
+import inspect
 import logging
+from collections.abc import Callable
 from functools import wraps
 from typing import (
     Any,
@@ -12,7 +14,6 @@ from typing import (
     Literal,
     TypeVar,
 )
-from collections.abc import Callable
 
 from sqlalchemy import select
 
@@ -77,6 +78,17 @@ ID_FIELDS = {
 }
 
 
+def _assert_every_operation_declares_a_scope(cls: type) -> type:
+    undeclared = [
+        name
+        for name, member in vars(cls).items()
+        if not name.startswith("_") and inspect.isfunction(member) and not hasattr(member, "galaxy_scope")
+    ]
+    if undeclared:
+        raise TypeError(f"{cls.__name__} operations without a @scoped declaration: {', '.join(sorted(undeclared))}")
+    return cls
+
+
 def scoped(scope: str | None) -> Callable[[F], F]:
     """Declare the scope an operation requires of a scoped access token.
 
@@ -97,6 +109,7 @@ def scoped(scope: str | None) -> Callable[[F], F]:
     return decorator
 
 
+@_assert_every_operation_declares_a_scope
 class AgentOperationsManager:
     """Shared operations for AI agents, delegating to Galaxy's service layer."""
 

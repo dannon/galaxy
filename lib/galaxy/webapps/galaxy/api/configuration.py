@@ -11,6 +11,7 @@ from typing import (
 from fastapi import Path
 
 from galaxy.exceptions import AuthenticationRequired
+from galaxy.managers.api_tokens import PUBLIC_SCOPE
 from galaxy.managers.configuration import ConfigurationManager
 from galaxy.managers.context import ProvidesUserContext
 from galaxy.managers.extra_preferences import ExtraPreferencesManager
@@ -85,6 +86,7 @@ class FastAPIConfiguration:
     @router.get(
         "/api/version",
         public=True,
+        scope=PUBLIC_SCOPE,
         summary="Return Galaxy version information: major/minor version, optional extra info",
         response_description="Galaxy version information: major/minor version, optional extra info",
     )

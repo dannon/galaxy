@@ -42,6 +42,7 @@ from galaxy.managers import (
 from galaxy.managers.api_tokens import (
     ApiTokenManager,
     Credential,
+    current_credential,
     is_token_secret,
     UNSCOPED_BOOTSTRAP,
     UNSCOPED_LEGACY_KEY,
@@ -507,6 +508,9 @@ class UserManager(base.ModelManager, deletable.PurgableManagerMixin):
             # Anonymous session or master_api_key used, if master_api_key is detected
             # return True.
             return bool(trans and trans.user_is_admin)
+        # A scoped credential without admin:* is never an admin, whoever the user is.
+        if (credential := current_credential()) is not None and not credential.allows("admin:*"):
+            return False
         return self.app.config.is_admin_user(user)
 
     def logins_resolve_accounts_by_email(self) -> bool:

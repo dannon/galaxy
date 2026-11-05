@@ -45,6 +45,7 @@ from galaxy.managers import (
 )
 from galaxy.managers.api_tokens import (
     credential_permits_history,
+    current_credential,
     history_constraint_clause,
 )
 from galaxy.managers.base import (
@@ -262,6 +263,16 @@ class HistoryManager(sharable.SharableModelManager[model.History], deletable.Pur
         if payload.offset is not None:
             stmt = stmt.offset(payload.offset)
         return trans.sa_session.scalars(stmt), total_matches
+
+    def create(self, flush: bool = True, *args: Any, **kwargs: Any) -> model.History:
+        history = super().create(False, *args, **kwargs)
+        # Lets a token constrained to the histories it created find this one later, whichever
+        # route created it (tool runs and workflow invocations make histories too).
+        if (credential := current_credential()) is not None and credential.token_id is not None:
+            history.api_token_id = credential.token_id
+        if flush:
+            self.session().commit()
+        return history
 
     def query(self, eagerloads: bool = True, filters=None, order_by=None, limit=None, offset=None) -> Query:
         # Every listing built on the manager sees only what a constrained token may open.

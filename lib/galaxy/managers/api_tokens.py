@@ -225,6 +225,27 @@ def credential_permits_workflow(workflow: model.StoredWorkflow | None, credentia
     return workflow is not None and workflow.id in ids
 
 
+def credential_permits_input(item: Any, credential: Credential | None = None) -> bool:
+    """Apply the ``histories`` constraint to a tool or workflow input: an HDA, HDCA or collection element.
+
+    Library datasets have no history and aren't constrained here.
+    """
+    credential = credential if credential is not None else current_credential()
+    if credential is None or not credential.constraint("histories"):
+        return True
+    if isinstance(item, (model.HistoryDatasetAssociation, model.HistoryDatasetCollectionAssociation)):
+        return credential_permits_history(item.history, credential)
+    if isinstance(item, model.DatasetCollectionElement):
+        if item.hda is not None:
+            return credential_permits_history(item.hda.history, credential)
+        if item.child_collection is not None:
+            return all(
+                credential_permits_history(hda.history, credential) for hda in item.child_collection.dataset_instances
+            )
+        return False
+    return True
+
+
 def credential_permits_item(item: Any, credential: Credential | None = None) -> bool:
     """Dispatch to the constraint check for ``item``'s type; items with no constraint always pass."""
     if isinstance(item, model.History):
@@ -369,13 +390,19 @@ class ApiTokenManager:
         scope_set = parse_scopes(scopes)
         if scopes_allow(scope_set, "admin:*") and not self.app.config.is_admin_user(user):
             raise exceptions.RequestParameterInvalidException("Only administrators can mint admin-scoped tokens.")
+        cleaned_constraints = validate_constraints(constraints)
+        if cleaned_constraints and "tools" in cleaned_constraints and scopes_allow(scope_set, "workflows:run"):
+            # Workflow steps run tools without going through the tool lookup the constraint hangs on.
+            raise exceptions.RequestParameterInvalidException(
+                "A tools constraint cannot be combined with workflows:run; workflows would run tools outside it."
+            )
         expires_at = self._expiry(expires_in)
         secret = TOKEN_PREFIX + "".join(secrets.choice(_ALPHABET) for _ in range(TOKEN_SECRET_LENGTH))
         token = model.APIToken(
             user=user,
             name=name,
             scopes=" ".join(sorted(scope_set)),
-            constraints=validate_constraints(constraints),
+            constraints=cleaned_constraints,
             expires_at=expires_at,
             source=source,
             token_hash=hash_token_secret(secret),

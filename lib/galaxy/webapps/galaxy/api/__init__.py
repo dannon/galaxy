@@ -615,10 +615,11 @@ class FrameworkRouter(APIRouter):
                 kwd["dependencies"] = [self.admin_user_dependency]
 
         public = kwd.pop("public", False)
-        # Every route gets the scope check: a route that names no scope refuses scoped
+        # Every route gets the scope check, public ones included (a token presented to a public
+        # route still identifies its user): a route that names no scope refuses scoped
         # credentials outright, so the allowlist is exactly the set of annotated routes.
         scope = kwd.pop("scope", None)
-        if self.scope_dependency_factory is not None and not public:
+        if self.scope_dependency_factory is not None:
             kwd.setdefault("dependencies", []).append(self.scope_dependency_factory(scope))
         openapi_extra = kwd.pop("openapi_extra", {})
         if public:
