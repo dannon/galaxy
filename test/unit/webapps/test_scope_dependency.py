@@ -49,6 +49,11 @@ def open_route():
     return {"ok": True}
 
 
+@router.get("/version", public=True, scope="public")
+def version_route():
+    return {"ok": True}
+
+
 @router.get("/admin", require_admin=True)
 def admin_route():
     return {"ok": True}
@@ -88,7 +93,9 @@ def test_scoped_credential_is_refused_on_unannotated_routes():
     response = client.get("/unannotated")
     assert response.status_code == 403
     assert "not available to scoped access tokens" in response.json()["err_msg"]
-    assert client.get("/open").status_code == 200
+    # public routes still identify the token's user, so they are no exception unless they say so
+    assert client.get("/open").status_code == 403
+    assert client.get("/version").status_code == 200
 
 
 def test_contextvar_reaches_sync_and_async_endpoints():

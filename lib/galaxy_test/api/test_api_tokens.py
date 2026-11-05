@@ -181,6 +181,14 @@ class TestApiTokens(ApiTestCase):
             )
             self._assert_status_code_is(other_tool, 403)
             assert OTHER_TOOL in other_tool.json()["err_msg"]
+            # a dataset from a history the token can't see is not a usable tool input either
+            foreign_input = self.dataset_populator.run_tool_raw(
+                ALLOWED_TOOL, {"input1": {"src": "hda", "id": outside_hda["id"]}}, history_id
+            )
+            self._assert_status_code_is(foreign_input, 400)
+            # public routes identify the token's user too, so they are only open when annotated
+            self._assert_status_code_is(self._get("version"), 200)
+            self._assert_status_code_is(self._get("datatypes"), 403)
             # histories outside the constraint don't exist as far as the token is concerned; things
             # inside them are forbidden
             self._assert_status_code_is(self._get(f"histories/{outside_history}"), 404)

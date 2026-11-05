@@ -1,6 +1,8 @@
 """Scoped API token minting, resolution and the scope/constraint grammar."""
 
 from datetime import timedelta
+from types import SimpleNamespace
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -30,10 +32,8 @@ from .base import BaseTestCase
 user2_data = dict(email="user2@user2.user2", username="user2", password="123456")
 
 
-class FakeTool:
-    def __init__(self, tool_id: str, old_id: str | None = None):
-        self.id = tool_id
-        self.old_id = old_id or tool_id
+def FakeTool(tool_id: str, old_id: str | None = None) -> Any:
+    return SimpleNamespace(id=tool_id, old_id=old_id or tool_id)
 
 
 def test_parse_scopes_accepts_the_presets():
@@ -105,7 +105,8 @@ def test_current_credential_is_request_local():
     assert current_credential() is None
     token = set_current_credential(Credential(kind="token", scopes=frozenset({"tools:read"})))
     try:
-        assert current_credential().allows("tools:read")
+        credential = current_credential()
+        assert credential is not None and credential.allows("tools:read")
     finally:
         reset_current_credential(token)
     assert current_credential() is None
@@ -123,7 +124,7 @@ class TestApiTokenManager(BaseTestCase):
         assert token.token_hint == secret[4:12]
         assert secret not in token.token_hash
         assert token.source == "ui"
-        assert token.expires_at - now() < timedelta(hours=1, seconds=5)
+        assert token.expires_at and token.expires_at - now() < timedelta(hours=1, seconds=5)
         user, credential = self.manager.resolve(secret)
         assert user == self.user
         assert credential.scoped and credential.token_id == token.id
@@ -133,9 +134,9 @@ class TestApiTokenManager(BaseTestCase):
     def test_mint_caps_the_lifetime(self):
         with patch.object(self.app.config, "api_token_max_lifetime", 2, create=True):
             token, _ = self.manager.mint_token(self.user, "long", "*:read", expires_in=10 * 24 * 3600)
-            assert token.expires_at - now() <= timedelta(days=2)
+            assert token.expires_at and token.expires_at - now() <= timedelta(days=2)
             token, _ = self.manager.mint_token(self.user, "default", "*:read")
-            assert token.expires_at - now() <= timedelta(days=2)
+            assert token.expires_at and token.expires_at - now() <= timedelta(days=2)
         with patch.object(self.app.config, "api_token_max_lifetime", 0, create=True):
             token, _ = self.manager.mint_token(self.user, "forever", "*:read")
             assert token.expires_at is None
@@ -151,6 +152,11 @@ class TestApiTokenManager(BaseTestCase):
             self.manager.mint_token(self.user, "x", "admin:*")
         with pytest.raises(exceptions.RequestParameterInvalidException):
             self.manager.mint_token(self.user, "x", "*:read", source="carrier-pigeon")
+        with pytest.raises(exceptions.RequestParameterInvalidException, match="workflows:run"):
+            self.manager.mint_token(self.user, "x", "tools:run workflows:run", constraints={"tools": {"ids": ["cat"]}})
+        with pytest.raises(exceptions.RequestParameterInvalidException, match="workflows:run"):
+            self.manager.mint_token(self.user, "x", PRESETS["agent"], constraints={"tools": {"ids": ["cat"]}})
+        assert self.manager.mint_token(self.user, "ok", PRESETS["run-jobs"], constraints={"tools": {"ids": ["cat"]}})
 
     def test_admins_may_mint_admin_scopes(self):
         token, _ = self.manager.mint_token(self.admin_user, "root", "admin:*")
@@ -181,7 +187,7 @@ class TestApiTokenManager(BaseTestCase):
         with pytest.raises(exceptions.InsufficientPermissionsException, match="restricted to the mcp surface"):
             self.manager.resolve(secret, surface="api")
         user, credential = self.manager.resolve(secret, surface="mcp")
-        assert user == self.user and credential.surfaces == {"mcp"}
+        assert user == self.user and credential.surfaces == frozenset({"mcp"})
         _, plain = self.manager.mint_token(self.user, "anywhere", PRESETS["agent"])
         assert self.manager.resolve(plain, surface="api")[1].surfaces is None
 
@@ -189,9 +195,9 @@ class TestApiTokenManager(BaseTestCase):
         token, _ = self.manager.mint_token(self.user, "t", "*:read")
         with pytest.raises(exceptions.ObjectNotFound):
             self.manager.revoke(self.admin_user, token.id)
-        assert not token.revoked
-        self.manager.revoke(self.user, token.id)
-        assert token.revoked
+        assert token.revoked_at is None
+        revoked = self.manager.revoke(self.user, token.id)
+        assert revoked.revoked_at is not None
         assert self.manager.tokens_for(self.user) == []
         assert self.manager.tokens_for(self.user, include_inactive=True) == [token]
 
@@ -199,6 +205,7 @@ class TestApiTokenManager(BaseTestCase):
         token, secret = self.manager.mint_token(self.user, "t", "*:read")
         self.manager.resolve(secret)
         first = token.last_used_at
+        assert first is not None
         self.manager.resolve(secret)
         assert token.last_used_at == first
         token.last_used_at = now() - timedelta(minutes=6)
@@ -229,7 +236,7 @@ class TestApiTokenManager(BaseTestCase):
         token, secret = self.manager.mint_token(self.user, "t", "*:read")
         for api_key, access_token in ((secret, None), (None, secret)):
             user, credential = self.user_manager.resolve_credential(api_key, access_token)
-            assert user == self.user and credential.token_id == token.id
+            assert user == self.user and credential is not None and credential.token_id == token.id
         assert self.user_manager.by_credentials(secret, None) == self.user
 
     def test_user_manager_keeps_the_legacy_key_unscoped(self):
@@ -332,7 +339,7 @@ class TestConstraintsThroughManagers(BaseTestCase):
     def set_up_trans(self):
         super().set_up_trans()
         self.trans.set_user(self.user)
-        self.trans.user_is_admin = False
+        self.mock_trans.user_is_admin = False
 
     def _with_credential(self, credential):
         from contextlib import contextmanager
@@ -381,6 +388,33 @@ class TestConstraintsThroughManagers(BaseTestCase):
             assert [h.id for h in listed] == [self.mine.id]
         listed, _ = self.history_manager.index_query(self.trans, payload)
         assert {h.id for h in listed} == {self.mine.id, self.theirs.id}
+
+    def test_workflow_constraint_through_the_manager(self):
+        from galaxy.managers.workflows import WorkflowsManager
+
+        allowed = model.StoredWorkflow(user=self.user, name="allowed")
+        other = model.StoredWorkflow(user=self.user, name="other")
+        self.trans.sa_session.add_all([allowed, other])
+        self.trans.sa_session.commit()
+        token, _ = self.manager.mint_token(
+            self.user, "wf", "workflows:run", constraints={"workflows": {"ids": [allowed.id]}}
+        )
+        manager = self.app[WorkflowsManager]
+        with self._with_credential(self.manager.credential_for(token)):
+            assert manager.get_stored_workflow(self.trans, allowed.id) == allowed
+            with pytest.raises(exceptions.ItemAccessibilityException):
+                manager.get_stored_workflow(self.trans, other.id)
+        assert manager.get_stored_workflow(self.trans, other.id) == other
+
+    def test_undeclared_agent_operation_is_rejected_at_class_creation(self):
+        from galaxy.agents.operations import _assert_every_operation_declares_a_scope
+
+        class Sloppy:
+            def do_it(self):
+                pass
+
+        with pytest.raises(TypeError, match="do_it"):
+            _assert_every_operation_declares_a_scope(Sloppy)
 
     def test_scoped_credential_without_admin_scope_is_not_admin(self):
         from galaxy.work.context import WorkRequestContext
