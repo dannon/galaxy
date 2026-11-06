@@ -94,6 +94,19 @@ def test_passport_with_no_visas():
     assert passport.visas == ()
 
 
+def test_token_without_passport_claim_is_not_a_passport():
+    # RAS signs ID and access tokens with the same key; one stored in place of the passport must not pass.
+    claims = passport_claims([])
+    del claims["ga4gh_passport_v1"]
+    with pytest.raises(PassportVerificationError, match="ga4gh_passport_v1"):
+        verify_passport(sign(claims), issuer_config(), now=NOW)
+
+
+def test_passport_claim_must_be_a_list():
+    with pytest.raises(PassportVerificationError, match="not a list"):
+        verify_passport(sign(passport_claims(ga4gh_passport_v1="visa")), issuer_config(), now=NOW)
+
+
 def test_expired_passport_rejected():
     raw = make_passport(iat=NOW - 13 * 3600, exp=NOW - 3600)
     with pytest.raises(TokenExpiredError):
