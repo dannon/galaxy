@@ -141,11 +141,26 @@ def _source(
     return source
 
 
+def _write_private(path: Path, text: str) -> None:
+    # The default path is predictable in a possibly shared temp dir: never follow a
+    # planted symlink, never write into someone else's file, and never leave the
+    # state readable even briefly.
+    try:
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0), 0o600)
+    except OSError as e:
+        raise SmokeError(f"Could not write state to {path}: {e}") from e
+    with os.fdopen(fd, "w") as f:
+        if hasattr(os, "getuid") and os.fstat(fd).st_uid != os.getuid():
+            raise SmokeError(f"{path} belongs to another user")
+        os.fchmod(fd, 0o600)
+        f.truncate()
+        f.write(text)
+
+
 def cmd_url(args: argparse.Namespace, http: HttpClient | None, fetcher: JsonFetcher, out: TextIO) -> int:
     request = _source(args, http, fetcher, need_secret=False).new_authorization_request()
     state_file = Path(args.state_file)
-    state_file.write_text(json.dumps({"state": request.state, "nonce": request.nonce}))
-    state_file.chmod(0o600)
+    _write_private(state_file, json.dumps({"state": request.state, "nonce": request.nonce}))
     print(request.url, file=out)
     print(
         f"\nstate saved to {state_file}; open the URL, log in, then run 'exchange' with the URL you land on.", file=out
