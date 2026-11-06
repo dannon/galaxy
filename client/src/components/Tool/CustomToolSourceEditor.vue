@@ -67,7 +67,9 @@ onUnmounted(() => {
 
 const errorMsg = ref<MessageException>();
 const saving = ref(false);
-const yamlRepresentation = ref<string>(NEW_TOOL_YAML);
+/** True while an existing revision's source is on its way; the editor starts empty rather than on the skeleton. */
+const loading = ref(Boolean(props.toolUuid));
+const yamlRepresentation = ref<string>(props.toolUuid ? "" : NEW_TOOL_YAML);
 
 if (props.toolUuid) {
     GalaxyApi()
@@ -86,12 +88,15 @@ if (props.toolUuid) {
                     blockQuote: "literal",
                 });
             }
+        })
+        .finally(() => {
+            loading.value = false;
         });
 }
 
 /** Saves the source as a new tool revision and reports it through `saved`. */
 async function save() {
-    if (saving.value) {
+    if (saving.value || loading.value) {
         return;
     }
     if (!yamlRepresentation.value.trim()) {
@@ -131,7 +136,7 @@ function setSource(yaml: string) {
     yamlRepresentation.value = yaml;
 }
 
-defineExpose({ save, saving, setSource });
+defineExpose({ save, saving, loading, setSource });
 </script>
 
 <template>
@@ -160,7 +165,7 @@ defineExpose({ save, saving, setSource });
                 color="blue"
                 size="small"
                 data-description="save custom tool revision"
-                :disabled="saving"
+                :disabled="saving || loading"
                 @click="save">
                 <FontAwesomeIcon :icon="faSave" class="mr-1" />
                 Save as new revision
