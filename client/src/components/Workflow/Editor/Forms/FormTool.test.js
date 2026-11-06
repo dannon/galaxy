@@ -104,6 +104,12 @@ describe("FormTool", () => {
         expect(mountTarget(undefined, { tool_uuid: "revision-a" }).find(EDIT_BUTTON).exists()).toBe(true);
     });
 
+    it("does not offer to edit the tool where the host has not asked for it", () => {
+        // The invocation view shows this form read-only.
+        const wrapper = mountTarget(undefined, { tool_uuid: "revision-a" }, { allowToolEdit: false });
+        expect(wrapper.find(EDIT_BUTTON).exists()).toBe(false);
+    });
+
     it("swaps the step to the revision the source editor saved", async () => {
         const wrapper = mountTarget(undefined, { tool_uuid: "revision-a" });
         expect(wrapper.find(".source-editor-stub").exists()).toBe(false);
