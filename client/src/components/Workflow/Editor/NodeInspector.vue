@@ -130,6 +130,7 @@ function updateStored(v: boolean) {
                     class="w-100"
                     :step="props.step"
                     :datatypes="props.datatypes"
+                    allow-tool-edit
                     :edit-tool="props.editTool"
                     @onSetData="(id: number, d: object) => emit('dataChanged', id, d)"
                     @onUpdateStep="(id: number, s: Step) => emit('stepUpdated', id, s)"

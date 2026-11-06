@@ -26,7 +26,7 @@
             help="Add an annotation or notes to this step. Annotations are available when a workflow is viewed."
             @input="onAnnotation" />
         <FormConditional :step="step" @onUpdateStep="(id, step) => $emit('onUpdateStep', id, step)" />
-        <div v-if="isUserDefinedTool" class="d-flex justify-content-end mt-2">
+        <div v-if="canEditTool" class="d-flex justify-content-end mt-2">
             <GButton
                 outline
                 color="blue"
@@ -120,6 +120,11 @@ export default {
             type: Array,
             required: true,
         },
+        /** Offer to edit a custom tool's source; off where the form is shown read-only */
+        allowToolEdit: {
+            type: Boolean,
+            default: false,
+        },
         /** Open the custom tool's source as soon as the form mounts */
         editTool: {
             type: Boolean,
@@ -177,9 +182,12 @@ export default {
         isUserDefinedTool() {
             return Boolean(this.toolUuid);
         },
+        canEditTool() {
+            return this.allowToolEdit && this.isUserDefinedTool;
+        },
         showToolSource() {
             // editTool comes from the route query, which can name any step.
-            return this.editingTool && this.isUserDefinedTool;
+            return this.editingTool && this.canEditTool;
         },
         toolCardId() {
             return `${this.stepId}`;

@@ -40,6 +40,7 @@ describe("FormTool", () => {
     ) {
         return mount(FormTool, {
             props: {
+                allowToolEdit: true,
                 ...extraProps,
                 id: "input",
                 datatypes: [],
