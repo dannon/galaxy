@@ -8,14 +8,17 @@ import pytest
 
 from galaxy.authnz.ras.config import RasConfig
 from galaxy.authnz.ras.gate import PassportGate
+from galaxy.authnz.ras.jwks import JwksClient
 from galaxy.authnz.ras.store import (
     InMemoryVault,
     VaultPassportStore,
 )
+from galaxy.authnz.ras.verify import IssuerConfig
 from galaxy.exceptions import (
     AuthenticationRequired,
     ServerNotConfiguredForRequest,
 )
+from galaxy.schema.ras_passport import RasPassportStatus
 from galaxy.webapps.galaxy.services.ras_passport import RasPassportService
 from .util import (
     ISSUER,
@@ -65,7 +68,7 @@ def test_missing_passport_gives_redirect():
     _, service = _service()
     summary = service.summary(_trans())
     assert not summary.present
-    assert summary.status == "missing"
+    assert summary.status == RasPassportStatus.MISSING
     assert summary.expires_at is None
     assert summary.phs_ids == []
     assert summary.redirect_url and summary.redirect_url.startswith(f"{BRIDGE}?return_to=")
@@ -76,7 +79,20 @@ def test_valid_passport_summary():
     passport = store.put(USER, make_passport([permission("phs000123"), permission("phs42")]))
     summary = service.summary(_trans())
     assert summary.present
-    assert summary.status == "ok"
+    assert summary.status == RasPassportStatus.OK
     assert summary.expires_at == datetime.fromtimestamp(passport.expires_at, tz=timezone.utc)
     assert summary.phs_ids == ["phs000042", "phs000123"]
+    assert summary.redirect_url is None
+
+
+def test_unavailable_keys_summary():
+    def down(url):
+        raise ValueError("RAS is down")
+
+    store, service = _service()
+    store.put(USER, make_passport([]))
+    store.issuer_config = IssuerConfig(issuer=ISSUER, jwks=JwksClient("https://jwks.example", fetcher=down))
+    summary = service.summary(_trans())
+    assert not summary.present
+    assert summary.status == RasPassportStatus.UNAVAILABLE
     assert summary.redirect_url is None

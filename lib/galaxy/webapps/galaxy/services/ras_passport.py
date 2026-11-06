@@ -13,7 +13,10 @@ from galaxy.exceptions import (
     ServerNotConfiguredForRequest,
 )
 from galaxy.managers.context import ProvidesUserContext
-from galaxy.schema.ras_passport import RasPassportSummary
+from galaxy.schema.ras_passport import (
+    RasPassportStatus,
+    RasPassportSummary,
+)
 from galaxy.structured_app import MinimalManagerApp
 
 
@@ -37,8 +40,12 @@ class RasPassportService:
             passport = decision.passport
             return RasPassportSummary(
                 present=True,
-                status="ok",
+                status=RasPassportStatus.OK,
                 expires_at=datetime.fromtimestamp(passport.expires_at, tz=timezone.utc),
                 phs_ids=granted_phs_ids(passport, now=gate.now()),
             )
-        return RasPassportSummary(present=False, status=decision.reason.value, redirect_url=decision.redirect_url)
+        # No phs id is asked for and anonymous users were turned away above, so the
+        # gate's anonymous and no_access reasons can't reach here.
+        return RasPassportSummary(
+            present=False, status=RasPassportStatus(decision.reason.value), redirect_url=decision.redirect_url
+        )

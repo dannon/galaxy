@@ -22486,6 +22486,11 @@ export interface components {
          * @default []
          */
         QuotaSummaryList: components["schemas"]["QuotaSummary"][];
+        /**
+         * RasPassportStatus
+         * @enum {string}
+         */
+        RasPassportStatus: "ok" | "missing" | "expired" | "invalid" | "unavailable";
         /** RasPassportSummary */
         RasPassportSummary: {
             /**
@@ -22508,11 +22513,8 @@ export interface components {
              * @description Where to send the user to get a new passport, when there is no valid one and a bridge is configured.
              */
             redirect_url?: string | null;
-            /**
-             * Status
-             * @description Why there is or isn't a usable passport: ok, missing, expired or invalid.
-             */
-            status: string;
+            /** @description Why there is or isn't a usable passport. */
+            status: components["schemas"]["RasPassportStatus"];
         };
         /** RefactorActionExecution */
         RefactorActionExecution: {
