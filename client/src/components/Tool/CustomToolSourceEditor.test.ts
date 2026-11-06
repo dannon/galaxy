@@ -119,6 +119,24 @@ describe("CustomToolSourceEditor", () => {
         expect(posted?.representation?.name).toBe("Imported tool");
     });
 
+    it("shows an error instead of posting an empty source", async () => {
+        const post = vi.fn();
+        server.use(
+            http.untyped.post("/api/unprivileged_tools", () => {
+                post();
+                return HttpResponse.json(REVISION_A);
+            }),
+        );
+        const { wrapper } = mountEditor({ toolbar: true });
+        await wrapper.find("textarea.monaco-stub").setValue("   \n");
+        await wrapper.find("[data-description='save custom tool revision']").trigger("click");
+        await flushPromises();
+
+        expect(post).not.toHaveBeenCalled();
+        expect(wrapper.text()).toContain("empty");
+        expect(wrapper.emitted("saved")).toBeUndefined();
+    });
+
     it("shows a parse error instead of posting invalid yaml", async () => {
         const post = vi.fn();
         server.use(
