@@ -277,21 +277,30 @@ export default {
             this.editingTool = false;
             const name = tool.representation?.name ?? this.configForm.name;
             this.messageText = `Now using the revision of '${name}' saved just now (${tool.uuid}).`;
-            this.postChanges({ toolUuid: tool.uuid });
+            // The saved representation wins: an edited id or a bumped version has to travel with the uuid,
+            // or build_module rejects the mismatch and the step keeps the old revision.
+            this.postChanges({
+                toolUuid: tool.uuid,
+                toolId: tool.representation?.id,
+                version: tool.representation?.version,
+            });
             // The tall source panel leaves the inspector scrolled; bring the message back into view.
             this.$nextTick(() => this.$el.scrollIntoView?.({ block: "start" }));
         },
         onUpdateFavorites(user, newFavorites) {
             user.preferences["favorites"] = newFavorites;
         },
-        postChanges({ version: newVersion, toolUuid: newToolUuid } = {}) {
+        postChanges({ version: newVersion, toolUuid: newToolUuid, toolId: newToolId } = {}) {
             const payload = Object.assign({}, this.mainValues);
             const options = this.configForm;
             const toolUuid = newToolUuid ?? this.toolUuid;
-            let toolId = options.id;
+            let toolId = newToolId ?? options.id;
             let toolVersion = options.version;
-            if (newVersion) {
-                toolId = toolId.replace(toolVersion, newVersion);
+            if (newVersion && newVersion !== toolVersion) {
+                if (!newToolId) {
+                    // Toolbox ids embed the version; a user tool id does not.
+                    toolId = toolId.replace(toolVersion, newVersion);
+                }
                 toolVersion = newVersion;
             }
             this.$emit("onSetData", this.stepId, {
