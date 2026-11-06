@@ -322,6 +322,8 @@ def test_jwks_uri_from_discovery():
         {"issuer": "https://other.example", "jwks_uri": "https://other.example/jwks.json"},
         {"issuer": ISSUER},
         {"jwks_uri": f"{ISSUER}/jwks.json"},
+        {"issuer": None, "jwks_uri": f"{ISSUER}/jwks.json"},
+        ["not", "a", "mapping"],
     ],
 )
 def test_discovery_must_match_the_issuer(discovery):

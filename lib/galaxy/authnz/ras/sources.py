@@ -141,7 +141,7 @@ class DirectRasPassportSource(PassportSource):
             status, doc = self.http.get_json(f"{self.issuer}/.well-known/openid-configuration")
             if status != 200 or not isinstance(doc, dict):
                 raise PassportSourceError(f"RAS discovery failed with HTTP {status}")
-            if doc.get("issuer", "").rstrip("/") != self.issuer:
+            if str(doc.get("issuer") or "").rstrip("/") != self.issuer:
                 raise PassportSourceError(f"RAS discovery issuer {doc.get('issuer')!r} != {self.issuer!r}")
             self._discovery = doc
         return self._discovery

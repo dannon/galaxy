@@ -83,10 +83,11 @@ def test_happy_path():
     assert ("GET", f"{ISSUER}/openid/connect/v1.1/userinfo", "access-1") in http.calls
 
 
-def test_discovery_issuer_mismatch():
+@pytest.mark.parametrize("issuer", ["https://evil.example", None, 7])
+def test_discovery_issuer_mismatch(issuer):
     class BadDiscovery(FakeHttp):
         def get_json(self, url, bearer=None):
-            return 200, dict(DISCOVERY, issuer="https://evil.example")
+            return 200, dict(DISCOVERY, issuer=issuer)
 
     _, source = _source(BadDiscovery())
     with pytest.raises(PassportSourceError, match="issuer"):

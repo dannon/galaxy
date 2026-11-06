@@ -195,7 +195,11 @@ class _DiscoveredJwksUri:
                     doc = self.fetcher(f"{self.issuer}/.well-known/openid-configuration")
                 except Exception as e:
                     raise JwksUnavailableError(f"Could not fetch RAS discovery document: {e}") from e
-                if doc.get("issuer", "").rstrip("/") != self.issuer or not doc.get("jwks_uri"):
+                if (
+                    not isinstance(doc, dict)
+                    or str(doc.get("issuer") or "").rstrip("/") != self.issuer
+                    or not doc.get("jwks_uri")
+                ):
                     raise JwksUnavailableError("RAS discovery document does not match the configured issuer")
                 self._uri = str(doc["jwks_uri"])
             return self._uri
