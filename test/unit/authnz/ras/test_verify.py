@@ -75,6 +75,20 @@ def test_malformed_permission_entries_are_skipped():
     assert [p.phs_id for p in visa.dbgap_permissions] == ["phs000123"]
 
 
+@pytest.mark.parametrize("expiration", ["2020-01-01T00:00:00Z", "junk", {}, [], True])
+def test_permission_with_unreadable_expiration_is_skipped(expiration):
+    # Treating these as "no expiry" would let a garbled field extend access to the passport's lifetime.
+    raw = make_passport([permission("phs000123", expiration=expiration), permission("phs000456")])
+    (visa,) = verify_passport(raw, issuer_config(), now=NOW).visas
+    assert [p.phs_id for p in visa.dbgap_permissions] == ["phs000456"]
+
+
+def test_numeric_string_expiration_is_read():
+    raw = make_passport([permission("phs000123", expiration=str(NOW + 100))])
+    (visa,) = verify_passport(raw, issuer_config(), now=NOW).visas
+    assert visa.dbgap_permissions[0].expiration == NOW + 100
+
+
 def test_passport_with_no_visas():
     passport = verify_passport(sign(passport_claims([])), issuer_config(), now=NOW)
     assert passport.visas == ()
