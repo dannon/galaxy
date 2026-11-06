@@ -53,13 +53,13 @@ class Clock:
         return self.now
 
 
-def _gate(clock=None, **config):
+def _gate(clock=None, galaxy_url=GALAXY_URL, **config):
     clock = clock or Clock(NOW)
     vault = InMemoryVault()
     store = VaultPassportStore(vault, issuer_config(), clock=clock)
     ras_config = RasConfig(issuer=ISSUER, bridge_url=BRIDGE, **config)
     gate = PassportGate(
-        ras_config, store, galaxy_url=GALAXY_URL, allowed_return_hosts=["portal.example.org"], clock=clock
+        ras_config, store, galaxy_url=galaxy_url, allowed_return_hosts=["portal.example.org"], clock=clock
     )
     return vault, store, gate
 
@@ -222,6 +222,9 @@ def test_permission_expiry_is_enforced_by_the_gate():
         ("/\\evil.example", GALAXY_URL),
         ("javascript:alert(1)", GALAXY_URL),
         ("http://portal.example.org/after", GALAXY_URL),
+        # Paths that look like URLs once the leading slash is dropped stay on Galaxy.
+        ("/https://evil.example/phish", "https://galaxy.example.org/https://evil.example/phish"),
+        ("/javascript:alert(1)", "https://galaxy.example.org/javascript:alert(1)"),
     ],
 )
 def test_return_address_validation(return_to, expected):
@@ -233,9 +236,9 @@ def test_return_address_validation(return_to, expected):
 
 
 def test_return_path_and_galaxy_prefix():
-    _, _, gate = _gate(return_path="/ras/done")
-    gate.galaxy_url = "https://example.org/galaxy/"
+    _, _, gate = _gate(galaxy_url="https://example.org/galaxy", return_path="/ras/done")
     assert gate.return_address() == "https://example.org/galaxy/ras/done"
+    assert gate.return_address("/datasets/list") == "https://example.org/galaxy/datasets/list"
 
 
 def test_bridge_url_with_existing_query():
