@@ -244,13 +244,6 @@ export default {
             return this.configForm.errors;
         },
     },
-    watch: {
-        editTool(open) {
-            if (open) {
-                this.editingTool = true;
-            }
-        },
-    },
     methods: {
         onAnnotation(newAnnotation) {
             this.$emit("onAnnotation", this.stepId, newAnnotation);
