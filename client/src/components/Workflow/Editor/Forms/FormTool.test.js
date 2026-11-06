@@ -132,6 +132,21 @@ describe("FormTool", () => {
         expect(wrapper.text()).toContain("revision-b");
     });
 
+    it("carries a changed id and version from the saved revision into the swap", async () => {
+        const wrapper = mountTarget(undefined, { tool_uuid: "revision-a" });
+        await wrapper.find(EDIT_BUTTON).trigger("click");
+        wrapper.findComponent({ name: "CustomToolSourceEditor" }).vm.$emit("saved", {
+            uuid: "revision-c",
+            representation: { id: "renamed_tool", name: "tool_name", version: "1.1" },
+        });
+        await flushPromises();
+
+        const state = wrapper.emitted("onSetData")[0][1];
+        expect(state.tool_uuid).toBe("revision-c");
+        expect(state.tool_id).toBe("renamed_tool");
+        expect(state.tool_version).toBe("1.1");
+    });
+
     it("opens the source editor on mount when asked to", () => {
         const wrapper = mountTarget(undefined, { tool_uuid: "revision-a" }, { editTool: true });
         expect(wrapper.find(".source-editor-stub").text()).toBe("revision-a");
