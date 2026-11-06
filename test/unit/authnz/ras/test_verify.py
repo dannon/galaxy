@@ -1,0 +1,280 @@
+import base64
+import hashlib
+import hmac
+import json
+import os
+from pathlib import Path
+
+import jwt
+import pytest
+from cryptography.hazmat.primitives import serialization
+
+from galaxy.authnz.ras.jwks import (
+    JwksClient,
+    JwksError,
+)
+from galaxy.authnz.ras.verify import (
+    IssuerConfig,
+    PassportVerificationError,
+    TokenExpiredError,
+    verify_passport,
+)
+from .util import (
+    CountingFetcher,
+    ISSUER,
+    issuer_config,
+    jwks_doc,
+    KEY,
+    KID,
+    make_passport,
+    NOW,
+    OTHER_KEY,
+    OTHER_KID,
+    passport_claims,
+    permission,
+    sign,
+    SUBJECT,
+    visa_claims,
+)
+
+FIXTURES_ENV = "GALAXY_TEST_RAS_FIXTURES"
+
+
+def _b64(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
+
+
+def test_valid_passport_parses_visas_and_permissions():
+    raw = make_passport([permission("phs000123"), {"phs_id": "phs000456", "future_field": 7}])
+    passport = verify_passport(raw, issuer_config(), now=NOW)
+    assert passport.subject == SUBJECT
+    assert passport.issuer == ISSUER
+    assert passport.raw == raw
+    assert passport.dropped_visas == ()
+    (visa,) = passport.visas
+    assert visa.is_ras_visa
+    assert visa.source == "https://ncbi.nlm.nih.gov/gap"
+    first, second = visa.dbgap_permissions
+    assert (first.phs_id, first.version, first.consent_group, first.role) == ("phs000123", "v2", "c1", "pi")
+    assert first.expiration == NOW + 30 * 86400
+    # Tolerant parsing: missing optional fields are fine and unknown ones are kept.
+    assert (second.phs_id, second.version, second.expiration) == ("phs000456", None, None)
+    assert second.extra == {"future_field": 7}
+
+
+def test_empty_permissions():
+    passport = verify_passport(make_passport([]), issuer_config(), now=NOW)
+    (visa,) = passport.visas
+    assert visa.dbgap_permissions == ()
+
+
+def test_malformed_permission_entries_are_skipped():
+    raw = sign(passport_claims([sign(visa_claims([{"version": "v1"}, "junk", permission()]))]))
+    (visa,) = verify_passport(raw, issuer_config(), now=NOW).visas
+    assert [p.phs_id for p in visa.dbgap_permissions] == ["phs000123"]
+
+
+def test_passport_with_no_visas():
+    passport = verify_passport(sign(passport_claims([])), issuer_config(), now=NOW)
+    assert passport.visas == ()
+
+
+def test_expired_passport_rejected():
+    raw = make_passport(iat=NOW - 13 * 3600, exp=NOW - 3600)
+    with pytest.raises(TokenExpiredError):
+        verify_passport(raw, issuer_config(), now=NOW)
+
+
+def test_leeway_allows_just_expired_passport():
+    raw = make_passport(exp=NOW - 30)
+    verify_passport(raw, issuer_config(leeway=60), now=NOW)
+    with pytest.raises(TokenExpiredError):
+        verify_passport(raw, issuer_config(leeway=0), now=NOW)
+
+
+def test_future_iat_rejected():
+    raw = make_passport(iat=NOW + 600)
+    with pytest.raises(PassportVerificationError, match="future"):
+        verify_passport(raw, issuer_config(), now=NOW)
+
+
+def test_missing_exp_rejected():
+    claims = passport_claims([])
+    del claims["exp"]
+    with pytest.raises(PassportVerificationError):
+        verify_passport(sign(claims), issuer_config(), now=NOW)
+
+
+def test_expired_visa_is_dropped_not_fatal():
+    good = sign(visa_claims([permission("phs000001")]))
+    stale = sign(visa_claims([permission("phs000002")], iat=NOW - 7200, exp=NOW - 3600, jti="stale-visa"))
+    passport = verify_passport(sign(passport_claims([good, stale])), issuer_config(), now=NOW)
+    assert [v.dbgap_permissions[0].phs_id for v in passport.visas] == ["phs000001"]
+    (dropped,) = passport.dropped_visas
+    assert dropped.jti == "stale-visa"
+    assert dropped.expires_at == NOW - 3600
+
+
+def test_passport_bad_signature():
+    raw = sign(passport_claims([]), key=OTHER_KEY)
+    with pytest.raises(PassportVerificationError, match="failed verification"):
+        verify_passport(raw, issuer_config(), now=NOW)
+
+
+def test_tampered_payload_rejected():
+    header, _, signature = make_passport([]).split(".")
+    forged = _b64(json.dumps(passport_claims([], sub="someone-else")).encode())
+    with pytest.raises(PassportVerificationError):
+        verify_passport(f"{header}.{forged}.{signature}", issuer_config(), now=NOW)
+
+
+def test_visa_bad_signature_rejects_passport():
+    bad_visa = sign(visa_claims([permission()]), key=OTHER_KEY)
+    with pytest.raises(PassportVerificationError, match="visa 0"):
+        verify_passport(sign(passport_claims([bad_visa])), issuer_config(), now=NOW)
+
+
+def test_wrong_issuer():
+    with pytest.raises(PassportVerificationError, match="wrong issuer"):
+        verify_passport(make_passport(iss="https://evil.example"), issuer_config(), now=NOW)
+
+
+def test_visa_wrong_issuer():
+    visa = sign(visa_claims(iss="https://evil.example"))
+    with pytest.raises(PassportVerificationError, match="visa 0 has the wrong issuer"):
+        verify_passport(sign(passport_claims([visa])), issuer_config(), now=NOW)
+
+
+def test_alg_none_rejected():
+    raw = jwt.encode(passport_claims([]), "", algorithm="none")
+    with pytest.raises(PassportVerificationError, match="disallowed algorithm"):
+        verify_passport(raw, issuer_config(), now=NOW)
+
+
+def test_visa_alg_none_rejected():
+    visa = jwt.encode(visa_claims(), "", algorithm="none")
+    with pytest.raises(PassportVerificationError, match="disallowed algorithm"):
+        verify_passport(sign(passport_claims([visa])), issuer_config(), now=NOW)
+
+
+def test_hs256_with_public_key_as_secret_rejected():
+    # The classic RS256 -> HS256 confusion: sign with the issuer's *public* key as
+    # an HMAC secret. PyJWT refuses to build this, so assemble it by hand.
+    public_pem = KEY.public_key().public_bytes(
+        serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+    header = _b64(json.dumps({"alg": "HS256", "typ": "JWT", "kid": KID}).encode())
+    payload = _b64(json.dumps(passport_claims([])).encode())
+    signature = _b64(hmac.new(public_pem, f"{header}.{payload}".encode(), hashlib.sha256).digest())
+    with pytest.raises(PassportVerificationError, match="disallowed algorithm"):
+        verify_passport(f"{header}.{payload}.{signature}", issuer_config(), now=NOW)
+
+
+def test_rs512_rejected():
+    raw = sign(passport_claims([]), algorithm="RS512")
+    with pytest.raises(PassportVerificationError, match="disallowed algorithm"):
+        verify_passport(raw, issuer_config(), now=NOW)
+
+
+def test_missing_kid_rejected():
+    with pytest.raises(PassportVerificationError, match="no kid"):
+        verify_passport(sign(passport_claims([]), kid=None), issuer_config(), now=NOW)
+
+
+def test_not_a_jwt():
+    with pytest.raises(PassportVerificationError):
+        verify_passport("not-a-token", issuer_config(), now=NOW)
+
+
+def test_visa_subject_mismatch_rejects_passport():
+    visa = sign(visa_claims(sub="another-subject"))
+    with pytest.raises(PassportVerificationError, match="subject"):
+        verify_passport(sign(passport_claims([visa])), issuer_config(), now=NOW)
+
+
+def test_expired_visa_with_subject_mismatch_still_rejects():
+    visa = sign(visa_claims(sub="another-subject", iat=NOW - 7200, exp=NOW - 3600))
+    with pytest.raises(PassportVerificationError, match="subject"):
+        verify_passport(sign(passport_claims([visa])), issuer_config(), now=NOW)
+
+
+def test_kid_miss_triggers_one_jwks_refresh():
+    # The issuer rotates to a new key after Galaxy cached the old set.
+    fetcher = CountingFetcher(jwks_doc((KEY, KID)), jwks_doc((KEY, KID), (OTHER_KEY, OTHER_KID)))
+    config = issuer_config(fetcher=fetcher, min_refresh_interval=0)
+    verify_passport(make_passport([]), config, now=NOW)
+    assert len(fetcher.calls) == 1
+    rotated = sign(passport_claims([sign(visa_claims(), key=OTHER_KEY, kid=OTHER_KID)]), key=OTHER_KEY, kid=OTHER_KID)
+    verify_passport(rotated, config, now=NOW)
+    assert len(fetcher.calls) == 2
+    # Cached now, no further fetches.
+    verify_passport(rotated, config, now=NOW)
+    assert len(fetcher.calls) == 2
+
+
+def test_unknown_kid_after_refresh_fails():
+    fetcher = CountingFetcher(jwks_doc((KEY, KID)))
+    config = issuer_config(fetcher=fetcher, min_refresh_interval=0)
+    with pytest.raises(PassportVerificationError, match="No signing key"):
+        verify_passport(sign(passport_claims([]), key=OTHER_KEY, kid="unknown"), config, now=NOW)
+
+
+def test_kid_miss_refresh_is_rate_limited():
+    clock = [1000.0]
+    fetcher = CountingFetcher(jwks_doc((KEY, KID)))
+    client = JwksClient("https://jwks.example", fetcher=fetcher, min_refresh_interval=60, clock=lambda: clock[0])
+    client.get_signing_key(KID)
+    for _ in range(5):
+        with pytest.raises(JwksError):
+            client.get_signing_key("made-up")
+    assert len(fetcher.calls) == 1
+    clock[0] += 61
+    with pytest.raises(JwksError):
+        client.get_signing_key("made-up")
+    assert len(fetcher.calls) == 2
+
+
+def test_jwks_cache_expires():
+    clock = [1000.0]
+    fetcher = CountingFetcher(jwks_doc((KEY, KID)))
+    client = JwksClient("https://jwks.example", fetcher=fetcher, cache_ttl=3600, clock=lambda: clock[0])
+    client.get_signing_key(KID)
+    clock[0] += 3601
+    client.get_signing_key(KID)
+    assert len(fetcher.calls) == 2
+
+
+def test_jwks_skips_non_rsa_keys():
+    doc = jwks_doc((KEY, KID))
+    doc["keys"].append({"kty": "oct", "kid": "hmac", "k": _b64(b"secret")})
+    client = JwksClient("https://jwks.example", fetcher=CountingFetcher(doc))
+    client.get_signing_key(KID)
+    with pytest.raises(JwksError):
+        client.get_signing_key("hmac")
+
+
+def test_jwks_fetch_failure_is_verification_error():
+    def broken(url):
+        raise ValueError("bad json")
+
+    config = IssuerConfig(issuer=ISSUER, jwks=JwksClient("https://jwks.example", fetcher=broken))
+    with pytest.raises(PassportVerificationError, match="Could not fetch JWKS"):
+        verify_passport(make_passport([]), config, now=NOW)
+
+
+@pytest.mark.skipif(not os.environ.get(FIXTURES_ENV), reason=f"set {FIXTURES_ENV} to the RAS fixtures directory")
+def test_real_ras_staging_passport():
+    fixtures = Path(os.environ[FIXTURES_ENV])
+    jwks = json.loads((fixtures / "stsstg-jwks.json").read_text())
+    userinfo = json.loads((fixtures / "userinfo-v11-baker1.json").read_text())
+    raw = userinfo["passport_jwt_v11"]
+    issued_at = jwt.decode(raw, options={"verify_signature": False})["iat"]
+    config = IssuerConfig(
+        issuer="https://stsstg.nih.gov",
+        jwks=JwksClient("https://stsstg.nih.gov/openid/connect/jwks.json", fetcher=lambda url: jwks),
+    )
+    passport = verify_passport(raw, config, now=issued_at)
+    assert passport.subject == userinfo["sub"]
+    (visa,) = passport.visas
+    assert visa.is_ras_visa
+    assert visa.dbgap_permissions == ()
