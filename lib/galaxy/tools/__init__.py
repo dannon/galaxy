@@ -10,6 +10,7 @@ import re
 import tarfile
 import tempfile
 from collections.abc import (
+    Callable,
     Iterator,
     Mapping,
     MutableMapping,
@@ -58,6 +59,11 @@ from galaxy.job_execution.output_collect import (
     PermissionProvider,
 )
 from galaxy.job_execution.setup import JobWorkingDirectory
+from galaxy.managers.api_tokens import (
+    credential_allows,
+    credential_permits_tool,
+    current_credential,
+)
 from galaxy.managers.credentials import build_credentials_context_response
 from galaxy.metadata import get_metadata_compute_strategy
 from galaxy.model import (
@@ -615,6 +621,13 @@ class ToolBox(AbstractToolBox):
     """
 
     app: "UniverseApplication"
+
+    def _request_tool_filters(self) -> list[Callable[[Any, Any], bool]]:
+        """Hide tools a constrained access token may not run from every listing, panel and search."""
+        credential = current_credential()
+        if credential is None or not credential.constraint("tools"):
+            return []
+        return [lambda context, tool: credential_permits_tool(tool, credential)]
 
     def __init__(
         self, config_filenames: list[str], tool_root_dir, app, save_integrated_tool_panel: bool = True
@@ -3832,7 +3845,7 @@ class DataManagerTool(OutputParameterJSONTool):
         :returns: Whether the user is allowed to access the tool.
                   Data Manager tools are only accessible to admins.
         """
-        if super().allow_user_access(user) and self.app.config.is_admin_user(user):
+        if super().allow_user_access(user) and self.app.config.is_admin_user(user) and credential_allows("admin:*"):
             return True
         # If this is just an incidental check - do not log the scary message
         # about users attempting to do something problematic.

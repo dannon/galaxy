@@ -4,6 +4,7 @@ from typing import (
 )
 
 from galaxy.managers import base as manager_base
+from galaxy.managers.api_tokens import credential_allows
 from galaxy.managers.context import ProvidesUserContext
 from galaxy.managers.datasets import DatasetAssociationManager
 from galaxy.model import (
@@ -38,7 +39,7 @@ class LDDAManager(DatasetAssociationManager[LibraryDatasetDatasetAssociation]):
         Return True if user owns the item.
         """
         assert isinstance(item, LibraryDatasetDatasetAssociation)
-        if self.app.config.is_admin_user(user):
+        if self.app.config.is_admin_user(user) and credential_allows("admin:*"):
             return True
         return item.user == user
 

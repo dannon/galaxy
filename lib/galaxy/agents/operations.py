@@ -22,10 +22,12 @@ from galaxy.agents.base import (
     truncate_middle,
 )
 from galaxy.managers.api_tokens import (
+    credential_permits_tool,
     PUBLIC_SCOPE,
     require_scope,
 )
 from galaxy.managers.hdas import HDAManager
+from galaxy.managers.jobs import JobManager
 from galaxy.managers.tools import DynamicToolManager
 from galaxy.model import UserDynamicToolAssociation
 from galaxy.schema import (
@@ -135,8 +137,20 @@ class AgentOperationsManager:
         panel_view = self.app.config.default_panel_view
         return self.app.toolbox_search.search(q=query, panel_view=panel_view, config=self.app.config)  # type: ignore[attr-defined]
 
+    def _accessible_creating_job(self, hda):
+        # A copied-in dataset keeps its source job; reading that job's params and stderr is the
+        # job's access check to make, not the dataset's.
+        job = hda.creating_job
+        if job is None:
+            return None
+        return self.app[JobManager].get_accessible_job(self.trans, job.id)
+
     def _get_toolbox_tool(self, tool_id: str) -> ToolLike | None:
-        return self.app.toolbox.get_tool(tool_id)
+        tool = self.app.toolbox.get_tool(tool_id)
+        if tool is not None and not credential_permits_tool(tool):
+            # Constrained tokens don't get to learn what else is installed.
+            return None
+        return tool
 
     def _get_materialized_tool(self, tool_id: str, reason: MaterializationReasonName):
         tool = self._get_toolbox_tool(tool_id)
@@ -861,7 +875,7 @@ class AgentOperationsManager:
         if not hda:
             raise ValueError(f"Dataset '{dataset_id}' not found or not accessible")
 
-        job = hda.creating_job
+        job = self._accessible_creating_job(hda)
         if not job:
             return {
                 "dataset_id": dataset_id,
@@ -890,7 +904,7 @@ class AgentOperationsManager:
         if not hda:
             raise ValueError(f"Dataset '{dataset_id}' not found or not accessible")
 
-        job = hda.creating_job
+        job = self._accessible_creating_job(hda)
         if not job:
             return {
                 "dataset_id": dataset_id,

@@ -2471,6 +2471,12 @@ def _decode_dataset_id(value, security: "IdEncodingHelper", parameter_name: str)
     raise ParameterValueError(f"invalid dataset id {value!r}", parameter_name)
 
 
+def _check_permitted_input(item: Any, parameter_name: str) -> None:
+    """Refuse an input the active credential's constraints don't reach, however it was named."""
+    if item is not None and not credential_permits_input(item):
+        raise ParameterValueError("the selected input is not available to this access token", parameter_name)
+
+
 def src_id_to_item(
     sa_session: "Session", value: typing.MutableMapping[str, Any], security: "IdEncodingHelper"
 ) -> ItemFromSrcAny:
@@ -2659,6 +2665,9 @@ class DataToolParameter(BaseDataToolParameter):
         else:
             pk = _decode_dataset_id(value, trans.security, self.name)
             rval.append(session.get(HistoryDatasetAssociation, pk))
+        for v in rval:
+            # bare ids and __collection_reduce__ bypass src_id_to_item, so check everything here
+            _check_permitted_input(v, self.name)
         dataset_matcher_factory = get_dataset_matcher_factory(trans)
         dataset_matcher = dataset_matcher_factory.dataset_matcher(self, other_values)
         for v in rval:
@@ -3123,6 +3132,7 @@ class DataCollectionToolParameter(BaseDataToolParameter):
                 rval = session.get(HistoryDatasetCollectionAssociation, int(value[len("hdca:") :]))
             else:
                 rval = session.get(HistoryDatasetCollectionAssociation, int(value))
+        _check_permitted_input(rval, self.name)
         if rval:
             if isinstance(rval, HistoryDatasetCollectionAssociation):
                 if rval.deleted:

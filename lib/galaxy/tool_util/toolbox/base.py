@@ -6,6 +6,7 @@ import string
 import time
 from collections import namedtuple
 from collections.abc import (
+    Callable,
     Iterator,
     Mapping,
 )
@@ -1780,7 +1781,12 @@ class AbstractToolBox(ManagesIntegratedToolPanelMixin):
     def _build_filter_method(self, trans: "ProvidesUserContext"):
         context = Bunch(toolbox=self, trans=trans)
         filters = self._filter_factory.build_filters(trans)
+        filters["tool"].extend(self._request_tool_filters())
         return lambda element, item_type: _filter_for_panel(element, item_type, filters, context)
+
+    def _request_tool_filters(self) -> list[Callable[[Any, Any], bool]]:
+        """Extra tool filters for the request in progress; the abstract toolbox knows of none."""
+        return []
 
     @abc.abstractmethod
     def _looks_like_a_tool(self, path: str) -> bool: ...

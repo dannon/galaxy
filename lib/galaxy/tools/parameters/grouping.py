@@ -21,8 +21,10 @@ from galaxy.datatypes import data
 from galaxy.exceptions import (
     AdminRequiredException,
     ConfigDoesNotAllowException,
+    InsufficientPermissionsException,
 )
 from galaxy.files.uris import stream_to_file
+from galaxy.managers.api_tokens import scoped_credential_refuses_uri
 from galaxy.util import (
     asbool,
     inflector,
@@ -460,6 +462,8 @@ class UploadDataset(Group):
                             if not start_of_url(line):
                                 continue  # non-url line, ignore
 
+                            if (reason := scoped_credential_refuses_uri(line)) is not None:
+                                raise InsufficientPermissionsException(reason)
                             if "file://" in line:
                                 if not trans.user_is_admin:
                                     raise AdminRequiredException()

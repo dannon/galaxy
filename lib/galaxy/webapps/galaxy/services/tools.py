@@ -23,6 +23,7 @@ from galaxy.config import GalaxyAppConfiguration
 from galaxy.exceptions import RequestParameterInvalidException
 from galaxy.exceptions.utils import api_error_to_dict
 from galaxy.managers.api_tokens import (
+    credential_allows,
     credential_permits_tool,
     scoped_credential_refuses_tool,
 )
@@ -527,6 +528,10 @@ class ToolsService(ServiceBase):
 
     def _patch_library_dataset(self, trans: ProvidesHistoryContext, v, target_history):
         if isinstance(v, dict) and "id" in v and v.get("src") == "ldda":
+            if not credential_allows("libraries:read"):
+                raise exceptions.InsufficientPermissionsException(
+                    "Library datasets require the 'libraries:read' scope, which this access token lacks."
+                )
             ldda = trans.sa_session.get(LibraryDatasetDatasetAssociation, self.decode_id(v["id"]))
             if not ldda:
                 raise exceptions.ObjectNotFound("Could not find library dataset dataset association.")
@@ -753,7 +758,12 @@ class ToolsService(ServiceBase):
         for hit in hits:
             if cached_toolbox is not None:
                 cached_tool = cached_toolbox.resolve_search_hit(hit)
-                if cached_tool is not None and cached_tool.id and cached_tool.allow_user_access(trans.user):
+                if (
+                    cached_tool is not None
+                    and cached_tool.id
+                    and cached_tool.allow_user_access(trans.user)
+                    and credential_permits_tool(cached_tool)
+                ):
                     results.append(cached_tool.id)
                 continue
             try:

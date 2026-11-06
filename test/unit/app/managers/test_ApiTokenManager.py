@@ -5,7 +5,10 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import timedelta
 from types import SimpleNamespace
-from typing import Any
+from typing import (
+    Any,
+    cast,
+)
 from unittest.mock import patch
 
 import pytest
@@ -48,7 +51,10 @@ from galaxy.schema.history import HistoryIndexQueryPayload
 from galaxy.schema.schema import WorkflowIndexQueryPayload
 from galaxy.tool_util_models.parameters import DataRequestHda
 from galaxy.webapps.galaxy.api import get_admin_user
-from galaxy.work.context import WorkRequestContext
+from galaxy.work.context import (
+    SessionRequestContext,
+    WorkRequestContext,
+)
 from galaxy.workflow.run_request import (
     _get_input_or_not_found,
     _get_target_history,
@@ -372,13 +378,17 @@ class TestApiTokenManager(BaseTestCase):
         with as_credential(root):
             assert self.user_manager.is_admin(self.admin_user)
         assert self.user_manager.is_admin(self.admin_user)
+
         # the FastAPI require_admin dependency sees the same ceiling through trans
+        def trans_with(credential: Credential | None) -> SessionRequestContext:
+            return cast(
+                SessionRequestContext, WorkRequestContext(app=self.app, user=self.admin_user, credential=credential)
+            )
+
         with pytest.raises(AdminRequiredException):
-            get_admin_user(WorkRequestContext(app=self.app, user=self.admin_user, credential=plain))
-        assert (
-            get_admin_user(WorkRequestContext(app=self.app, user=self.admin_user, credential=root)) == self.admin_user
-        )
-        assert get_admin_user(WorkRequestContext(app=self.app, user=self.admin_user)) == self.admin_user
+            get_admin_user(trans_with(plain))
+        assert get_admin_user(trans_with(root)) == self.admin_user
+        assert get_admin_user(trans_with(None)) == self.admin_user
 
 
 def test_every_agent_operation_declares_a_scope():

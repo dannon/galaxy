@@ -30,7 +30,10 @@ from starlette.routing import Route
 
 from galaxy.agents.operations import AgentOperationsManager
 from galaxy.exceptions import AuthenticationFailed
-from galaxy.managers.api_tokens import set_current_credential
+from galaxy.managers.api_tokens import (
+    require_scope,
+    set_current_credential,
+)
 from galaxy.managers.users import UserManager
 from galaxy.structured_app import StructuredApp
 from galaxy.tool_util.deps.mulled.recommend import (
@@ -1084,7 +1087,8 @@ def get_mcp_app(gx_app: StructuredApp):
         with _mcp_error_handler("recommend_biocontainer"):
             # Authenticate (reject anonymous use -- this makes outbound quay.io requests); the
             # recommender itself is a pure library call and needs no trans/user.
-            get_operations_manager(api_key, ctx)
+            ops_manager = get_operations_manager(api_key, ctx)
+            require_scope(ops_manager.trans.credential, "tools:read", what="MCP operation 'recommend_biocontainer'")
             return _biocontainer_recommendation_payload(packages)
 
     @mcp.tool()

@@ -29,7 +29,10 @@ from galaxy.celery.tasks import (
     write_history_to,
 )
 from galaxy.files.uris import validate_uri_access
-from galaxy.managers.api_tokens import stamp_history_for_credential
+from galaxy.managers.api_tokens import (
+    scoped_credential_refuses_uri,
+    stamp_history_for_credential,
+)
 from galaxy.managers.citations import CitationsManager
 from galaxy.managers.context import (
     ProvidesHistoryContext,
@@ -292,6 +295,8 @@ class HistoriesService(ServiceBase, ConsumesModelStores, ServesExportStores):
                 raise glx_exceptions.MessageException("Please provide a url or file.")
             if archive_type == HistoryImportArchiveSourceType.url:
                 assert archive_source
+                if (reason := scoped_credential_refuses_uri(archive_source)) is not None:
+                    raise glx_exceptions.InsufficientPermissionsException(reason)
                 validate_uri_access(archive_source, trans.user_is_admin, trans.app.config.fetch_url_allowlist_ips)
             target_history = None
             if payload.name:

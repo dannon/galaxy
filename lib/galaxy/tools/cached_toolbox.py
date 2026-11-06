@@ -35,6 +35,7 @@ from galaxy.exceptions import (
     ObjectNotFound,
     RequestParameterInvalidException,
 )
+from galaxy.managers.api_tokens import credential_allows
 from galaxy.tool_util.deps.requirements import (
     ContainerDescription,
     ToolRequirements,
@@ -1324,7 +1325,7 @@ class CachedToolBox(ToolBox):
         cached = CachedTool(
             entry,
             materialize_callback=self._materialize_for_cached_tool,
-            is_admin_user=self.app.config.is_admin_user,
+            is_admin_user=self._is_admin_user,
             preserve_python_environment=self.app.config.preserve_python_environment,
             url_prefix=self.app.config.galaxy_url_prefix,
         )
@@ -1499,6 +1500,10 @@ class CachedToolBox(ToolBox):
         # source genuinely isn't persisted yet, so let ``create_tool``'s
         # fallthrough parse and ``_persist_tool_source`` write it.
         return None
+
+    def _is_admin_user(self, user: "User | None") -> bool:
+        # The stub's data-manager gate has to see the same ceiling as DataManagerTool.allow_user_access.
+        return self.app.config.is_admin_user(user) and credential_allows("admin:*")
 
     def _materialize_for_cached_tool(self, entry: ToolIndexEntry, reason: MaterializationReason) -> "Tool":
         if self._tool_index is not None:

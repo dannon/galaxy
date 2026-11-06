@@ -540,16 +540,14 @@ class FrameworkRouter(APIRouter):
                 )
 
                 if allow_cors:
-                    dependencies = kwd.pop("dependencies", [])
-                    dependencies.append(CORSPreflightRequired)
-
+                    # Copy rather than pop: the trailing-slash alias registers with the same kwd.
+                    cors_kwd = {**kwd, "dependencies": [*kwd.get("dependencies", []), CORSPreflightRequired]}
                     self.add_api_route(
                         route,
                         endpoint=lambda: None,
                         methods=[RestVerb.options],
                         include_in_schema=False,
-                        dependencies=dependencies,
-                        **kwd,
+                        **cors_kwd,
                     )
 
                 return func

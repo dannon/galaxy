@@ -63,6 +63,7 @@ from galaxy.managers.api_tokens import (
     credential_permits_history,
     credential_permits_workflow,
     history_constraint_clause,
+    workflow_constraint_clause,
 )
 from galaxy.managers.base import (
     apply_sort_column,
@@ -286,6 +287,8 @@ class WorkflowsManager(sharable.SharableModelManager[model.StoredWorkflow], dele
         stmt = stmt.options(joinedload(StoredWorkflow.annotations))
         stmt = stmt.options(latest_workflow_load)
         stmt = stmt.where(or_(*filters))
+        if (constraint_clause := workflow_constraint_clause()) is not None:
+            stmt = stmt.where(constraint_clause)
         stmt = stmt.where(StoredWorkflow.hidden == (true() if show_hidden else false()))
         if payload.search:
             search_query = payload.search

@@ -40,6 +40,10 @@ def test_every_api_route_checks_scope():
         path = getattr(route, "path", None)
         if not path or not path.startswith("/api"):
             continue
+        methods = set(getattr(route, "methods", None) or [])
+        if methods == {"OPTIONS"} and path == "/api/{rest_of_path:path}":
+            # the catch-all CORS preflight handler answers before any credential is read
+            continue
         seen += 1
         dependant = getattr(route, "dependant", None)
         if dependant is None or "check_scope" not in _dependency_names(dependant):

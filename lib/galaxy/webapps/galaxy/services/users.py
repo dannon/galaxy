@@ -137,6 +137,12 @@ class UsersService(ServiceBase):
         self, trans: ProvidesUserContext, user_id: int, payload: ApiTokenCreatePayload
     ) -> ApiTokenCreatedModel:
         user = self.get_user(trans, user_id)
+        if trans.user is None or user.id != trans.user.id:
+            # Unlike the legacy key, a token minted by an admin for someone else would be a quiet,
+            # unlogged act-as credential; admins keep listing and revoking for support.
+            raise glx_exceptions.InsufficientPermissionsException(
+                "Access tokens can only be created for your own account."
+            )
         scopes = payload.scopes
         if payload.preset:
             if payload.preset not in PRESETS:

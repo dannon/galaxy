@@ -5,8 +5,15 @@ from galaxy.actions.library import (
     validate_path_upload,
     validate_server_directory_upload,
 )
-from galaxy.exceptions import RequestParameterInvalidException
+from galaxy.exceptions import (
+    InsufficientPermissionsException,
+    RequestParameterInvalidException,
+)
 from galaxy.files.uris import validate_non_local
+from galaxy.managers.api_tokens import (
+    credential_allows,
+    scoped_credential_refuses_upload,
+)
 from galaxy.managers.context import ProvidesUserContext
 from galaxy.model.store.discover import (
     get_required_item,
@@ -42,6 +49,10 @@ def validate_and_normalize_targets(trans: ProvidesUserContext, payload, set_inte
         destination = get_required_item(target, "destination", "Each target must specify a 'destination'")
         destination_type = get_required_item(destination, "type", "Each target destination must specify a 'type'")
 
+        if destination_type in ("library", "library_folder") and not credential_allows("libraries:write"):
+            raise InsufficientPermissionsException(
+                "Uploading into a data library requires the 'libraries:write' scope, which this access token lacks."
+            )
         if destination_type == "library":
             library_name = get_required_item(destination, "name", "Must specify a library name")
             description = destination.get("description", "")
@@ -77,6 +88,8 @@ def validate_and_normalize_targets(trans: ProvidesUserContext, payload, set_inte
                 del item["url"]
 
         src = item["src"]
+        if (reason := scoped_credential_refuses_upload(src, item.get("url"))) is not None:
+            raise InsufficientPermissionsException(reason)
         if src == "pasted":
             if item.get("url") is not None:
                 raise RequestParameterInvalidException(

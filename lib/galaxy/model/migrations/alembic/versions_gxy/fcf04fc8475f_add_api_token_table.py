@@ -1,6 +1,6 @@
 """add api_token table and history.api_token_id
 
-Revision ID: b1c2d3e4f5a6
+Revision ID: fcf04fc8475f
 Revises: 64d49ad328d4
 Create Date: 2026-11-05 13:00:00.000000
 
@@ -29,7 +29,7 @@ from galaxy.model.migrations.util import (
 )
 
 # revision identifiers, used by Alembic.
-revision = "b1c2d3e4f5a6"
+revision = "fcf04fc8475f"
 down_revision = "64d49ad328d4"
 branch_labels = None
 depends_on = None
@@ -41,17 +41,17 @@ history_index = build_index_name(history_table, history_column)
 history_fk = build_foreign_key_name(history_table, history_column)
 
 
-def upgrade():
+def upgrade() -> None:
     with transaction():
         _upgrade()
 
 
-def downgrade():
+def downgrade() -> None:
     with transaction():
         _downgrade()
 
 
-def _upgrade():
+def _upgrade() -> None:
     create_table(
         token_table,
         sa.Column("id", sa.Integer, primary_key=True),
@@ -73,7 +73,7 @@ def _upgrade():
     create_foreign_key(history_fk, history_table, token_table, [history_column], ["id"], ondelete="SET NULL")
 
 
-def _downgrade():
+def _downgrade() -> None:
     drop_constraint(history_fk, history_table)
     drop_index(history_index, history_table)
     drop_column(history_table, history_column)

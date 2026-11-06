@@ -611,6 +611,10 @@ class ApiTokenConstraintsView(Model):
     surfaces: list[str] | None = None
 
 
+# Ten years: past any sane cap, but inside what a timedelta can hold.
+MAX_API_TOKEN_LIFETIME_SECONDS = 10 * 365 * 24 * 3600
+
+
 class ApiTokenCreatePayload(Model):
     name: str = Field(default=..., title="Name", description="A label for the token, shown in the token list.")
     scopes: str | None = Field(
@@ -624,6 +628,8 @@ class ApiTokenCreatePayload(Model):
     constraints: ApiTokenConstraints | None = Field(default=None, title="Constraints")
     expires_in: int | None = Field(
         default=None,
+        gt=0,
+        le=MAX_API_TOKEN_LIFETIME_SECONDS,
         title="Expires in",
         description="Lifetime in seconds, capped by the server's maximum. Defaults to the server's maximum.",
     )

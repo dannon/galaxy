@@ -79,6 +79,12 @@ TOKEN_SOURCES: frozenset[str] = frozenset({"ui", "device", "oauth", "job"})
 UPLOAD_TOOL_IDS: frozenset[str] = frozenset({"__DATA_FETCH__", "upload1"})
 # Marks an operation any credential may call, scoped or not (server info and the like).
 PUBLIC_SCOPE = "public"
+# What a scoped token may fetch from. Anything else (gxfiles://, gxuserfiles://, drs://, file://)
+# is a file source resolved with the user's full identity, which no scope stands for.
+SCOPED_FETCH_SCHEMES: frozenset[str] = frozenset({"http", "https", "ftp", "ftps", "base64"})
+# Upload sources that read the server's or the user's own file system rather than a URL.
+LOCAL_UPLOAD_SOURCES: frozenset[str] = frozenset({"path", "server_dir", "ftp_import"})
+DATA_MANAGER_TOOL_TYPE = "manage_data"
 
 PRESETS: dict[str, str] = {
     "read-only": "*:read",
@@ -177,6 +183,12 @@ def reset_current_credential(token: Token[Credential | None]) -> None:
     CURRENT_CREDENTIAL.reset(token)
 
 
+def credential_allows(scope: str, credential: Credential | None = None) -> bool:
+    """True unless the active credential is scoped and lacks ``scope``."""
+    credential = credential if credential is not None else current_credential()
+    return credential is None or credential.allows(scope)
+
+
 def require_scope(credential: Credential | None, scope: str | None, what: str = "This route") -> None:
     """Refuse a scoped credential that doesn't carry ``scope``; unscoped credentials always pass.
 
@@ -228,10 +240,14 @@ def credential_permits_workflow(workflow: model.StoredWorkflow | None, credentia
 def credential_permits_input(item: Any, credential: Credential | None = None) -> bool:
     """Apply the ``histories`` constraint to a tool or workflow input: an HDA, HDCA or collection element.
 
-    Library datasets have no history and aren't constrained here.
+    Library datasets have no history; reaching one is what ``libraries:read`` grants.
     """
     credential = credential if credential is not None else current_credential()
-    if credential is None or not credential.constraint("histories"):
+    if credential is None:
+        return True
+    if isinstance(item, model.LibraryDatasetDatasetAssociation):
+        return credential.allows("libraries:read")
+    if not credential.constraint("histories"):
         return True
     if isinstance(item, (model.HistoryDatasetAssociation, model.HistoryDatasetCollectionAssociation)):
         return credential_permits_history(item.history, credential)
@@ -276,8 +292,22 @@ def history_constraint_clause(credential: Credential | None = None) -> ColumnEle
     return or_(*clauses)
 
 
+def workflow_constraint_clause(credential: Credential | None = None) -> ColumnElement[bool] | None:
+    """A SQL clause selecting the workflows the credential's constraint allows, or None if unconstrained."""
+    credential = credential if credential is not None else current_credential()
+    if credential is None:
+        return None
+    ids = (credential.constraint("workflows") or {}).get("ids") or []
+    if not ids:
+        return None
+    return model.StoredWorkflow.id.in_(ids)
+
+
 def credential_permits_tool(tool: "ToolLike", credential: Credential | None = None) -> bool:
-    """Apply the ``tools`` constraint, if the active credential has one. Upload tools always pass."""
+    """Apply the ``tools`` constraint, if the active credential has one.
+
+    Upload tools pass without being listed, but only for a token that may write datasets.
+    """
     credential = credential if credential is not None else current_credential()
     if credential is None:
         return True
@@ -294,7 +324,9 @@ def credential_permits_tool(tool: "ToolLike", credential: Credential | None = No
         # A short id only names a tool that has no guid, so an allowlisted "random_lines1" doesn't
         # also let in every Tool Shed tool with that old_id.
         candidates.add(getattr(tool, "old_id", None) or "")
-    return bool(candidates & UPLOAD_TOOL_IDS) or bool(candidates & set(ids))
+    if candidates & UPLOAD_TOOL_IDS:
+        return credential.allows("datasets:write")
+    return bool(candidates & set(ids))
 
 
 def scoped_credential_refuses_tool(tool: "ToolLike", credential: Credential | None = None) -> str | None:
@@ -308,6 +340,9 @@ def scoped_credential_refuses_tool(tool: "ToolLike", credential: Credential | No
     if getattr(tool, "dynamic_tool", None) is not None:
         # User-defined tools stay outside the scope vocabulary for now, on every surface.
         return "Scoped access tokens cannot run user-defined tools."
+    if getattr(tool, "tool_type", None) == DATA_MANAGER_TOOL_TYPE and not credential.allows("admin:*"):
+        # Data managers write server-wide tool data; an admin's token has to say admin:* to reach them.
+        return f"Tool '{tool.id}' is a data manager, which needs an access token with the admin:* scope."
     for variable in getattr(tool, "environment_variables", None) or []:
         inject = variable.get("inject") or ""
         if inject == "api_key" or inject.startswith("oidc_"):
@@ -315,6 +350,30 @@ def scoped_credential_refuses_tool(tool: "ToolLike", credential: Credential | No
             return (
                 f"Tool '{tool.id}' runs with the user's own credentials, which a scoped access token may not hand over."
             )
+    return None
+
+
+def scoped_credential_refuses_uri(uri: str, credential: Credential | None = None) -> str | None:
+    """Why a scoped credential may not fetch ``uri``, or None if it may (unscoped credentials always may)."""
+    credential = credential if credential is not None else current_credential()
+    if credential is None or not credential.scoped:
+        return None
+    scheme, separator, _ = (uri or "").partition("://")
+    if not separator or scheme.lower() not in SCOPED_FETCH_SCHEMES:
+        allowed = ", ".join(sorted(SCOPED_FETCH_SCHEMES))
+        return f"Scoped access tokens can only fetch {allowed} URLs, not '{uri}'."
+    return None
+
+
+def scoped_credential_refuses_upload(src: str, url: str | None, credential: Credential | None = None) -> str | None:
+    """Why a scoped credential may not use an upload source, or None if it may."""
+    credential = credential if credential is not None else current_credential()
+    if credential is None or not credential.scoped:
+        return None
+    if src in LOCAL_UPLOAD_SOURCES:
+        return f"Scoped access tokens cannot upload from '{src}'; that reads files as the user."
+    if src == "url":
+        return scoped_credential_refuses_uri(url or "", credential)
     return None
 
 
@@ -429,7 +488,7 @@ class ApiTokenManager:
             raise exceptions.RequestParameterInvalidException(f"Unknown token source '{source}'.")
         scope_set = parse_scopes(scopes)
         if scopes_allow(scope_set, "admin:*") and not self.app.config.is_admin_user(user):
-            raise exceptions.RequestParameterInvalidException("Only administrators can mint admin-scoped tokens.")
+            raise exceptions.InsufficientPermissionsException("Only administrators can mint admin-scoped tokens.")
         cleaned_constraints = validate_constraints(constraints)
         if cleaned_constraints and "tools" in cleaned_constraints and scopes_allow(scope_set, "workflows:run"):
             # Workflow steps run tools without going through the tool lookup the constraint hangs on.

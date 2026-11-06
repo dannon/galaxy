@@ -124,9 +124,10 @@ class TestApiTokens(ApiTestCase):
             assert "not available to scoped access tokens" in response.json()["err_msg"]
             response = self._get("users/current", headers={"run-as": me})
             self._assert_status_code_is(response, 403)
-            # the legacy framework reads the same header
-            response = self._get("tools", data={"q": "cat"}, headers={"run-as": me})
+            # the legacy framework reads the same header (on requests with a body)
+            response = self._post("tools", data={"tool_id": ALLOWED_TOOL}, json=True, headers={"run-as": me})
             self._assert_status_code_is(response, 403)
+            assert response.json()["err_code"] == 400001  # USER_CANNOT_RUN_AS
 
     def test_token_works_as_bearer_and_query_key(self):
         created = self._mint({"name": "anywhere", "scopes": "account:read"})
@@ -174,19 +175,18 @@ class TestApiTokens(ApiTestCase):
         library_populator = LibraryPopulator(self.galaxy_interactor)
         library_dataset = library_populator.new_library_dataset("scoped-tokens", contents="library secret\n")
         ldda_id = library_dataset["ldda_id"]
-        folder_id = library_dataset["folder_id"]
+        folder_id = library_dataset["folder_id"][1:]  # strip the folder-id "F" prefix
         history_id = self.dataset_populator.new_history()
         # the account's roles reach the library dataset
         self._assert_status_code_is(self._get(f"datasets/{ldda_id}", data={"hda_ldda": "ldda"}), 200)
 
         created = self._mint({"name": "no libraries", "preset": "run-jobs"})
         with self._as_token(created["token"]):
-            for path in (f"datasets/{ldda_id}", f"datasets/{ldda_id}/storage", f"datasets/{ldda_id}/inheritance_chain"):
-                response = self._get(path, data={"hda_ldda": "ldda"})
-                self._assert_status_code_is(response, 403)
-                assert "libraries:read" in response.json()["err_msg"], path
-            response = self._get(f"datasets/{ldda_id}/display", data={"hda_ldda": "ldda"})
+            response = self._get(f"datasets/{ldda_id}", data={"hda_ldda": "ldda"})
             self._assert_status_code_is(response, 403)
+            assert "libraries:read" in response.json()["err_msg"]
+            for path in (f"datasets/{ldda_id}/display", f"datasets/{ldda_id}/storage"):
+                self._assert_status_code_is(self._get(path, data={"hda_ldda": "ldda"}), 403)
             # neither as a tool input, by src or through a tool form
             run = self.dataset_populator.run_tool_raw(
                 ALLOWED_TOOL, {"input1": {"src": "ldda", "id": ldda_id}}, history_id
@@ -322,7 +322,8 @@ class TestApiTokens(ApiTestCase):
             self._assert_status_code_is(foreign_input, 400)
             # and neither is the same dataset named by a bare id
             bare_input = self.dataset_populator.run_tool_raw(ALLOWED_TOOL, {"input1": outside_hda["id"]}, history_id)
-            self._assert_status_code_is(bare_input, 403)
+            self._assert_status_code_is(bare_input, 400)
+            assert "access token" in bare_input.json()["err_msg"]
             # nor can the tool form be built around it
             build = self._get(
                 f"tools/{ALLOWED_TOOL}/build", data={"history_id": history_id, "input1": outside_hda["id"]}

@@ -26,6 +26,7 @@ from galaxy.celery.helpers import async_task_summary
 from galaxy.celery.tasks import compute_dataset_hash
 from galaxy.datatypes.binary import Binary
 from galaxy.datatypes.dataproviders.exceptions import NoProviderAvailable
+from galaxy.managers.api_tokens import credential_allows
 from galaxy.managers.base import ModelSerializer
 from galaxy.managers.context import (
     ProvidesAppContext,
@@ -349,6 +350,13 @@ class DatasetsService(ServiceBase, UsesVisualizationMixin):
     def dataset_manager_by_type(self) -> dict[str, DatasetAssociationManager]:
         return {"hda": self.hda_manager, "ldda": self.ldda_manager}
 
+    def _dataset_manager(self, hda_ldda: str) -> DatasetAssociationManager:
+        if hda_ldda == DatasetSourceType.ldda and not credential_allows("libraries:read"):
+            raise galaxy_exceptions.InsufficientPermissionsException(
+                "Library datasets require the 'libraries:read' scope, which this access token lacks."
+            )
+        return self.dataset_manager_by_type[hda_ldda]
+
     def index(
         self,
         trans: ProvidesHistoryContext,
@@ -402,7 +410,7 @@ class DatasetsService(ServiceBase, UsesVisualizationMixin):
         """
         Displays information about and/or content of a dataset.
         """
-        dataset_manager = self.dataset_manager_by_type[hda_ldda]
+        dataset_manager = self._dataset_manager(hda_ldda)
         dataset = dataset_manager.get_accessible(dataset_id, trans.user)
         requests_that_require_data = (
             RequestDataType.converted_datasets_state,
@@ -460,7 +468,7 @@ class DatasetsService(ServiceBase, UsesVisualizationMixin):
         Display user-facing storage details related to the objectstore a
         dataset resides in.
         """
-        dataset_instance = self.dataset_manager_by_type[hda_ldda].get_accessible(dataset_id, trans.user)
+        dataset_instance = self._dataset_manager(hda_ldda).get_accessible(dataset_id, trans.user)
         dataset = dataset_instance.dataset
         object_store = trans.app.object_store
         object_store_id = dataset.object_store_id
@@ -511,7 +519,7 @@ class DatasetsService(ServiceBase, UsesVisualizationMixin):
         """
         Display inheritance chain for the given dataset.
         """
-        dataset_instance = self.dataset_manager_by_type[hda_ldda].get_accessible(dataset_id, trans.user)
+        dataset_instance = self._dataset_manager(hda_ldda).get_accessible(dataset_id, trans.user)
         inherit_chain = dataset_instance.source_dataset_chain
         result = []
         for dep in inherit_chain:
@@ -533,7 +541,7 @@ class DatasetsService(ServiceBase, UsesVisualizationMixin):
         payload: ComputeDatasetHashPayload,
         hda_ldda: DatasetSourceType = DatasetSourceType.hda,
     ) -> AsyncTaskResultSummary:
-        dataset_instance = self.dataset_manager_by_type[hda_ldda].get_accessible(dataset_id, trans.user)
+        dataset_instance = self._dataset_manager(hda_ldda).get_accessible(dataset_id, trans.user)
         request = ComputeDatasetHashTaskRequest(
             dataset_id=dataset_instance.dataset.id,
             extra_files_path=payload.extra_files_path,
@@ -570,7 +578,7 @@ class DatasetsService(ServiceBase, UsesVisualizationMixin):
 
     def get_drs_object(self, trans: ProvidesHistoryContext, object_id: str, request_url: URL) -> DrsObject:
         decoded_object_id, hda_ldda = self.drs_dataset_instance(object_id)
-        dataset_instance = self.dataset_manager_by_type[hda_ldda].get_accessible(decoded_object_id, trans.user)
+        dataset_instance = self._dataset_manager(hda_ldda).get_accessible(decoded_object_id, trans.user)
         if not trans.app.security_agent.dataset_is_public(dataset_instance.dataset):
             # Only public datasets may be access as DRS datasets currently
             raise galaxy_exceptions.ObjectNotFound("Cannot find a public dataset with specified object ID.")
@@ -627,7 +635,7 @@ class DatasetsService(ServiceBase, UsesVisualizationMixin):
         """
         self.check_user_is_authenticated(trans)
         payload_dict = payload.model_dump(by_alias=True)
-        dataset_manager = self.dataset_manager_by_type[hda_ldda]
+        dataset_manager = self._dataset_manager(hda_ldda)
         dataset = dataset_manager.get_accessible(dataset_id, trans.user)
         dataset_manager.update_permissions(trans, dataset, **payload_dict)
         return dataset_manager.serialize_dataset_association_roles(dataset)
@@ -665,7 +673,7 @@ class DatasetsService(ServiceBase, UsesVisualizationMixin):
 
         Used by the dedicated download route; the regular display route never redirects.
         """
-        dataset_manager = self.dataset_manager_by_type[hda_ldda]
+        dataset_manager = self._dataset_manager(hda_ldda)
         dataset_instance = dataset_manager.get_accessible(dataset_id, trans.user)
         dataset_manager.ensure_dataset_on_disk(trans, dataset_instance)
         datatype = dataset_instance.datatype
@@ -694,7 +702,7 @@ class DatasetsService(ServiceBase, UsesVisualizationMixin):
         Answers without redirecting or pulling the object into cache, so clients (which may not follow
         redirects on HEAD) can learn the size and filename of a download.
         """
-        dataset_manager = self.dataset_manager_by_type[hda_ldda]
+        dataset_manager = self._dataset_manager(hda_ldda)
         dataset_instance = dataset_manager.get_accessible(dataset_id, trans.user)
         dataset_manager.ensure_dataset_on_disk(trans, dataset_instance)
         datatype = dataset_instance.datatype
@@ -779,7 +787,7 @@ class DatasetsService(ServiceBase, UsesVisualizationMixin):
         headers: dict[str, str] = {}
         rval: Any = ""
         try:
-            dataset_manager = self.dataset_manager_by_type[hda_ldda]
+            dataset_manager = self._dataset_manager(hda_ldda)
             dataset_instance = dataset_manager.get_accessible(dataset_id, trans.user)
             dataset_manager.ensure_dataset_on_disk(trans, dataset_instance)
             if filename and filename.startswith("/"):
@@ -921,7 +929,7 @@ class DatasetsService(ServiceBase, UsesVisualizationMixin):
         errors: list[DatasetErrorMessage] = []
         for dataset in payload.datasets:
             try:
-                manager = self.dataset_manager_by_type[dataset.src]
+                manager = self._dataset_manager(dataset.src)
                 dataset_instance = manager.get_owned(dataset.id, trans.user)
                 if hasattr(dataset_instance, "history"):
                     manager.error_unless_mutable(dataset_instance.history)
