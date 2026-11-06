@@ -64,7 +64,8 @@ class RasConfig(BaseModel):
     # Galaxy's browser-facing base URL, for the return address. Required with bridge_url.
     galaxy_url: str | None = None
     leeway: int = DEFAULT_LEEWAY
-    store: Literal["vault", "tapis_vault"] = "vault"
+    # Only "vault" for now; TapisVaultPassportStore is a placeholder until the bridge contract is settled.
+    store: Literal["vault"] = "vault"
     direct_ras: DirectRasSettings | None = None
 
     @field_validator("issuer", "jwks_uri", "bridge_url")
