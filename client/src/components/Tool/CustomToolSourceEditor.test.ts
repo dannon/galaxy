@@ -100,6 +100,25 @@ describe("CustomToolSourceEditor", () => {
         expect(wrapper.emitted("saved")).toHaveLength(1);
     });
 
+    it("saves source the host set through setSource", async () => {
+        let posted: { representation?: { name?: string } } | undefined;
+        server.use(
+            http.untyped.post("/api/unprivileged_tools", async ({ request }) => {
+                posted = (await request.json()) as typeof posted;
+                return HttpResponse.json({ ...REVISION_A, uuid: "revision-b" });
+            }),
+        );
+        const { wrapper } = mountEditor();
+        const editor = wrapper.vm as unknown as { setSource: (yaml: string) => void; save: () => Promise<void> };
+        editor.setSource("class: GalaxyUserTool\nid: imported\nname: Imported tool\n");
+        await flushPromises();
+        expect((wrapper.find("textarea.monaco-stub").element as HTMLTextAreaElement).value).toContain("Imported tool");
+        await editor.save();
+        await flushPromises();
+
+        expect(posted?.representation?.name).toBe("Imported tool");
+    });
+
     it("shows a parse error instead of posting invalid yaml", async () => {
         const post = vi.fn();
         server.use(

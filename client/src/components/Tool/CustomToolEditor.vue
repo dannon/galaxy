@@ -8,7 +8,7 @@ import { useRouter } from "vue-router";
 import { GalaxyApi, type MessageException, type UnprivilegedToolResponse } from "@/api";
 
 import { linkedAuthoringHelpSection } from "./authoringHelp";
-import { CLEAR_TOOL_YAML, NEW_TOOL_YAML } from "./customToolEditorDefaults";
+import { CLEAR_TOOL_YAML } from "./customToolEditorDefaults";
 
 import GAlert from "@/components/BaseComponents/GAlert.vue";
 import GButton from "@/components/BaseComponents/GButton.vue";
@@ -29,7 +29,6 @@ interface ExistingTool {
 }
 const props = defineProps<ExistingTool>();
 const errorMsg = ref<MessageException>();
-const yamlRepresentation = ref<string>(NEW_TOOL_YAML);
 const sourceEditor = ref<InstanceType<typeof CustomToolSourceEditor>>();
 
 function saveTool() {
@@ -38,10 +37,6 @@ function saveTool() {
 
 function onSaved(tool: UnprivilegedToolResponse) {
     router.push(`/tools/editor/${tool.uuid}`);
-}
-
-function onSourceInput(yaml: string) {
-    yamlRepresentation.value = yaml;
 }
 
 async function importFromUrl() {
@@ -57,7 +52,7 @@ async function importFromUrl() {
         }
 
         const yaml = await response.text();
-        yamlRepresentation.value = yaml;
+        sourceEditor.value?.setSource(yaml);
     } catch (error) {
         errorMsg.value = { err_code: -1, err_msg: `Couldn't import YAML from URL: ${error}` };
     }
@@ -65,7 +60,7 @@ async function importFromUrl() {
 
 function clearTool() {
     if (window.confirm("Replace the current tool definition with the minimal skeleton?")) {
-        yamlRepresentation.value = CLEAR_TOOL_YAML;
+        sourceEditor.value?.setSource(CLEAR_TOOL_YAML);
     }
 }
 
@@ -121,7 +116,7 @@ async function generateViaLLM() {
         const metadata = response.data?.metadata as { tool_yaml?: string; error?: string } | undefined;
         const toolYaml = metadata?.tool_yaml;
         if (toolYaml) {
-            yamlRepresentation.value = toolYaml;
+            sourceEditor.value?.setSource(toolYaml);
         } else if (metadata?.error === "model_capability") {
             // Model doesn't support structured output
             errorMsg.value = {
@@ -215,12 +210,7 @@ async function generateViaLLM() {
         </div>
         <CustomToolEditorWorkspace :documentation-visible="showDocumentation">
             <template v-slot:editor>
-                <CustomToolSourceEditor
-                    ref="sourceEditor"
-                    :tool-uuid="props.toolUuid"
-                    :value="yamlRepresentation"
-                    @input="onSourceInput"
-                    @saved="onSaved" />
+                <CustomToolSourceEditor ref="sourceEditor" :tool-uuid="props.toolUuid" @saved="onSaved" />
             </template>
             <template v-slot:documentation>
                 <AuthoringHelpPanel ref="authoringHelpPanel" class="p-3" />

@@ -30,16 +30,13 @@ const props = withDefaults(
     defineProps<{
         /** Revision to load into the editor; a new tool otherwise */
         toolUuid?: string;
-        /** YAML source, when the host owns it */
-        value?: string;
         /** Render the save (and cancel) buttons below the editor */
         toolbar?: boolean;
     }>(),
-    { toolUuid: undefined, value: undefined, toolbar: false },
+    { toolUuid: undefined, toolbar: false },
 );
 
 const emit = defineEmits<{
-    (e: "input", yaml: string): void;
     (e: "saved", tool: UnprivilegedToolResponse): void;
     (e: "cancel"): void;
 }>();
@@ -70,17 +67,7 @@ onUnmounted(() => {
 
 const errorMsg = ref<MessageException>();
 const saving = ref(false);
-const yamlRepresentation = ref<string>(props.value ?? NEW_TOOL_YAML);
-
-watch(
-    () => props.value,
-    (value) => {
-        if (value !== undefined && value !== yamlRepresentation.value) {
-            yamlRepresentation.value = value;
-        }
-    },
-);
-watch(yamlRepresentation, (yaml) => emit("input", yaml));
+const yamlRepresentation = ref<string>(NEW_TOOL_YAML);
 
 if (props.toolUuid) {
     GalaxyApi()
@@ -139,7 +126,12 @@ async function save() {
     }
 }
 
-defineExpose({ save, saving });
+/** Replaces the source, for hosts that import or generate it. */
+function setSource(yaml: string) {
+    yamlRepresentation.value = yaml;
+}
+
+defineExpose({ save, saving, setSource });
 </script>
 
 <template>
