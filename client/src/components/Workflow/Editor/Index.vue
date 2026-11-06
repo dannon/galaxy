@@ -960,7 +960,7 @@ function onSetData(stepId: number, newData: object) {
             if (data === undefined) {
                 return;
             }
-            const partialStep = {
+            const partialStep: Partial<Step> = {
                 content_id: data.content_id,
                 inputs: data.inputs,
                 outputs: data.outputs,
@@ -973,7 +973,7 @@ function onSetData(stepId: number, newData: object) {
             // or the saved workflow keeps pointing at the old revision.
             const toolUuid = (newData as { tool_uuid?: string }).tool_uuid;
             if (toolUuid) {
-                Object.assign(partialStep, { tool_uuid: toolUuid });
+                partialStep.tool_uuid = toolUuid;
             }
             stepActions.updateStep(stepId, partialStep);
         });
