@@ -43,13 +43,13 @@ function mountEditor(props: Record<string, unknown> = {}) {
 
 describe("CustomToolSourceEditor", () => {
     it("loads the revision's source when given a tool uuid", async () => {
+        let requestedUuid: string | undefined;
         server.use(
             http.untyped.get("/api/unprivileged_tools/:uuid", ({ params }) => {
                 requestedUuid = params.uuid as string;
                 return HttpResponse.json(REVISION_A);
             }),
         );
-        let requestedUuid: string | undefined;
         const { wrapper } = mountEditor({ toolUuid: "revision-a" });
         const source = () => (wrapper.find("textarea.monaco-stub").element as HTMLTextAreaElement).value;
         await vi.waitFor(() => expect(source(), wrapper.text()).toContain("name: Base command tool"), {
@@ -60,12 +60,12 @@ describe("CustomToolSourceEditor", () => {
     });
 
     it("saves the source as a new revision and reports it", async () => {
-        let posted: any;
+        let posted: { src?: string; representation?: { name?: string } } | undefined;
         server.use(
             http.untyped.get("/api/unprivileged_tools/:uuid", () => HttpResponse.json(REVISION_A)),
-            http.post("/api/unprivileged_tools", async ({ request, response }) => {
-                posted = await request.json();
-                return response(200).json({ ...REVISION_A, uuid: "revision-b" } as any);
+            http.untyped.post("/api/unprivileged_tools", async ({ request }) => {
+                posted = (await request.json()) as typeof posted;
+                return HttpResponse.json({ ...REVISION_A, uuid: "revision-b" });
             }),
         );
         const { wrapper } = mountEditor({ toolUuid: "revision-a", toolbar: true });
@@ -75,8 +75,8 @@ describe("CustomToolSourceEditor", () => {
         await wrapper.find("[data-description='save custom tool revision']").trigger("click");
         await flushPromises();
 
-        expect(posted.src).toBe("representation");
-        expect(posted.representation.name).toBe("Edited tool");
+        expect(posted?.src).toBe("representation");
+        expect(posted?.representation?.name).toBe("Edited tool");
         expect(wrapper.emitted("saved")?.[0]?.[0]).toMatchObject({ uuid: "revision-b" });
         expect(useUnprivilegedToolStore().load).toHaveBeenCalledWith(true);
     });
@@ -103,9 +103,9 @@ describe("CustomToolSourceEditor", () => {
     it("shows a parse error instead of posting invalid yaml", async () => {
         const post = vi.fn();
         server.use(
-            http.post("/api/unprivileged_tools", ({ response }) => {
+            http.untyped.post("/api/unprivileged_tools", () => {
                 post();
-                return response(200).json(REVISION_A as any);
+                return HttpResponse.json(REVISION_A);
             }),
         );
         const { wrapper } = mountEditor({ toolbar: true });
