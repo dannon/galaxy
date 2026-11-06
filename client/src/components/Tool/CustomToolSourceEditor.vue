@@ -94,8 +94,8 @@ async function save() {
     if (saving.value) {
         return;
     }
-    if (!yamlRepresentation.value) {
-        console.error("No yaml to parse");
+    if (!yamlRepresentation.value.trim()) {
+        errorMsg.value = { err_code: -1, err_msg: "The tool source is empty; nothing to save." };
         return;
     }
     let representation;
