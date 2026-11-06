@@ -105,7 +105,7 @@ class PassportGate:
         store: PassportStore,
         galaxy_url: str,
         allowed_return_hosts: Iterable[str] = (),
-        clock: Callable[[], float] | None = None,
+        clock: Callable[[], float] = time.time,
     ):
         self.config = config
         self.store = store
@@ -114,7 +114,7 @@ class PassportGate:
         self.clock = clock
 
     def now(self) -> float:
-        return self.clock() if self.clock else time.time()
+        return self.clock()
 
     def require(
         self,
