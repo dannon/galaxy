@@ -8,6 +8,7 @@ validated Galaxy return address attached.
 
 import logging
 import threading
+import time
 from collections.abc import (
     Callable,
     Iterable,
@@ -110,6 +111,9 @@ class PassportGate:
         self.allowed_return_hosts = list(allowed_return_hosts)
         self.clock = clock
 
+    def now(self) -> float:
+        return self.clock() if self.clock else time.time()
+
     def require(
         self,
         user: Any,
@@ -131,9 +135,10 @@ class PassportGate:
         if lookup.passport is None:
             return self._needed(_STATUS_REASONS.get(lookup.status, PassportNeededReason.MISSING), return_to)
         if phs_id is not None:
-            now = self.clock() if self.clock else None
             try:
-                granted = grants_access(lookup.passport, phs_id, version=version, consent_group=consent_group, now=now)
+                granted = grants_access(
+                    lookup.passport, phs_id, version=version, consent_group=consent_group, now=self.now()
+                )
             except InvalidAccessionError:
                 granted = False
             if not granted:

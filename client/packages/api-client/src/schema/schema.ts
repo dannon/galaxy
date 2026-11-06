@@ -6163,6 +6163,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/users/current/ras_passport": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Summarize the current user's NIH RAS passport.
+         * @description **Warning**: This API is unstable and may change without notice.
+         */
+        get: operations["show_api_users_current_ras_passport_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/users/current/recalculate_disk_usage": {
         parameters: {
             query?: never;
@@ -22444,6 +22464,34 @@ export interface components {
          * @default []
          */
         QuotaSummaryList: components["schemas"]["QuotaSummary"][];
+        /** RasPassportSummary */
+        RasPassportSummary: {
+            /**
+             * Expires At
+             * @description When the passport expires (UTC).
+             */
+            expires_at?: string | null;
+            /**
+             * Phs Ids
+             * @description dbGaP studies the passport currently grants access to.
+             */
+            phs_ids?: string[];
+            /**
+             * Present
+             * @description Whether Galaxy holds a valid NIH RAS passport for the current user.
+             */
+            present: boolean;
+            /**
+             * Redirect Url
+             * @description Where to send the user to get a new passport, when there is no valid one and a bridge is configured.
+             */
+            redirect_url?: string | null;
+            /**
+             * Status
+             * @description Why there is or isn't a usable passport: ok, missing, expired or invalid.
+             */
+            status: string;
+        };
         /** RefactorActionExecution */
         RefactorActionExecution: {
             /** Action */
@@ -53170,6 +53218,47 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CreatedUserModel"];
+                };
+            };
+            /** @description Request Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+            /** @description Server Error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+        };
+    };
+    show_api_users_current_ras_passport_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RasPassportSummary"];
                 };
             };
             /** @description Request Error */
