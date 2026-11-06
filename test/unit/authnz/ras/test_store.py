@@ -134,6 +134,34 @@ def test_key_fetch_outage_keeps_the_passport():
     assert store.load(USER).status == PassportStatus.OK
 
 
+class RacingVault(InMemoryVault):
+    """Simulates another request storing a fresh passport right after the first read."""
+
+    def __init__(self):
+        super().__init__()
+        self.fresh: str | None = None
+
+    def read_secret(self, key):
+        value = super().read_secret(key)
+        if self.fresh is not None:
+            self.write_secret(key, self.fresh)
+            self.fresh = None
+        return value
+
+
+def test_eviction_does_not_delete_a_passport_stored_meanwhile():
+    clock = Clock(NOW)
+    vault = RacingVault()
+    store = VaultPassportStore(vault, issuer_config(), clock=clock)
+    store.put(USER, make_passport([], exp=NOW + 600))
+    clock.now = NOW + 3600
+    fresh = make_passport([], iat=NOW + 3000)
+    vault.fresh = fresh
+    assert store.load(USER).status == PassportStatus.EXPIRED
+    assert vault.secrets[f"user/7/{PASSPORT_VAULT_KEY}"] == fresh
+    assert store.load(USER).status == PassportStatus.OK
+
+
 def test_clear():
     _, store = _store()
     store.put(USER, make_passport([]))
