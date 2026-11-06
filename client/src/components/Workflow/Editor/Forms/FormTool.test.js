@@ -130,6 +130,12 @@ describe("FormTool", () => {
         expect(wrapper.find(".source-editor-stub").text()).toBe("revision-a");
     });
 
+    it("ignores a request to open the source editor on a step that is not a custom tool", () => {
+        const wrapper = mountTarget(undefined, {}, { editTool: true });
+        expect(wrapper.find(".source-editor-stub").exists()).toBe(false);
+        expect(wrapper.text()).toContain("Tool Parameters");
+    });
+
     it("does not stamp UI metadata into a rules input payload", () => {
         const inputs = mountTarget([
             { name: "input", label: "input", type: "text", value: "value" },
