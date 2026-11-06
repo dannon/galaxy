@@ -2,77 +2,26 @@
 import { faArrowAltCircleUp, faLightbulb, faSave } from "@fortawesome/free-regular-svg-icons";
 import { faBookOpen, faEraser } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
-import { loader, useMonaco, VueMonacoEditor } from "@guolao/vue-monaco-editor";
-import * as monaco from "monaco-editor";
-// Import workers using Vite's ?worker syntax for proper bundling
-import editorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
-import jsonWorker from "monaco-editor/esm/vs/language/json/json.worker?worker";
-import tsWorker from "monaco-editor/esm/vs/language/typescript/ts.worker?worker";
-import yamlWorker from "monaco-yaml/yaml.worker?worker";
-import { nextTick, onMounted, onUnmounted, ref, watch } from "vue";
+import { nextTick, onMounted, onUnmounted, ref } from "vue";
 import { useRouter } from "vue-router";
-import { parse, stringify } from "yaml";
 
-import {
-    type DynamicUnprivilegedToolCreatePayload,
-    GalaxyApi,
-    type MessageException,
-    type UnprivilegedToolResponse,
-} from "@/api";
-import { useUnprivilegedToolStore } from "@/stores/unprivilegedToolStore";
+import { GalaxyApi, type MessageException, type UnprivilegedToolResponse } from "@/api";
 
 import { linkedAuthoringHelpSection } from "./authoringHelp";
 import { CLEAR_TOOL_YAML, NEW_TOOL_YAML } from "./customToolEditorDefaults";
-import { setupMonaco } from "./YamlJs";
 
 import GAlert from "@/components/BaseComponents/GAlert.vue";
 import GButton from "@/components/BaseComponents/GButton.vue";
 import Heading from "@/components/Common/Heading.vue";
 import AuthoringHelpPanel from "@/components/Tool/AuthoringHelpPanel.vue";
 import CustomToolEditorWorkspace from "@/components/Tool/CustomToolEditorWorkspace.vue";
+import CustomToolSourceEditor from "@/components/Tool/CustomToolSourceEditor.vue";
 
-// Configure Monaco environment with worker factory before loading
-self.MonacoEnvironment = {
-    getWorker(_workerId: string, label: string) {
-        if (label === "yaml") {
-            return new yamlWorker();
-        }
-        if (label === "json") {
-            return new jsonWorker();
-        }
-        if (label === "typescript" || label === "javascript") {
-            return new tsWorker();
-        }
-        return new editorWorker();
-    },
-};
-
-// loaded monaco-editor from `node_modules`
-loader.config({ monaco });
-const { unload, monacoRef } = useMonaco();
-const unprivilegedToolStore = useUnprivilegedToolStore();
 const router = useRouter();
-
-const disposeConfig = ref<() => void>();
-watch(
-    monacoRef,
-    () => {
-        if (monacoRef.value) {
-            nextTick().then(() => {
-                setupMonaco(monaco).then((dispose) => {
-                    disposeConfig.value = dispose;
-                });
-            });
-        }
-    },
-    { immediate: true },
-);
 
 onMounted(() => document.addEventListener("click", openAuthoringHelpLink, { capture: true }));
 onUnmounted(() => {
     document.removeEventListener("click", openAuthoringHelpLink, { capture: true });
-    disposeConfig.value!();
-    unload();
 });
 
 interface ExistingTool {
@@ -80,46 +29,19 @@ interface ExistingTool {
 }
 const props = defineProps<ExistingTool>();
 const errorMsg = ref<MessageException>();
-const persistedTool = ref<UnprivilegedToolResponse>();
 const yamlRepresentation = ref<string>(NEW_TOOL_YAML);
+const sourceEditor = ref<InstanceType<typeof CustomToolSourceEditor>>();
 
-if (props.toolUuid) {
-    GalaxyApi()
-        .GET("/api/unprivileged_tools/{uuid}", {
-            params: {
-                path: {
-                    uuid: props.toolUuid,
-                },
-            },
-        })
-        .then(({ data, error }) => {
-            if (!error) {
-                yamlRepresentation.value = stringify(data.representation, {
-                    blockQuote: "literal",
-                });
-            }
-        });
+function saveTool() {
+    sourceEditor.value?.save();
 }
 
-async function saveTool() {
-    if (!yamlRepresentation.value) {
-        console.error("No yaml to parse");
-        return;
-    }
-    const payload: DynamicUnprivilegedToolCreatePayload = {
-        active: true,
-        hidden: false,
-        representation: parse(yamlRepresentation.value),
-        src: "representation",
-    };
-    const { data, error } = await GalaxyApi().POST("/api/unprivileged_tools", { body: payload });
-    if (error) {
-        errorMsg.value = error;
-    } else {
-        persistedTool.value = data;
-        unprivilegedToolStore.load(true);
-        router.push(`/tools/editor/${data.uuid}`);
-    }
+function onSaved(tool: UnprivilegedToolResponse) {
+    router.push(`/tools/editor/${tool.uuid}`);
+}
+
+function onSourceInput(yaml: string) {
+    yamlRepresentation.value = yaml;
 }
 
 async function importFromUrl() {
@@ -292,18 +214,12 @@ async function generateViaLLM() {
         </div>
         <CustomToolEditorWorkspace :documentation-visible="showDocumentation">
             <template v-slot:editor>
-                <VueMonacoEditor
-                    v-model="yamlRepresentation"
-                    language="yaml-with-js"
-                    default-path="tool.yml"
-                    :options="{
-                        quickSuggestions: {
-                            other: true,
-                            comments: false,
-                            strings: true,
-                        },
-                    }">
-                </VueMonacoEditor>
+                <CustomToolSourceEditor
+                    ref="sourceEditor"
+                    :tool-uuid="props.toolUuid"
+                    :value="yamlRepresentation"
+                    @input="onSourceInput"
+                    @saved="onSaved" />
             </template>
             <template v-slot:documentation>
                 <AuthoringHelpPanel ref="authoringHelpPanel" class="p-3" />
