@@ -15,7 +15,8 @@ ISSUER = "https://sts.example.nih.gov"
 KID = "TEST-SIGN-1"
 OTHER_KID = "TEST-SIGN-2"
 SUBJECT = "test-subject-1"
-NOW = 1_800_000_000
+# In the past, so code that ignores its injected clock and reads time.time() sees expired tokens.
+NOW = 1_700_000_000
 PASSPORT_LIFETIME = 12 * 3600
 RAS_VISA = {
     "type": "https://ras.nih.gov/visas/v1.1",
