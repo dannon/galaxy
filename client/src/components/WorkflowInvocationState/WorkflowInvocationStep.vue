@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { faTimesCircle } from "@fortawesome/free-regular-svg-icons";
-import { faInfoCircle, faWrench } from "@fortawesome/free-solid-svg-icons";
+import { faEdit, faInfoCircle, faWrench } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import axios from "axios";
 import { computed, onUnmounted, ref, watch } from "vue";
@@ -19,6 +19,7 @@ import SubworkflowAlert from "./SubworkflowAlert.vue";
 import WorkflowInvocationStepHeader from "./WorkflowInvocationStepHeader.vue";
 import WorkflowStepTitle from "./WorkflowStepTitle.vue";
 import GAlert from "@/components/BaseComponents/GAlert.vue";
+import GButton from "@/components/BaseComponents/GButton.vue";
 import GTab from "@/components/BaseComponents/GTab.vue";
 import GTabs from "@/components/BaseComponents/GTabs.vue";
 import GenericHistoryItem from "@/components/History/Content/GenericItem.vue";
@@ -73,6 +74,17 @@ const invocationInput = computed(() => props.invocation.inputs[props.workflowSte
 const invocationStep = computed(() => props.invocation.steps[props.workflowStep.id]);
 
 const invocationStepId = computed(() => invocationStep.value?.id);
+
+/**
+ * A custom tool step can be edited in place: open the workflow editor on this step with the tool
+ * source panel open. Saving there makes a new revision and a new workflow version to run again.
+ */
+const editToolInEditorLink = computed(() => {
+    if (!props.workflowStep.tool_uuid) {
+        return null;
+    }
+    return `/workflows/edit?workflow_id=${props.invocation.workflow_id}&step=${props.workflowStep.id}&edit_tool=true`;
+});
 
 const stepDetails = computed(() =>
     invocationStepId.value ? invocationStore.getInvocationStepById(invocationStepId.value) : null,
@@ -225,6 +237,20 @@ onUnmounted(() => {
                     :class="{ 'mt-2': !props.inGraphView }">
                     {{ props.workflowStep.annotation }}
                 </div>
+
+                <GButton
+                    v-if="editToolInEditorLink"
+                    class="mb-2"
+                    :class="{ 'mt-2': !props.inGraphView && !props.workflowStep.annotation }"
+                    outline
+                    color="blue"
+                    size="small"
+                    data-description="edit custom tool in workflow editor"
+                    title="Open the workflow editor on this step with the tool source open"
+                    :to="editToolInEditorLink">
+                    <FontAwesomeIcon :icon="faEdit" fixed-width />
+                    Edit tool in workflow editor
+                </GButton>
 
                 <div v-if="isReady && invocationStepId !== undefined">
                     <div style="min-width: 1">
