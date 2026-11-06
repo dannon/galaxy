@@ -35,7 +35,8 @@ class DbgapPermission:
 
 @dataclass(frozen=True)
 class Visa:
-    raw: str
+    # The signed JWTs are bearer credentials; keep them out of reprs and logs.
+    raw: str = field(repr=False)
     issuer: str
     subject: str
     issued_at: int
@@ -47,7 +48,7 @@ class Visa:
     by: str | None
     asserted: int | None
     dbgap_permissions: tuple[DbgapPermission, ...] = ()
-    claims: dict[str, Any] = field(default_factory=dict)
+    claims: dict[str, Any] = field(default_factory=dict, repr=False)
 
     @property
     def is_ras_visa(self) -> bool:
@@ -65,7 +66,7 @@ class DroppedVisa:
 
 @dataclass(frozen=True)
 class Passport:
-    raw: str
+    raw: str = field(repr=False)
     issuer: str
     subject: str
     issued_at: int
@@ -74,4 +75,4 @@ class Passport:
     txn: str | None
     visas: tuple[Visa, ...] = ()
     dropped_visas: tuple[DroppedVisa, ...] = ()
-    claims: dict[str, Any] = field(default_factory=dict)
+    claims: dict[str, Any] = field(default_factory=dict, repr=False)

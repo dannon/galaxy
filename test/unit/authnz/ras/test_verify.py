@@ -398,3 +398,12 @@ def test_jwks_with_no_usable_keys_is_unavailable(bad_doc):
     client = JwksClient("https://jwks.example", fetcher=CountingFetcher(bad_doc))
     with pytest.raises(JwksUnavailableError):
         client.get_signing_key(KID)
+
+
+def test_repr_does_not_include_the_signed_tokens():
+    raw = make_passport([permission()])
+    passport = verify_passport(raw, issuer_config(), now=NOW)
+    text = repr(passport)
+    assert raw not in text
+    assert passport.visas[0].raw not in text
+    assert SUBJECT in text
