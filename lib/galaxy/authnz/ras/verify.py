@@ -212,7 +212,10 @@ def verify_passport(raw_jwt: str, issuer_config: IssuerConfig, now: float | None
     now = time.time() if now is None else now
     claims = verify_jwt(raw_jwt, issuer_config, now=now, what="passport")
     subject = claims["sub"]
-    raw_visas = claims.get("ga4gh_passport_v1", [])
+    # Required even when empty: without it this could be any other token RAS signed.
+    if "ga4gh_passport_v1" not in claims:
+        raise PassportVerificationError("passport has no ga4gh_passport_v1 claim")
+    raw_visas = claims["ga4gh_passport_v1"]
     if not isinstance(raw_visas, list):
         raise PassportVerificationError("passport ga4gh_passport_v1 is not a list")
     visas: list[Visa] = []
