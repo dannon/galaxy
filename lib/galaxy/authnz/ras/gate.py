@@ -21,7 +21,6 @@ from typing import (
 )
 from urllib.parse import (
     urlencode,
-    urljoin,
     urlsplit,
     urlunsplit,
 )
@@ -163,8 +162,9 @@ class PassportGate:
             if return_to:
                 log.warning("Ignoring RAS return address that is not on this Galaxy: %s", return_to)
             target = self.config.return_path
-        # Relative targets are joined below Galaxy's URL, keeping any prefix.
-        return urljoin(self.galaxy_url, target.lstrip("/")) if target.startswith("/") else target
+        # Relative targets go below Galaxy's URL, keeping any prefix. Concatenate rather
+        # than urljoin, which reads "/https://evil.example" as absolute once the slash is gone.
+        return self.galaxy_url.rstrip("/") + target if target.startswith("/") else target
 
     def bridge_redirect_url(self, return_to: str | None = None) -> str | None:
         if not self.config.bridge_url:
