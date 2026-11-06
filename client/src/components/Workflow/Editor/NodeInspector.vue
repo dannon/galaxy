@@ -23,6 +23,8 @@ import IdleLoad from "@/components/Common/IdleLoad.vue";
 const props = defineProps<{
     step: Step;
     datatypes: string[];
+    /** Open the custom tool source editor for this step right away */
+    editTool?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -128,6 +130,7 @@ function updateStored(v: boolean) {
                     class="w-100"
                     :step="props.step"
                     :datatypes="props.datatypes"
+                    :edit-tool="props.editTool"
                     @onSetData="(id: number, d: object) => emit('dataChanged', id, d)"
                     @onUpdateStep="(id: number, s: Step) => emit('stepUpdated', id, s)"
                     @onChangePostJobActions="(id: number, a: PostJobActions) => emit('postJobActionsChanged', id, a)"

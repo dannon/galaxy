@@ -480,6 +480,21 @@ function onToolClick(toolId: number) {
     onScrollTo(toolId);
 }
 
+/** Step (order index) the `step` query asks to open once the workflow loads, with `edit_tool` opening its source. */
+const initialStepId = parseInitialStep(route.query.step);
+const editToolStepId = ref<number | null>(route.query.edit_tool !== undefined ? initialStepId : null);
+
+function parseInitialStep(value: unknown): number | null {
+    const parsed = typeof value === "string" ? parseInt(value, 10) : NaN;
+    return Number.isNaN(parsed) ? null : parsed;
+}
+
+watch(activeNodeId, (nodeId) => {
+    if (nodeId !== editToolStepId.value) {
+        editToolStepId.value = null;
+    }
+});
+
 // For keeping track of the workflow graph transform and bounds, so we can adjust for coordinate shifts
 const transform = ref<ZoomTransform>({ x: 0, y: 0, k: 1 } as ZoomTransform);
 const graphOffset = ref({
@@ -954,6 +969,12 @@ function onSetData(stepId: number, newData: object) {
                 tool_version: data.tool_version,
                 errors: data.errors,
             };
+            // build_module does not echo the uuid, so a custom tool revision swap has to carry it here
+            // or the saved workflow keeps pointing at the old revision.
+            const toolUuid = (newData as { tool_uuid?: string }).tool_uuid;
+            if (toolUuid) {
+                Object.assign(partialStep, { tool_uuid: toolUuid });
+            }
             stepActions.updateStep(stepId, partialStep);
         });
 }
@@ -1309,6 +1330,10 @@ async function initializeWorkflowEditor() {
     await loadCurrent(id.value, version.value, true);
 
     initialLoading.value = false;
+
+    if (initialStepId !== null && stepStore.getStep(initialStepId)) {
+        onToolClick(initialStepId);
+    }
 }
 initializeWorkflowEditor();
 </script>
@@ -1592,6 +1617,7 @@ initializeWorkflowEditor();
                         v-if="activeStep"
                         :step="activeStep"
                         :datatypes="datatypes"
+                        :edit-tool="activeStep.id === editToolStepId"
                         @postJobActionsChanged="onChangePostJobActions"
                         @annotationChanged="onAnnotation"
                         @labelChanged="onLabel"

@@ -33,7 +33,7 @@ describe("FormTool", () => {
         );
     });
 
-    function mountTarget(inputs = [{ name: "input", label: "input", type: "text", value: "value" }]) {
+    function mountTarget(inputs = [{ name: "input", label: "input", type: "text", value: "value" }], stepExtras = {}) {
         return mount(FormTool, {
             props: {
                 id: "input",
@@ -54,15 +54,23 @@ describe("FormTool", () => {
                     outputs: [],
                     inputs: [],
                     post_job_actions: {},
+                    ...stepExtras,
                 },
             },
             global: { ...localVue, provide: { workflowId: "mock-workflow" } },
             stubs: {
                 ToolFooter: { template: "<div>tool-footer</div>" },
+                CustomToolSourceEditor: {
+                    name: "CustomToolSourceEditor",
+                    props: ["toolUuid"],
+                    template: "<div class='source-editor-stub'>{{ toolUuid }}</div>",
+                },
             },
             pinia: createTestingPinia({ createSpy: vi.fn, stubActions: false }),
         });
     }
+
+    const EDIT_BUTTON = "[data-description='edit custom tool source']";
 
     it("changes between different versions", async () => {
         const wrapper = mountTarget();
@@ -84,6 +92,48 @@ describe("FormTool", () => {
         expect(state.tool_version).toEqual("3.0");
         expect(state.tool_id).toEqual("tool_id+3.0");
         await flushPromises();
+    });
+
+    it("offers to edit the tool only for custom tool steps", () => {
+        expect(mountTarget().find(EDIT_BUTTON).exists()).toBe(false);
+        expect(mountTarget(undefined, { tool_uuid: "revision-a" }).find(EDIT_BUTTON).exists()).toBe(true);
+    });
+
+    it("swaps the step to the revision the source editor saved", async () => {
+        const wrapper = mountTarget(undefined, { tool_uuid: "revision-a" });
+        expect(wrapper.find(".source-editor-stub").exists()).toBe(false);
+        await wrapper.find(EDIT_BUTTON).trigger("click");
+        const editor = wrapper.find(".source-editor-stub");
+        expect(editor.text()).toBe("revision-a");
+
+        wrapper.findComponent({ name: "CustomToolSourceEditor" }).vm.$emit("saved", {
+            uuid: "revision-b",
+            representation: { name: "tool_name" },
+        });
+        await flushPromises();
+
+        const state = wrapper.emitted("onSetData")[0][1];
+        expect(state.tool_uuid).toBe("revision-b");
+        expect(state.tool_id).toBe("tool_id+1.0");
+        expect(state.tool_version).toBe("1.0");
+        expect(wrapper.find(".source-editor-stub").exists()).toBe(false);
+        expect(wrapper.text()).toContain("revision-b");
+    });
+
+    it("opens the source editor on mount when asked to", () => {
+        const wrapper = mountTarget(undefined, { tool_uuid: "revision-a" });
+        expect(wrapper.find(".source-editor-stub").exists()).toBe(false);
+        const opened = mount(FormTool, {
+            ...wrapper.vm.$options.propsData,
+            props: { ...wrapper.props(), editTool: true },
+            global: { ...localVue, provide: { workflowId: "mock-workflow" } },
+            stubs: {
+                ToolFooter: { template: "<div>tool-footer</div>" },
+                CustomToolSourceEditor: { template: "<div class='source-editor-stub' />" },
+            },
+            pinia: createTestingPinia({ createSpy: vi.fn, stubActions: false }),
+        });
+        expect(opened.find(".source-editor-stub").exists()).toBe(true);
     });
 
     it("does not stamp UI metadata into a rules input payload", () => {

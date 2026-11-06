@@ -26,7 +26,30 @@
             help="Add an annotation or notes to this step. Annotations are available when a workflow is viewed."
             @input="onAnnotation" />
         <FormConditional :step="step" @onUpdateStep="(id, step) => $emit('onUpdateStep', id, step)" />
-        <div class="mt-2 mb-4">
+        <div v-if="isUserDefinedTool" class="d-flex justify-content-end mt-2">
+            <GButton
+                outline
+                color="blue"
+                size="small"
+                :pressed="editingTool"
+                tooltip
+                title="Edit this custom tool's source and save it as a new revision"
+                data-description="edit custom tool source"
+                @click="editingTool = !editingTool">
+                <FontAwesomeIcon :icon="faEdit" fixed-width />
+                {{ editingTool ? "Back to parameters" : "Edit tool" }}
+            </GButton>
+        </div>
+        <div v-if="editingTool" class="mt-2 mb-4 custom-tool-step-source">
+            <Heading h2 separator bold size="sm"> Tool Source </Heading>
+            <CustomToolSourceEditor
+                :key="toolUuid"
+                :tool-uuid="toolUuid"
+                toolbar
+                @saved="onToolSaved"
+                @cancel="editingTool = false" />
+        </div>
+        <div v-else class="mt-2 mb-4">
             <Heading h2 separator bold size="sm"> Tool Parameters </Heading>
             <FormDisplay
                 :id="id"
@@ -38,7 +61,7 @@
                 :workflow-building-mode="true"
                 @onChange="onChange" />
         </div>
-        <div class="mt-2 mb-4">
+        <div v-if="!editingTool" class="mt-2 mb-4">
             <Heading h2 separator bold size="sm"> Additional Options </Heading>
             <FormSection
                 :id="stepId"
@@ -54,8 +77,10 @@
 </template>
 
 <script>
+import { faEdit } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import { storeToRefs } from "pinia";
-import { ref, toRef, watch } from "vue";
+import { defineAsyncComponent, ref, toRef, watch } from "vue";
 
 import { useWorkflowStores } from "@/composables/workflowStores";
 import { useRefreshFromStore } from "@/stores/refreshFromStore";
@@ -66,6 +91,7 @@ import { useUniqueLabelError } from "../composables/useUniqueLabelError";
 
 import FormConditional from "./FormConditional.vue";
 import FormSection from "./FormSection.vue";
+import GButton from "@/components/BaseComponents/GButton.vue";
 import Heading from "@/components/Common/Heading.vue";
 import FormDisplay from "@/components/Form/FormDisplay.vue";
 import FormElement from "@/components/Form/FormElement.vue";
@@ -78,7 +104,11 @@ export default {
         FormElement,
         FormConditional,
         FormSection,
+        FontAwesomeIcon,
+        GButton,
         Heading,
+        // Monaco and its workers only load when a custom tool is actually edited from a node.
+        CustomToolSourceEditor: defineAsyncComponent(() => import("@/components/Tool/CustomToolSourceEditor.vue")),
     },
     props: {
         step: {
@@ -89,6 +119,11 @@ export default {
         datatypes: {
             type: Array,
             required: true,
+        },
+        /** Open the custom tool's source as soon as the form mounts */
+        editTool: {
+            type: Boolean,
+            default: false,
         },
     },
     emits: ["onSetData", "onUpdateStep", "onChangePostJobActions", "onAnnotation", "onLabel"],
@@ -118,12 +153,14 @@ export default {
             uniqueErrorLabel,
             formKey,
             mainValues,
+            faEdit,
         };
     },
     data() {
         return {
             messageText: "",
             messageVariant: "success",
+            editingTool: this.editTool,
         };
     },
     computed: {
@@ -131,7 +168,14 @@ export default {
             // Make sure we compute a unique id. Local tools don't include the version in the id,
             // but updating tool form when switching tool versions requires that the id changes.
             // (see https://github.com/galaxyproject/galaxy/blob/f5e07b11f0996e75b2b6f27896b2301d8fa8717d/client/src/components/Form/FormDisplay.vue#L108)
-            return `${this.stepId}:${this.configForm.id}/${this.configForm.version}`;
+            // A custom tool revision keeps both, so key on its uuid as well.
+            return `${this.stepId}:${this.configForm.id}/${this.configForm.version}${this.toolUuid ? `/${this.toolUuid}` : ""}`;
+        },
+        toolUuid() {
+            return this.step.tool_uuid || this.configForm.uuid || undefined;
+        },
+        isUserDefinedTool() {
+            return Boolean(this.toolUuid);
         },
         toolCardId() {
             return `${this.stepId}`;
@@ -188,6 +232,13 @@ export default {
             return this.configForm.errors;
         },
     },
+    watch: {
+        editTool(open) {
+            if (open) {
+                this.editingTool = true;
+            }
+        },
+    },
     methods: {
         onAnnotation(newAnnotation) {
             this.$emit("onAnnotation", this.stepId, newAnnotation);
@@ -213,13 +264,25 @@ export default {
             this.messageText = `Now you are using '${this.configForm.name}' version ${newVersion}.`;
             this.postChanges(newVersion);
         },
+        /**
+         * The source editor saved a new revision of the custom tool: point this step at it. Same tool
+         * id and version, new uuid, so the swap is the version change path with a different key.
+         */
+        onToolSaved(tool) {
+            this.editingTool = false;
+            const name = tool.representation?.name ?? this.configForm.name;
+            this.messageText = `Now using the revision of '${name}' saved just now (${tool.uuid}).`;
+            this.postChanges(undefined, tool.uuid);
+            // The tall source panel leaves the inspector scrolled; bring the message back into view.
+            this.$nextTick(() => this.$el.scrollIntoView?.({ block: "start" }));
+        },
         onUpdateFavorites(user, newFavorites) {
             user.preferences["favorites"] = newFavorites;
         },
-        postChanges(newVersion) {
+        postChanges(newVersion, newToolUuid) {
             const payload = Object.assign({}, this.mainValues);
             const options = this.configForm;
-            const toolUuid = options.uuid;
+            const toolUuid = newToolUuid ?? this.toolUuid;
             let toolId = options.id;
             let toolVersion = options.version;
             if (newVersion) {
@@ -237,3 +300,13 @@ export default {
     },
 };
 </script>
+
+<style scoped>
+/* The inspector does not size its children, so give Monaco room to render. */
+.custom-tool-step-source {
+    display: flex;
+    flex-direction: column;
+    height: 60vh;
+    min-height: 20rem;
+}
+</style>
