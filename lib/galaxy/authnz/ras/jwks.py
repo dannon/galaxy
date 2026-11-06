@@ -84,6 +84,11 @@ class JwksClient:
                 keys[kid] = jwt.PyJWK(jwk, algorithm="RS256")
             except jwt.PyJWTError as e:
                 log.warning("Skipping unusable JWKS key %s: %s", kid, e)
+        # An issuer never publishes zero signing keys on purpose; an empty set or an
+        # error body is an outage, and caching it would make every stored passport
+        # look forged.
+        if not keys:
+            raise JwksUnavailableError("JWKS response had no usable RS256 signing keys")
         self._keys = keys
         self._fetched_at = self._clock()
         self._last_refresh_failed = False
