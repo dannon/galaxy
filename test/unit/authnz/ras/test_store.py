@@ -134,6 +134,18 @@ def test_key_fetch_outage_keeps_the_passport():
     assert store.load(USER).status == PassportStatus.OK
 
 
+def test_empty_jwks_keeps_the_passport():
+    vault = InMemoryVault()
+    config = IssuerConfig(
+        issuer=ISSUER, jwks=JwksClient("https://jwks.example", fetcher=lambda url: {"keys": []}, clock=Clock(0))
+    )
+    store = VaultPassportStore(vault, config, clock=Clock(NOW))
+    raw = make_passport([])
+    vault.write_secret(f"user/7/{PASSPORT_VAULT_KEY}", raw)
+    assert store.load(USER).status == PassportStatus.UNAVAILABLE
+    assert vault.read_secret(f"user/7/{PASSPORT_VAULT_KEY}") == raw
+
+
 class RacingVault(InMemoryVault):
     """Simulates another request storing a fresh passport right after the first read."""
 

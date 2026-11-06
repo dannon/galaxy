@@ -380,3 +380,21 @@ def test_real_ras_staging_passport():
     (visa,) = passport.visas
     assert visa.is_ras_visa
     assert visa.dbgap_permissions == ()
+
+
+@pytest.mark.parametrize("bad_doc", [{"keys": []}, {"error": "temporarily_unavailable"}, ["not", "a", "dict"]])
+def test_jwks_refresh_with_no_usable_keys_keeps_the_cached_ones(bad_doc):
+    clock = [1000.0]
+    fetcher = CountingFetcher(jwks_doc((KEY, KID)), bad_doc)
+    client = JwksClient("https://jwks.example", fetcher=fetcher, cache_ttl=3600, clock=lambda: clock[0])
+    good = client.get_signing_key(KID)
+    clock[0] += 3601
+    assert client.get_signing_key(KID) is good
+    assert len(fetcher.calls) == 2
+
+
+@pytest.mark.parametrize("bad_doc", [{"keys": []}, {"error": "temporarily_unavailable"}])
+def test_jwks_with_no_usable_keys_is_unavailable(bad_doc):
+    client = JwksClient("https://jwks.example", fetcher=CountingFetcher(bad_doc))
+    with pytest.raises(JwksUnavailableError):
+        client.get_signing_key(KID)
