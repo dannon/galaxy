@@ -7,11 +7,13 @@ from pathlib import Path
 
 import jwt
 import pytest
+import requests
 from cryptography.hazmat.primitives import serialization
 
 from galaxy.authnz.ras.jwks import (
     JwksClient,
     JwksError,
+    JwksUnavailableError,
 )
 from galaxy.authnz.ras.verify import (
     IssuerConfig,
@@ -250,6 +252,49 @@ def test_jwks_skips_non_rsa_keys():
     client.get_signing_key(KID)
     with pytest.raises(JwksError):
         client.get_signing_key("hmac")
+
+
+class OutageFetcher:
+    def __init__(self, doc):
+        self.doc = doc
+        self.down = False
+        self.calls = 0
+
+    def __call__(self, url):
+        self.calls += 1
+        if self.down:
+            raise requests.ConnectionError("RAS is down")
+        return self.doc
+
+
+def test_failed_jwks_fetch_is_not_retried_on_every_lookup():
+    clock = [1000.0]
+    fetcher = OutageFetcher(jwks_doc((KEY, KID)))
+    fetcher.down = True
+    client = JwksClient("https://jwks.example", fetcher=fetcher, min_refresh_interval=60, clock=lambda: clock[0])
+    for _ in range(5):
+        with pytest.raises(JwksUnavailableError):
+            client.get_signing_key(KID)
+    assert fetcher.calls == 1
+    clock[0] += 61
+    fetcher.down = False
+    assert client.get_signing_key(KID)
+    assert fetcher.calls == 2
+
+
+def test_expired_jwks_cache_is_kept_while_the_issuer_is_down():
+    clock = [1000.0]
+    fetcher = OutageFetcher(jwks_doc((KEY, KID)))
+    client = JwksClient("https://jwks.example", fetcher=fetcher, cache_ttl=3600, clock=lambda: clock[0])
+    client.get_signing_key(KID)
+    clock[0] += 3601
+    fetcher.down = True
+    for _ in range(5):
+        assert client.get_signing_key(KID)
+    assert fetcher.calls == 2
+    # An unknown kid during the outage might be a rotation we couldn't fetch, not a forgery.
+    with pytest.raises(JwksUnavailableError):
+        client.get_signing_key("rotated")
 
 
 def test_jwks_fetch_failure_is_verification_error():

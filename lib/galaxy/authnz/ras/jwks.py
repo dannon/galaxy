@@ -35,9 +35,10 @@ class JwksClient:
     """Signing keys for one issuer, looked up by ``kid``.
 
     Keys are cached for ``cache_ttl`` seconds. A ``kid`` that isn't in the cache
-    triggers one refetch (the issuer may have rotated), but no more often than
-    ``min_refresh_interval`` so a stream of tokens with made-up ``kid`` values can't
-    turn into a stream of requests to the issuer.
+    triggers one refetch (the issuer may have rotated). No fetch, successful or
+    not, is retried within ``min_refresh_interval``, so neither a stream of made-up
+    ``kid`` values nor an issuer outage turns into a stream of requests. When a
+    refresh fails, the keys from the last good fetch keep being used.
     """
 
     def __init__(
@@ -55,6 +56,8 @@ class JwksClient:
         self._clock = clock
         self._keys: dict[str, jwt.PyJWK] = {}
         self._fetched_at: float | None = None
+        self._attempted_at: float | None = None
+        self._last_refresh_failed = False
         self._lock = threading.Lock()
 
     @property
@@ -62,6 +65,8 @@ class JwksClient:
         return self._jwks_uri() if callable(self._jwks_uri) else self._jwks_uri
 
     def _refresh(self) -> None:
+        self._attempted_at = self._clock()
+        self._last_refresh_failed = True
         try:
             jwks = self._fetcher(self.jwks_uri)
         except (requests.RequestException, ValueError) as e:
@@ -79,18 +84,25 @@ class JwksClient:
                 log.warning("Skipping unusable JWKS key %s: %s", kid, e)
         self._keys = keys
         self._fetched_at = self._clock()
+        self._last_refresh_failed = False
 
     def get_signing_key(self, kid: str | None) -> jwt.PyJWK:
         if not kid:
             raise JwksError("Token header has no kid")
         with self._lock:
             now = self._clock()
-            if self._fetched_at is None or now - self._fetched_at >= self._cache_ttl:
-                self._refresh()
-            elif kid not in self._keys and now - self._fetched_at >= self._min_refresh_interval:
-                log.debug("kid %s not in cached JWKS, refetching", kid)
-                self._refresh()
+            stale = self._fetched_at is None or now - self._fetched_at >= self._cache_ttl
+            throttled = self._attempted_at is not None and now - self._attempted_at < self._min_refresh_interval
+            if (stale or kid not in self._keys) and not throttled:
+                try:
+                    self._refresh()
+                except JwksUnavailableError as e:
+                    if not self._keys:
+                        raise
+                    log.warning("Could not refresh JWKS, using the cached keys: %s", e)
             key = self._keys.get(kid)
+            if key is None and self._last_refresh_failed:
+                raise JwksUnavailableError(f"No cached signing key with kid {kid!r} and the JWKS can't be fetched")
         if key is None:
             raise JwksError(f"No signing key with kid {kid!r}")
         return key
