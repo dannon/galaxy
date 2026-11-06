@@ -35,8 +35,12 @@ def _app(gate):
 
 def _service():
     store = VaultPassportStore(InMemoryVault(), issuer_config(), clock=lambda: NOW)
+    galaxy_url = "https://galaxy.example.org"
     gate = PassportGate(
-        RasConfig(issuer=ISSUER, bridge_url=BRIDGE), store, galaxy_url="https://galaxy.example.org", clock=lambda: NOW
+        RasConfig(issuer=ISSUER, bridge_url=BRIDGE, galaxy_url=galaxy_url),
+        store,
+        galaxy_url=galaxy_url,
+        clock=lambda: NOW,
     )
     return store, RasPassportService(_app(gate))
 

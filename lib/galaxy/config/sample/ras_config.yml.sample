@@ -24,8 +24,8 @@ issuer: https://stsstg.nih.gov
 # path below galaxy_url.
 #return_path: /
 
-# Galaxy's browser-facing URL, used to build the return address. Defaults to
-# galaxy_infrastructure_url.
+# Galaxy's browser-facing URL, used to build the return address. Required when
+# bridge_url is set.
 #galaxy_url: https://galaxy.example.org/
 
 # Where passports are kept: "vault" (Galaxy's vault, needs vault_config_file)
