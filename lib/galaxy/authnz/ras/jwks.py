@@ -73,6 +73,8 @@ class JwksClient:
             raise JwksUnavailableError(f"Could not fetch JWKS: {e}") from e
         keys: dict[str, jwt.PyJWK] = {}
         for jwk in jwks.get("keys", []) if isinstance(jwks, dict) else []:
+            if not isinstance(jwk, dict):
+                continue
             kid = jwk.get("kid")
             # Only RSA signing keys can verify RS256; skip anything else rather than
             # failing the whole set.

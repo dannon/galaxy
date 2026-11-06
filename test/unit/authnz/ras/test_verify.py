@@ -297,6 +297,13 @@ def test_expired_jwks_cache_is_kept_while_the_issuer_is_down():
         client.get_signing_key("rotated")
 
 
+def test_jwks_skips_malformed_entries():
+    doc = jwks_doc((KEY, KID))
+    doc["keys"][:0] = ["not-a-key", 1, None]
+    client = JwksClient("https://jwks.example", fetcher=CountingFetcher(doc))
+    assert client.get_signing_key(KID)
+
+
 def test_jwks_fetch_failure_is_verification_error():
     def broken(url):
         raise ValueError("bad json")
