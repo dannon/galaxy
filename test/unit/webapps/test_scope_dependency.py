@@ -59,6 +59,11 @@ def admin_route():
     return {"ok": True}
 
 
+@router.get("/cors", allow_cors=True, scope="histories:read")
+def cors_route():
+    return {"ok": True}
+
+
 app = FastAPI()
 add_exception_handler(app)
 app.include_router(router)
@@ -106,3 +111,15 @@ def test_contextvar_reaches_sync_and_async_endpoints():
     client.get("/annotated_async")
     assert STATE["seen"] == credential
     assert current_credential() is None
+
+
+def test_cors_routes_keep_their_dependencies_on_the_trailing_slash_alias():
+    _as(Credential(kind="token", scopes=frozenset({"account:read"})))
+    for path in ("/cors", "/cors/"):
+        response = client.get(path)
+        assert response.status_code == 403, path
+        assert "histories:read" in response.json()["err_msg"]
+    _as(Credential(kind="token", scopes=frozenset({"histories:read"})))
+    assert client.get("/cors").status_code == 200
+    assert client.get("/cors/").status_code == 200
+    assert client.options("/cors/").status_code == 200

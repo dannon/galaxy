@@ -56,11 +56,13 @@ class TestMCPOnlyToken(IntegrationTestCase):
     def _rest(self, path: str, token: str, method: str = "get", **kwargs) -> requests.Response:
         return requests.request(method, urljoin(self.url, path), headers={"x-api-key": token}, timeout=60, **kwargs)
 
-    def _mint(self, constraints: dict | None, preset: str = AGENT_PRESET) -> str:
+    def _mint(self, constraints: dict | None, preset: str = AGENT_PRESET, scopes: str | None = None) -> str:
         user_id = self._get("users/current").json()["id"]
         payload: dict = {"name": "claude code", "preset": preset}
         if constraints:
             payload["constraints"] = constraints
+        if scopes:
+            payload["scopes"] = scopes
         response = self._post(f"users/{user_id}/tokens", data=payload, json=True)
         self._assert_status_code_is(response, 200)
         return response.json()["token"]
@@ -107,6 +109,50 @@ class TestMCPOnlyToken(IntegrationTestCase):
         # ops outside the agent preset's scopes are refused on the MCP side too
         error = self._error(self._call("create_user_tool", {"representation": {}}, token))
         assert "not available to scoped access tokens" in error
+
+    def test_insufficient_scope_names_the_missing_scope(self):
+        token = self._mint(None, preset="read-only")
+        assert self._result(self._call("list_histories", {}, token)) is not None
+        error = self._error(self._call("create_history", {"name": "nope"}, token))
+        assert "histories:write" in error, error
+        assert "create_history" in error, error
+
+    def test_api_only_token_is_refused_on_mcp(self):
+        token = self._mint({"surfaces": ["api"]})
+        assert self._rest("api/users/current", token).status_code == 200
+        error = self._error(self._call("get_user", {}, token))
+        assert "restricted to the api surface" in error, error
+
+    def test_tool_allowlist_filters_listings(self):
+        token = self._mint({"tools": {"ids": ["cat"]}}, preset="run-jobs")
+        found = self._result(self._call("search_tools", {"query": "cat"}, token))["tools"]
+        assert {t["id"] for t in found} == {"cat"}, found
+        found = self._result(self._call("search_tools_by_keywords", {"keywords": ["cat"]}, token))["tools"]
+        assert {t["id"] for t in found} == {"cat"}, found
+        panel = json.dumps(self._result(self._call("get_tool_panel", {}, token)))
+        assert '"cat"' in panel and "cat_data_and_sleep" not in panel
+        assert self._result(self._call("get_tool_details", {"tool_id": "cat"}, token))["id"] == "cat"
+        error = self._error(self._call("get_tool_details", {"tool_id": "cat_data_and_sleep"}, token))
+        assert "cat_data_and_sleep" in error, error
+
+    def test_workflow_allowlist(self):
+        workflow_populator = WorkflowPopulator(self.galaxy_interactor)
+        allowed = workflow_populator.upload_yaml_workflow(WORKFLOW_SIMPLE_CAT_TWICE)
+        other = workflow_populator.upload_yaml_workflow(WORKFLOW_SIMPLE_CAT_TWICE)
+        token = self._mint({"workflows": {"ids": [allowed]}})
+        history_id = self._result(self._call("create_history", {"name": "wf"}, token))["id"]
+
+        listed = self._result(self._call("list_workflows", {}, token))["workflows"]
+        assert [w["id"] for w in listed] == [allowed], listed
+        assert self._result(self._call("get_workflow_details", {"workflow_id": allowed}, token))
+        error = self._error(self._call("get_workflow_details", {"workflow_id": other}, token))
+        assert "access token" in error, error
+        error = self._error(
+            self._call("invoke_workflow", {"workflow_id": other, "history_id": history_id, "inputs": {}}, token)
+        )
+        assert "access token" in error, error
+        # the account's own key still lists both
+        assert {w["id"] for w in self._get("workflows").json()} >= {allowed, other}
 
     def test_workflow_invocations_respect_the_token(self):
         workflow_populator = WorkflowPopulator(self.galaxy_interactor)
@@ -188,4 +234,5 @@ class TestMCPOnlyToken(IntegrationTestCase):
         assert key
         assert self._result(self._call("get_user", {}, key))["email"]
         assert self._rest("api/users/current", key).status_code == 200
-        assert self._rest("api/tools/error_stack", key).status_code in (200, 403)
+        # an unannotated legacy route, which a scoped token could never open
+        assert self._rest("api/tool_panels", key).status_code == 200

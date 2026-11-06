@@ -1,5 +1,8 @@
 """Scoped API token minting, resolution and the scope/constraint grammar."""
 
+import inspect
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import timedelta
 from types import SimpleNamespace
 from typing import Any
@@ -11,23 +14,45 @@ from galaxy import (
     exceptions,
     model,
 )
+from galaxy.agents.operations import (
+    _assert_every_operation_declares_a_scope,
+    AgentOperationsManager,
+)
+from galaxy.exceptions import AdminRequiredException
+from galaxy.managers.api_keys import ApiKeyManager
 from galaxy.managers.api_tokens import (
     ApiTokenManager,
     Credential,
     credential_permits_history,
+    credential_permits_input,
     credential_permits_tool,
     current_credential,
     parse_scopes,
     PRESETS,
+    PUBLIC_SCOPE,
     require_scope,
     reset_current_credential,
     scoped_credential_refuses_tool,
+    scoped_credential_refuses_upload,
+    scoped_credential_refuses_uri,
     scopes_allow,
     set_current_credential,
     TOKEN_PREFIX,
     validate_constraints,
 )
+from galaxy.managers.hdas import HDAManager
+from galaxy.managers.histories import HistoryManager
+from galaxy.managers.workflows import WorkflowsManager
 from galaxy.model.orm.now import now
+from galaxy.schema.history import HistoryIndexQueryPayload
+from galaxy.schema.schema import WorkflowIndexQueryPayload
+from galaxy.tool_util_models.parameters import DataRequestHda
+from galaxy.webapps.galaxy.api import get_admin_user
+from galaxy.work.context import WorkRequestContext
+from galaxy.workflow.run_request import (
+    _get_input_or_not_found,
+    _get_target_history,
+)
 from .base import BaseTestCase
 
 user2_data = dict(email="user2@user2.user2", username="user2", password="123456")
@@ -35,6 +60,15 @@ user2_data = dict(email="user2@user2.user2", username="user2", password="123456"
 
 def FakeTool(tool_id: str, old_id: str | None = None) -> Any:
     return SimpleNamespace(id=tool_id, old_id=old_id or tool_id)
+
+
+@contextmanager
+def as_credential(credential: Credential | None) -> Iterator[None]:
+    token = set_current_credential(credential)
+    try:
+        yield
+    finally:
+        reset_current_credential(token)
 
 
 def test_parse_scopes_accepts_the_presets():
@@ -120,13 +154,69 @@ def test_scoped_credential_refuses_tools_that_carry_wider_credentials():
     assert scoped_credential_refuses_tool(user_defined, Credential(kind="legacy_key")) is None
 
 
-def test_tool_constraint_matches_versioned_and_upload_ids():
+def test_data_manager_tools_need_the_admin_scope():
+    data_manager = FakeTool("data_manager_fetch_genome_dbkeys_all_fasta")
+    data_manager.tool_type = "manage_data"
+    assert scoped_credential_refuses_tool(data_manager, Credential(kind="token", scopes=frozenset({"*:*"})))
+    assert (
+        scoped_credential_refuses_tool(
+            data_manager, Credential(kind="token", scopes=frozenset({"admin:*", "tools:run"}))
+        )
+        is None
+    )
+    assert scoped_credential_refuses_tool(data_manager, None) is None
+    assert scoped_credential_refuses_tool(data_manager, Credential(kind="legacy_key")) is None
+
+
+def test_tool_constraint_matches_versioned_ids():
     cred = Credential(kind="token", scopes=frozenset(), constraints={"tools": {"ids": ["toolshed/repos/x/kmindex"]}})
     assert credential_permits_tool(FakeTool("toolshed/repos/x/kmindex/0.1.0", "kmindex"), cred)
-    assert credential_permits_tool(FakeTool("__DATA_FETCH__"), cred)
     assert not credential_permits_tool(FakeTool("cat1"), cred)
     assert credential_permits_tool(FakeTool("cat1"), Credential(kind="token", scopes=frozenset()))
     assert credential_permits_tool(FakeTool("cat1"), None)
+
+
+def test_upload_tools_pass_the_tool_constraint_only_with_datasets_write():
+    constraint = {"tools": {"ids": ["cat"]}}
+    runner = Credential(kind="token", scopes=frozenset({"tools:run"}), constraints=constraint)
+    assert not credential_permits_tool(FakeTool("upload1"), runner)
+    assert not credential_permits_tool(FakeTool("__DATA_FETCH__"), runner)
+    writer = Credential(kind="token", scopes=frozenset({"tools:run", "datasets:write"}), constraints=constraint)
+    assert credential_permits_tool(FakeTool("upload1"), writer)
+    assert credential_permits_tool(FakeTool("__DATA_FETCH__"), writer)
+    assert not credential_permits_tool(FakeTool("cat1"), writer)
+
+
+def test_library_datasets_are_inputs_only_with_libraries_read():
+    ldda = model.LibraryDatasetDatasetAssociation()
+    assert credential_permits_input(ldda, None)
+    assert credential_permits_input(ldda, Credential(kind="legacy_key"))
+    assert not credential_permits_input(
+        ldda, Credential(kind="token", scopes=frozenset({"datasets:read", "tools:run"}))
+    )
+    assert credential_permits_input(ldda, Credential(kind="token", scopes=frozenset({"libraries:read"})))
+    assert credential_permits_input(ldda, Credential(kind="token", scopes=frozenset({"*:read"})))
+
+
+def test_scoped_credentials_fetch_plain_urls_only():
+    scoped = Credential(kind="token", scopes=frozenset({"datasets:write"}))
+    for ok in ("https://example.org/data.txt", "http://example.org/x", "ftp://example.org/x", "base64://MSAyIDMK"):
+        assert scoped_credential_refuses_uri(ok, scoped) is None, ok
+    for bad in ("gxfiles://home/x.txt", "gxuserfiles://x", "drs://host/id", "file:///etc/passwd", "/etc/passwd", ""):
+        assert scoped_credential_refuses_uri(bad, scoped), bad
+        assert scoped_credential_refuses_uri(bad, None) is None
+        assert scoped_credential_refuses_uri(bad, Credential(kind="session")) is None
+
+
+def test_scoped_credentials_do_not_read_server_or_ftp_paths():
+    scoped = Credential(kind="token", scopes=frozenset({"datasets:write"}))
+    for src in ("path", "server_dir", "ftp_import"):
+        assert scoped_credential_refuses_upload(src, None, scoped), src
+        assert scoped_credential_refuses_upload(src, None, None) is None
+    assert scoped_credential_refuses_upload("pasted", None, scoped) is None
+    assert scoped_credential_refuses_upload("files", None, scoped) is None
+    assert scoped_credential_refuses_upload("url", "https://example.org/x", scoped) is None
+    assert scoped_credential_refuses_upload("url", "gxfiles://x", scoped)
 
 
 def test_current_credential_is_request_local():
@@ -160,12 +250,12 @@ class TestApiTokenManager(BaseTestCase):
         assert token.last_used_at is not None
 
     def test_mint_caps_the_lifetime(self):
-        with patch.object(self.app.config, "api_token_max_lifetime", 2, create=True):
+        with patch.object(self.app.config, "api_token_max_lifetime", 2):
             token, _ = self.manager.mint_token(self.user, "long", "*:read", expires_in=10 * 24 * 3600)
             assert token.expires_at and token.expires_at - now() <= timedelta(days=2)
             token, _ = self.manager.mint_token(self.user, "default", "*:read")
             assert token.expires_at and token.expires_at - now() <= timedelta(days=2)
-        with patch.object(self.app.config, "api_token_max_lifetime", 0, create=True):
+        with patch.object(self.app.config, "api_token_max_lifetime", 0):
             token, _ = self.manager.mint_token(self.user, "forever", "*:read")
             assert token.expires_at is None
 
@@ -176,7 +266,7 @@ class TestApiTokenManager(BaseTestCase):
             self.manager.mint_token(self.user, "x", "nope:read")
         with pytest.raises(exceptions.RequestParameterInvalidException):
             self.manager.mint_token(self.user, "x", "*:read", expires_in=0)
-        with pytest.raises(exceptions.RequestParameterInvalidException, match="administrators"):
+        with pytest.raises(exceptions.InsufficientPermissionsException, match="administrators"):
             self.manager.mint_token(self.user, "x", "admin:*")
         with pytest.raises(exceptions.RequestParameterInvalidException):
             self.manager.mint_token(self.user, "x", "*:read", source="carrier-pigeon")
@@ -268,22 +358,31 @@ class TestApiTokenManager(BaseTestCase):
         assert self.user_manager.by_credentials(secret, None) == self.user
 
     def test_user_manager_keeps_the_legacy_key_unscoped(self):
-        from galaxy.managers.api_keys import ApiKeyManager
-
         key = ApiKeyManager(self.app).create_api_key(self.user).key
         user, credential = self.user_manager.resolve_credential(key, None)
         assert user == self.user
         assert credential is not None and credential.kind == "legacy_key" and not credential.scoped
         assert self.user_manager.resolve_credential(None, None) == (None, None)
 
+    def test_admin_ceiling_in_the_user_manager_and_at_admin_routes(self):
+        plain = Credential(kind="token", scopes=frozenset({"*:*"}))
+        root = Credential(kind="token", scopes=frozenset({"admin:*"}))
+        with as_credential(plain):
+            assert not self.user_manager.is_admin(self.admin_user)
+        with as_credential(root):
+            assert self.user_manager.is_admin(self.admin_user)
+        assert self.user_manager.is_admin(self.admin_user)
+        # the FastAPI require_admin dependency sees the same ceiling through trans
+        with pytest.raises(AdminRequiredException):
+            get_admin_user(WorkRequestContext(app=self.app, user=self.admin_user, credential=plain))
+        assert (
+            get_admin_user(WorkRequestContext(app=self.app, user=self.admin_user, credential=root)) == self.admin_user
+        )
+        assert get_admin_user(WorkRequestContext(app=self.app, user=self.admin_user)) == self.admin_user
+
 
 def test_every_agent_operation_declares_a_scope():
     """Widening an MCP op's scope is a reviewed diff: this pins the map."""
-    import inspect
-
-    from galaxy.agents.operations import AgentOperationsManager
-    from galaxy.managers.api_tokens import PUBLIC_SCOPE
-
     expected = {
         "connect": "account:read",
         "search_tools": "tools:read",
@@ -346,13 +445,9 @@ class TestConstraintsThroughManagers(BaseTestCase):
 
     def set_up_managers(self):
         super().set_up_managers()
-        from galaxy.managers.hdas import HDAManager
-        from galaxy.managers.histories import HistoryManager
-        from galaxy.schema.history import HistoryIndexQueryPayload
-
-        self.HistoryIndexQueryPayload = HistoryIndexQueryPayload
         self.history_manager = self.app[HistoryManager]
         self.hda_manager = self.app[HDAManager]
+        self.workflows_manager = self.app[WorkflowsManager]
         self.manager = ApiTokenManager(self.app)
         self.user = self.user_manager.create(**user2_data)
         token, _ = self.manager.mint_token(
@@ -370,17 +465,16 @@ class TestConstraintsThroughManagers(BaseTestCase):
         self.mock_trans.user_is_admin = False
 
     def _with_credential(self, credential):
-        from contextlib import contextmanager
+        return as_credential(credential)
 
-        @contextmanager
-        def scope():
-            token = set_current_credential(credential)
-            try:
-                yield
-            finally:
-                reset_current_credential(token)
-
-        return scope()
+    def _list_collection(self, history: model.History, hda: model.HistoryDatasetAssociation):
+        collection = model.DatasetCollection(collection_type="list")
+        element = model.DatasetCollectionElement(collection=collection, element=hda, element_index=0)
+        element.element_identifier = "first"
+        hdca = model.HistoryDatasetCollectionAssociation(history=history, collection=collection, name="list")
+        self.trans.sa_session.add_all([collection, element, hdca])
+        self.trans.sa_session.commit()
+        return hdca, element
 
     def test_history_ownership_and_access_follow_the_constraint(self):
         with self._with_credential(self.credential):
@@ -394,6 +488,19 @@ class TestConstraintsThroughManagers(BaseTestCase):
         # the same calls with no credential are unchanged
         assert self.history_manager.is_owner(self.theirs, self.user)
 
+    def test_history_id_allowlist_through_the_manager(self):
+        token, _ = self.manager.mint_token(
+            self.user, "listed", PRESETS["run-jobs"], constraints={"histories": {"ids": [self.theirs.id]}}
+        )
+        payload = HistoryIndexQueryPayload(show_own=True)
+        with self._with_credential(self.manager.credential_for(token)):
+            assert self.history_manager.is_owner(self.theirs, self.user)
+            assert not self.history_manager.is_owner(self.mine, self.user)
+            with pytest.raises(exceptions.ObjectNotFound):
+                self.history_manager.get_accessible(self.mine.id, self.user)
+            listed, _ = self.history_manager.index_query(self.trans, payload)
+            assert [h.id for h in listed] == [self.theirs.id]
+
     def test_admin_users_are_constrained_too(self):
         self.trans.set_user(self.admin_user)
         with self._with_credential(self.credential):
@@ -401,7 +508,6 @@ class TestConstraintsThroughManagers(BaseTestCase):
             assert not self.history_manager.is_accessible(self.theirs, self.admin_user)
 
     def test_hdas_inherit_their_history(self):
-
         own_hda = self.hda_manager.create(history=self.mine, dataset=None)
         other_hda = self.hda_manager.create(history=self.theirs, dataset=None)
         with self._with_credential(self.credential):
@@ -409,8 +515,24 @@ class TestConstraintsThroughManagers(BaseTestCase):
             assert not self.hda_manager.is_owner(other_hda, self.user)
             assert not self.hda_manager.is_accessible(other_hda, self.user)
 
+    def test_collections_and_their_elements_inherit_their_history(self):
+        own_hda = self.hda_manager.create(history=self.mine, dataset=None)
+        other_hda = self.hda_manager.create(history=self.theirs, dataset=None)
+        own_hdca, own_element = self._list_collection(self.mine, own_hda)
+        other_hdca, other_element = self._list_collection(self.theirs, other_hda)
+        # a collection in the token's history whose element lives outside it
+        mixed_hdca, mixed_element = self._list_collection(self.mine, other_hda)
+        with self._with_credential(self.credential):
+            assert credential_permits_input(own_hdca)
+            assert credential_permits_input(own_element)
+            assert not credential_permits_input(other_hdca)
+            assert not credential_permits_input(other_element)
+            assert credential_permits_input(mixed_hdca)
+            assert not credential_permits_input(mixed_element)
+        assert credential_permits_input(other_hdca) and credential_permits_input(other_element)
+
     def test_history_listing_is_filtered(self):
-        payload = self.HistoryIndexQueryPayload(show_own=True)
+        payload = HistoryIndexQueryPayload(show_own=True)
         with self._with_credential(self.credential):
             listed, _ = self.history_manager.index_query(self.trans, payload)
             assert [h.id for h in listed] == [self.mine.id]
@@ -418,8 +540,6 @@ class TestConstraintsThroughManagers(BaseTestCase):
         assert {h.id for h in listed} == {self.mine.id, self.theirs.id}
 
     def test_invocations_honour_the_history_constraint(self):
-        from galaxy.managers.workflows import WorkflowsManager
-
         stored = model.StoredWorkflow(user=self.user, name="wf")
         workflow = model.Workflow()
         workflow.stored_workflow = stored
@@ -432,7 +552,7 @@ class TestConstraintsThroughManagers(BaseTestCase):
         outside.history = self.theirs
         self.trans.sa_session.add_all([stored, workflow, inside, outside])
         self.trans.sa_session.commit()
-        manager = self.app[WorkflowsManager]
+        manager = self.workflows_manager
         with self._with_credential(self.credential):
             assert manager.get_invocation(self.trans, inside.id) == inside
             with pytest.raises(exceptions.ItemAccessibilityException):
@@ -445,9 +565,6 @@ class TestConstraintsThroughManagers(BaseTestCase):
         assert total == 2
 
     def test_workflow_inputs_outside_the_constraint_are_refused(self):
-        from galaxy.tool_util_models.parameters import DataRequestHda
-        from galaxy.workflow.run_request import _get_input_or_not_found
-
         own_hda = self.hda_manager.create(history=self.mine, dataset=None)
         other_hda = self.hda_manager.create(history=self.theirs, dataset=None)
         step = model.WorkflowStep()
@@ -461,8 +578,6 @@ class TestConstraintsThroughManagers(BaseTestCase):
         assert _get_input_or_not_found(self.trans, model.HistoryDatasetAssociation, request, step) == other_hda
 
     def test_histories_made_for_a_workflow_run_belong_to_the_token(self):
-        from galaxy.workflow.run_request import _get_target_history
-
         workflow = model.Workflow()
         workflow.name = "wf"
         with self._with_credential(self.credential):
@@ -470,26 +585,44 @@ class TestConstraintsThroughManagers(BaseTestCase):
         assert history.api_token_id == self.credential.token_id
         assert _get_target_history(self.trans, workflow, {"new_history_name": "plain"}, [[]]).api_token_id is None
 
-    def test_workflow_constraint_through_the_manager(self):
-        from galaxy.managers.workflows import WorkflowsManager
-
+    def _two_workflows(self) -> tuple[model.StoredWorkflow, model.StoredWorkflow]:
         allowed = model.StoredWorkflow(user=self.user, name="allowed")
         other = model.StoredWorkflow(user=self.user, name="other")
+        for stored in (allowed, other):
+            workflow = model.Workflow()
+            workflow.stored_workflow = stored
+            stored.latest_workflow = workflow
         self.trans.sa_session.add_all([allowed, other])
         self.trans.sa_session.commit()
+        return allowed, other
+
+    def test_workflow_constraint_through_the_manager(self):
+        allowed, other = self._two_workflows()
         token, _ = self.manager.mint_token(
             self.user, "wf", "workflows:run", constraints={"workflows": {"ids": [allowed.id]}}
         )
-        manager = self.app[WorkflowsManager]
+        manager = self.workflows_manager
         with self._with_credential(self.manager.credential_for(token)):
             assert manager.get_stored_workflow(self.trans, allowed.id) == allowed
             with pytest.raises(exceptions.ItemAccessibilityException):
                 manager.get_stored_workflow(self.trans, other.id)
         assert manager.get_stored_workflow(self.trans, other.id) == other
 
-    def test_undeclared_agent_operation_is_rejected_at_class_creation(self):
-        from galaxy.agents.operations import _assert_every_operation_declares_a_scope
+    def test_workflow_listing_is_filtered(self):
+        allowed, other = self._two_workflows()
+        token, _ = self.manager.mint_token(
+            self.user, "wf", "workflows:read", constraints={"workflows": {"ids": [allowed.id]}}
+        )
+        payload = WorkflowIndexQueryPayload()
+        with self._with_credential(self.manager.credential_for(token)):
+            listed, total = self.workflows_manager.index_query(self.trans, payload, include_total_count=True)
+            assert [w.id for w in listed] == [allowed.id]
+            assert total == 1
+        listed, total = self.workflows_manager.index_query(self.trans, payload, include_total_count=True)
+        assert {w.id for w in listed} == {allowed.id, other.id}
+        assert total == 2
 
+    def test_undeclared_agent_operation_is_rejected_at_class_creation(self):
         class Sloppy:
             def do_it(self):
                 pass
@@ -498,8 +631,6 @@ class TestConstraintsThroughManagers(BaseTestCase):
             _assert_every_operation_declares_a_scope(Sloppy)
 
     def test_scoped_credential_without_admin_scope_is_not_admin(self):
-        from galaxy.work.context import WorkRequestContext
-
         admin_token, _ = self.manager.mint_token(self.admin_user, "root", "admin:*")
         plain_token, _ = self.manager.mint_token(self.admin_user, "plain", "*:*")
         for token, expected in ((admin_token, True), (plain_token, False)):

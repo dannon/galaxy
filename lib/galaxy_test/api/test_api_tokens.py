@@ -1,9 +1,13 @@
 """Scoped, expiring access tokens: minting under /api/users/{id}/tokens and what they can reach."""
 
+import time
 from typing import Any
 
 from galaxy_test.base.decorators import requires_new_user
-from galaxy_test.base.populators import DatasetPopulator
+from galaxy_test.base.populators import (
+    DatasetPopulator,
+    LibraryPopulator,
+)
 from ._framework import ApiTestCase
 
 # Stand-ins for the two tool ids BRC's service runs (kmindex and random_lines in production).
@@ -27,6 +31,17 @@ class TestApiTokens(ApiTestCase):
     def _as_token(self, token: str):
         """Send requests with ``token`` in x-api-key instead of the test user's key."""
         return _TokenContext(self, token)
+
+    def _url_fetch_payload(self, history_id: str, url: str, destination: dict[str, Any] | None = None):
+        return {
+            "history_id": history_id,
+            "targets": [
+                {
+                    "destination": destination or {"type": "hdas"},
+                    "elements": [{"src": "url", "url": url, "ext": "txt"}],
+                }
+            ],
+        }
 
     # ---- the token management routes
 
@@ -57,8 +72,9 @@ class TestApiTokens(ApiTestCase):
         self._mint({"name": "x", "preset": "nope"}, status=400)
         self._mint({"name": "x"}, status=400)
         self._mint({"name": "x", "scopes": "*:read", "expires_in": 0}, status=400)
+        self._mint({"name": "x", "scopes": "*:read", "expires_in": 10**12}, status=400)
         self._mint({"name": "x", "scopes": "*:read", "constraints": {"surfaces": ["ftp"]}}, status=400)
-        self._mint({"name": "x", "scopes": "admin:*"}, status=400)
+        self._mint({"name": "x", "scopes": "admin:*"}, status=403)
 
     @requires_new_user
     def test_other_users_tokens_are_not_mine(self):
@@ -67,6 +83,27 @@ class TestApiTokens(ApiTestCase):
             other_id = self._current_user_id()
             response = self._delete(f"users/{other_id}/tokens/{created['id']}")
             self._assert_status_code_is(response, 404)
+
+    def test_admins_cannot_mint_tokens_for_other_users(self):
+        """A token is a credential for the account that minted it, never a quiet act-as key."""
+        user_id = self._current_user_id()
+        response = self._post(f"users/{user_id}/tokens", data={"name": "x", "scopes": "*:read"}, json=True, admin=True)
+        self._assert_status_code_is(response, 403)
+        assert "own account" in response.json()["err_msg"]
+        # listing and revoking for support stay open to admins
+        created = self._mint({"name": "mine", "scopes": "*:read"})
+        listed = self._get(f"users/{user_id}/tokens", admin=True)
+        self._assert_status_code_is(listed, 200)
+        assert created["id"] in [t["id"] for t in listed.json()]
+        self._assert_status_code_is(self._delete(f"users/{user_id}/tokens/{created['id']}", admin=True), 200)
+
+    def test_expired_token_is_refused(self):
+        created = self._mint({"name": "short", "scopes": "account:read", "expires_in": 1})
+        time.sleep(1.5)
+        with self._as_token(created["token"]):
+            response = self._get("users/current")
+        self._assert_status_code_is(response, 401)
+        assert "expired" in response.json()["err_msg"]
 
     def test_revoking_a_token_leaves_the_rest_alone(self):
         first = self._mint({"name": "first", "scopes": "account:read"})
@@ -80,13 +117,15 @@ class TestApiTokens(ApiTestCase):
 
     def test_scoped_tokens_cannot_mint_tokens_or_run_as(self):
         created = self._mint({"name": "narrow", "scopes": "*:*"})
+        me = self._current_user_id()
         with self._as_token(created["token"]):
-            response = self._post(
-                f"users/{self._current_user_id()}/tokens", data={"name": "x", "scopes": "*:read"}, json=True
-            )
+            response = self._post(f"users/{me}/tokens", data={"name": "x", "scopes": "*:read"}, json=True)
             self._assert_status_code_is(response, 403)
             assert "not available to scoped access tokens" in response.json()["err_msg"]
-            response = self._get("users/current", headers={"run-as": self._current_user_id()})
+            response = self._get("users/current", headers={"run-as": me})
+            self._assert_status_code_is(response, 403)
+            # the legacy framework reads the same header
+            response = self._get("tools", data={"q": "cat"}, headers={"run-as": me})
             self._assert_status_code_is(response, 403)
 
     def test_token_works_as_bearer_and_query_key(self):
@@ -119,6 +158,98 @@ class TestApiTokens(ApiTestCase):
         self._assert_status_code_is(response, 403)
         assert "not available to scoped access tokens" in response.json()["err_msg"]
         assert f"GET /api/tools/{ALLOWED_TOOL}/citations" in response.json()["err_msg"]
+
+    def test_history_copies_belong_to_the_token(self):
+        created = self._mint(
+            {"name": "copier", "preset": "run-jobs", "constraints": {"histories": {"created_by_token": True}}}
+        )
+        with self._as_token(created["token"]):
+            history_id = self.dataset_populator.new_history(name="original")
+            copied = self._post("histories", data={"history_id": history_id, "name": "copy"}, json=True)
+            self._assert_status_code_is(copied, 200)
+            listed = [h["id"] for h in self._get("histories").json()]
+        assert copied.json()["id"] in listed and history_id in listed
+
+    def test_library_datasets_need_the_libraries_scope(self):
+        library_populator = LibraryPopulator(self.galaxy_interactor)
+        library_dataset = library_populator.new_library_dataset("scoped-tokens", contents="library secret\n")
+        ldda_id = library_dataset["ldda_id"]
+        folder_id = library_dataset["folder_id"]
+        history_id = self.dataset_populator.new_history()
+        # the account's roles reach the library dataset
+        self._assert_status_code_is(self._get(f"datasets/{ldda_id}", data={"hda_ldda": "ldda"}), 200)
+
+        created = self._mint({"name": "no libraries", "preset": "run-jobs"})
+        with self._as_token(created["token"]):
+            for path in (f"datasets/{ldda_id}", f"datasets/{ldda_id}/storage", f"datasets/{ldda_id}/inheritance_chain"):
+                response = self._get(path, data={"hda_ldda": "ldda"})
+                self._assert_status_code_is(response, 403)
+                assert "libraries:read" in response.json()["err_msg"], path
+            response = self._get(f"datasets/{ldda_id}/display", data={"hda_ldda": "ldda"})
+            self._assert_status_code_is(response, 403)
+            # neither as a tool input, by src or through a tool form
+            run = self.dataset_populator.run_tool_raw(
+                ALLOWED_TOOL, {"input1": {"src": "ldda", "id": ldda_id}}, history_id
+            )
+            self._assert_status_code_is(run, 403)
+            assert "libraries:read" in run.json()["err_msg"]
+            # nor as an upload destination
+            upload = self._post(
+                "tools/fetch",
+                data=self._url_fetch_payload(
+                    history_id, "base64://MSAK", {"type": "library_folder", "library_folder_id": folder_id}
+                ),
+                json=True,
+            )
+            self._assert_status_code_is(upload, 403)
+            assert "libraries:write" in upload.json()["err_msg"]
+
+        reader = self._mint({"name": "with libraries", "preset": "run-jobs", "scopes": "libraries:read"})
+        with self._as_token(reader["token"]):
+            response = self._get(f"datasets/{ldda_id}", data={"hda_ldda": "ldda"})
+            self._assert_status_code_is(response, 200)
+            run = self.dataset_populator.run_tool_raw(
+                ALLOWED_TOOL, {"input1": {"src": "ldda", "id": ldda_id}}, history_id
+            )
+            self._assert_status_code_is(run, 200)
+
+    def test_scoped_tokens_only_fetch_plain_urls(self):
+        created = self._mint({"name": "uploader", "preset": "run-jobs"})
+        with self._as_token(created["token"]):
+            history_id = self.dataset_populator.new_history()
+            for url in ("gxfiles://home/secret.txt", "gxuserfiles://secret.txt", "drs://host/object"):
+                response = self._post("tools/fetch", data=self._url_fetch_payload(history_id, url), json=True)
+                self._assert_status_code_is(response, 403)
+                assert "access token" in response.json()["err_msg"], url
+            for src, extra in (
+                ("ftp_import", {"ftp_path": "x"}),
+                ("server_dir", {"server_dir": "x"}),
+                ("path", {"path": "/etc/hosts"}),
+            ):
+                payload = {
+                    "history_id": history_id,
+                    "targets": [{"destination": {"type": "hdas"}, "elements": [{"src": src, "ext": "txt", **extra}]}],
+                }
+                response = self._post("tools/fetch", data=payload, json=True)
+                self._assert_status_code_is(response, 403)
+                assert "access token" in response.json()["err_msg"], src
+            # the old upload tool reads the same sources through its paste box
+            upload1 = self.dataset_populator.run_tool_raw(
+                "upload1",
+                {"files_0|url_paste": "gxfiles://home/secret.txt", "files_0|type": "upload_dataset"},
+                history_id,
+            )
+            self._assert_status_code_is(upload1, 403)
+            # and a history import is a fetch too
+            response = self._post(
+                "histories",
+                data={"archive_source": "gxfiles://home/history.tar.gz", "archive_type": "url"},
+                json=True,
+            )
+            self._assert_status_code_is(response, 403)
+            # a plain URL is still fine (base64 stands in for http here)
+            response = self._post("tools/fetch", data=self._url_fetch_payload(history_id, "base64://MSAK"), json=True)
+            self._assert_status_code_is(response, 200)
 
     # ---- use case 2: BRC's Logan search service account
 
@@ -181,6 +312,9 @@ class TestApiTokens(ApiTestCase):
             )
             self._assert_status_code_is(other_tool, 403)
             assert OTHER_TOOL in other_tool.json()["err_msg"]
+            # the other tool can't be opened or described either
+            self._assert_status_code_is(self._get(f"tools/{OTHER_TOOL}/build", data={"history_id": history_id}), 403)
+            self._assert_status_code_is(self._get(f"tools/{OTHER_TOOL}"), 403)
             # a dataset from a history the token can't see is not a usable tool input either
             foreign_input = self.dataset_populator.run_tool_raw(
                 ALLOWED_TOOL, {"input1": {"src": "hda", "id": outside_hda["id"]}}, history_id
@@ -189,11 +323,24 @@ class TestApiTokens(ApiTestCase):
             # and neither is the same dataset named by a bare id
             bare_input = self.dataset_populator.run_tool_raw(ALLOWED_TOOL, {"input1": outside_hda["id"]}, history_id)
             self._assert_status_code_is(bare_input, 403)
-            # the tool search still works, and only lists what the token may run
+            # nor can the tool form be built around it
+            build = self._get(
+                f"tools/{ALLOWED_TOOL}/build", data={"history_id": history_id, "input1": outside_hda["id"]}
+            )
+            self._assert_status_code_is(build, 200)
+            assert "input1" in build.json()["errors"], build.json()
+            # the tool search and the flat tool list only show what the token may run
             search = self._get("tools", data={"q": "cat"})
             self._assert_status_code_is(search, 200)
             assert ALLOWED_TOOL in search.json()
             assert OTHER_TOOL not in search.json()
+            flat = self._get("tools", data={"in_panel": "false"})
+            self._assert_status_code_is(flat, 200)
+            flat_ids = [t["id"] for t in flat.json()]
+            assert ALLOWED_TOOL in flat_ids and OTHER_TOOL not in flat_ids
+            in_panel = self._get("tools", data={"in_panel": "true"})
+            self._assert_status_code_is(in_panel, 200)
+            assert OTHER_TOOL not in in_panel.text
             # a bare @web.expose route under /api is refused like any other unannotated route
             self._assert_status_code_is(self._get("libraries/datasets/download/zip"), 403)
             # public routes identify the token's user too, so they are only open when annotated
