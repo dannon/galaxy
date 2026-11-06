@@ -37054,7 +37054,10 @@ export interface operations {
                 /** @description Whether to return only datatypes which can be uploaded */
                 upload_only?: boolean | null;
             };
-            header?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -37092,7 +37095,10 @@ export interface operations {
     converters_api_datatypes_converters_get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -37130,7 +37136,10 @@ export interface operations {
     edam_data_api_datatypes_edam_data_get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -37170,7 +37179,10 @@ export interface operations {
     edam_data_detailed_api_datatypes_edam_data_detailed_get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -37208,7 +37220,10 @@ export interface operations {
     edam_formats_api_datatypes_edam_formats_get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -37248,7 +37263,10 @@ export interface operations {
     edam_formats_detailed_api_datatypes_edam_formats_detailed_get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -37286,7 +37304,10 @@ export interface operations {
     mapping_api_datatypes_mapping_get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -37324,7 +37345,10 @@ export interface operations {
     sniffers_api_datatypes_sniffers_get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -37367,7 +37391,10 @@ export interface operations {
                 /** @description Whether to return only datatypes which can be uploaded */
                 upload_only?: boolean | null;
             };
-            header?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -37405,7 +37432,10 @@ export interface operations {
     show_api_datatypes__datatype__get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
             path: {
                 /** @description Datatype extension to get information for */
                 datatype: string;
@@ -37446,7 +37476,10 @@ export interface operations {
     visualization_for_datatype_api_datatypes__datatype__visualizations_get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
             path: {
                 /** @description Datatype extension to get visualization mapping for */
                 datatype: string;
@@ -37487,7 +37520,10 @@ export interface operations {
     display_applications_index_api_display_applications_get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -37659,7 +37695,10 @@ export interface operations {
     index_api_dynamic_tools_get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -37744,7 +37783,10 @@ export interface operations {
     show_api_dynamic_tools__dynamic_tool_id__get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
             path: {
                 dynamic_tool_id: string;
             };
@@ -46083,7 +46125,10 @@ export interface operations {
                 /** @description A key used to authenticate this request as acting on behalf of a job runner for the job. */
                 job_key?: string | null;
             };
-            header?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
             path: {
                 /** @description Encoded id string of the job. */
                 job_id: string;
@@ -46127,7 +46172,10 @@ export interface operations {
                 /** @description A key used to authenticate this request as acting on behalf of a job runner for the job. */
                 job_key?: string | null;
             };
-            header?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
             path: {
                 /** @description Encoded id string of the job. */
                 job_id: string;
@@ -47245,7 +47293,10 @@ export interface operations {
     index_api_licenses_get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -47283,7 +47334,10 @@ export interface operations {
     get_api_licenses__id__get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
             path: {
                 /** @description The [SPDX license short identifier](https://spdx.github.io/spdx-spec/appendix-I-SPDX-license-list/) */
                 id: unknown;
@@ -50683,7 +50737,10 @@ export interface operations {
     serve_api_short_term_storage__storage_request_id__get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
             path: {
                 storage_request_id: string;
             };
@@ -50728,7 +50785,10 @@ export interface operations {
     is_ready_api_short_term_storage__storage_request_id__ready_get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
             path: {
                 storage_request_id: string;
             };
@@ -51211,7 +51271,10 @@ export interface operations {
     get_result_api_tasks__task_id__result_get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
             path: {
                 task_id: string;
             };
@@ -51251,7 +51314,10 @@ export interface operations {
     state_api_tasks__task_id__state_get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
             path: {
                 task_id: string;
             };
@@ -51291,7 +51357,10 @@ export interface operations {
     index_api_tool_data_get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -51838,7 +51907,10 @@ export interface operations {
                 /** @description Filter by whether the repository has been uninstalled. */
                 uninstalled?: boolean | null;
             };
-            header?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -51919,7 +51991,10 @@ export interface operations {
     show_api_tool_shed_repositories__id__get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
             path: {
                 /** @description The encoded database identifier of the installed Tool Shed Repository. */
                 id: string;
@@ -52597,7 +52672,10 @@ export interface operations {
     index_api_tours_get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -52680,7 +52758,10 @@ export interface operations {
     show_api_tours__tour_id__get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
             path: {
                 tour_id: string;
             };
@@ -55098,7 +55179,10 @@ export interface operations {
     version_api_version_get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -58310,7 +58394,10 @@ export interface operations {
     service_info_ga4gh_drs_v1_service_info_get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };

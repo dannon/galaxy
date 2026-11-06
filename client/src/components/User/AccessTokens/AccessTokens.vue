@@ -94,7 +94,13 @@ async function load() {
 }
 
 async function create() {
+    if (!canCreate.value) {
+        // Enter in a text field submits the form even while the button is disabled
+        return;
+    }
     creating.value = true;
+    // a new request replaces the old secret; it must never read as the new token's
+    created.value = null;
     try {
         const payload: AccessTokenCreatePayload = {
             name: name.value.trim(),
@@ -249,7 +255,14 @@ onMounted(load);
                 <span v-else v-localize>never</span>
             </template>
             <template v-slot:cell(action)="row">
-                <GButton size="small" color="red" outline title="Revoke token" @click="revoke(row.item)">
+                <GButton
+                    size="small"
+                    color="red"
+                    outline
+                    title="Revoke token"
+                    :aria-label="`Revoke ${row.item.name}`"
+                    data-description="revoke token"
+                    @click="revoke(row.item)">
                     <FontAwesomeIcon :icon="faBan" />
                     <span v-localize>Revoke</span>
                 </GButton>
