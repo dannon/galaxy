@@ -119,6 +119,35 @@ describe("CustomToolSourceEditor", () => {
         expect(posted?.representation?.name).toBe("Imported tool");
     });
 
+    it("does not post the placeholder while the revision is still loading", async () => {
+        const post = vi.fn();
+        let release: () => void = () => undefined;
+        server.use(
+            http.untyped.get("/api/unprivileged_tools/:uuid", async () => {
+                await new Promise<void>((resolve) => (release = resolve));
+                return HttpResponse.json(REVISION_A);
+            }),
+            http.untyped.post("/api/unprivileged_tools", () => {
+                post();
+                return HttpResponse.json({ ...REVISION_A, uuid: "revision-b" });
+            }),
+        );
+        const { wrapper } = mountEditor({ toolUuid: "revision-a", toolbar: true });
+        await flushPromises();
+        const source = () => (wrapper.find("textarea.monaco-stub").element as HTMLTextAreaElement).value;
+        expect(source()).not.toContain("GalaxyUserTool");
+        await wrapper.find("[data-description='save custom tool revision']").trigger("click");
+        await flushPromises();
+        expect(post).not.toHaveBeenCalled();
+        expect(wrapper.emitted("saved")).toBeUndefined();
+
+        release();
+        await vi.waitFor(() => expect(source()).toContain("name: Base command tool"), { timeout: 2000 });
+        await wrapper.find("[data-description='save custom tool revision']").trigger("click");
+        await flushPromises();
+        expect(post).toHaveBeenCalledTimes(1);
+    });
+
     it("shows an error instead of posting an empty source", async () => {
         const post = vi.fn();
         server.use(
