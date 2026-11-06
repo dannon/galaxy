@@ -45,7 +45,17 @@ def test_parse_callback_error():
     }
 
 
-@pytest.mark.parametrize("value", ["", "https://cb.example/?state=only"])
+@pytest.mark.parametrize(
+    "value",
+    [
+        "",
+        "https://cb.example/?state=only",
+        # A pasted URL must carry the state; only a bare code skips the check.
+        "https://cb.example/?code=abc",
+        "https://cb.example/?code=abc&state=",
+        "https://cb.example/?code=abc&state=s1&state=s2",
+    ],
+)
 def test_parse_callback_rejects(value):
     with pytest.raises(SmokeError):
         parse_callback(value)
