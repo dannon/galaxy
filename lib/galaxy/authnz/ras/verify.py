@@ -157,12 +157,19 @@ def _optional_int(value: Any) -> int | None:
 
 
 def parse_dbgap_permissions(value: Any) -> tuple[DbgapPermission, ...]:
-    """Parse ``ras_dbgap_permissions``, skipping entries with no usable ``phs_id``."""
+    """Parse ``ras_dbgap_permissions``, skipping entries with no usable ``phs_id``.
+
+    An entry whose ``expiration`` is present but unreadable is skipped too: reading
+    it as "no expiry" would let it outlive what the issuer granted.
+    """
     if not isinstance(value, list):
         return ()
     permissions = []
     for entry in value:
         if not isinstance(entry, dict) or not entry.get("phs_id"):
+            continue
+        expiration = _optional_int(entry.get("expiration"))
+        if expiration is None and entry.get("expiration") is not None:
             continue
         permissions.append(
             DbgapPermission(
@@ -172,7 +179,7 @@ def parse_dbgap_permissions(value: Any) -> tuple[DbgapPermission, ...]:
                 consent_group=_optional_str(entry.get("consent_group")),
                 consent_name=_optional_str(entry.get("consent_name")),
                 role=_optional_str(entry.get("role")),
-                expiration=_optional_int(entry.get("expiration")),
+                expiration=expiration,
                 extra={k: v for k, v in entry.items() if k not in KNOWN_PERMISSION_FIELDS},
             )
         )
