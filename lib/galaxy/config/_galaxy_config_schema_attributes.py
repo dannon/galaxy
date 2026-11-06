@@ -461,6 +461,7 @@ class GalaxyAppConfigurationAttributes:
     tool_destinations_config_file: str
     welcome_directory: str
     vault_config_file: str
+    ras_config_file: str
     vault_token_renewal_interval: int
     url_headers_config_file: str
     display_builtin_converters: bool

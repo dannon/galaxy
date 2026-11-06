@@ -11,6 +11,7 @@ from kombu.connection import Connection
 from typing_extensions import Protocol
 
 from galaxy.auth import AuthManager
+from galaxy.authnz.ras.gate import PassportGate
 from galaxy.datatypes.registry import Registry
 from galaxy.di import Container
 from galaxy.files import ConfiguredFileSources
@@ -130,6 +131,7 @@ class MinimalManagerApp(MinimalApp):
     # Minimal App that is sufficient to run Celery tasks
     amqp_internal_connection_obj: Connection | None
     vault: Vault
+    ras_passport_gate: PassportGate | None
     execution_timer_factory: "ExecutionTimerFactory"
     carbon_intensity: float
     file_sources: ConfiguredFileSources
