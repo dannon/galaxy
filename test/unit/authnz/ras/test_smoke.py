@@ -96,6 +96,32 @@ def test_url_needs_client_id(env, monkeypatch, capsys):
     assert "RAS_CLIENT_ID" in capsys.readouterr().err
 
 
+def test_url_reads_direct_ras_from_ras_config(env, monkeypatch, tmp_path):
+    monkeypatch.delenv("RAS_CLIENT_ID")
+    config = tmp_path / "ras_config.yml"
+    config.write_text(
+        f"issuer: {ISSUER}\n"
+        "direct_ras:\n"
+        "  client_id: from-config\n"
+        "  redirect_uri: https://configured.example/cb\n"
+        "  scopes: openid ga4gh_passport_v1\n"
+    )
+    code, output = _run(["--ras-config", str(config), "--state-file", str(env), "url"], FakeHttp())
+    assert code == 0
+    url = urlsplit(output.splitlines()[0])
+    query = parse_qs(url.query)
+    assert f"{url.scheme}://{url.netloc}" == ISSUER
+    assert query["client_id"] == ["from-config"]
+    assert query["redirect_uri"] == ["https://configured.example/cb"]
+    assert query["scope"] == ["openid ga4gh_passport_v1"]
+
+
+def test_missing_ras_config(env, capsys, tmp_path):
+    code, _ = _run(["--ras-config", str(tmp_path / "nope.yml"), "--state-file", str(env), "url"], FakeHttp())
+    assert code == 1
+    assert "nope.yml" in capsys.readouterr().err
+
+
 def _save_state(state_file, state="state-1"):
     state_file.write_text(json.dumps({"state": state, "nonce": NONCE}))
 

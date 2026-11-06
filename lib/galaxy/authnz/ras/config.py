@@ -13,6 +13,7 @@ from pydantic import (
     ValidationInfo,
 )
 
+from galaxy.authnz.ras.sources import DEFAULT_SCOPES
 from galaxy.authnz.ras.verify import DEFAULT_LEEWAY
 
 log = logging.getLogger(__name__)
@@ -31,7 +32,7 @@ def _require_https(value: str | None, name: str) -> str | None:
 
 
 class DirectRasSettings(BaseModel):
-    """Client settings for talking to RAS directly. For development only."""
+    """Client settings for talking to RAS directly, read by the smoke script. For development only."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -40,7 +41,7 @@ class DirectRasSettings(BaseModel):
     client_secret: str | None = None
     client_secret_env: str = "RAS_CLIENT_SECRET"
     redirect_uri: str
-    scopes: str = "openid profile email ga4gh_passport_v1"
+    scopes: str = DEFAULT_SCOPES
 
     def resolve_client_secret(self) -> str:
         secret = self.client_secret or os.environ.get(self.client_secret_env)
