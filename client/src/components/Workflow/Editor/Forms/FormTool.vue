@@ -267,7 +267,7 @@ export default {
         },
         onChangeVersion(newVersion) {
             this.messageText = `Now you are using '${this.configForm.name}' version ${newVersion}.`;
-            this.postChanges(newVersion);
+            this.postChanges({ version: newVersion });
         },
         /**
          * The source editor saved a new revision of the custom tool: point this step at it. Same tool
@@ -277,14 +277,14 @@ export default {
             this.editingTool = false;
             const name = tool.representation?.name ?? this.configForm.name;
             this.messageText = `Now using the revision of '${name}' saved just now (${tool.uuid}).`;
-            this.postChanges(undefined, tool.uuid);
+            this.postChanges({ toolUuid: tool.uuid });
             // The tall source panel leaves the inspector scrolled; bring the message back into view.
             this.$nextTick(() => this.$el.scrollIntoView?.({ block: "start" }));
         },
         onUpdateFavorites(user, newFavorites) {
             user.preferences["favorites"] = newFavorites;
         },
-        postChanges(newVersion, newToolUuid) {
+        postChanges({ version: newVersion, toolUuid: newToolUuid } = {}) {
             const payload = Object.assign({}, this.mainValues);
             const options = this.configForm;
             const toolUuid = newToolUuid ?? this.toolUuid;
