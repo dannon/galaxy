@@ -89,13 +89,19 @@ class VaultPassportStore(PassportStore):
             log.warning("Could not check the stored RAS passport for user %s: %s", user.id, e)
             return PassportLookup(PassportStatus.UNAVAILABLE)
         except TokenExpiredError:
-            self.clear(user)
+            self._drop(user, raw)
             return PassportLookup(PassportStatus.EXPIRED)
         except PassportVerificationError as e:
             log.warning("Dropping stored RAS passport for user %s that no longer verifies: %s", user.id, e)
-            self.clear(user)
+            self._drop(user, raw)
             return PassportLookup(PassportStatus.INVALID)
         return PassportLookup(PassportStatus.OK, passport)
+
+    def _drop(self, user: Any, raw: str) -> None:
+        # The user may have just come back from the bridge with a fresh passport
+        # while this request was verifying the old one; don't delete that.
+        if self._user_vault(user).read_secret(PASSPORT_VAULT_KEY) == raw:
+            self.clear(user)
 
     def put(self, user: Any, raw_jwt: str) -> Passport:
         if user is None:
