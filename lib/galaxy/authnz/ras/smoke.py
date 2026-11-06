@@ -92,6 +92,8 @@ def parse_callback(value: str) -> dict[str, str]:
     }
     if not result.get("code") and not result.get("error"):
         raise SmokeError("No code or error in the pasted URL")
+    if result.get("code") and len(params.get("state", [])) != 1:
+        raise SmokeError("The pasted URL needs exactly one state; paste just the code to skip the state check")
     return result
 
 
