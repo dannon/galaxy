@@ -1,0 +1,41 @@
+# NIH RAS (Researcher Auth Service) GA4GH passport support.
+#
+# Copy to ras_config.yml in Galaxy's config directory (or point
+# ras_config_file at it) to turn the feature on. Galaxy verifies every passport
+# against the issuer's signing keys itself; the bridge application only gets
+# the passport to Galaxy.
+
+# Passport issuer. RAS staging is https://stsstg.nih.gov, production is
+# https://sts.nih.gov.
+issuer: https://stsstg.nih.gov
+
+# Signing keys. Found through the issuer's discovery document when not set.
+#jwks_uri: https://stsstg.nih.gov/openid/connect/jwks.json
+
+# Seconds of clock skew allowed when checking exp/iat (0-600).
+#leeway: 60
+
+# The bridge application Galaxy sends users to when it needs a passport. Galaxy
+# appends its return address as ?<return_param>=<url>.
+#bridge_url: https://bridge.example.org/ras/login
+#return_param: return_to
+
+# Where in Galaxy users come back to when the caller doesn't name a page. A
+# path below galaxy_url.
+#return_path: /
+
+# Galaxy's browser-facing URL, used to build the return address. Defaults to
+# galaxy_infrastructure_url.
+#galaxy_url: https://galaxy.example.org/
+
+# Where passports are kept: "vault" (Galaxy's vault, needs vault_config_file)
+# or "tapis_vault" (not implemented yet).
+#store: vault
+
+# Development only: talk to RAS directly instead of through a bridge. The
+# secret is read from the environment variable named by client_secret_env.
+#direct_ras:
+#  client_id: 00000000-0000-0000-0000-000000000000
+#  client_secret_env: RAS_CLIENT_SECRET
+#  redirect_uri: https://cfderas.develop.tapis.io/v3/oauth2/extensions/oa2/callback
+#  scopes: openid profile email ga4gh_passport_v1

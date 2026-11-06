@@ -6258,6 +6258,23 @@
 :Type: str
 
 
+~~~~~~~~~~~~~~~~~~~
+``ras_config_file``
+~~~~~~~~~~~~~~~~~~~
+
+:Description:
+    Configuration for NIH RAS (Researcher Auth Service) GA4GH passport
+    support: the passport issuer, the bridge application users are
+    sent to when Galaxy needs a passport, and where passports are
+    stored. RAS passport support is off unless this file exists. See
+    ras_config.yml.sample for the options. The default ``vault`` store
+    needs ``vault_config_file`` to be configured as well.
+    The value of this option will be resolved with respect to
+    <config_dir>.
+:Default: ``ras_config.yml``
+:Type: str
+
+
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ``vault_token_renewal_interval``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

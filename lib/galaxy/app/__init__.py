@@ -23,6 +23,7 @@ from galaxy import (
     jobs,
     tools,
 )
+from galaxy.authnz.ras.gate import build_passport_gate
 from galaxy.carbon_emissions import get_carbon_intensity_entry
 from galaxy.celery.base_task import (
     GalaxyTaskAfterReturn,
@@ -782,6 +783,8 @@ class GalaxyManagerApplication(MinimalManagerApp, MinimalGalaxyApplication):
     ):
         super().__init__(**kwargs)
         self._register_singleton(MinimalManagerApp, self)  # type: ignore[type-abstract]
+        # None unless ras_config_file exists; building it does no network I/O.
+        self.ras_passport_gate = build_passport_gate(self)
         self.execution_timer_factory = self._register_singleton(
             ExecutionTimerFactory, ExecutionTimerFactory(self.config)
         )
