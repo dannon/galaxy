@@ -33,7 +33,7 @@ from galaxy.authnz.ras.config import (
 from galaxy.authnz.ras.jwks import (
     JsonFetcher,
     JwksClient,
-    JwksError,
+    JwksUnavailableError,
     requests_json_fetcher,
 )
 from galaxy.authnz.ras.models import Passport
@@ -62,6 +62,8 @@ class PassportNeededReason(str, Enum):
     MISSING = "missing"
     EXPIRED = "expired"
     INVALID = "invalid"
+    # The issuer's keys couldn't be fetched, so the stored passport can't be checked right now.
+    UNAVAILABLE = "unavailable"
     # The passport is fine but doesn't cover the requested study.
     NO_ACCESS = "no_access"
 
@@ -85,12 +87,14 @@ _STATUS_REASONS = {
     PassportStatus.MISSING: PassportNeededReason.MISSING,
     PassportStatus.EXPIRED: PassportNeededReason.EXPIRED,
     PassportStatus.INVALID: PassportNeededReason.INVALID,
+    PassportStatus.UNAVAILABLE: PassportNeededReason.UNAVAILABLE,
 }
 _MESSAGES = {
     PassportNeededReason.ANONYMOUS: "You must be logged in to access controlled-access data.",
     PassportNeededReason.MISSING: "A NIH RAS passport is required to access this data.",
     PassportNeededReason.EXPIRED: "Your NIH RAS passport has expired; please log in to RAS again.",
     PassportNeededReason.INVALID: "Your NIH RAS passport could not be verified; please log in to RAS again.",
+    PassportNeededReason.UNAVAILABLE: "Your NIH RAS passport can't be checked right now; please try again shortly.",
     PassportNeededReason.NO_ACCESS: "Your NIH RAS passport does not grant access to {phs_id}.",
 }
 
@@ -148,9 +152,11 @@ class PassportGate:
         return self.require(trans.user, phs_id=phs_id, **kwds)
 
     def _needed(self, reason: PassportNeededReason, return_to: str | None, phs_id: str | None = None) -> PassportNeeded:
+        # Sending the user back through RAS can't help while its keys are unreachable.
+        redirect_url = None if reason == PassportNeededReason.UNAVAILABLE else self.bridge_redirect_url(return_to)
         return PassportNeeded(
             reason=reason,
-            redirect_url=self.bridge_redirect_url(return_to),
+            redirect_url=redirect_url,
             message=_MESSAGES[reason].format(phs_id=phs_id),
         )
 
@@ -189,9 +195,9 @@ class _DiscoveredJwksUri:
                 try:
                     doc = self.fetcher(f"{self.issuer}/.well-known/openid-configuration")
                 except Exception as e:
-                    raise JwksError(f"Could not fetch RAS discovery document: {e}") from e
+                    raise JwksUnavailableError(f"Could not fetch RAS discovery document: {e}") from e
                 if doc.get("issuer", "").rstrip("/") != self.issuer or not doc.get("jwks_uri"):
-                    raise JwksError("RAS discovery document does not match the configured issuer")
+                    raise JwksUnavailableError("RAS discovery document does not match the configured issuer")
                 self._uri = str(doc["jwks_uri"])
             return self._uri
 

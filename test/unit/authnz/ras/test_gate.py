@@ -5,6 +5,7 @@ from urllib.parse import (
 )
 
 import pytest
+import requests
 
 from galaxy.authnz.ras.config import (
     DirectRasSettings,
@@ -20,11 +21,14 @@ from galaxy.authnz.ras.gate import (
     PassportNeededReason,
     PassportOk,
 )
+from galaxy.authnz.ras.jwks import JwksClient
 from galaxy.authnz.ras.store import (
     InMemoryVault,
     PASSPORT_VAULT_KEY,
+    PassportStatus,
     VaultPassportStore,
 )
+from galaxy.authnz.ras.verify import IssuerConfig
 from galaxy.security.vault import NullVault
 from .util import (
     ISSUER,
@@ -175,6 +179,32 @@ def test_needed_when_stored_passport_invalid():
     decision = gate.require(USER)
     assert isinstance(decision, PassportNeeded)
     assert decision.reason == PassportNeededReason.INVALID
+
+
+def test_needed_when_keys_unavailable():
+    def down(url):
+        raise requests.ConnectionError("RAS is down")
+
+    vault, store, gate = _gate()
+    store.put(USER, make_passport([]))
+    store.issuer_config = IssuerConfig(issuer=ISSUER, jwks=JwksClient("https://jwks.example", fetcher=down))
+    decision = gate.require(USER)
+    assert isinstance(decision, PassportNeeded)
+    assert decision.reason == PassportNeededReason.UNAVAILABLE
+    # Logging in to RAS again won't help while the issuer is unreachable.
+    assert decision.redirect_url is None
+    assert vault.read_secret(f"user/3/{PASSPORT_VAULT_KEY}")
+
+
+def test_discovery_outage_is_unavailable():
+    def down(url):
+        raise requests.ConnectionError("RAS is down")
+
+    vault, store, gate = _gate()
+    store.put(USER, make_passport([]))
+    store.issuer_config = issuer_config_from(RasConfig(issuer=ISSUER), fetcher=down)
+    assert store.load(USER).status == PassportStatus.UNAVAILABLE
+    assert vault.read_secret(f"user/3/{PASSPORT_VAULT_KEY}")
 
 
 def test_ok_when_valid():
