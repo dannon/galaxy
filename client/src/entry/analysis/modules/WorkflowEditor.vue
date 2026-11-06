@@ -15,6 +15,8 @@ const emit = defineEmits<{
 const storedWorkflowId = ref<string | undefined>();
 const workflowId = ref<string | undefined>();
 const version = ref<number | undefined>();
+const initialStep = ref<number | undefined>();
+const initialEditTool = ref(false);
 const workflowTags = ref<string[]>([]);
 const skipNextReload = ref(false);
 const newWorkflow = ref(false);
@@ -30,6 +32,9 @@ async function getEditorConfig() {
 
     const versionParam = route.query.version as string | undefined;
     version.value = versionParam !== undefined ? parseInt(versionParam, 10) : undefined;
+    const stepParam = parseInt(route.query.step as string, 10);
+    initialStep.value = Number.isNaN(stepParam) ? undefined : stepParam;
+    initialEditTool.value = route.query.edit_tool !== undefined;
     storedWorkflowId.value = route.query.id as string;
     workflowId.value = route.query.workflow_id as string;
 
@@ -68,6 +73,8 @@ watch(
         :key="editorReloadKey"
         :workflow-id="storedWorkflowId"
         :initial-version="version"
+        :initial-step="initialStep"
+        :initial-edit-tool="initialEditTool"
         :workflow-tags="workflowTags"
         @update:confirmation="emit('update:confirmation', $event)"
         @skipNextReload="() => (skipNextReload = true)"

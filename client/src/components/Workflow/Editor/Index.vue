@@ -89,12 +89,18 @@ interface Props {
     workflowId?: string;
     initialVersion?: number;
     workflowTags?: string[];
+    /** Step (order index) to open once the workflow loads */
+    initialStep?: number;
+    /** Open the custom tool source of `initialStep` too */
+    initialEditTool?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
     workflowId: undefined,
     initialVersion: undefined,
     workflowTags: () => [],
+    initialStep: undefined,
+    initialEditTool: false,
 });
 const emit = defineEmits<{
     (e: "skipNextReload"): void;
@@ -480,14 +486,9 @@ function onToolClick(toolId: number) {
     onScrollTo(toolId);
 }
 
-/** Step (order index) the `step` query asks to open once the workflow loads, with `edit_tool` opening its source. */
-const initialStepId = parseInitialStep(route.query.step);
-const editToolStepId = ref<number | null>(route.query.edit_tool !== undefined ? initialStepId : null);
-
-function parseInitialStep(value: unknown): number | null {
-    const parsed = typeof value === "string" ? parseInt(value, 10) : NaN;
-    return Number.isNaN(parsed) ? null : parsed;
-}
+const editToolStepId = ref<number | null>(
+    props.initialEditTool && props.initialStep !== undefined ? props.initialStep : null,
+);
 
 watch(activeNodeId, (nodeId) => {
     if (nodeId !== editToolStepId.value) {
@@ -1331,8 +1332,8 @@ async function initializeWorkflowEditor() {
 
     initialLoading.value = false;
 
-    if (initialStepId !== null && stepStore.getStep(initialStepId)) {
-        onToolClick(initialStepId);
+    if (props.initialStep !== undefined && stepStore.getStep(props.initialStep)) {
+        onToolClick(props.initialStep);
     }
 }
 initializeWorkflowEditor();
