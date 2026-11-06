@@ -110,5 +110,56 @@ def passport_claims(visas: Sequence[str] = (), iat: int = NOW - 60, exp: int | N
 
 
 def make_passport(permissions: Sequence[dict[str, Any]] = (), **overrides) -> str:
-    """A signed passport carrying one signed RAS visa with ``permissions``."""
-    return sign(passport_claims([sign(visa_claims(permissions))], **overrides))
+    """A signed passport carrying one signed RAS visa with ``permissions``, issued alongside it."""
+    visa_iat = overrides.get("iat", NOW - 60)
+    return sign(passport_claims([sign(visa_claims(permissions, iat=visa_iat))], **overrides))
+
+
+CLIENT_ID = "test-client"
+CLIENT_SECRET = "test-secret"
+REDIRECT_URI = "https://callback.example/cb"
+NONCE = "nonce-123"
+DISCOVERY = {
+    "issuer": ISSUER,
+    "authorization_endpoint": f"{ISSUER}/auth/oauth/v2/authorize",
+    "token_endpoint": f"{ISSUER}/auth/oauth/v2/token",
+    "userinfo_endpoint": f"{ISSUER}/openid/connect/v1/userinfo",
+    "jwks_uri": f"{ISSUER}/openid/connect/jwks.json",
+}
+
+
+def id_token(**overrides) -> str:
+    claims: dict[str, Any] = {
+        "iss": ISSUER,
+        "sub": SUBJECT,
+        "aud": CLIENT_ID,
+        "azp": CLIENT_ID,
+        "iat": NOW - 10,
+        "exp": NOW + 3600,
+        "nonce": NONCE,
+        "acr": f"{ISSUER}/assurance/aal/2",
+    }
+    claims.update(overrides)
+    key = claims.pop("_key", KEY)
+    return sign(claims, key=key)
+
+
+class FakeHttp:
+    def __init__(self, token_response=None, userinfo=None, token_status=200, userinfo_status=200):
+        self.token_response = token_response or {"access_token": "access-1", "id_token": id_token()}
+        self.userinfo = userinfo if userinfo is not None else {"sub": SUBJECT, "passport_jwt_v11": make_passport()}
+        self.token_status = token_status
+        self.userinfo_status = userinfo_status
+        self.calls: list[tuple[str, str, Any]] = []
+
+    def get_json(self, url, bearer=None):
+        self.calls.append(("GET", url, bearer))
+        if url.endswith("/.well-known/openid-configuration"):
+            return 200, DISCOVERY
+        if url == f"{ISSUER}/openid/connect/v1.1/userinfo":
+            return self.userinfo_status, self.userinfo
+        return 404, {}
+
+    def post_form(self, url, data, basic_auth):
+        self.calls.append(("POST", url, (dict(data), basic_auth)))
+        return self.token_status, self.token_response

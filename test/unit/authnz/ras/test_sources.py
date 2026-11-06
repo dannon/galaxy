@@ -1,7 +1,6 @@
 import json
 import os
 from pathlib import Path
-from typing import Any
 from urllib.parse import (
     parse_qs,
     urlsplit,
@@ -17,67 +16,24 @@ from galaxy.authnz.ras.sources import (
     PassportSourceError,
 )
 from .util import (
+    CLIENT_ID,
+    CLIENT_SECRET,
     CountingFetcher,
+    DISCOVERY,
+    FakeHttp,
     FIXTURES_ENV,
+    id_token,
     ISSUER,
     jwks_doc,
     KEY,
     KID,
     make_passport,
+    NONCE,
     NOW,
     OTHER_KEY,
-    sign,
+    REDIRECT_URI,
     SUBJECT,
 )
-
-CLIENT_ID = "test-client"
-CLIENT_SECRET = "test-secret"
-REDIRECT_URI = "https://callback.example/cb"
-NONCE = "nonce-123"
-DISCOVERY = {
-    "issuer": ISSUER,
-    "authorization_endpoint": f"{ISSUER}/auth/oauth/v2/authorize",
-    "token_endpoint": f"{ISSUER}/auth/oauth/v2/token",
-    "userinfo_endpoint": f"{ISSUER}/openid/connect/v1/userinfo",
-    "jwks_uri": f"{ISSUER}/openid/connect/jwks.json",
-}
-
-
-def id_token(**overrides) -> str:
-    claims: dict[str, Any] = {
-        "iss": ISSUER,
-        "sub": SUBJECT,
-        "aud": CLIENT_ID,
-        "azp": CLIENT_ID,
-        "iat": NOW - 10,
-        "exp": NOW + 3600,
-        "nonce": NONCE,
-        "acr": f"{ISSUER}/assurance/aal/2",
-    }
-    claims.update(overrides)
-    key = claims.pop("_key", KEY)
-    return sign(claims, key=key)
-
-
-class FakeHttp:
-    def __init__(self, token_response=None, userinfo=None, token_status=200, userinfo_status=200):
-        self.token_response = token_response or {"access_token": "access-1", "id_token": id_token()}
-        self.userinfo = userinfo if userinfo is not None else {"sub": SUBJECT, "passport_jwt_v11": make_passport()}
-        self.token_status = token_status
-        self.userinfo_status = userinfo_status
-        self.calls: list[tuple[str, str, Any]] = []
-
-    def get_json(self, url, bearer=None):
-        self.calls.append(("GET", url, bearer))
-        if url.endswith("/.well-known/openid-configuration"):
-            return 200, DISCOVERY
-        if url == f"{ISSUER}/openid/connect/v1.1/userinfo":
-            return self.userinfo_status, self.userinfo
-        return 404, {}
-
-    def post_form(self, url, data, basic_auth):
-        self.calls.append(("POST", url, (dict(data), basic_auth)))
-        return self.token_status, self.token_response
 
 
 def _source(http=None):
