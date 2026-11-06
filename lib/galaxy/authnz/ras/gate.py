@@ -222,6 +222,7 @@ def build_passport_gate(app: "MinimalManagerApp") -> PassportGate | None:
         store = VaultPassportStore(app.vault, issuer_config_from(config))
     else:
         store = TapisVaultPassportStore()
+    # Without a bridge the return address is never used.
     galaxy_url = config.galaxy_url or app.config.galaxy_infrastructure_url
     log.info("RAS passport support enabled for issuer %s", config.issuer)
     return PassportGate(

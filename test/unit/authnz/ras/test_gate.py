@@ -61,7 +61,7 @@ def _gate(clock=None, galaxy_url=GALAXY_URL, **config):
     clock = clock or Clock(NOW)
     vault = InMemoryVault()
     store = VaultPassportStore(vault, issuer_config(), clock=clock)
-    ras_config = RasConfig(issuer=ISSUER, bridge_url=BRIDGE, **config)
+    ras_config = RasConfig(issuer=ISSUER, bridge_url=BRIDGE, galaxy_url=galaxy_url, **config)
     gate = PassportGate(
         ras_config, store, galaxy_url=galaxy_url, allowed_return_hosts=["portal.example.org"], clock=clock
     )
@@ -97,13 +97,15 @@ def test_off_by_default(tmp_path):
 
 
 def test_build_from_config(tmp_path):
-    path = _write_config(tmp_path, f"issuer: {ISSUER}\nbridge_url: {BRIDGE}\nleeway: 30\n")
+    path = _write_config(
+        tmp_path, f"issuer: {ISSUER}\nbridge_url: {BRIDGE}\ngalaxy_url: https://galaxy.example.org\nleeway: 30\n"
+    )
     gate = build_passport_gate(_app(path))
     assert isinstance(gate, PassportGate)
     assert gate.config.leeway == 30
     assert isinstance(gate.store, VaultPassportStore)
     assert gate.store.issuer_config.leeway == 30
-    assert gate.galaxy_url == "http://localhost:8080/"
+    assert gate.galaxy_url == "https://galaxy.example.org/"
 
 
 def test_vault_store_needs_a_vault(tmp_path):
@@ -117,6 +119,8 @@ def test_vault_store_needs_a_vault(tmp_path):
     [
         ("issuer: http://insecure.example\n", "https"),
         (f"bridge_url: http://bridge.example\nissuer: {ISSUER}\n", "https"),
+        # galaxy_infrastructure_url is an internal address, no use to a browser coming back from the bridge.
+        (f"bridge_url: {BRIDGE}\n", "galaxy_url"),
         ("return_path: //evil.example\n", "return_path"),
         ("return_path: https://evil.example\n", "return_path"),
         ("leeway: 100000\n", "leeway"),
@@ -274,7 +278,9 @@ def test_return_path_and_galaxy_prefix():
 def test_bridge_url_with_existing_query():
     _, store, _ = _gate()
     gate = PassportGate(
-        RasConfig(issuer=ISSUER, bridge_url=f"{BRIDGE}?tenant=cfderas", return_param="next"), store, GALAXY_URL
+        RasConfig(issuer=ISSUER, bridge_url=f"{BRIDGE}?tenant=cfderas", galaxy_url=GALAXY_URL, return_param="next"),
+        store,
+        GALAXY_URL,
     )
     redirect = gate.bridge_redirect_url()
     assert redirect is not None

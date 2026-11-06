@@ -61,7 +61,7 @@ class RasConfig(BaseModel):
     return_param: str = "return_to"
     # Where in Galaxy the bridge sends users back to when the caller doesn't say.
     return_path: str = "/"
-    # Galaxy's browser-facing base URL; defaults to galaxy_infrastructure_url.
+    # Galaxy's browser-facing base URL, for the return address. Required with bridge_url.
     galaxy_url: str | None = None
     leeway: int = DEFAULT_LEEWAY
     store: Literal["vault", "tapis_vault"] = "vault"
@@ -88,6 +88,10 @@ class RasConfig(BaseModel):
     def _return_path_is_local(self) -> "RasConfig":
         if not self.return_path.startswith("/") or self.return_path.startswith("//"):
             raise ValueError("return_path must be a path on this Galaxy, starting with a single /")
+        # galaxy_infrastructure_url is how containers and Pulsar reach Galaxy (http://localhost:8080
+        # by default), so it can't stand in for the address users come back to.
+        if self.bridge_url and not self.galaxy_url:
+            raise ValueError("galaxy_url, Galaxy's browser-facing URL, is required when bridge_url is set")
         return self
 
 
