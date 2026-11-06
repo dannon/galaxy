@@ -40,7 +40,7 @@
                 {{ editingTool ? "Back to parameters" : "Edit tool" }}
             </GButton>
         </div>
-        <div v-if="editingTool" class="mt-2 mb-4 custom-tool-step-source">
+        <div v-if="showToolSource" class="mt-2 mb-4 custom-tool-step-source">
             <Heading h2 separator bold size="sm"> Tool Source </Heading>
             <CustomToolSourceEditor
                 :key="toolUuid"
@@ -61,7 +61,7 @@
                 :workflow-building-mode="true"
                 @onChange="onChange" />
         </div>
-        <div v-if="!editingTool" class="mt-2 mb-4">
+        <div v-if="!showToolSource" class="mt-2 mb-4">
             <Heading h2 separator bold size="sm"> Additional Options </Heading>
             <FormSection
                 :id="stepId"
@@ -176,6 +176,10 @@ export default {
         },
         isUserDefinedTool() {
             return Boolean(this.toolUuid);
+        },
+        showToolSource() {
+            // editTool comes from the route query, which can name any step.
+            return this.editingTool && this.isUserDefinedTool;
         },
         toolCardId() {
             return `${this.stepId}`;
