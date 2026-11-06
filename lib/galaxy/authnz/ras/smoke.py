@@ -8,6 +8,9 @@ are Tapis URLs Galaxy can't receive, so this runs in two steps::
     RAS_CLIENT_ID=... RAS_CLIENT_SECRET=... \\
         python scripts/ras_passport_smoke.py exchange '<redirected URL>' --phs phs000123
 
+``--ras-config ras_config.yml`` takes the issuer and the ``direct_ras`` client
+settings from Galaxy's RAS config instead; command-line flags still win.
+
 ``exchange`` redeems the code, verifies the ID token, pulls the passport from
 v1.1 userinfo, stores it in a throwaway in-memory vault through
 ``VaultPassportStore`` and prints a summary plus the ``PassportGate`` decision.
@@ -32,7 +35,13 @@ from urllib.parse import (
     urlsplit,
 )
 
-from galaxy.authnz.ras.config import RasConfig
+from galaxy.authnz.ras.config import (
+    DEFAULT_ISSUER,
+    DirectRasSettings,
+    load_ras_config,
+    RasConfig,
+    RasConfigError,
+)
 from galaxy.authnz.ras.gate import (
     PassportGate,
     PassportOk,
@@ -59,7 +68,6 @@ from galaxy.authnz.ras.verify import (
     PassportVerificationError,
 )
 
-DEFAULT_ISSUER = "https://stsstg.nih.gov"
 # The CWIC client's develop-tenant callback: least likely to have a live Tapis
 # session that redeems the code before we do.
 DEFAULT_REDIRECT_URI = "https://cfderas.develop.tapis.io/v3/oauth2/extensions/oa2/callback"
@@ -100,18 +108,39 @@ def _when(timestamp: int | None) -> str:
     return datetime.fromtimestamp(timestamp, tz=timezone.utc).isoformat()
 
 
+def _settings(args: argparse.Namespace) -> tuple[str, DirectRasSettings]:
+    """The issuer and client settings: flags, then ``--ras-config``, then the defaults."""
+    config = None
+    if args.ras_config:
+        config = load_ras_config(args.ras_config)
+        if config is None:
+            raise SmokeError(f"No RAS config at {args.ras_config}")
+    direct = config.direct_ras if config else None
+    issuer = args.issuer or (config.issuer if config else DEFAULT_ISSUER)
+    settings = DirectRasSettings(
+        client_id=direct.client_id if direct else _env("RAS_CLIENT_ID"),
+        client_secret=direct.client_secret if direct else None,
+        client_secret_env=direct.client_secret_env if direct else "RAS_CLIENT_SECRET",
+        redirect_uri=args.redirect_uri or (direct.redirect_uri if direct else DEFAULT_REDIRECT_URI),
+        scopes=args.scopes or (direct.scopes if direct else DEFAULT_SCOPES),
+    )
+    return issuer, settings
+
+
 def _source(
-    args: argparse.Namespace, http: HttpClient | None, fetcher: JsonFetcher, secret: str
+    args: argparse.Namespace, http: HttpClient | None, fetcher: JsonFetcher, need_secret: bool
 ) -> DirectRasPassportSource:
+    issuer, settings = _settings(args)
+    secret = settings.resolve_client_secret() if need_secret else "unused"
     source = DirectRasPassportSource(
-        args.issuer, _env("RAS_CLIENT_ID"), secret, args.redirect_uri, scopes=args.scopes, http=http
+        issuer, settings.client_id, secret, settings.redirect_uri, scopes=settings.scopes, http=http
     )
     source.jwks = JwksClient(lambda: source.discovery()["jwks_uri"], fetcher=fetcher)
     return source
 
 
 def cmd_url(args: argparse.Namespace, http: HttpClient | None, fetcher: JsonFetcher, out: TextIO) -> int:
-    request = _source(args, http, fetcher, secret="unused").new_authorization_request()
+    request = _source(args, http, fetcher, need_secret=False).new_authorization_request()
     state_file = Path(args.state_file)
     state_file.write_text(json.dumps({"state": request.state, "nonce": request.nonce}))
     state_file.chmod(0o600)
@@ -154,7 +183,7 @@ def cmd_exchange(args: argparse.Namespace, http: HttpClient | None, fetcher: Jso
         callback["state"] = saved["state"]
     handoff = dict(callback, expected_state=saved["state"], nonce=saved["nonce"])
 
-    source = _source(args, http, fetcher, secret=_env("RAS_CLIENT_SECRET"))
+    source = _source(args, http, fetcher, need_secret=True)
     # Codes are single use; don't let a retry reuse this state.
     state_file.unlink()
     raw_passport = source.obtain(None, handoff)
@@ -178,9 +207,10 @@ def cmd_exchange(args: argparse.Namespace, http: HttpClient | None, fetcher: Jso
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--issuer", default=DEFAULT_ISSUER)
-    parser.add_argument("--redirect-uri", default=DEFAULT_REDIRECT_URI)
-    parser.add_argument("--scopes", default=DEFAULT_SCOPES)
+    parser.add_argument("--ras-config", help="read the issuer and direct_ras settings from this ras_config.yml")
+    parser.add_argument("--issuer", help=f"default {DEFAULT_ISSUER}")
+    parser.add_argument("--redirect-uri", help=f"default {DEFAULT_REDIRECT_URI}")
+    parser.add_argument("--scopes", help=f"default {DEFAULT_SCOPES!r}")
     parser.add_argument("--state-file", default=str(DEFAULT_STATE_FILE))
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("url", help="print the RAS authorize URL and save state/nonce")
@@ -200,6 +230,6 @@ def main(
     command = cmd_url if args.command == "url" else cmd_exchange
     try:
         return command(args, http, fetcher, out)
-    except (SmokeError, PassportSourceError, PassportVerificationError) as e:
+    except (SmokeError, RasConfigError, PassportSourceError, PassportVerificationError) as e:
         print(f"error: {e}", file=sys.stderr)
         return 1

@@ -32,7 +32,8 @@ issuer: https://stsstg.nih.gov
 # vault_config_file) so far.
 #store: vault
 
-# Development only: talk to RAS directly instead of through a bridge. The
+# Development only: client settings for talking to RAS directly instead of
+# through a bridge, used by scripts/ras_passport_smoke.py --ras-config. The
 # secret is read from the environment variable named by client_secret_env.
 #direct_ras:
 #  client_id: 00000000-0000-0000-0000-000000000000
