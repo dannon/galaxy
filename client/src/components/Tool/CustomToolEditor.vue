@@ -208,6 +208,7 @@ async function generateViaLLM() {
                 title="Save Custom Tool"
                 aria-label="Save Custom Tool"
                 data-description="save custom tool"
+                :disabled="sourceEditor?.saving"
                 @click="saveTool">
                 <FontAwesomeIcon :icon="faSave" />
             </GButton>

@@ -104,6 +104,9 @@ if (props.toolUuid) {
 
 /** Saves the source as a new tool revision and reports it through `saved`. */
 async function save() {
+    if (saving.value) {
+        return;
+    }
     if (!yamlRepresentation.value) {
         console.error("No yaml to parse");
         return;
@@ -136,7 +139,7 @@ async function save() {
     }
 }
 
-defineExpose({ save });
+defineExpose({ save, saving });
 </script>
 
 <template>
