@@ -29,6 +29,7 @@ import jwt
 from galaxy.authnz.ras.jwks import (
     JwksClient,
     JwksError,
+    JwksUnavailableError,
 )
 from galaxy.authnz.ras.models import (
     DbgapPermission,
@@ -56,6 +57,10 @@ class PassportVerificationError(Exception):
 
 class TokenExpiredError(PassportVerificationError):
     pass
+
+
+class VerificationUnavailableError(PassportVerificationError):
+    """The token couldn't be checked because the issuer's keys couldn't be fetched."""
 
 
 @dataclass
@@ -86,6 +91,8 @@ def verify_jwt(
         raise PassportVerificationError(f"{what} uses disallowed algorithm {alg!r}")
     try:
         key = issuer_config.jwks.get_signing_key(header.get("kid"))
+    except JwksUnavailableError as e:
+        raise VerificationUnavailableError(f"{what}: {e}") from e
     except JwksError as e:
         raise PassportVerificationError(f"{what}: {e}") from e
     options: dict[str, Any] = {

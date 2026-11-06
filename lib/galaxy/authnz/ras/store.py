@@ -18,6 +18,7 @@ from galaxy.authnz.ras.verify import (
     IssuerConfig,
     PassportVerificationError,
     TokenExpiredError,
+    VerificationUnavailableError,
     verify_passport,
 )
 from galaxy.security.vault import (
@@ -35,6 +36,7 @@ class PassportStatus(str, Enum):
     MISSING = "missing"
     EXPIRED = "expired"
     INVALID = "invalid"
+    UNAVAILABLE = "unavailable"
 
 
 @dataclass(frozen=True)
@@ -46,7 +48,11 @@ class PassportLookup:
 class PassportStore(abc.ABC):
     @abc.abstractmethod
     def load(self, user: Any) -> PassportLookup:
-        """The user's verified passport, or why there isn't one. Drops expired or invalid passports."""
+        """The user's verified passport, or why there isn't one.
+
+        Drops expired or invalid passports, but keeps one that only couldn't be
+        checked because the issuer's keys were unreachable.
+        """
 
     @abc.abstractmethod
     def put(self, user: Any, raw_jwt: str) -> Passport:
@@ -79,6 +85,9 @@ class VaultPassportStore(PassportStore):
             return PassportLookup(PassportStatus.MISSING)
         try:
             passport = verify_passport(raw, self.issuer_config, now=self.clock())
+        except VerificationUnavailableError as e:
+            log.warning("Could not check the stored RAS passport for user %s: %s", user.id, e)
+            return PassportLookup(PassportStatus.UNAVAILABLE)
         except TokenExpiredError:
             self.clear(user)
             return PassportLookup(PassportStatus.EXPIRED)

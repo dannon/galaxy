@@ -1,7 +1,9 @@
 from types import SimpleNamespace
 
 import pytest
+import requests
 
+from galaxy.authnz.ras.jwks import JwksClient
 from galaxy.authnz.ras.store import (
     InMemoryVault,
     PASSPORT_VAULT_KEY,
@@ -10,6 +12,7 @@ from galaxy.authnz.ras.store import (
     VaultPassportStore,
 )
 from galaxy.authnz.ras.verify import (
+    IssuerConfig,
     PassportVerificationError,
     TokenExpiredError,
 )
@@ -18,7 +21,11 @@ from galaxy.security.vault import (
     VaultKeyValidationWrapper,
 )
 from .util import (
+    ISSUER,
     issuer_config,
+    jwks_doc,
+    KEY,
+    KID,
     make_passport,
     NOW,
     OTHER_KEY,
@@ -96,6 +103,35 @@ def test_tampered_value_rejected_and_cleared():
     vault.write_secret(f"user/7/{PASSPORT_VAULT_KEY}", sign(passport_claims([]), key=OTHER_KEY))
     assert store.load(USER).status == PassportStatus.INVALID
     assert store.load(USER).status == PassportStatus.MISSING
+
+
+class FlakyFetcher:
+    def __init__(self):
+        self.down = False
+
+    def __call__(self, url):
+        if self.down:
+            raise requests.ConnectionError("RAS is down")
+        return jwks_doc((KEY, KID))
+
+
+def test_key_fetch_outage_keeps_the_passport():
+    fetcher = FlakyFetcher()
+    fetcher.down = True
+    keys_clock = Clock(0)
+    config = IssuerConfig(issuer=ISSUER, jwks=JwksClient("https://jwks.example", fetcher=fetcher, clock=keys_clock))
+    vault = InMemoryVault()
+    store = VaultPassportStore(vault, config, clock=Clock(NOW))
+    # Stored before a restart; the fresh process has no cached keys and RAS is down.
+    raw = make_passport([])
+    vault.write_secret(f"user/7/{PASSPORT_VAULT_KEY}", raw)
+    lookup = store.load(USER)
+    assert lookup.status == PassportStatus.UNAVAILABLE
+    assert lookup.passport is None
+    assert vault.read_secret(f"user/7/{PASSPORT_VAULT_KEY}") == raw
+    fetcher.down = False
+    keys_clock.now = 120
+    assert store.load(USER).status == PassportStatus.OK
 
 
 def test_clear():

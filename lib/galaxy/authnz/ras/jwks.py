@@ -27,6 +27,10 @@ class JwksError(Exception):
     pass
 
 
+class JwksUnavailableError(JwksError):
+    """The issuer's keys couldn't be fetched, which says nothing about the token."""
+
+
 class JwksClient:
     """Signing keys for one issuer, looked up by ``kid``.
 
@@ -61,7 +65,7 @@ class JwksClient:
         try:
             jwks = self._fetcher(self.jwks_uri)
         except (requests.RequestException, ValueError) as e:
-            raise JwksError(f"Could not fetch JWKS: {e}") from e
+            raise JwksUnavailableError(f"Could not fetch JWKS: {e}") from e
         keys: dict[str, jwt.PyJWK] = {}
         for jwk in jwks.get("keys", []) if isinstance(jwks, dict) else []:
             kid = jwk.get("kid")
