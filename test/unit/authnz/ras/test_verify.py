@@ -35,6 +35,7 @@ from .util import (
     OTHER_KID,
     passport_claims,
     permission,
+    public_jwk,
     sign,
     SUBJECT,
     visa_claims,
@@ -105,6 +106,26 @@ def test_token_without_passport_claim_is_not_a_passport():
 def test_passport_claim_must_be_a_list():
     with pytest.raises(PassportVerificationError, match="not a list"):
         verify_passport(sign(passport_claims(ga4gh_passport_v1="visa")), issuer_config(), now=NOW)
+
+
+def test_future_nbf_rejected():
+    with pytest.raises(PassportVerificationError, match="not valid yet"):
+        verify_passport(sign(passport_claims([], nbf=NOW + 3600)), issuer_config(), now=NOW)
+
+
+@pytest.mark.parametrize("claim", ["iat", "sub", "exp", "iss"])
+def test_passport_missing_required_claim_rejected(claim):
+    claims = passport_claims([])
+    del claims[claim]
+    with pytest.raises(PassportVerificationError):
+        verify_passport(sign(claims), issuer_config(), now=NOW)
+
+
+def test_visa_without_visa_object_rejected():
+    visa = visa_claims()
+    del visa["ga4gh_visa_v1"]
+    with pytest.raises(PassportVerificationError, match="ga4gh_visa_v1"):
+        verify_passport(sign(passport_claims([sign(visa)])), issuer_config(), now=NOW)
 
 
 def test_expired_passport_rejected():
@@ -275,10 +296,13 @@ def test_jwks_cache_expires():
 def test_jwks_skips_non_rsa_keys():
     doc = jwks_doc((KEY, KID))
     doc["keys"].append({"kty": "oct", "kid": "hmac", "k": _b64(b"secret")})
+    doc["keys"].append(dict(public_jwk(OTHER_KEY, "encryption"), use="enc"))
     client = JwksClient("https://jwks.example", fetcher=CountingFetcher(doc))
     client.get_signing_key(KID)
     with pytest.raises(JwksError):
         client.get_signing_key("hmac")
+    with pytest.raises(JwksError):
+        client.get_signing_key("encryption")
 
 
 class OutageFetcher:

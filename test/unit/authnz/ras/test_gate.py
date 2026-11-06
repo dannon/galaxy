@@ -28,7 +28,11 @@ from galaxy.authnz.ras.store import (
     PassportStatus,
     VaultPassportStore,
 )
-from galaxy.authnz.ras.verify import IssuerConfig
+from galaxy.authnz.ras.verify import (
+    IssuerConfig,
+    PassportVerificationError,
+    verify_passport,
+)
 from galaxy.security.vault import NullVault
 from .util import (
     ISSUER,
@@ -310,3 +314,26 @@ def test_jwks_uri_from_discovery():
     config = issuer_config_from(RasConfig(issuer=ISSUER), fetcher=fetch)
     assert config.jwks.get_signing_key(KID)
     assert calls == [f"{ISSUER}/.well-known/openid-configuration", f"{ISSUER}/jwks.json"]
+
+
+@pytest.mark.parametrize(
+    "discovery",
+    [
+        {"issuer": "https://other.example", "jwks_uri": "https://other.example/jwks.json"},
+        {"issuer": ISSUER},
+        {"jwks_uri": f"{ISSUER}/jwks.json"},
+    ],
+)
+def test_discovery_must_match_the_issuer(discovery):
+    jwks = jwks_doc((KEY, KID))
+    calls = []
+
+    def fetch(url):
+        calls.append(url)
+        return discovery if url.endswith("openid-configuration") else jwks
+
+    config = issuer_config_from(RasConfig(issuer=ISSUER), fetcher=fetch)
+    with pytest.raises(PassportVerificationError, match="discovery"):
+        verify_passport(make_passport([]), config, now=NOW)
+    # The keys were never fetched from wherever the bad document pointed.
+    assert calls == [f"{ISSUER}/.well-known/openid-configuration"]
