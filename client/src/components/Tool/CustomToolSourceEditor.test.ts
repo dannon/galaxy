@@ -81,6 +81,25 @@ describe("CustomToolSourceEditor", () => {
         expect(useUnprivilegedToolStore().load).toHaveBeenCalledWith(true);
     });
 
+    it("posts one revision when save is called again while a save is in flight", async () => {
+        const post = vi.fn();
+        server.use(
+            http.untyped.post("/api/unprivileged_tools", async () => {
+                post();
+                return HttpResponse.json({ ...REVISION_A, uuid: "revision-b" });
+            }),
+        );
+        const { wrapper } = mountEditor();
+        await wrapper.find("textarea.monaco-stub").setValue("class: GalaxyUserTool\nid: basecommand\n");
+        // The route page saves through the exposed method, not the embedded toolbar.
+        const editor = wrapper.vm as unknown as { save: () => Promise<void> };
+        await Promise.all([editor.save(), editor.save()]);
+        await flushPromises();
+
+        expect(post).toHaveBeenCalledTimes(1);
+        expect(wrapper.emitted("saved")).toHaveLength(1);
+    });
+
     it("shows a parse error instead of posting invalid yaml", async () => {
         const post = vi.fn();
         server.use(
