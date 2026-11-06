@@ -166,8 +166,10 @@ class TestToolRevisionRerunApi(ApiTestCase):
             # Running the new version once more reuses the whole thing, revision B's job included.
             third_invocation_id = self._invoke(workflow_id, latest_request)
             third_jobs = self._jobs_by_label(third_invocation_id)
-            for label, job in third_jobs.items():
-                assert job["copied_from_job_id"] == second_jobs[label]["copied_from_job_id"] or (
-                    job["copied_from_job_id"] == second_jobs[label]["id"]
-                ), (label, job)
-            assert third_jobs["user_tool"]["copied_from_job_id"] == second_jobs["user_tool"]["id"]
+            # The cache only ever copies from original jobs, never from a copy.
+            expected_sources = {
+                "upstream_cat": first_jobs["upstream_cat"]["id"],
+                "user_tool": second_jobs["user_tool"]["id"],
+                "downstream_cat": second_jobs["downstream_cat"]["id"],
+            }
+            assert {label: job["copied_from_job_id"] for label, job in third_jobs.items()} == expected_sources
