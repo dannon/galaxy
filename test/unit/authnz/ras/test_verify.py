@@ -21,6 +21,7 @@ from galaxy.authnz.ras.verify import (
 )
 from .util import (
     CountingFetcher,
+    FIXTURES_ENV,
     ISSUER,
     issuer_config,
     jwks_doc,
@@ -36,8 +37,6 @@ from .util import (
     SUBJECT,
     visa_claims,
 )
-
-FIXTURES_ENV = "GALAXY_TEST_RAS_FIXTURES"
 
 
 def _b64(data: bytes) -> str:
