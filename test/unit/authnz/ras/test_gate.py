@@ -126,6 +126,8 @@ def test_vault_store_needs_a_vault(tmp_path):
         ("leeway: 100000\n", "leeway"),
         ("unknown_option: 1\n", "unknown_option"),
         ("store: s3\n", "store"),
+        # TapisVaultPassportStore is only a placeholder; accepting it would 500 every request.
+        ("store: tapis_vault\n", "store"),
         ("- a list\n", "mapping"),
     ],
 )

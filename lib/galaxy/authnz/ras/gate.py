@@ -44,7 +44,6 @@ from galaxy.authnz.ras.policy import (
 from galaxy.authnz.ras.store import (
     PassportStatus,
     PassportStore,
-    TapisVaultPassportStore,
     VaultPassportStore,
 )
 from galaxy.authnz.ras.verify import IssuerConfig
@@ -215,13 +214,9 @@ def build_passport_gate(app: "MinimalManagerApp") -> PassportGate | None:
     config = load_ras_config(getattr(app.config, "ras_config_file", None))
     if config is None:
         return None
-    store: PassportStore
-    if config.store == "vault":
-        if not is_vault_configured(app.vault):
-            raise RasConfigError("RAS passport support with store: vault needs vault_config_file to be configured")
-        store = VaultPassportStore(app.vault, issuer_config_from(config))
-    else:
-        store = TapisVaultPassportStore()
+    if not is_vault_configured(app.vault):
+        raise RasConfigError("RAS passport support with store: vault needs vault_config_file to be configured")
+    store: PassportStore = VaultPassportStore(app.vault, issuer_config_from(config))
     # Without a bridge the return address is never used.
     galaxy_url = config.galaxy_url or app.config.galaxy_infrastructure_url
     log.info("RAS passport support enabled for issuer %s", config.issuer)

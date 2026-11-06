@@ -28,8 +28,8 @@ issuer: https://stsstg.nih.gov
 # bridge_url is set.
 #galaxy_url: https://galaxy.example.org/
 
-# Where passports are kept: "vault" (Galaxy's vault, needs vault_config_file)
-# or "tapis_vault" (not implemented yet).
+# Where passports are kept. Only "vault" (Galaxy's vault, needs
+# vault_config_file) so far.
 #store: vault
 
 # Development only: talk to RAS directly instead of through a bridge. The
