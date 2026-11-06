@@ -10,6 +10,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from galaxy.authnz.ras.jwks import JwksClient
 from galaxy.authnz.ras.verify import IssuerConfig
 
+FIXTURES_ENV = "GALAXY_TEST_RAS_FIXTURES"
 ISSUER = "https://sts.example.nih.gov"
 KID = "TEST-SIGN-1"
 OTHER_KID = "TEST-SIGN-2"
