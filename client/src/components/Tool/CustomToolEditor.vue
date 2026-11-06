@@ -203,14 +203,18 @@ async function generateViaLLM() {
                 title="Save Custom Tool"
                 aria-label="Save Custom Tool"
                 data-description="save custom tool"
-                :disabled="sourceEditor?.saving"
+                :disabled="sourceEditor?.saving || sourceEditor?.loading"
                 @click="saveTool">
                 <FontAwesomeIcon :icon="faSave" />
             </GButton>
         </div>
         <CustomToolEditorWorkspace :documentation-visible="showDocumentation">
             <template v-slot:editor>
-                <CustomToolSourceEditor ref="sourceEditor" :tool-uuid="props.toolUuid" @saved="onSaved" />
+                <CustomToolSourceEditor
+                    :key="props.toolUuid"
+                    ref="sourceEditor"
+                    :tool-uuid="props.toolUuid"
+                    @saved="onSaved" />
             </template>
             <template v-slot:documentation>
                 <AuthoringHelpPanel ref="authoringHelpPanel" class="p-3" />
