@@ -99,6 +99,25 @@ def test_url_saves_state(env):
     assert oct(env.stat().st_mode & 0o777) == "0o600"
 
 
+def test_url_tightens_an_existing_state_file(env):
+    env.write_text("old")
+    env.chmod(0o644)
+    code, _ = _run(_common(env) + ["url"], FakeHttp())
+    assert code == 0
+    assert oct(env.stat().st_mode & 0o777) == "0o600"
+    assert "state" in json.loads(env.read_text())
+
+
+def test_url_refuses_a_symlinked_state_file(env, tmp_path, capsys):
+    target = tmp_path / "victim"
+    target.write_text("keep me")
+    env.symlink_to(target)
+    code, _ = _run(_common(env) + ["url"], FakeHttp())
+    assert code == 1
+    assert target.read_text() == "keep me"
+    assert str(env) in capsys.readouterr().err
+
+
 def test_url_needs_client_id(env, monkeypatch, capsys):
     monkeypatch.delenv("RAS_CLIENT_ID")
     code, _ = _run(_common(env) + ["url"], FakeHttp())
