@@ -4620,6 +4620,68 @@
 :Type: str
 
 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``ga4gh_passport_broker_authorize_url``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:Description:
+    Authorization endpoint of the GA4GH Passport broker that connects
+    Galaxy users to their Passport (OAuth 2.0 authorization code flow
+    with PKCE; Galaxy is the broker's client). Setting it enables
+    Passport connections at ``/ga4gh_passport/connect``; the broker
+    must accept ``<galaxy_url>/ga4gh_passport/callback`` as the
+    redirect URI. The broker's token endpoint returns the Passport (a
+    JWT) as ``passport``. Passports are stored in the vault, which
+    must be configured (see ``vault_config_file``).
+:Default: ``None``
+:Type: str
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``ga4gh_passport_broker_token_url``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:Description:
+    Token endpoint of the GA4GH Passport broker, where Galaxy
+    exchanges the authorization code for the user's Passport.
+:Default: ``None``
+:Type: str
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``ga4gh_passport_broker_client_id``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:Description:
+    Galaxy's client id at the GA4GH Passport broker.
+:Default: ``None``
+:Type: str
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``ga4gh_passport_broker_client_secret``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:Description:
+    Galaxy's client secret at the GA4GH Passport broker.
+:Default: ``None``
+:Type: str
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``ga4gh_passport_trusted_issuers``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:Description:
+    Comma-separated list of trusted Passport and Visa issuers, e.g.
+    ``https://stsstg.nih.gov``. Galaxy accepts only Passports signed
+    by one of them, ignores Visas from any other issuer, and takes
+    signing keys only from these issuers' published key sets (OpenID
+    Connect discovery).
+:Default: ``None``
+:Type: str
+
+
 ~~~~~~~~~~~~~~~~~~~~
 ``auth_config_file``
 ~~~~~~~~~~~~~~~~~~~~

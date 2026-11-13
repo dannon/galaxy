@@ -352,6 +352,11 @@ class GalaxyAppConfigurationAttributes:
     oidc_auth_pipeline: list[Any]
     oidc_auth_pipeline_extra: list[Any]
     oidc_scope_prefix: str
+    ga4gh_passport_broker_authorize_url: str | None
+    ga4gh_passport_broker_token_url: str | None
+    ga4gh_passport_broker_client_id: str | None
+    ga4gh_passport_broker_client_secret: str | None
+    ga4gh_passport_trusted_issuers: str | None
     auth_config_file: str
     api_allow_run_as: str | None
     bootstrap_admin_api_key: str | None
