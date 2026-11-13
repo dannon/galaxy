@@ -76,7 +76,8 @@ class FastAPIGA4GHPassport:
         if trans.user is None:
             # Log in first, then come back here.
             here = f"/{CONNECT_PATH}?{urlencode({'next': next})}"
-            return RedirectResponse(galaxy_url_for_path(trans, f"login/start?redirect={quote(here, safe='')}"))
+            login_url = galaxy_url_for_path(trans, f"login/start?redirect={quote(here, safe='')}")
+            return RedirectResponse(login_url, status_code=status.HTTP_302_FOUND)
         url = self.manager.connect_url(trans, galaxy_url_for_path(trans, CALLBACK_PATH), next)
         return RedirectResponse(url, status_code=status.HTTP_302_FOUND)
 
