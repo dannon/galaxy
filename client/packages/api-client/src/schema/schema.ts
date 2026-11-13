@@ -6163,6 +6163,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/users/current/ga4gh_passport": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The current user's GA4GH Passport identity and stored Passport (never the Passport itself) */
+        get: operations["show_api_users_current_ga4gh_passport_get"];
+        put?: never;
+        post?: never;
+        /** Delete the current user's stored GA4GH Passport (the identity binding stays) */
+        delete: operations["forget_api_users_current_ga4gh_passport_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/users/current/recalculate_disk_usage": {
         parameters: {
             query?: never;
@@ -7861,6 +7879,40 @@ export interface paths {
          * @description Get WES service information.
          */
         get: operations["service_info_ga4gh_wes_v1_service_info_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ga4gh_passport/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Finish connecting to a GA4GH Passport (the broker redirects the browser here) */
+        get: operations["callback_ga4gh_passport_callback_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ga4gh_passport/connect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Start connecting the current user to their GA4GH Passport (browser redirect to the broker) */
+        get: operations["connect_ga4gh_passport_connect_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -14480,6 +14532,114 @@ export interface components {
             name: string;
         } & {
             [key: string]: unknown;
+        };
+        /** GA4GHGrant */
+        GA4GHGrant: {
+            /**
+             * Authorization
+             * @description Study and consent group, e.g. phs000001.c1.
+             */
+            authorization: string;
+            /** Consent Group */
+            consent_group: string;
+            /** Consent Name */
+            consent_name: string;
+            /**
+             * Expiration
+             * Format: date-time
+             * @description When the grant (the data access request) expires.
+             */
+            expiration: string;
+            /** Participant Set */
+            participant_set: string;
+            /** Phs Id */
+            phs_id: string;
+            /** Role */
+            role: string;
+            /** Version */
+            version: string;
+        };
+        /** GA4GHIdentity */
+        GA4GHIdentity: {
+            /**
+             * Bound Since
+             * Format: date-time
+             */
+            bound_since: string;
+            /** Issuer */
+            issuer: string;
+            /** Preferred Username */
+            preferred_username: string | null;
+            /** Sub */
+            sub: string;
+        };
+        /** GA4GHPassportStatus */
+        GA4GHPassportStatus: {
+            /**
+             * Enabled
+             * @description Whether this Galaxy is configured for GA4GH Passport connections.
+             */
+            enabled: boolean;
+            /** @description The Passport identity bound to this user, if any. */
+            identity?: components["schemas"]["GA4GHIdentity"] | null;
+            /** @description The stored Passport, if present and valid. */
+            passport?: components["schemas"]["GA4GHPassportSummary"] | null;
+        };
+        /**
+         * GA4GHPassportSummary
+         * @description What a stored Passport says. The Passport itself is never returned.
+         */
+        GA4GHPassportSummary: {
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /**
+             * Issued At
+             * Format: date-time
+             */
+            issued_at: string;
+            /** Issuer */
+            issuer: string;
+            /**
+             * Rejected Visas
+             * @description Visas dropped because they failed verification.
+             */
+            rejected_visas: number;
+            /** Sub */
+            sub: string;
+            /**
+             * Txn
+             * @description Login transaction id at the issuer (NIH RAS), for audit.
+             */
+            txn?: string | null;
+            /** Visas */
+            visas: components["schemas"]["GA4GHVisa"][];
+            /**
+             * Visas Expire At
+             * @description Earliest Visa expiry.
+             */
+            visas_expire_at?: string | null;
+        };
+        /** GA4GHVisa */
+        GA4GHVisa: {
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Grants */
+            grants: components["schemas"]["GA4GHGrant"][];
+            /** Issuer */
+            issuer: string;
+            /**
+             * Recognized
+             * @description False for Visa types Galaxy does not understand; they grant nothing.
+             */
+            recognized: boolean;
+            /** Type */
+            type: string;
         };
         /** GenerateTourResponse */
         GenerateTourResponse: {
@@ -53192,6 +53352,86 @@ export interface operations {
             };
         };
     };
+    show_api_users_current_ga4gh_passport_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GA4GHPassportStatus"];
+                };
+            };
+            /** @description Request Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+            /** @description Server Error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+        };
+    };
+    forget_api_users_current_ga4gh_passport_delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Request Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+            /** @description Server Error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+        };
+    };
     recalculate_disk_usage_api_users_current_recalculate_disk_usage_put: {
         parameters: {
             query?: never;
@@ -58637,6 +58877,91 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ServiceInfo"];
                 };
+            };
+            /** @description Request Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+            /** @description Server Error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+        };
+    };
+    callback_ga4gh_passport_callback_get: {
+        parameters: {
+            query?: {
+                state?: string | null;
+                code?: string | null;
+                error?: string | null;
+            };
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            302: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Request Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+            /** @description Server Error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+        };
+    };
+    connect_ga4gh_passport_connect_get: {
+        parameters: {
+            query?: {
+                /** @description Galaxy path to send the browser to once the connect finishes. */
+                next?: string;
+            };
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            302: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Request Error */
             "4XX": {
