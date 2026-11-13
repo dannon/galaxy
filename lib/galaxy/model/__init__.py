@@ -12254,6 +12254,30 @@ class UserAuthnzToken(Base, UserMixin, RepresentById):
         return instance
 
 
+class UserGA4GHIdentity(Base, RepresentById):
+    """The GA4GH Passport identity (issuer + sub) bound to a Galaxy user.
+
+    Recorded on a user's first Passport connect. Later connects must present the
+    same identity, and an identity can belong to only one Galaxy user.
+    """
+
+    __tablename__ = "user_ga4gh_identity"
+    __table_args__ = (
+        UniqueConstraint("issuer", "sub", name="user_ga4gh_identity_issuer_sub_key"),
+        UniqueConstraint("user_id", "issuer", name="user_ga4gh_identity_user_id_issuer_key"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    # No separate index: the (user_id, issuer) unique constraint's index covers user_id lookups.
+    user_id: Mapped[int] = mapped_column(ForeignKey("galaxy_user.id"))
+    issuer: Mapped[str] = mapped_column(Text)
+    sub: Mapped[str] = mapped_column(Text)
+    preferred_username: Mapped[str | None] = mapped_column(Text)
+    create_time: Mapped[datetime] = mapped_column(default=now)
+    update_time: Mapped[datetime] = mapped_column(default=now, onupdate=now)
+    user: Mapped["User"] = relationship()
+
+
 class Page(Base, HasTags, RepresentById, UsesCreateAndUpdateTime):
     __tablename__ = "page"
     __table_args__ = (Index("ix_page_slug", "slug", mysql_length=200),)
