@@ -105,7 +105,10 @@ class DRSFilesSource(BaseFilesSource[DRSFileSourceTemplateConfiguration, DRSFile
         except AuthenticationRequired as e:
             if not config.ga4gh_passport:
                 raise
-            raise AuthenticationRequired(f"{e} {RECONNECT_HINT if passports else CONNECT_HINT}") from e
+            message = str(e).rstrip()
+            if not message.endswith((".", "!", "?")):
+                message += "."
+            raise AuthenticationRequired(f"{message} {RECONNECT_HINT if passports else CONNECT_HINT}") from e
 
     def to_dict(self, for_serialization=False, user_context: "OptionalUserContext" = None) -> dict[str, Any]:
         rval = super().to_dict(for_serialization=for_serialization, user_context=user_context)

@@ -255,7 +255,7 @@ def test_job_without_passport_is_told_to_connect():
     responses.add(responses.GET, f"{DRS}/obj1", status=401, json={"msg": "needs a passport", "status_code": 401})
     file_sources = serialize_and_recover(configured_file_sources(FILE_SOURCES_CONF), _user())
 
-    with pytest.raises(exceptions.AuthenticationRequired, match=r"needs a passport Connect your GA4GH Passport"):
+    with pytest.raises(exceptions.AuthenticationRequired, match=r"needs a passport\. Connect your GA4GH Passport"):
         realize_to_temp_file(file_sources, DRS_URI)
 
 
@@ -264,7 +264,7 @@ def test_rejected_passport_suggests_reconnecting():
     responses.add(responses.POST, f"{DRS}/obj1", status=401, json={"msg": "visa expired", "status_code": 401})
     file_sources = serialize_and_recover(configured_file_sources(FILE_SOURCES_CONF), _user(_credential()))
 
-    with pytest.raises(exceptions.AuthenticationRequired, match="visa expired Reconnect your GA4GH Passport"):
+    with pytest.raises(exceptions.AuthenticationRequired, match=r"visa expired\. Reconnect your GA4GH Passport"):
         realize_to_temp_file(file_sources, DRS_URI)
 
 
