@@ -1,18 +1,36 @@
-"""DRS 1.4 PassportAuth in the DRS client: POSTing GA4GH Passports, errors, signed URL redaction."""
+"""GA4GH Passports for DRS (DRS 1.4 PassportAuth): the DRS client, and the DRS file source sending a user's Passport."""
 
 import json
 import logging
+import os
+from datetime import (
+    datetime,
+    timedelta,
+    timezone,
+)
+from types import SimpleNamespace
+from typing import cast
 
 import pytest
 import responses
 
 from galaxy import exceptions
+from galaxy.files import (
+    DictFileSourcesUserContext,
+    GA4GHPassportCredential,
+)
 from galaxy.files.sources.util import (
     fetch_drs_to_file,
     retry_and_get,
     RetryOptions,
 )
 from galaxy.files.uris import redact_url_queries
+from ._util import (
+    assert_realizes_as,
+    configured_file_sources,
+    realize_to_temp_file,
+    serialize_and_recover,
+)
 
 DRS = "https://drs.example.org/ga4gh/drs/v1/objects"
 DRS_URI = "drs://drs.example.org/obj1"
@@ -158,3 +176,135 @@ def test_failed_download_never_reveals_signed_url(tmp_path, caplog):
 )
 def test_redact_url_queries(text, expected):
     assert redact_url_queries(text) == expected
+
+
+# --- the DRS file source: the user's Passport into jobs ------------------------------------------
+
+FILE_SOURCES_CONF = os.path.join(os.path.dirname(__file__), "drs_passport_file_sources_conf.yml")
+PLAIN_FILE_SOURCES_CONF = os.path.join(os.path.dirname(__file__), "drs_file_sources_conf.yml")
+
+
+def _user(credential: GA4GHPassportCredential | None = None, **kwd) -> DictFileSourcesUserContext:
+    return DictFileSourcesUserContext(
+        username="alice",
+        email="alice@galaxyproject.org",
+        preferences={"oidc|bearer_token": "IBearTokens"},
+        role_names=set(),
+        group_names=set(),
+        is_admin=False,
+        ga4gh_passport=credential,
+        **kwd,
+    )
+
+
+def _credential(fresh_for: int = 600) -> GA4GHPassportCredential:
+    return GA4GHPassportCredential(
+        passport=PASSPORT, fresh_until=datetime.now(timezone.utc) + timedelta(seconds=fresh_for), txn="txn-1"
+    )
+
+
+def _serialized_drs(conf: str, user_context) -> dict:
+    as_dict = configured_file_sources(conf).to_dict(for_serialization=True, user_context=user_context)
+    return next(source for source in as_dict["file_sources"] if source["type"] == "drs")
+
+
+def test_job_gets_the_passport_and_its_freshness_limit():
+    credential = _credential()
+    user = _user(credential)
+
+    serialized = _serialized_drs(FILE_SOURCES_CONF, user)
+
+    assert serialized["passports"] == [PASSPORT]
+    assert datetime.fromisoformat(serialized["auth_expires_at"]) == credential.fresh_until
+    assert PASSPORT not in json.dumps(user.to_dict()), "never in the serialized user context"
+
+
+def test_passport_not_sent_unless_the_source_asks_for_it():
+    assert "passports" not in _serialized_drs(PLAIN_FILE_SOURCES_CONF, _user(_credential()))
+
+
+def test_no_passport_no_passports():
+    serialized = _serialized_drs(FILE_SOURCES_CONF, _user())
+    assert "passports" not in serialized and "auth_expires_at" not in serialized
+
+
+def test_anonymous_user_gets_no_passport():
+    anonymous = DictFileSourcesUserContext(ga4gh_passport=_credential())
+    assert "passports" not in _serialized_drs(FILE_SOURCES_CONF, anonymous)
+
+
+@responses.activate
+def test_job_posts_the_passport(tmp_path):
+    """The job side: no user context, only the serialized config."""
+    _controlled_repository()
+    file_sources = serialize_and_recover(configured_file_sources(FILE_SOURCES_CONF), _user(_credential()))
+
+    assert_realizes_as(file_sources, DRS_URI, "controlled content")
+    assert json.loads(responses.calls[0].request.body or "") == {"passports": [PASSPORT]}
+
+
+def test_job_refuses_a_stale_passport():
+    file_sources = serialize_and_recover(configured_file_sources(FILE_SOURCES_CONF), _user(_credential(-1)))
+
+    with pytest.raises(exceptions.FileSourceCredentialExpired, match="too old .* Reconnect your GA4GH Passport"):
+        realize_to_temp_file(file_sources, DRS_URI)
+
+
+@responses.activate
+def test_job_without_passport_is_told_to_connect():
+    responses.add(responses.GET, f"{DRS}/obj1", status=401, json={"msg": "needs a passport", "status_code": 401})
+    file_sources = serialize_and_recover(configured_file_sources(FILE_SOURCES_CONF), _user())
+
+    with pytest.raises(exceptions.AuthenticationRequired, match=r"needs a passport Connect your GA4GH Passport"):
+        realize_to_temp_file(file_sources, DRS_URI)
+
+
+@responses.activate
+def test_rejected_passport_suggests_reconnecting():
+    responses.add(responses.POST, f"{DRS}/obj1", status=401, json={"msg": "visa expired", "status_code": 401})
+    file_sources = serialize_and_recover(configured_file_sources(FILE_SOURCES_CONF), _user(_credential()))
+
+    with pytest.raises(exceptions.AuthenticationRequired, match="visa expired Reconnect your GA4GH Passport"):
+        realize_to_temp_file(file_sources, DRS_URI)
+
+
+@responses.activate
+def test_realized_in_process_uses_the_users_passport():
+    _controlled_repository()
+
+    assert_realizes_as(
+        configured_file_sources(FILE_SOURCES_CONF), DRS_URI, "controlled content", user_context=_user(_credential())
+    )
+    assert json.loads(responses.calls[0].request.body or "") == {"passports": [PASSPORT]}
+
+
+def test_realized_in_process_refuses_a_stale_passport():
+    with pytest.raises(exceptions.FileSourceCredentialExpired, match="too old"):
+        realize_to_temp_file(configured_file_sources(FILE_SOURCES_CONF), DRS_URI, user_context=_user(_credential(-1)))
+
+
+def test_provides_user_context_reads_the_stored_passport():
+    from galaxy.files import (
+        ProvidesFileSourcesTransaction,
+        ProvidesFileSourcesUserContext,
+    )
+    from galaxy.managers.ga4gh_passports import PassportManager
+
+    fresh_until = int(datetime.now(timezone.utc).timestamp()) + 600
+
+    class FakePassportManager:
+        def current(self, user):
+            return SimpleNamespace(token=PASSPORT, txn="txn-1") if user == "alice" else None
+
+        def fresh_until(self, passport):
+            return fresh_until
+
+    def user_context(user):
+        trans = SimpleNamespace(user=user, app={PassportManager: FakePassportManager()})
+        return ProvidesFileSourcesUserContext(cast(ProvidesFileSourcesTransaction, trans))
+
+    assert user_context("alice").ga4gh_passport == GA4GHPassportCredential(
+        passport=PASSPORT, fresh_until=datetime.fromtimestamp(fresh_until, tz=timezone.utc), txn="txn-1"
+    )
+    assert user_context("bob").ga4gh_passport is None
+    assert user_context(None).ga4gh_passport is None

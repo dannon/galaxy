@@ -2,7 +2,10 @@ import logging
 import os
 from collections import defaultdict
 from collections.abc import Callable
-from datetime import datetime
+from datetime import (
+    datetime,
+    timezone,
+)
 from typing import (
     Any,
     NamedTuple,
@@ -25,6 +28,14 @@ from .plugins import (
     FileSourcePluginLoader,
     FileSourcePluginsConfig,
 )
+
+
+class GA4GHPassportCredential(NamedTuple):
+    """A user's GA4GH Passport, for file sources that send it to data services (DRS)."""
+
+    passport: str  # the Passport JWT; a credential, never log it
+    fresh_until: datetime  # don't send it after this; the user reconnects for a fresh one
+    txn: str | None  # the issuer's login transaction id, for audit logs
 
 
 class ProvidesFileSourcesTransaction(Protocol):
@@ -418,6 +429,9 @@ class FileSourcesUserContext(DictifiableFilesSourceContext, Protocol):
     @property
     def oidc_access_token_expirations(self) -> dict[str, datetime]: ...
 
+    @property
+    def ga4gh_passport(self) -> GA4GHPassportCredential | None: ...
+
 
 OptionalUserContext = FileSourcesUserContext | None
 
@@ -516,6 +530,21 @@ class ProvidesFileSourcesUserContext(FileSourcesUserContext, FileSourceDictifiab
             if (expiry := compute_token_expiry_for_provider(user, auth.provider)) is not None
         }
 
+    @property
+    def ga4gh_passport(self) -> GA4GHPassportCredential | None:
+        """The user's stored GA4GH Passport if it still verifies, else None."""
+        user = self.trans.user
+        if not user:
+            return None
+        from galaxy.managers.ga4gh_passports import PassportManager
+
+        manager = self.trans.app[PassportManager]
+        passport = manager.current(user)
+        if passport is None:
+            return None
+        fresh_until = datetime.fromtimestamp(manager.fresh_until(passport), tz=timezone.utc)
+        return GA4GHPassportCredential(passport=passport.token, fresh_until=fresh_until, txn=passport.txn)
+
 
 class DictFileSourcesUserContext(FileSourcesUserContext, FileSourceDictifiable):
     def __init__(self, **kwd):
@@ -572,3 +601,9 @@ class DictFileSourcesUserContext(FileSourcesUserContext, FileSourceDictifiable):
     @property
     def oidc_access_token_expirations(self) -> dict[str, datetime]:
         return self._kwd.get("oidc_access_token_expirations") or {}
+
+    @property
+    def ga4gh_passport(self) -> GA4GHPassportCredential | None:
+        # Never part of the serialized user context (see FileSourceDictifiable): file
+        # sources that use it put what they need into their own serialized config.
+        return self._kwd.get("ga4gh_passport")
