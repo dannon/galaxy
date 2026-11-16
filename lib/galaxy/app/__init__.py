@@ -60,6 +60,7 @@ from galaxy.managers.file_source_instances import (
     UserDefinedFileSourcesImpl,
 )
 from galaxy.managers.folders import FolderManager
+from galaxy.managers.ga4gh_passports import PassportManager
 from galaxy.managers.hdas import HDAManager
 from galaxy.managers.histories import HistoryManager
 from galaxy.managers.history_audit_monitor import HistoryAuditMonitor
@@ -819,6 +820,8 @@ class GalaxyManagerApplication(MinimalManagerApp, MinimalGalaxyApplication):
         tag_handler = GalaxyTagHandler(self.model.context)
         self.tag_handler = self._register_singleton(GalaxyTagHandler, tag_handler)
         self.user_manager = self._register_singleton(UserManager)
+        # One instance, so its Passport verifier's signing key cache is shared.
+        self._register_singleton(PassportManager)
         self._register_singleton(GalaxySessionManager)
         self.hda_manager = self._register_singleton(HDAManager)
         self.history_manager = self._register_singleton(HistoryManager)
