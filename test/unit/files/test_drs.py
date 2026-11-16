@@ -364,3 +364,24 @@ def test_file_source_drs_attach_oidc_token():
     )
     file_sources = configured_file_sources(DRS_OIDC_FILE_SOURCES_CONF)
     assert_realizes_as(file_sources, test_url, "hello oidc world", user_context=user_context)
+
+
+@responses.activate
+def test_retry_and_get_keeps_headers_on_202_retry():
+    """A 202 "come back later" retry must send the same headers as the first request."""
+    from galaxy.files.sources.util import (
+        retry_and_get,
+        RetryOptions,
+    )
+
+    url = "https://drs.example.org/ga4gh/drs/v1/objects/202test"
+    responses.add(responses.GET, url, status=202, headers={"Retry-After": "0"})
+    responses.add(responses.GET, url, json={"id": "202test"})
+    retry_options = RetryOptions()
+    retry_options.override_retry_after = 0
+
+    response = retry_and_get(url, retry_options, headers={"Authorization": "Bearer IBearTokens"})
+
+    assert response.json() == {"id": "202test"}
+    assert len(responses.calls) == 2
+    assert all(call.request.headers["Authorization"] == "Bearer IBearTokens" for call in responses.calls)

@@ -121,7 +121,7 @@ def retry_and_get(get_url: str, retry_options: RetryOptions, headers: dict | Non
         retry_after = retry_options.override_retry_after or float(response.headers["Retry-After"])
         time.sleep(retry_after)
         retry_options.retry_times -= 1
-        return retry_and_get(get_url, retry_options)
+        return retry_and_get(get_url, retry_options, headers=headers)
     else:
         return response
 
