@@ -4682,6 +4682,22 @@
 :Type: str
 
 
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+``ga4gh_passport_max_age``
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:Description:
+    How long, in seconds, after a stored GA4GH Passport (and the
+    oldest of its Visas) was issued Galaxy still sends it to data
+    services such as DRS servers. Visas are access tokens, which the
+    GA4GH AAI profile treats as stale an hour after issue unless the
+    service re-validates them, and NIH RAS expects clients to re-check
+    them at least hourly. After this, the user reconnects to get a
+    fresh Passport (usually without logging in again).
+:Default: ``3600``
+:Type: int
+
+
 ~~~~~~~~~~~~~~~~~~~~
 ``auth_config_file``
 ~~~~~~~~~~~~~~~~~~~~

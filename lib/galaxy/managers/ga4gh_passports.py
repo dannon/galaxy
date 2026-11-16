@@ -10,7 +10,8 @@ Galaxy is an OAuth 2.0 client of the broker (authorization code + PKCE):
    against the one bound to the user, and stores the Passport in the user's
    vault (encrypted at rest with the database vault).
 3. ``current``: the user's stored Passport, verified again on every read. This
-   is the interface the rest of Galaxy uses.
+   is the interface the rest of Galaxy uses; ``fresh_until`` says how long it
+   may still be sent to data services.
 
 The broker returns the Passport untouched; all decoding happens here, through
 ``galaxy.security.ga4gh_passport``.
@@ -121,6 +122,7 @@ class PassportManager:
         self._sa_session = sa_session
         self._vault = vault
         self._verifier = PassportVerifier(self._broker.trusted_issuers) if self._broker else None
+        self._max_age = config.ga4gh_passport_max_age
 
     @property
     def enabled(self) -> bool:
@@ -281,6 +283,20 @@ class PassportManager:
         except InvalidPassport as e:
             log.info("GA4GH passport of user_id=%s no longer valid: %s", user.id, e)
             return None
+
+    def fresh_until(self, passport: VerifiedPassport) -> int:
+        """Until when (epoch seconds) Galaxy may send ``passport`` to a data service.
+
+        The earliest of: the Passport's expiry, its Visas' expiry, and
+        ``ga4gh_passport_max_age`` after the Passport or its oldest Visa was
+        issued. Visas are access tokens: past that age a data service should
+        reject them unless it re-validates them with the issuer.
+        """
+        issued_at = min([passport.issued_at, *(visa.issued_at for visa in passport.visas)])
+        limits = [passport.expires_at, issued_at + self._max_age]
+        if passport.visas_expire_at is not None:
+            limits.append(passport.visas_expire_at)
+        return min(limits)
 
     def identity(self, user: User) -> UserGA4GHIdentity | None:
         if self._broker is None:

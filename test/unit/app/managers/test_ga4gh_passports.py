@@ -49,14 +49,24 @@ class StaticKeys:
         return KEY.public_key()
 
 
-def make_passport(sub="sub-alice", phs_id="phs000001", key=KEY) -> str:
+def make_passport(
+    sub="sub-alice",
+    phs_id="phs000001",
+    key=KEY,
+    iat: int | None = None,
+    exp: int | None = None,
+    visa_iat: int | None = None,
+    visa_exp: int | None = None,
+) -> str:
     now = int(time.time())
+    iat = now if iat is None else iat
+    exp = iat + 3600 if exp is None else exp
     visa = jwt.encode(
         {
             "iss": ISSUER,
             "sub": sub,
-            "iat": now,
-            "exp": now + 3600,
+            "iat": iat if visa_iat is None else visa_iat,
+            "exp": exp if visa_exp is None else visa_exp,
             "ga4gh_visa_v1": {"type": RAS_DBGAP_VISA_TYPE, "asserted": now, "value": "v", "source": "s"},
             "ras_dbgap_permissions": [
                 {
@@ -73,7 +83,7 @@ def make_passport(sub="sub-alice", phs_id="phs000001", key=KEY) -> str:
         key,
         algorithm="RS256",
     )
-    claims = {"iss": ISSUER, "sub": sub, "iat": now, "exp": now + 3600, "txn": "txn-1", "ga4gh_passport_v1": [visa]}
+    claims = {"iss": ISSUER, "sub": sub, "iat": iat, "exp": exp, "txn": "txn-1", "ga4gh_passport_v1": [visa]}
     return jwt.encode(claims, key, algorithm="RS256")
 
 
@@ -84,6 +94,7 @@ def config(**overrides) -> SimpleNamespace:
         "ga4gh_passport_broker_client_id": "galaxy",
         "ga4gh_passport_broker_client_secret": "secret",
         "ga4gh_passport_trusted_issuers": ISSUER,
+        "ga4gh_passport_max_age": 3600,
         **overrides,
     }
     return SimpleNamespace(**settings)
@@ -310,6 +321,37 @@ def test_forget_keeps_identity(manager, broker, session, alice):
     assert manager.current(alice) is None
     assert manager.identity(alice) is not None
     manager.forget(alice)  # nothing stored: no error
+
+
+# --- freshness ----------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "claims, expected",
+    [
+        # issued just now, expires in 12 h: max age decides
+        ({"iat": 0, "exp": 43200}, 3600),
+        # expires before max age
+        ({"iat": 0, "exp": 600}, 600),
+        # a Visa expires first
+        ({"iat": 0, "exp": 43200, "visa_exp": 1800}, 1800),
+        # an older Visa: max age counts from it
+        ({"iat": 0, "exp": 43200, "visa_iat": -1200}, 2400),
+    ],
+)
+def test_fresh_until(manager, claims, expected):
+    now = int(time.time())
+    shifted = {name: now + offset for name, offset in claims.items()}
+    passport = manager._get_verifier().verify(make_passport(**shifted))
+    assert manager.fresh_until(passport) == now + expected
+
+
+def test_fresh_until_max_age_is_configurable(session, vault):
+    manager = PassportManager(config(ga4gh_passport_max_age=60), session, vault)  # type: ignore[arg-type]
+    manager._verifier = PassportVerifier([ISSUER], keys=StaticKeys())
+    now = int(time.time())
+    passport = manager._get_verifier().verify(make_passport(iat=now, exp=now + 43200))
+    assert manager.fresh_until(passport) == now + 60
 
 
 # --- configuration ------------------------------------------------------------------------------

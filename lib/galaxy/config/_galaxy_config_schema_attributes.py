@@ -357,6 +357,7 @@ class GalaxyAppConfigurationAttributes:
     ga4gh_passport_broker_client_id: str | None
     ga4gh_passport_broker_client_secret: str | None
     ga4gh_passport_trusted_issuers: str | None
+    ga4gh_passport_max_age: int
     auth_config_file: str
     api_allow_run_as: str | None
     bootstrap_admin_api_key: str | None
