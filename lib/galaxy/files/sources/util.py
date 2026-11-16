@@ -11,13 +11,17 @@ from galaxy import exceptions
 from galaxy.files import (
     ConfiguredFileSources,
     FileSourcesUserContext,
+    NoMatchingFileSource,
 )
 from galaxy.files.models import (
     FilesSourceOptions,
     PartialFilesSourceProperties,
     RealizedSourceMetadata,
 )
-from galaxy.files.uris import stream_url_to_file
+from galaxy.files.uris import (
+    redact_url_queries,
+    stream_url_to_file,
+)
 from galaxy.util import (
     DEFAULT_SOCKET_TIMEOUT,
     requests,
@@ -29,6 +33,8 @@ log = logging.getLogger(__name__)
 
 # Constants
 CHUNK_SIZE = 8192
+# Longest DRS error ``msg`` passed on to the user.
+MAX_DRS_ERROR_MSG_LENGTH = 300
 
 # POSIX NAME_MAX is 255 *bytes*, and dataset names are stored as TrimmedString(255)
 # characters, so a 255-byte cap satisfies both limits at once.
@@ -110,9 +116,53 @@ class RetryOptions:
     override_retry_after: float | None = None
 
 
-def retry_and_get(get_url: str, retry_options: RetryOptions, headers: dict | None = None) -> requests.Response:
-    response = requests.get(get_url, timeout=DEFAULT_SOCKET_TIMEOUT, headers=headers)
+def _drs_request(url: str, headers: dict[str, str] | None, passports: list[str] | None) -> requests.Response:
+    """GET a DRS endpoint, or POST ``passports`` to it (DRS 1.4 ``PassportAuth``)."""
+    if passports:
+        response = requests.post(url, json={"passports": passports}, timeout=DEFAULT_SOCKET_TIMEOUT, headers=headers)
+    else:
+        response = requests.get(url, timeout=DEFAULT_SOCKET_TIMEOUT, headers=headers)
+    _raise_for_drs_status(response, sent_passports=bool(passports))
+    return response
+
+
+def _raise_for_drs_status(response: requests.Response, sent_passports: bool) -> None:
+    """Turn DRS 401/403 errors into messages a user can act on; other errors as usual."""
+    if response.status_code == 401:
+        if sent_passports:
+            reason = "The DRS server did not accept the GA4GH Passport"
+        else:
+            reason = "The DRS server requires authorization for this object (it may need a GA4GH Passport)"
+        raise exceptions.AuthenticationRequired(f"{reason}{_drs_error_detail(response)}")
+    if response.status_code == 403:
+        if sent_passports:
+            reason = "The GA4GH Passport does not grant access to this DRS object"
+        else:
+            reason = "The DRS server denied access to this object"
+        raise exceptions.ItemAccessibilityException(f"{reason}{_drs_error_detail(response)}")
     response.raise_for_status()
+
+
+def _drs_error_detail(response: requests.Response) -> str:
+    """The ``msg`` of a DRS error response, as ``": msg"``, or "" if there is none."""
+    try:
+        msg = response.json().get("msg")
+    except (ValueError, AttributeError):
+        return ""
+    if not isinstance(msg, str):
+        return ""
+    msg = redact_url_queries("".join(c for c in msg if c.isprintable()).strip())
+    return f": {msg[:MAX_DRS_ERROR_MSG_LENGTH]}" if msg else ""
+
+
+def retry_and_get(
+    get_url: str, retry_options: RetryOptions, headers: dict | None = None, passports: list[str] | None = None
+) -> requests.Response:
+    """Fetch a DRS object, waiting out 202 (not ready yet) responses.
+
+    With ``passports``, the object is requested by POSTing them (DRS 1.4 ``PassportAuth``).
+    """
+    response = _drs_request(get_url, headers, passports)
     if response.status_code == 202:
         if retry_options.retry_times == 0:
             raise Exception("Timeout waiting on DRS URI response")
@@ -121,18 +171,19 @@ def retry_and_get(get_url: str, retry_options: RetryOptions, headers: dict | Non
         retry_after = retry_options.override_retry_after or float(response.headers["Retry-After"])
         time.sleep(retry_after)
         retry_options.retry_times -= 1
-        return retry_and_get(get_url, retry_options, headers=headers)
+        return retry_and_get(get_url, retry_options, headers=headers, passports=passports)
     else:
         return response
 
 
-def _get_access_info(obj_url: str, access_method: dict, headers: dict | None = None) -> tuple[str, dict]:
+def _get_access_info(
+    obj_url: str, access_method: dict, headers: dict | None = None, passports: list[str] | None = None
+) -> tuple[str, dict]:
     # Prefer access_id resolution to get signed/authenticated URLs
     if access_method.get("access_id"):
         access_id = access_method["access_id"]
         access_get_url = f"{obj_url}/access/{access_id}"
-        access_response = requests.get(access_get_url, timeout=DEFAULT_SOCKET_TIMEOUT, headers=headers)
-        access_response.raise_for_status()
+        access_response = _drs_request(access_get_url, headers, passports)
         access_response_object = access_response.json()
         access_url = access_response_object
     elif access_method.get("access_url"):
@@ -366,8 +417,14 @@ def fetch_drs_to_file(
     headers: dict | None = None,
     fetch_url_allowlist: list[IpAllowedListEntryT] | None = None,
     metadata_out: RealizedSourceMetadata | None = None,
+    passports: list[str] | None = None,
 ):
     """Fetch contents of drs:// URI to a target path.
+
+    With ``passports`` (GA4GH Passport JWTs), the object and its access URL are
+    requested by POSTing them (DRS 1.4 ``PassportAuth``), as controlled-access
+    repositories require. The access URL this returns is a credential: it is
+    never logged or put in an exception message with its query string.
 
     If ``metadata_out`` is supplied and the DRS object declares a usable ``name``, it is
     reported back under the ``name`` key so callers can name the dataset something better
@@ -404,8 +461,7 @@ def fetch_drs_to_file(
             get_url = f"{scheme}://{netspec}/ga4gh/drs/v1/objects/{object_id}"
         else:
             raise ValueError(f"Invalid DRS URI format: {drs_uri}")
-    response = retry_and_get(get_url, retry_options or RetryOptions(), headers=headers)
-    response.raise_for_status()
+    response = retry_and_get(get_url, retry_options or RetryOptions(), headers=headers, passports=passports)
     response_object = response.json()
     access_methods = response_object.get("access_methods", [])
     if len(access_methods) == 0:
@@ -417,8 +473,9 @@ def fetch_drs_to_file(
             metadata_out["name"] = drs_name
 
     downloaded = False
+    failures: list[str] = []
     for access_method in access_methods:
-        access_url, access_headers = _get_access_info(get_url, access_method, headers=headers)
+        access_url, access_headers = _get_access_info(get_url, access_method, headers=headers, passports=passports)
         opts = FilesSourceOptions()
         if access_method["type"] == "https":
             extra_props = {
@@ -430,7 +487,7 @@ def fetch_drs_to_file(
             # S3 access method - requires S3 file source configuration
             # Note: SPARC datasets use "Requester Pays" buckets which require
             # RequestPayer='requester' parameter (not currently supported by Galaxy S3 file source)
-            log.debug(f"Processing S3 access method: {access_url}")
+            log.debug(f"Processing S3 access method: {redact_url_queries(access_url)}")
             extra_props = {
                 "fetch_url_allowlist": fetch_url_allowlist or [],
             }
@@ -439,7 +496,7 @@ def fetch_drs_to_file(
         try:
             # Handle S3 URLs directly using s3fs instead of going through file sources
             if access_url.startswith("s3://"):
-                log.debug(f"Handling S3 URL directly: {access_url}")
+                log.debug(f"Handling S3 URL directly: {redact_url_queries(access_url)}")
                 _download_s3_file(access_url, target_path, access_headers)
                 downloaded = True
                 break
@@ -458,13 +515,17 @@ def fetch_drs_to_file(
                 )
                 downloaded = True
                 break
-        except exceptions.RequestParameterInvalidException as e:
-            log.debug(f"Failed to fetch via {access_method['type']} access method: {e}")
+        except NoMatchingFileSource as e:
+            log.debug(f"No file source for {access_method['type']} access method: {redact_url_queries(str(e))}")
             continue
         except Exception as e:
-            log.debug(f"Unexpected error with {access_method['type']} access method: {e}")
+            failure = redact_url_queries(str(e))
+            log.debug(f"Failed to fetch via {access_method['type']} access method: {failure}")
+            failures.append(f"{access_method['type']}: {failure}")
             continue
 
     if not downloaded:
+        if failures:
+            raise exceptions.MessageException(f"Failed to download DRS URI {drs_uri}: {'; '.join(failures)}")
         unimplemented_access_types = [m["type"] for m in access_methods]
         raise _not_implemented(drs_uri, f"that are fetched via unimplemented types ({unimplemented_access_types})")
