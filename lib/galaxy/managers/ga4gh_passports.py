@@ -8,7 +8,8 @@ Galaxy is an OAuth 2.0 client of the broker (authorization code + PKCE):
    code. Galaxy exchanges it (back channel, client secret + PKCE verifier) for
    the Passport, verifies the Passport itself, checks the Passport identity
    against the one bound to the user, and stores the Passport in the user's
-   vault (encrypted at rest with the database vault).
+   vault (encrypted at rest with the database vault). That last part is
+   ``accept``, which the development-only direct RAS login uses too.
 3. ``current``: the user's stored Passport, verified again on every read. This
    is the interface the rest of Galaxy uses; ``fresh_until`` says how long it
    may still be sent to data services.
@@ -59,10 +60,13 @@ from galaxy.authnz.ras.models import Passport
 from galaxy.authnz.ras.policy import carried_permissions
 from galaxy.authnz.ras.store import (
     PASSPORT_VAULT_KEY,
+    PassportLookup,
+    PassportStatus,
     VaultPassportStore,
 )
 from galaxy.authnz.ras.verify import (
     PassportVerificationError,
+    VerificationUnavailableError,
     verify_passport,
 )
 from galaxy.config import GalaxyAppConfiguration
@@ -153,6 +157,22 @@ class Grant:
 
     authorization: str  # study + consent group, e.g. phs000001.c1
     expiration: int | None  # the grant's (DAR's) own expiration, not the Visa's or the Passport's
+
+
+REFUSAL_MESSAGES = {
+    "invalid_passport": "The Passport could not be verified.",
+    "issuer_unavailable": "The Passport issuer's signing keys could not be fetched to verify it. Try again shortly.",
+    "identity_in_use": "That identity is already linked to another Galaxy account.",
+    "identity_mismatch": "Your Galaxy account is linked to a different identity. Log in with the linked identity.",
+}
+
+
+class PassportRefused(Exception):
+    """Galaxy won't take a Passport; ``code`` says why, in the connect flow's error vocabulary."""
+
+    def __init__(self, code: str):
+        super().__init__(REFUSAL_MESSAGES[code])
+        self.code = code
 
 
 @dataclass(frozen=True)
@@ -273,14 +293,29 @@ class PassportManager:
         token, preferred_username = self._exchange_code(broker, redirect_uri, code, payload["verifier"])
         if token is None:
             return ConnectResult(next_path, "broker_error")
+        try:
+            self.accept(user, token, preferred_username)
+        except PassportRefused as e:
+            return ConnectResult(next_path, e.code)
+        return ConnectResult(next_path)
+
+    def accept(self, user: User, token: str, preferred_username: str | None = None) -> Passport:
+        """Take a Passport the user obtained: verify it, bind its identity, store it, sync grant roles.
+
+        Both the broker connect and the direct RAS login end here. Raises
+        ``PassportRefused`` if Galaxy won't take it; nothing is stored then.
+        """
         store = self._require_store()
         try:
             passport = verify_passport(token, store.issuer_config)
+        except VerificationUnavailableError as e:
+            log.warning("GA4GH passport refused: %s user_id=%s", e, user.id)
+            raise PassportRefused("issuer_unavailable") from e
         except PassportVerificationError as e:
-            log.warning("GA4GH passport connect: %s user_id=%s", e, user.id)
-            return ConnectResult(next_path, "invalid_passport")
+            log.warning("GA4GH passport refused: %s user_id=%s", e, user.id)
+            raise PassportRefused("invalid_passport") from e
         if bind_error := self._bind_identity(user, passport, preferred_username):
-            return ConnectResult(next_path, bind_error)
+            raise PassportRefused(bind_error)
 
         store.put(user, token)
         self.sync_grant_roles(user, passport)
@@ -294,7 +329,7 @@ class PassportManager:
             ",".join(grant.authorization for grant in self.grants(passport)) or "-",
             "; ".join(dropped.reason for dropped in passport.dropped_visas) or "-",
         )
-        return ConnectResult(next_path)
+        return passport
 
     def _exchange_code(
         self, broker: PassportBrokerConfig, redirect_uri: str, code: str, verifier: str
@@ -366,11 +401,18 @@ class PassportManager:
 
     # --- the stored Passport ------------------------------------------------------------
 
+    def lookup(self, user: User) -> PassportLookup:
+        """The user's stored Passport if it still verifies (signatures, expiry), or why there isn't one.
+
+        Reading drops an expired or invalid Passport, so that status is reported once, then ``missing``.
+        """
+        if self._store is None or not is_vault_configured(self._vault):
+            return PassportLookup(PassportStatus.MISSING)
+        return self._store.load(user)
+
     def current(self, user: User) -> Passport | None:
         """The user's stored Passport if it still verifies (signatures, expiry), else None."""
-        if self._store is None or not is_vault_configured(self._vault):
-            return None
-        return self._store.load(user).passport
+        return self.lookup(user).passport
 
     def fresh_until(self, passport: Passport) -> int:
         """Until when (epoch seconds) Galaxy may send ``passport`` to a data service.
@@ -386,7 +428,8 @@ class PassportManager:
         return min(limits)
 
     def identity(self, user: User) -> UserGA4GHIdentity | None:
-        if self._broker is None:
+        # Not the broker: the direct RAS login binds identities too, through the gate's store.
+        if self._store is None:
             return None
         return self._sa_session.scalars(
             select(UserGA4GHIdentity).filter_by(user_id=user.id).order_by(UserGA4GHIdentity.id)

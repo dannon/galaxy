@@ -31,7 +31,10 @@ from galaxy.authnz.ras.models import (
     Passport,
     Visa,
 )
-from galaxy.authnz.ras.store import VaultPassportStore
+from galaxy.authnz.ras.store import (
+    PassportStatus,
+    VaultPassportStore,
+)
 from galaxy.authnz.ras.verify import (
     IssuerConfig,
     verify_passport,
@@ -39,6 +42,7 @@ from galaxy.authnz.ras.verify import (
 from galaxy.managers.ga4gh_passports import (
     PASSPORT_VAULT_KEY,
     PassportManager,
+    PassportRefused,
 )
 from galaxy.model.orm.now import now
 from galaxy.security.vault import (
@@ -326,7 +330,107 @@ def test_identity_bound_to_another_user_refused(manager, broker, session, alice)
     assert manager.current(bob) is None and manager.identity(bob) is None
 
 
+# --- accepting a Passport from elsewhere (the direct RAS login) -------------------------------
+
+
+def test_accept_binds_identity_stores_and_syncs_grants(manager, session, vault, alice):
+    token = make_passport()
+    passport = manager.accept(alice, token)
+    assert passport.subject == "sub-alice"
+    identity = manager.identity(alice)
+    assert identity is not None
+    assert (identity.issuer, identity.sub, identity.preferred_username) == (ISSUER, "sub-alice", None)
+    assert UserVaultWrapper(vault, alice).read_secret(PASSPORT_VAULT_KEY) == token
+    assert sorted(manager.data_access(alice)) == ["phs000001.c1"]
+
+
+def test_accept_refuses_an_identity_bound_to_another_user(manager, session, alice):
+    manager.accept(alice, make_passport())
+    bob = new_user(session, "bob@example.org")
+    with pytest.raises(PassportRefused) as refused:
+        manager.accept(bob, make_passport())
+    assert refused.value.code == "identity_in_use"
+    assert manager.current(bob) is None and manager.identity(bob) is None and manager.data_access(bob) == {}
+
+
+def test_accept_refuses_a_different_identity_for_the_same_user(manager, alice):
+    manager.accept(alice, make_passport())
+    with pytest.raises(PassportRefused) as refused:
+        manager.accept(alice, make_passport(sub="sub-somebody-else", phs_id="phs000009"))
+    assert refused.value.code == "identity_mismatch"
+    passport = manager.current(alice)
+    assert passport is not None and passport.subject == "sub-alice"
+
+
+def test_accept_refuses_a_passport_that_does_not_verify_without_echoing_it(manager, alice):
+    forged = make_passport(key=ROGUE_KEY)
+    with pytest.raises(PassportRefused) as refused:
+        manager.accept(alice, forged)
+    assert refused.value.code == "invalid_passport"
+    assert forged not in str(refused.value)
+    assert manager.current(alice) is None and manager.identity(alice) is None
+
+
+def test_accept_reports_an_unreachable_issuer(session, vault, alice):
+    def down(url):
+        raise RequestsConnectionError("issuer is down")
+
+    store = VaultPassportStore(vault, IssuerConfig(issuer=ISSUER, jwks=JwksClient(f"{ISSUER}/jwks", fetcher=down)))
+    manager = PassportManager(config(), session, vault, store=store)  # type: ignore[arg-type]
+    with pytest.raises(PassportRefused) as refused:
+        manager.accept(alice, make_passport())
+    assert refused.value.code == "issuer_unavailable"
+    assert manager.identity(alice) is None
+
+
+def test_connect_reports_an_unreachable_issuer(session, vault, broker, alice):
+    def down(url):
+        raise RequestsConnectionError("issuer is down")
+
+    store = VaultPassportStore(vault, IssuerConfig(issuer=ISSUER, jwks=JwksClient(f"{ISSUER}/jwks", fetcher=down)))
+    manager = PassportManager(config(), session, vault, store=store)  # type: ignore[arg-type]
+    assert connect(manager, broker, browser(session, alice)).error == "issuer_unavailable"
+
+
+def test_identity_without_a_broker(session, vault, alice):
+    """A Galaxy with only the direct RAS login still binds identities, so it reports them."""
+    manager = PassportManager(
+        config(ga4gh_passport_broker_authorize_url=None), session, vault, store=static_store(vault)  # type: ignore[arg-type]
+    )
+    manager.accept(alice, make_passport())
+    identity = manager.identity(alice)
+    assert identity is not None and identity.sub == "sub-alice"
+
+
 # --- stored Passport --------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "stored, expected",
+    [
+        (None, PassportStatus.MISSING),
+        ("current", PassportStatus.OK),
+        ("expired", PassportStatus.EXPIRED),
+        ("forged", PassportStatus.INVALID),
+    ],
+)
+def test_lookup_status(manager, vault, alice, stored, expected):
+    now = int(time.time())
+    tokens = {
+        "current": make_passport(),
+        "expired": make_passport(iat=now - 7200, exp=now - 3600),
+        "forged": make_passport(key=ROGUE_KEY),
+    }
+    if stored:
+        UserVaultWrapper(vault, alice).write_secret(PASSPORT_VAULT_KEY, tokens[stored])
+    lookup = manager.lookup(alice)
+    assert lookup.status == expected
+    assert (lookup.passport is not None) == (expected == PassportStatus.OK)
+
+
+def test_lookup_without_a_store(session, vault, alice):
+    manager = PassportManager(config(ga4gh_passport_broker_authorize_url=None), session, vault)  # type: ignore[arg-type]
+    assert manager.lookup(alice).status == PassportStatus.MISSING
 
 
 def test_forget_keeps_identity(manager, broker, session, alice):
