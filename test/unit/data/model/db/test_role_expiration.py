@@ -6,6 +6,7 @@ from sqlalchemy import select
 from galaxy.managers.roles import RoleManager
 from galaxy.model import (
     Dataset,
+    Role,
     UserRoleAssociation,
 )
 from galaxy.model.orm.now import now
@@ -84,3 +85,17 @@ def test_cleanup_deletes_only_expired_memberships(session, make_user, make_role,
     assert manager.delete_expired_user_role_associations() == 1
     remaining = session.scalars(select(UserRoleAssociation.role_id).filter_by(user_id=user.id)).all()
     assert sorted(remaining) == sorted([current.id, permanent.id])
+
+
+def test_cleanup_keeps_ga4gh_grant_memberships(session, make_user, make_role, make_user_role_association):
+    """Their expiration records when access to controlled data ended (decides when it is purged)."""
+    user = make_user()
+    grant = make_role(name="ga4gh_grant:1:phs000001.c1", type=Role.types.GA4GH_GRANT)
+    other = make_role()
+    make_user_role_association(user, grant).expiration_time = now() - timedelta(seconds=1)
+    make_user_role_association(user, other).expiration_time = now() - timedelta(seconds=1)
+    session.commit()
+    manager = RoleManager(SimpleNamespace(model=SimpleNamespace(context=session)))  # type: ignore[arg-type]
+    assert manager.delete_expired_user_role_associations() == 1
+    remaining = session.scalars(select(UserRoleAssociation.role_id).filter_by(user_id=user.id)).all()
+    assert remaining == [grant.id]

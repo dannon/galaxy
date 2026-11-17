@@ -59,9 +59,16 @@ class RoleManager(base.ModelManager[model.Role]):
         """Delete role memberships that have expired; returns how many.
 
         Expired memberships already grant nothing (``User.all_roles`` skips
-        them); this only removes the rows.
+        them); this only removes the rows. GA4GH grant memberships are kept:
+        their expiration records when access to controlled data ended, which
+        decides when that data is purged (``PassportManager``).
         """
-        stmt = delete(model.UserRoleAssociation).where(model.UserRoleAssociation.expiration_time <= now())
+        grant_roles = select(model.Role.id).where(model.Role.type == model.Role.types.GA4GH_GRANT)
+        stmt = (
+            delete(model.UserRoleAssociation)
+            .where(model.UserRoleAssociation.expiration_time <= now())
+            .where(model.UserRoleAssociation.role_id.not_in(grant_roles))
+        )
         result = cast(
             "CursorResult[Any]", self.session().execute(stmt, execution_options={"synchronize_session": False})
         )
