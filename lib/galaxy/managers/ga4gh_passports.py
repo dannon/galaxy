@@ -30,6 +30,7 @@ manager is what Galaxy does with a verified Passport.
 import logging
 import secrets
 import time
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import (
     datetime,
@@ -57,7 +58,12 @@ from galaxy.authnz.flow_state import (
 from galaxy.authnz.ras.config import RasConfig
 from galaxy.authnz.ras.gate import issuer_config_from
 from galaxy.authnz.ras.models import Passport
-from galaxy.authnz.ras.policy import carried_permissions
+from galaxy.authnz.ras.policy import (
+    Accession,
+    carried_permissions,
+    InvalidAccessionError,
+    parse_accession,
+)
 from galaxy.authnz.ras.store import (
     PASSPORT_VAULT_KEY,
     PassportLookup,
@@ -495,8 +501,8 @@ class PassportManager:
     def fetch_roles(self, user: User | None) -> tuple[list[Role], Role] | None:
         """The roles to restrict data fetched now with the user's Passport to.
 
-        Returns the user's grant roles (synced from the Passport; access needs
-        all of them, as Galaxy can't tell which grant covers an object) and the
+        Returns the user's grant roles (synced from the Passport; a dataset is
+        restricted to those ``roles_for_studies`` picks from them) and the
         manage role no one holds. None if the user has no Passport: nothing is
         sent, so no controlled data can come back (a controlled object fails
         in the job, telling the user to connect). Raises if the Passport is too
@@ -742,3 +748,36 @@ def _grant_role_parts(role: Role) -> tuple[str, str]:
 
 def _grant_authorization(role: Role, user: User) -> str:
     return role.name.removeprefix(f"{GRANT_ROLE_PREFIX}:{user.id}:")
+
+
+def roles_for_studies(grant_roles: Sequence[Role], studies: Sequence[str] | None) -> list[Role]:
+    """The roles among a user's ``grant_roles`` that data from ``studies`` is restricted to.
+
+    ``studies`` are the dbGaP studies known to cover the data: ``phs000001``,
+    or ``phs000001.c1`` when the consent group is known too. The answer is the
+    user's roles for those studies, as long as every study has one. Otherwise
+    (nothing known, a study that can't be read, or one the user holds no role
+    for) it is all of ``grant_roles``: Galaxy then can't tell which grants
+    cover the data, and tying it to too many is the safe mistake.
+    """
+    if not studies:
+        return list(grant_roles)
+    selected: list[Role] = []
+    for study in studies:
+        try:
+            wanted = parse_accession(study)
+        except InvalidAccessionError:
+            return list(grant_roles)
+        covering = [role for role in grant_roles if _role_covers(role, wanted)]
+        if not covering:
+            return list(grant_roles)
+        selected.extend(role for role in covering if role not in selected)
+    return selected
+
+
+def _role_covers(role: Role, wanted: Accession) -> bool:
+    try:
+        granted = parse_accession(_grant_role_parts(role)[1])
+    except (InvalidAccessionError, ValueError):
+        return False
+    return granted.phs_id == wanted.phs_id and wanted.consent_group in (None, granted.consent_group)

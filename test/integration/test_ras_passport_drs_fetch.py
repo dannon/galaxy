@@ -17,6 +17,7 @@ from typing import (
 )
 from urllib.parse import urlsplit
 
+from galaxy.model import Dataset
 from galaxy_test.base.populators import DatasetPopulator
 from galaxy_test.driver import integration_util
 from ._ras_passport import (
@@ -177,6 +178,15 @@ class TestRasPassportDrsFetchIntegration(integration_util.IntegrationTestCase, C
         target = target or {"destination": {"type": "hdas"}, "elements": [{"src": "url", "url": self.drs_uri}]}
         return self.populator.fetch({"history_id": history_id, "targets": [target]}, assert_ok=False, wait=False)
 
+    def _access_grants(self, hda_details) -> list[str]:
+        """The grants (study and consent group) of the roles the dataset's access is restricted to."""
+        app = self._test_driver.app
+        assert app is not None
+        dataset = app.model.session.get(Dataset, app.security.decode_id(hda_details["dataset_id"]))
+        assert dataset is not None
+        access = Dataset.permitted_actions.DATASET_ACCESS.action
+        return sorted(p.role.name.split(":", 2)[2] for p in dataset.actions if p.action == access and p.role)
+
     def _assert_refused(self, response, reason, history_id):
         self._assert_status_code_is(response, 403)
         body = response.json()
@@ -215,7 +225,7 @@ class TestRasPassportDrsFetchIntegration(integration_util.IntegrationTestCase, C
 
     def test_protected_fetch_with_passport_delivers_the_data(self):
         email = "ras-drs-granted@test.gx"
-        passport = self._passport("phs000123")
+        passport = self._passport("phs000123", also=["phs000456"])
         self.drs_server.expected_passports = [passport]
         with self._different_user(email):
             self._store_passport(email, passport)
@@ -232,6 +242,8 @@ class TestRasPassportDrsFetchIntegration(integration_util.IntegrationTestCase, C
             assert details["state"] == "ok", details["misc_info"]
             content = self.populator.get_history_dataset_content(history_id, dataset=output)
         assert content == CONTENT
+        # Tied to the grant for the study its protected source names, not to the user's other grant.
+        assert self._access_grants(details) == ["phs000123.c1"]
         assert self.drs_server.requests == [
             ("GET", OBJECT_PATH, None),
             ("POST", ACCESS_PATH, [passport]),

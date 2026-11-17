@@ -3,13 +3,19 @@ import logging
 import os
 from collections.abc import Iterable
 
+from galaxy.authnz.ras.protected import match_protected_source
 from galaxy.exceptions import (
     RequestParameterInvalidException,
     RequestParameterMissingException,
 )
 from galaxy.files.sources.drs import DRSFilesSource
+from galaxy.files.sources.util import drs_uri_is_plain
 from galaxy.job_execution.output_collect import copy_collection_metadata_from_target_dict
 from galaxy.managers.context import ProvidesHistoryContext
+from galaxy.managers.ga4gh_passports import (
+    PassportManager,
+    roles_for_studies,
+)
 from galaxy.model import (
     History,
     HistoryDatasetAssociation,
@@ -211,14 +217,15 @@ def _sends_ga4gh_passport(trans: ProvidesHistoryContext, url: str) -> bool:
 
 
 def _ga4gh_passport_permissions(trans: ProvidesHistoryContext, request):
-    """Dataset permissions for data this request fetches with the user's GA4GH Passport.
+    """Dataset permissions, by URL, for data this request fetches with the user's GA4GH Passport.
 
     With a Passport, the data may be controlled access (Galaxy can't tell), so
-    it is restricted: only the user, while they hold its grants
-    (access needs all of the user's grant roles), and no one can change that
-    (manage: a role no user holds). The datasets get these permissions when
-    they are created, so they are never visible to anyone else. That works
-    only for datasets created now, so Passport URIs are refused anywhere
+    it is restricted: only the user, while they hold its grants (access needs
+    the user's grant roles for the study the data belongs to, or all of their
+    grant roles when Galaxy doesn't know the study), and no one can change
+    that (manage: a role no user holds). The datasets get these permissions
+    when they are created, so they are never visible to anyone else. That
+    works only for datasets created now, so Passport URIs are refused anywhere
     else: collections, ``elements_from``, libraries, deferred datasets.
     Returns None if the request fetches no such data, or the user has no
     Passport (nothing is sent, so only public data can come back).
@@ -244,8 +251,6 @@ def _ga4gh_passport_permissions(trans: ProvidesHistoryContext, request):
             not_precreated.extend(urls)
     if not passport_urls:
         return None
-    from galaxy.managers.ga4gh_passports import PassportManager
-
     roles = trans.app[PassportManager].fetch_roles(trans.user)
     if roles is None:
         return None  # no Passport is sent, so these sources serve only public data
@@ -257,7 +262,33 @@ def _ga4gh_passport_permissions(trans: ProvidesHistoryContext, request):
         )
     grant_roles, manage_role = roles
     actions = trans.app.security_agent.permitted_actions
-    return {actions.DATASET_ACCESS: grant_roles, actions.DATASET_MANAGE_PERMISSIONS: [manage_role]}
+    passport_urls = list(dict.fromkeys(passport_urls))
+    # With a single grant role there is nothing to choose between.
+    studies = _covering_studies(trans, passport_urls) if len(grant_roles) > 1 else {}
+    return {
+        url: {
+            actions.DATASET_ACCESS: roles_for_studies(grant_roles, studies.get(url)),
+            actions.DATASET_MANAGE_PERMISSIONS: [manage_role],
+        }
+        for url in passport_urls
+    }
+
+
+def _covering_studies(trans: ProvidesHistoryContext, urls: list[str]) -> dict[str, list[str]]:
+    """The dbGaP studies known to cover the data at each of ``urls``; one Galaxy can't tell for is left out.
+
+    The admin's protected sources say, where they name a study for the URL.
+    """
+    gate = trans.app.ras_passport_gate
+    if gate is None:
+        return {}
+    studies: dict[str, list[str]] = {}
+    for url in urls:
+        match = match_protected_source(gate.config.protected_sources, url)
+        # A study read off a URL the fetch would rewrite could be another object's.
+        if match is not None and match.accession is not None and drs_uri_is_plain(url):
+            studies[url] = [match.accession]
+    return studies
 
 
 def _precreate_fetched_hdas(trans: ProvidesHistoryContext, history, target, outputs, controlled_permissions=None):
@@ -278,11 +309,13 @@ def _precreate_fetched_hdas(trans: ProvidesHistoryContext, history, target, outp
         dbkey = item.get("dbkey", "?")
         uploaded_dataset = Bunch(type="file", name=name, file_type=file_type, dbkey=dbkey)
         tag_list = item.get("tags", [])
-        controlled = (
+        permissions = None
+        if (
             controlled_permissions is not None
             and item.get("src") == "url"
             and _sends_ga4gh_passport(trans, item["url"])
-        )
+        ):
+            permissions = controlled_permissions[item["url"]]
         data = upload_common.new_upload(
             trans,
             "",
@@ -290,19 +323,15 @@ def _precreate_fetched_hdas(trans: ProvidesHistoryContext, history, target, outp
             library_bunch=None,
             history=history,
             tag_list=tag_list,
-            permissions=controlled_permissions if controlled else None,
+            permissions=permissions,
         )
-        if controlled:
-            assert controlled_permissions is not None  # for mypy
+        if permissions is not None:
             log.info(
                 "GA4GH Passport fetch: user_id=%s dataset_id=%s uri=%s access_roles=%s",
                 trans.user and trans.user.id,
                 data.dataset_id,
                 item["url"],
-                ",".join(
-                    role.name
-                    for role in controlled_permissions[trans.app.security_agent.permitted_actions.DATASET_ACCESS]
-                ),
+                ",".join(role.name for role in permissions[trans.app.security_agent.permitted_actions.DATASET_ACCESS]),
             )
         outputs.append(data)
         item["object_id"] = data.id

@@ -7,7 +7,10 @@ and passports are signed with it, so no test needs the network.
 import json
 import os
 import time
-from collections.abc import Callable
+from collections.abc import (
+    Callable,
+    Sequence,
+)
 from typing import (
     Any,
     ClassVar,
@@ -30,9 +33,14 @@ Signer = Callable[[dict[str, Any]], str]
 
 
 def make_passport(
-    sign: Signer, phs_id: str, subject: str = SUBJECT, iat: int | None = None, exp: int | None = None
+    sign: Signer,
+    phs_id: str,
+    subject: str = SUBJECT,
+    iat: int | None = None,
+    exp: int | None = None,
+    also: Sequence[str] = (),
 ) -> str:
-    """A passport whose one visa grants ``phs_id`` (version v1, consent group c1)."""
+    """A passport whose one visa grants ``phs_id`` and the studies in ``also`` (version v1, consent group c1)."""
     now = int(time.time())
     common = {
         "iss": ISSUER,
@@ -44,7 +52,9 @@ def make_passport(
         dict(
             common,
             ga4gh_visa_v1={"type": "https://ras.nih.gov/visas/v1.1", "source": "https://ncbi.nlm.nih.gov/gap"},
-            ras_dbgap_permissions=[{"phs_id": phs_id, "version": "v1", "consent_group": "c1"}],
+            ras_dbgap_permissions=[
+                {"phs_id": study, "version": "v1", "consent_group": "c1"} for study in (phs_id, *also)
+            ],
         )
     )
     return sign(dict(common, ga4gh_passport_v1=[visa]))
@@ -91,8 +101,8 @@ class ConfiguresRasPassport(ConfiguresDatabaseVault):
     def _sign(cls, claims: dict[str, Any]) -> str:
         return jwt.encode(claims, cls.key, algorithm="RS256", headers={"kid": KID})
 
-    def _passport(self, phs_id: str, iat: int | None = None, exp: int | None = None) -> str:
-        return make_passport(self._sign, phs_id, iat=iat, exp=exp)
+    def _passport(self, phs_id: str, iat: int | None = None, exp: int | None = None, also: Sequence[str] = ()) -> str:
+        return make_passport(self._sign, phs_id, iat=iat, exp=exp, also=also)
 
     def _store_passport(self, email: str, passport: str) -> None:
         gate = self._ras_gate()

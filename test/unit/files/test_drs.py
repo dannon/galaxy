@@ -28,7 +28,10 @@ from galaxy.files.sources.drs import (
     CONNECT_HINT,
     RECONNECT_HINT,
 )
-from galaxy.files.sources.util import sanitize_drs_name
+from galaxy.files.sources.util import (
+    drs_uri_is_plain,
+    sanitize_drs_name,
+)
 from ._util import (
     assert_realizes_as,
     assert_realizes_contains,
@@ -698,3 +701,24 @@ def test_retry_and_get_keeps_headers_on_202_retry():
     assert response.json() == {"id": "202test"}
     assert len(responses.calls) == 2
     assert all(call.request.headers["Authorization"] == "Bearer IBearTokens" for call in responses.calls)
+
+
+@pytest.mark.parametrize(
+    "drs_uri, plain",
+    [
+        ("drs://drs.example.org/obj1", True),
+        ("drs://drs.example.org/dg.4503/obj1", True),
+        ("drs://dg.4503:obj1", True),
+        ("drs://drs.example.org/a..b/.obj1", True),
+        # What requests sends for these is not the path they spell out.
+        ("drs://drs.example.org/phs000001/../obj1", False),
+        ("drs://drs.example.org/./obj1", False),
+        ("drs://drs.example.org/obj1/..", False),
+        ("drs://drs.example.org/dg.4503%2Fobj1", False),
+        ("drs://drs.example.org/obj1?x=1", False),
+        ("drs://drs.example.org/obj1#x", False),
+        ("drs://drs.example.org/a\\obj1", False),
+    ],
+)
+def test_drs_uri_is_plain(drs_uri, plain):
+    assert drs_uri_is_plain(drs_uri) is plain

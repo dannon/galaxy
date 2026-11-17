@@ -41,6 +41,20 @@ MAX_DRS_ERROR_MSG_LENGTH = 300
 # drs://<host>:<port>/<id> with one of those is a hostname URI, not a compact identifier.
 LOCAL_HOST_AND_PORT_DRS_REST = re.compile(r"^(localhost|\d{1,3}(\.\d{1,3}){3}):\d+/")
 
+
+def drs_uri_is_plain(drs_uri: str) -> bool:
+    """Whether a fetch asks the server for exactly the path ``drs_uri`` spells out.
+
+    The HTTP client drops dot segments and may rewrite escapes before it sends
+    a request, so anything read off a URI that has them (a study in its path,
+    an object id) can belong to a different object than the one fetched.
+    """
+    rest = drs_uri[len("drs://") :] if drs_uri.startswith("drs://") else drs_uri
+    if any(char in rest for char in "%\\?#"):
+        return False
+    return not any(segment in (".", "..") for segment in rest.split("/"))
+
+
 # POSIX NAME_MAX is 255 *bytes*, and dataset names are stored as TrimmedString(255)
 # characters, so a 255-byte cap satisfies both limits at once.
 MAX_DRS_NAME_BYTES = 255

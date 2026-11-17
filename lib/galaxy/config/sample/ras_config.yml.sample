@@ -40,6 +40,12 @@ issuer: https://stsstg.nih.gov
 # step with the DRS file sources that set ga4gh_passport: true in
 # file_sources_conf.yml, which decide where the passport is actually sent; the
 # two are configured separately and nothing checks that they agree.
+#
+# The study named here also decides which of the user's grants a dataset
+# fetched with the passport is tied to: it stays readable while they hold a
+# grant for that study, whatever happens to their other grants. Add the consent
+# group (phs000123.c1) to tie it to that one grant. Data from an entry that
+# names no study is tied to all of the user's grants.
 #protected_sources:
 #  - url_regex: '^drs://protected\.example\.org/'
 #    phs_id: phs000123

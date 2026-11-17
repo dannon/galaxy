@@ -6,6 +6,7 @@ from typing import Any
 import pytest
 
 from galaxy import exceptions
+from galaxy.authnz.ras.config import ProtectedSource
 from galaxy.files import (
     ConfiguredFileSources,
     ConfiguredFileSourcesConf,
@@ -45,7 +46,10 @@ class FakePassportManager:
 
 
 class FakeApp:
-    def __init__(self, manager: FakePassportManager):
+    def __init__(self, manager: FakePassportManager, protected_sources=None):
+        self.ras_passport_gate = None
+        if protected_sources is not None:
+            self.ras_passport_gate = SimpleNamespace(config=SimpleNamespace(protected_sources=protected_sources))
         self.file_sources = ConfiguredFileSources(
             FileSourcePluginsConfig(), ConfiguredFileSourcesConf(conf_dict=FILE_SOURCES)
         )
@@ -56,8 +60,13 @@ class FakeApp:
         return self.manager
 
 
-def trans(manager=None, user=True):
-    return SimpleNamespace(user=SimpleNamespace(id=7) if user else None, app=FakeApp(manager or FakePassportManager()))
+def trans(manager=None, user=True, protected_sources=None):
+    app = FakeApp(manager or FakePassportManager(), protected_sources)
+    return SimpleNamespace(user=SimpleNamespace(id=7) if user else None, app=app)
+
+
+def restricted_to(*grant_roles):
+    return {ACTIONS.DATASET_ACCESS: list(grant_roles), ACTIONS.DATASET_MANAGE_PERMISSIONS: [MANAGE]}
 
 
 def hdas(*urls, **item_extra):
@@ -74,12 +83,44 @@ def test_no_passport_uri_keeps_default_permissions():
     assert t.app.manager.calls == 0
 
 
-def test_passport_uri_restricted_to_all_grant_roles_managed_by_no_one():
+def test_passport_uri_of_unknown_study_restricted_to_all_grant_roles_managed_by_no_one():
     permissions = upload._ga4gh_passport_permissions(trans(), request(hdas(CONTROLLED, OPEN)))
+    assert permissions == {CONTROLLED: restricted_to(GRANT_1, GRANT_2)}
+
+
+def test_passport_uri_restricted_to_the_grant_role_of_the_study_its_protected_source_names():
+    protected_sources = [
+        ProtectedSource(url_regex=r"^drs://controlled\.example\.org/obj1$", phs_id="phs000002.c1"),
+        ProtectedSource(url_regex=r"^drs://controlled\.example\.org/(?P<phs_id>phs\d+)/"),
+        # Names no study: any passport will do, and Galaxy can't tell which grant covers the data.
+        ProtectedSource(url_regex=r"^drs://controlled\.example\.org/"),
+    ]
+    in_url, not_held = "drs://controlled.example.org/phs000001/obj", "drs://controlled.example.org/phs000009/obj"
+    t = trans(protected_sources=protected_sources)
+    permissions = upload._ga4gh_passport_permissions(t, request(hdas(CONTROLLED, in_url, not_held, CONTROLLED_2)))
     assert permissions == {
-        ACTIONS.DATASET_ACCESS: [GRANT_1, GRANT_2],
-        ACTIONS.DATASET_MANAGE_PERMISSIONS: [MANAGE],
+        CONTROLLED: restricted_to(GRANT_2),
+        in_url: restricted_to(GRANT_1),
+        not_held: restricted_to(GRANT_1, GRANT_2),
+        CONTROLLED_2: restricted_to(GRANT_1, GRANT_2),
     }
+    assert t.app.manager.calls == 1
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "drs://controlled.example.org/phs000001/../obj1",
+        "drs://controlled.example.org/phs000001/./obj1",
+        "drs://controlled.example.org/phs000001/obj%31",
+        "drs://controlled.example.org/phs000001/obj1?x=1",
+    ],
+)
+def test_study_is_not_read_off_a_url_the_fetch_would_rewrite(url):
+    # The fetch may ask for another object than the one under the study this URL spells out.
+    source = ProtectedSource(url_regex=r"^drs://controlled\.example\.org/(?P<phs_id>phs\d+)/")
+    t = trans(protected_sources=[source])
+    assert upload._ga4gh_passport_permissions(t, request(hdas(url))) == {url: restricted_to(GRANT_1, GRANT_2)}
 
 
 @pytest.mark.parametrize(
@@ -132,11 +173,16 @@ def test_only_passport_datasets_get_the_permissions(monkeypatch):
         return SimpleNamespace(id=len(created), dataset_id=len(created))
 
     monkeypatch.setattr(upload_common, "new_upload", new_upload)
-    t = trans()
+    obj2_source = ProtectedSource(url_regex=r"^drs://controlled\.example\.org/obj2$", phs_id="phs000002.c1")
+    t = trans(protected_sources=[obj2_source])
     target = hdas(CONTROLLED, OPEN, CONTROLLED_2)
     permissions = upload._ga4gh_passport_permissions(t, request(target))
     upload._precreate_fetched_hdas(t, None, target, [], permissions)
-    assert created == [("obj1", permissions), ("obj3", None), ("obj2", permissions)]
+    assert created == [
+        ("obj1", restricted_to(GRANT_1, GRANT_2)),
+        ("obj3", None),
+        ("obj2", restricted_to(GRANT_2)),
+    ]
     assert [item["object_id"] for item in target["elements"]] == [1, 2, 3]
 
 

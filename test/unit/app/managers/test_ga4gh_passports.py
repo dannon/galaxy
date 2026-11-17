@@ -46,6 +46,7 @@ from galaxy.authnz.ras.verify import (
 from galaxy.managers.ga4gh_passports import (
     PassportManager,
     PassportRefused,
+    roles_for_studies,
 )
 from galaxy.model.orm.now import now
 from galaxy.security.vault import (
@@ -602,6 +603,48 @@ def test_fetch_roles_with_no_grants(manager, alice, monkeypatch):
     monkeypatch.setattr(manager, "current", lambda user: with_grants())
     with pytest.raises(exceptions.ItemAccessibilityException, match="no data access grants"):
         manager.fetch_roles(alice)
+
+
+HELD = ["phs000001.c1", "phs000001.c2", "phs000002.c1"]
+
+
+def held_roles() -> list[model.Role]:
+    return [model.Role(name=f"ga4gh_grant:7:{held}", type=model.Role.types.GA4GH_GRANT) for held in HELD]
+
+
+@pytest.mark.parametrize(
+    "studies, expected",
+    [
+        (["phs000001.c1"], ["phs000001.c1"]),
+        (["phs1.c1"], ["phs000001.c1"]),
+        (["phs000001.v2.p1.c2"], ["phs000001.c2"]),
+        # The consent group isn't known: every role the user holds for the study.
+        (["phs000001"], ["phs000001.c1", "phs000001.c2"]),
+        (["phs000002.c1", "phs000001.c1"], ["phs000002.c1", "phs000001.c1"]),
+        (["phs000001.c1", "phs000001"], ["phs000001.c1", "phs000001.c2"]),
+    ],
+)
+def test_roles_for_studies_are_the_roles_for_those_studies(studies, expected):
+    roles = held_roles()
+    assert [role.name.split(":", 2)[2] for role in roles_for_studies(roles, studies)] == expected
+
+
+@pytest.mark.parametrize(
+    "studies",
+    [
+        None,
+        [],
+        ["phs000003.c1"],
+        ["phs000001.c3"],
+        ["phs000001.c1", "phs000003.c1"],
+        ["not a study"],
+        ["phs000001.c1", ""],
+    ],
+    ids=["unknown", "none", "study not held", "consent not held", "one of two not held", "unreadable", "empty"],
+)
+def test_roles_for_studies_are_all_roles_when_the_study_is_not_one_the_user_holds(studies):
+    roles = held_roles()
+    assert roles_for_studies(roles, studies) == roles
 
 
 def controlled_dataset(session, access_roles):
