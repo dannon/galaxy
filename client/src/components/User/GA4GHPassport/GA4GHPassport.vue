@@ -32,6 +32,8 @@ const PATH = "/user/ga4gh_passport";
 const CONNECT_URL = `/ga4gh_passport/connect?next=${encodeURIComponent(PATH)}`;
 // Warn this long before the Passport stops being usable.
 const SOON_MS = 10 * 60 * 1000;
+// Warn this long before access to data fetched under a grant ends.
+const ACCESS_ENDS_SOON_MS = 7 * 24 * 3600 * 1000;
 
 const CONNECT_ERRORS: Record<string, string> = {
     access_denied: "You declined to share your Passport with Galaxy.",
@@ -68,6 +70,13 @@ const usableUntil = computed(() => {
     const passport = status.value?.passport;
     return passport ? galaxyTimeToDate(passport.usable_until) : null;
 });
+const heldAccess = computed(() => (status.value?.data_access ?? []).filter((access) => !access.ended));
+const endedAccess = computed(() => (status.value?.data_access ?? []).filter((access) => access.ended));
+
+function accessEndsSoon(until: string) {
+    return galaxyTimeToDate(until).getTime() - Date.now() < ACCESS_ENDS_SOON_MS;
+}
+
 const usableSoonEnds = computed(() => usableUntil.value !== null && usableUntil.value.getTime() - Date.now() < SOON_MS);
 
 async function load() {
@@ -221,8 +230,8 @@ onMounted(async () => {
                         Data you fetch with your Passport is available to you only while you hold its grants in Galaxy.
                         Reconnecting renews them.
                     </p>
-                    <p v-if="!status.data_access.length" v-localize>You hold no data access grants in Galaxy.</p>
-                    <table v-else class="table table-sm">
+                    <p v-if="!heldAccess.length" v-localize>You hold no data access grants in Galaxy.</p>
+                    <table v-else class="table table-sm ga4gh-passport-held">
                         <thead>
                             <tr>
                                 <th v-localize>Study and consent group</th>
@@ -230,15 +239,48 @@ onMounted(async () => {
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="access in status.data_access" :key="access.authorization">
+                            <tr v-for="access in heldAccess" :key="access.authorization">
                                 <td>{{ access.authorization }}</td>
-                                <td>
+                                <td :class="{ 'text-warning': accessEndsSoon(access.until) }">
                                     <UtcDate :date="access.until" mode="pretty" />
                                     (<UtcDate :date="access.until" mode="elapsed" />)
+                                    <span v-if="accessEndsSoon(access.until)" v-localize>
+                                        - reconnect to renew it, if the grant is still valid
+                                    </span>
                                 </td>
                             </tr>
                         </tbody>
                     </table>
+                    <template v-if="endedAccess.length">
+                        <GAlert show variant="danger" class="ga4gh-passport-ended">
+                            {{
+                                localize(
+                                    "Your access to data fetched under these grants has ended. Reconnect a Passport that carries them to restore it; otherwise the data, and data derived from it, is deleted.",
+                                )
+                            }}
+                        </GAlert>
+                        <table class="table table-sm ga4gh-passport-ended-grants">
+                            <thead>
+                                <tr>
+                                    <th v-localize>Study and consent group</th>
+                                    <th v-localize>Access ended</th>
+                                    <th v-localize>Data deleted after</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="access in endedAccess" :key="access.authorization">
+                                    <td>{{ access.authorization }}</td>
+                                    <td><UtcDate :date="access.until" mode="pretty" /></td>
+                                    <td>
+                                        <template v-if="access.delete_after">
+                                            <UtcDate :date="access.delete_after" mode="pretty" />
+                                            (<UtcDate :date="access.delete_after" mode="elapsed" />)
+                                        </template>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </template>
                 </div>
             </template>
         </template>

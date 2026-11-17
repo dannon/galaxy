@@ -114,12 +114,44 @@ describe("GA4GHPassport.vue", () => {
             enabled: true,
             identity: IDENTITY,
             passport: null,
-            data_access: [{ authorization: "phs000001.c1", until: IN_AN_HOUR }],
+            data_access: [{ authorization: "phs000001.c1", until: IN_AN_HOUR, ended: false }],
         });
         const wrapper = await mountComponent();
         const access = wrapper.find(".ga4gh-passport-data-access");
         expect(access.text()).toContain("phs000001.c1");
         expect(access.find("table").exists()).toBe(true);
+    });
+
+    it("warns when access to fetched data ends soon", async () => {
+        const IN_A_MONTH = new Date(Date.now() + 30 * 86400 * 1000).toISOString();
+        serve({
+            enabled: true,
+            identity: IDENTITY,
+            passport: null,
+            data_access: [
+                { authorization: "phs000001.c1", until: IN_AN_HOUR, ended: false },
+                { authorization: "phs000002.c1", until: IN_A_MONTH, ended: false },
+            ],
+        });
+        const wrapper = await mountComponent();
+        const rows = wrapper.findAll(".ga4gh-passport-held tbody tr");
+        expect(rows[0]!.find(".text-warning").text()).toContain("reconnect to renew it");
+        expect(rows[1]!.find(".text-warning").exists()).toBe(false);
+    });
+
+    it("lists ended grants with the date their data is deleted", async () => {
+        const AN_HOUR_AGO = new Date(Date.now() - 3600 * 1000).toISOString();
+        const IN_A_MONTH = new Date(Date.now() + 30 * 86400 * 1000).toISOString();
+        serve({
+            enabled: true,
+            identity: IDENTITY,
+            passport: null,
+            data_access: [{ authorization: "phs000002.c1", until: AN_HOUR_AGO, ended: true, delete_after: IN_A_MONTH }],
+        });
+        const wrapper = await mountComponent();
+        expect(wrapper.find(".ga4gh-passport-ended").text()).toContain("has ended");
+        expect(wrapper.find(".ga4gh-passport-ended-grants").text()).toContain("phs000002.c1");
+        expect(wrapper.find(".ga4gh-passport-data-access").text()).toContain("You hold no data access grants");
     });
 
     it("says when no grants are held in Galaxy", async () => {
