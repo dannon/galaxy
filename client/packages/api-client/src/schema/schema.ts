@@ -6181,31 +6181,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/users/current/ras_passport": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Summarize the current user's NIH RAS passport.
-         * @description **Warning**: This API is unstable and may change without notice.
-         */
-        get: operations["show_api_users_current_ras_passport_get"];
-        put?: never;
-        post?: never;
-        /**
-         * Remove the current user's stored NIH RAS passport.
-         * @description **Warning**: This API is unstable and may change without notice.
-         */
-        delete: operations["delete_api_users_current_ras_passport_delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/users/current/ras_passport/login": {
+    "/api/users/current/ga4gh_passport/ras_login": {
         parameters: {
             query?: never;
             header?: never;
@@ -6215,17 +6191,17 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Start a direct NIH RAS login for the current user.
+         * Start a direct NIH RAS login for the current user (development only)
          * @description **Warning**: This API is unstable and may change without notice.
          */
-        post: operations["start_login_api_users_current_ras_passport_login_post"];
+        post: operations["start_ras_login_api_users_current_ga4gh_passport_ras_login_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/users/current/ras_passport/login/callback": {
+    "/api/users/current/ga4gh_passport/ras_login/callback": {
         parameters: {
             query?: never;
             header?: never;
@@ -6235,10 +6211,10 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Finish a direct NIH RAS login with the pasted redirect URL.
+         * Finish a direct NIH RAS login with the pasted redirect URL (development only)
          * @description **Warning**: This API is unstable and may change without notice.
          */
-        post: operations["finish_login_api_users_current_ras_passport_login_callback_post"];
+        post: operations["finish_ras_login_api_users_current_ga4gh_passport_ras_login_callback_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -14677,6 +14653,8 @@ export interface components {
             identity?: components["schemas"]["GA4GHIdentity"] | null;
             /** @description The stored Passport, if present and valid. */
             passport?: components["schemas"]["GA4GHPassportSummary"] | null;
+            /** @description Why there is or isn't a stored Passport: ok, missing (never connected, or forgotten), expired, invalid (no longer verifies), or unavailable (the issuer's keys can't be fetched right now, so it can't be checked; it is kept). Galaxy deletes an expired or invalid Passport when it reads it, so that status is reported once and missing after that. */
+            passport_status: components["schemas"]["GA4GHStoredPassportStatus"];
         };
         /**
          * GA4GHPassportSummary
@@ -14721,6 +14699,32 @@ export interface components {
              */
             visas_expire_at?: string | null;
         };
+        /** GA4GHRasLoginCallback */
+        GA4GHRasLoginCallback: {
+            /**
+             * Callback Url
+             * @description The full URL RAS redirected the browser to after the login, pasted as-is.
+             */
+            callback_url: string;
+        };
+        /** GA4GHRasLoginRequest */
+        GA4GHRasLoginRequest: {
+            /**
+             * Authorization Url
+             * @description Where to send the user to log in to NIH RAS.
+             */
+            authorization_url: string;
+            /**
+             * Expires In
+             * @description Seconds the user has to finish the login.
+             */
+            expires_in: number;
+        };
+        /**
+         * GA4GHStoredPassportStatus
+         * @enum {string}
+         */
+        GA4GHStoredPassportStatus: "ok" | "missing" | "expired" | "invalid" | "unavailable";
         /** GA4GHVisa */
         GA4GHVisa: {
             /**
@@ -22708,57 +22712,6 @@ export interface components {
          * @default []
          */
         QuotaSummaryList: components["schemas"]["QuotaSummary"][];
-        /** RasPassportLoginCallback */
-        RasPassportLoginCallback: {
-            /**
-             * Callback Url
-             * @description The full URL RAS redirected the browser to after the login, pasted as-is.
-             */
-            callback_url: string;
-        };
-        /** RasPassportLoginRequest */
-        RasPassportLoginRequest: {
-            /**
-             * Authorization Url
-             * @description Where to send the user to log in to NIH RAS.
-             */
-            authorization_url: string;
-            /**
-             * Expires In
-             * @description Seconds the user has to finish the login.
-             */
-            expires_in: number;
-        };
-        /**
-         * RasPassportStatus
-         * @enum {string}
-         */
-        RasPassportStatus: "ok" | "missing" | "expired" | "invalid" | "unavailable";
-        /** RasPassportSummary */
-        RasPassportSummary: {
-            /**
-             * Expires At
-             * @description When the passport expires (UTC).
-             */
-            expires_at?: string | null;
-            /**
-             * Phs Ids
-             * @description dbGaP studies the passport currently grants access to.
-             */
-            phs_ids?: string[];
-            /**
-             * Present
-             * @description Whether Galaxy holds a valid NIH RAS passport for the current user.
-             */
-            present: boolean;
-            /**
-             * Redirect Url
-             * @description Where to send the user to get a new passport, when there is no valid one and a bridge is configured.
-             */
-            redirect_url?: string | null;
-            /** @description Why there is or isn't a usable passport. */
-            status: components["schemas"]["RasPassportStatus"];
-        };
         /** RefactorActionExecution */
         RefactorActionExecution: {
             /** Action */
@@ -53587,7 +53540,7 @@ export interface operations {
             };
         };
     };
-    show_api_users_current_ras_passport_get: {
+    start_ras_login_api_users_current_ga4gh_passport_ras_login_post: {
         parameters: {
             query?: never;
             header?: {
@@ -53605,7 +53558,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RasPassportSummary"];
+                    "application/json": components["schemas"]["GA4GHRasLoginRequest"];
                 };
             };
             /** @description Request Error */
@@ -53628,87 +53581,7 @@ export interface operations {
             };
         };
     };
-    delete_api_users_current_ras_passport_delete: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
-                "run-as"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Request Error */
-            "4XX": {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MessageExceptionModel"];
-                };
-            };
-            /** @description Server Error */
-            "5XX": {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MessageExceptionModel"];
-                };
-            };
-        };
-    };
-    start_login_api_users_current_ras_passport_login_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
-                "run-as"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RasPassportLoginRequest"];
-                };
-            };
-            /** @description Request Error */
-            "4XX": {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MessageExceptionModel"];
-                };
-            };
-            /** @description Server Error */
-            "5XX": {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MessageExceptionModel"];
-                };
-            };
-        };
-    };
-    finish_login_api_users_current_ras_passport_login_callback_post: {
+    finish_ras_login_api_users_current_ga4gh_passport_ras_login_callback_post: {
         parameters: {
             query?: never;
             header?: {
@@ -53720,7 +53593,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["RasPassportLoginCallback"];
+                "application/json": components["schemas"]["GA4GHRasLoginCallback"];
             };
         };
         responses: {
@@ -53730,7 +53603,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RasPassportSummary"];
+                    "application/json": components["schemas"]["GA4GHPassportStatus"];
                 };
             };
             /** @description Request Error */
