@@ -4,8 +4,6 @@ No network: the JWKS fetcher and the source's HTTP client are swapped for local 
 """
 
 import json
-import os
-import tempfile
 import time
 from typing import Any
 from urllib.parse import (
@@ -13,19 +11,20 @@ from urllib.parse import (
     urlsplit,
 )
 
-import jwt
-from cryptography.hazmat.primitives.asymmetric import rsa
-
 from galaxy.authnz.ras.login import LOGIN_REQUEST_VAULT_KEY
 from galaxy.model.db.user import get_user_by_email
 from galaxy.security.vault import UserVaultWrapper
 from galaxy_test.driver import integration_util
+from ._ras_passport import (
+    ConfiguresRasPassport,
+    ISSUER,
+    make_passport,
+    Signer,
+    SUBJECT,
+)
 
-ISSUER = "https://sts.example.nih.gov"
-KID = "INTEGRATION-TEST"
 CLIENT_ID = "integration-client"
 REDIRECT_URI = "https://callback.example.org/cb"
-SUBJECT = "ras-sub"
 DISCOVERY = {
     "issuer": ISSUER,
     "authorization_endpoint": f"{ISSUER}/auth/oauth/v2/authorize",
@@ -37,27 +36,15 @@ DISCOVERY = {
 class FakeRas:
     """Serves discovery, the token endpoint and v1.1 userinfo with tokens signed by the test key."""
 
-    def __init__(self, sign):
+    def __init__(self, sign: Signer):
         self.sign = sign
         self.nonce = ""
-
-    def _passport(self) -> str:
-        now = int(time.time())
-        common = {"iss": ISSUER, "sub": SUBJECT, "iat": now - 60, "exp": now + 3600}
-        visa = self.sign(
-            dict(
-                common,
-                ga4gh_visa_v1={"type": "https://ras.nih.gov/visas/v1.1", "source": "https://ncbi.nlm.nih.gov/gap"},
-                ras_dbgap_permissions=[{"phs_id": "phs000123", "version": "v1", "consent_group": "c1"}],
-            )
-        )
-        return self.sign(dict(common, ga4gh_passport_v1=[visa]))
 
     def get_json(self, url: str, bearer: str | None = None) -> tuple[int, Any]:
         if url.endswith("/.well-known/openid-configuration"):
             return 200, DISCOVERY
         if url.endswith("/openid/connect/v1.1/userinfo"):
-            return 200, {"sub": SUBJECT, "passport_jwt_v11": self._passport()}
+            return 200, {"sub": SUBJECT, "passport_jwt_v11": make_passport(self.sign, "phs000123")}
         return 404, {}
 
     def post_form(self, url: str, data: Any, basic_auth: tuple[str, str]) -> tuple[int, Any]:
@@ -76,39 +63,27 @@ class FakeRas:
         return 200, {"access_token": "access-1", "id_token": id_token}
 
 
-class TestRasPassportLoginIntegration(integration_util.IntegrationTestCase, integration_util.ConfiguresDatabaseVault):
-    key: rsa.RSAPrivateKey
+class TestRasPassportLoginIntegration(integration_util.IntegrationTestCase, ConfiguresRasPassport):
     ras: FakeRas
 
     @classmethod
     def handle_galaxy_config_kwds(cls, config):
         super().handle_galaxy_config_kwds(config)
-        cls._configure_database_vault(config)
-        config_dir = tempfile.mkdtemp()
-        ras_config_file = os.path.join(config_dir, "ras_config.yml")
-        with open(ras_config_file, "w") as f:
-            f.write(
-                f"issuer: {ISSUER}\n"
-                f"jwks_uri: {ISSUER}/jwks.json\n"
-                "direct_ras:\n"
-                f"  client_id: {CLIENT_ID}\n"
-                "  client_secret: integration-secret\n"
-                f"  redirect_uri: {REDIRECT_URI}\n"
-            )
-        config["ras_config_file"] = ras_config_file
+        cls._write_ras_config(
+            config,
+            "direct_ras:\n"
+            f"  client_id: {CLIENT_ID}\n"
+            "  client_secret: integration-secret\n"
+            f"  redirect_uri: {REDIRECT_URI}\n",
+        )
 
     @classmethod
     def _configure_app(cls):
-        cls.key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-        jwk = json.loads(jwt.algorithms.RSAAlgorithm.to_jwk(cls.key.public_key()))
-        jwk.update({"kid": KID, "use": "sig"})
-        app = cls._test_driver.app
-        assert app is not None
-        gate = app.ras_passport_gate
-        assert gate is not None and gate.direct_login is not None
-        gate.direct_login.source.jwks._fetcher = lambda url: {"keys": [jwk]}
-        cls.ras = FakeRas(lambda claims: jwt.encode(claims, cls.key, algorithm="RS256", headers={"kid": KID}))
-        gate.direct_login.source.http = cls.ras
+        cls._install_test_jwks()
+        login = cls._ras_gate().direct_login
+        assert login is not None
+        cls.ras = FakeRas(cls._sign)
+        login.source.http = cls.ras
 
     def _start(self, email: str) -> str:
         """Start a login as the current user and return the state from the authorization URL."""

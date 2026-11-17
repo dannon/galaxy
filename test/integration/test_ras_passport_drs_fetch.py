@@ -6,9 +6,7 @@ The DRS server is a local fake, so no network is needed.
 import hashlib
 import json
 import os
-import tempfile
 import threading
-import time
 from http.server import (
     BaseHTTPRequestHandler,
     ThreadingHTTPServer,
@@ -18,16 +16,10 @@ from typing import (
     ClassVar,
 )
 
-import jwt
-from cryptography.hazmat.primitives.asymmetric import rsa
-
-from galaxy.authnz.ras.store import VaultPassportStore
-from galaxy.model.db.user import get_user_by_email
 from galaxy_test.base.populators import DatasetPopulator
 from galaxy_test.driver import integration_util
+from ._ras_passport import ConfiguresRasPassport
 
-ISSUER = "https://sts.example.nih.gov"
-KID = "INTEGRATION-TEST"
 RAS_PASSPORT_REQUIRED = 403009
 
 OBJECT_PATH = "/ga4gh/drs/v1/objects/obj1"
@@ -123,11 +115,8 @@ class FakeDrsHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
 
-class TestRasPassportDrsFetchIntegration(
-    integration_util.IntegrationTestCase, integration_util.ConfiguresDatabaseVault
-):
+class TestRasPassportDrsFetchIntegration(integration_util.IntegrationTestCase, ConfiguresRasPassport):
     drs_server: ClassVar[FakeDrsServer]
-    key: ClassVar[rsa.RSAPrivateKey]
     populator: DatasetPopulator
 
     @classmethod
@@ -156,19 +145,11 @@ class TestRasPassportDrsFetchIntegration(
     @classmethod
     def handle_galaxy_config_kwds(cls, config):
         super().handle_galaxy_config_kwds(config)
-        cls._configure_database_vault(config)
         port = cls.drs_server.server_port
-        config_dir = tempfile.mkdtemp()
-        ras_config_file = os.path.join(config_dir, "ras_config.yml")
-        with open(ras_config_file, "w") as f:
-            f.write(
-                f"issuer: {ISSUER}\n"
-                f"jwks_uri: {ISSUER}/jwks.json\n"
-                "protected_sources:\n"
-                f"  - url_regex: '^drs://127\\.0\\.0\\.1:{port}/'\n"
-                "    phs_id: phs000123\n"
-            )
-        config["ras_config_file"] = ras_config_file
+        config_dir = cls._write_ras_config(
+            config,
+            f"protected_sources:\n  - url_regex: '^drs://127\\.0\\.0\\.1:{port}/'\n    phs_id: phs000123\n",
+        )
         file_sources_config_file = os.path.join(config_dir, "file_sources_conf.yml")
         with open(file_sources_config_file, "w") as f:
             f.write(
@@ -182,48 +163,15 @@ class TestRasPassportDrsFetchIntegration(
 
     @classmethod
     def _configure_app(cls):
-        # One key per class: the app's JwksClient caches keys by kid.
-        cls.key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-        jwk = json.loads(jwt.algorithms.RSAAlgorithm.to_jwk(cls.key.public_key()))
-        jwk.update({"kid": KID, "use": "sig"})
-        app = cls._test_driver.app
-        assert app is not None
-        gate = app.ras_passport_gate
-        assert gate is not None
-        assert isinstance(gate.store, VaultPassportStore)
-        gate.store.issuer_config.jwks._fetcher = lambda url: {"keys": [jwk]}
+        cls._install_test_jwks()
 
     @property
     def drs_uri(self) -> str:
         return f"drs://127.0.0.1:{self.drs_server.server_port}/obj1"
 
-    def _sign(self, claims):
-        return jwt.encode(claims, self.key, algorithm="RS256", headers={"kid": KID})
-
-    def _passport(self, phs_id):
-        now = int(time.time())
-        common = {"iss": ISSUER, "sub": "ras-sub", "iat": now - 60, "exp": now + 3600}
-        visa = self._sign(
-            dict(
-                common,
-                ga4gh_visa_v1={"type": "https://ras.nih.gov/visas/v1.1", "source": "https://ncbi.nlm.nih.gov/gap"},
-                ras_dbgap_permissions=[{"phs_id": phs_id, "version": "v1", "consent_group": "c1"}],
-            )
-        )
-        return self._sign(dict(common, ga4gh_passport_v1=[visa]))
-
-    def _store_passport(self, email, passport):
-        user = get_user_by_email(self._app.model.session, email)
-        gate = self._app.ras_passport_gate
-        assert gate is not None
-        gate.store.put(user, passport)
-
-    def _fetch(self, history_id):
-        payload = {
-            "history_id": history_id,
-            "targets": [{"destination": {"type": "hdas"}, "elements": [{"src": "url", "url": self.drs_uri}]}],
-        }
-        return self.populator.fetch(payload, assert_ok=False, wait=False)
+    def _fetch(self, history_id, target=None):
+        target = target or {"destination": {"type": "hdas"}, "elements": [{"src": "url", "url": self.drs_uri}]}
+        return self.populator.fetch({"history_id": history_id, "targets": [target]}, assert_ok=False, wait=False)
 
     def _assert_refused(self, response, reason, history_id):
         self._assert_status_code_is(response, 403)
@@ -236,6 +184,19 @@ class TestRasPassportDrsFetchIntegration(
         with self._different_user("ras-drs-missing@test.gx"):
             history_id = self.populator.new_history()
             self._assert_refused(self._fetch(history_id), "missing", history_id)
+        assert self.drs_server.requests == []
+
+    def test_protected_url_in_nested_collection_is_refused(self):
+        with self._different_user("ras-drs-nested@test.gx"):
+            history_id = self.populator.new_history()
+            elements = [
+                {
+                    "name": "outer",
+                    "elements": [{"name": "inner", "elements": [{"name": "x", "src": "url", "url": self.drs_uri}]}],
+                }
+            ]
+            target = {"destination": {"type": "hdca"}, "collection_type": "list:list:list", "elements": elements}
+            self._assert_refused(self._fetch(history_id, target), "missing", history_id)
         assert self.drs_server.requests == []
 
     def test_protected_fetch_with_passport_for_another_study_is_refused(self):
@@ -258,6 +219,7 @@ class TestRasPassportDrsFetchIntegration(
             job = self.populator.check_run(response)
             # assert_ok fails as soon as the job errors, with its stderr in the message.
             self.populator.wait_for_job(job["id"], assert_ok=True)
+            job_details = self.populator.get_job_details(job["id"], full=True).json()
             output = response.json()["outputs"][0]
             # A failed fetch leaves the job ok and puts the error on the dataset instead.
             details = self.populator.get_history_dataset_details(history_id, dataset=output, assert_ok=False)
@@ -270,3 +232,4 @@ class TestRasPassportDrsFetchIntegration(
             ("GET", DATA_PATH, None),
         ]
         assert not any(passport in headers for headers in self.drs_server.request_headers)
+        assert passport not in json.dumps(job_details)

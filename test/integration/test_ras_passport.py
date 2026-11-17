@@ -3,84 +3,30 @@
 No network: the gate's JWKS fetcher is swapped for one serving a local test key.
 """
 
-import json
-import os
-import tempfile
 import time
 from urllib.parse import (
     parse_qs,
     urlsplit,
 )
 
-import jwt
-from cryptography.hazmat.primitives.asymmetric import rsa
-
-from galaxy.authnz.ras.store import (
-    PASSPORT_VAULT_KEY,
-    VaultPassportStore,
-)
+from galaxy.authnz.ras.store import PASSPORT_VAULT_KEY
 from galaxy.model.db.user import get_user_by_email
 from galaxy.security.vault import UserVaultWrapper
 from galaxy_test.driver import integration_util
+from ._ras_passport import ConfiguresRasPassport
 
-ISSUER = "https://sts.example.nih.gov"
 BRIDGE = "https://bridge.example.org/ras/login"
-KID = "INTEGRATION-TEST"
 
 
-class TestRasPassportIntegration(integration_util.IntegrationTestCase, integration_util.ConfiguresDatabaseVault):
-    key: rsa.RSAPrivateKey
-
+class TestRasPassportIntegration(integration_util.IntegrationTestCase, ConfiguresRasPassport):
     @classmethod
     def handle_galaxy_config_kwds(cls, config):
         super().handle_galaxy_config_kwds(config)
-        cls._configure_database_vault(config)
-        config_dir = tempfile.mkdtemp()
-        ras_config_file = os.path.join(config_dir, "ras_config.yml")
-        with open(ras_config_file, "w") as f:
-            f.write(
-                f"issuer: {ISSUER}\n"
-                f"jwks_uri: {ISSUER}/jwks.json\n"
-                f"bridge_url: {BRIDGE}\n"
-                "galaxy_url: https://galaxy.example.org/\n"
-            )
-        config["ras_config_file"] = ras_config_file
+        cls._write_ras_config(config, f"bridge_url: {BRIDGE}\ngalaxy_url: https://galaxy.example.org/\n")
 
     @classmethod
     def _configure_app(cls):
-        # One key for the whole class: the app's JwksClient caches keys by kid, so a
-        # fresh key per test under the same kid would be checked against the first one.
-        cls.key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-        jwk = json.loads(jwt.algorithms.RSAAlgorithm.to_jwk(cls.key.public_key()))
-        jwk.update({"kid": KID, "use": "sig"})
-        app = cls._test_driver.app
-        assert app is not None
-        gate = app.ras_passport_gate
-        assert gate is not None
-        assert isinstance(gate.store, VaultPassportStore)
-        gate.store.issuer_config.jwks._fetcher = lambda url: {"keys": [jwk]}
-
-    def _store(self) -> VaultPassportStore:
-        gate = self._app.ras_passport_gate
-        assert gate is not None
-        assert isinstance(gate.store, VaultPassportStore)
-        return gate.store
-
-    def _sign(self, claims):
-        return jwt.encode(claims, self.key, algorithm="RS256", headers={"kid": KID})
-
-    def _passport(self, phs_id, iat=None, exp=None):
-        now = int(time.time())
-        iat = now - 60 if iat is None else iat
-        common = {"iss": ISSUER, "sub": "ras-sub", "iat": iat, "exp": now + 3600 if exp is None else exp}
-        visa = self._sign(
-            dict(
-                common,
-                ga4gh_visa_v1={"type": "https://ras.nih.gov/visas/v1.1", "source": "https://ncbi.nlm.nih.gov/gap"},
-                ras_dbgap_permissions=[{"phs_id": phs_id, "version": "v1", "consent_group": "c1"}],
-            )
-        )
-        return self._sign(dict(common, ga4gh_passport_v1=[visa]))
+        cls._install_test_jwks()
 
     def test_missing_passport(self):
         with self._different_user("ras-missing@test.gx"):
@@ -96,8 +42,7 @@ class TestRasPassportIntegration(integration_util.IntegrationTestCase, integrati
     def test_stored_passport(self):
         email = "ras-present@test.gx"
         with self._different_user(email):
-            user = get_user_by_email(self._app.model.session, email)
-            self._store().put(user, self._passport("phs000123"))
+            self._store_passport(email, self._passport("phs000123"))
             response = self._get("users/current/ras_passport")
             self._assert_status_code_is(response, 200)
         summary = response.json()
