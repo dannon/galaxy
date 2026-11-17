@@ -18,6 +18,8 @@ from galaxy import exceptions
 from galaxy.files import (
     DictFileSourcesUserContext,
     GA4GHPassportCredential,
+    ProvidesFileSourcesTransaction,
+    ProvidesFileSourcesUserContext,
 )
 from galaxy.files.sources.util import (
     fetch_drs_to_file,
@@ -297,12 +299,6 @@ def test_realized_in_process_refuses_a_stale_passport():
 
 
 def test_provides_user_context_reads_the_stored_passport():
-    from galaxy.files import (
-        ProvidesFileSourcesTransaction,
-        ProvidesFileSourcesUserContext,
-    )
-    from galaxy.managers.ga4gh_passports import PassportManager
-
     fresh_until = int(datetime.now(timezone.utc).timestamp()) + 600
 
     class FakePassportManager:
@@ -312,8 +308,9 @@ def test_provides_user_context_reads_the_stored_passport():
         def fresh_until(self, passport):
             return fresh_until
 
-    def user_context(user):
-        trans = SimpleNamespace(user=user, app={PassportManager: FakePassportManager()})
+    def user_context(user, app=None):
+        app = app if app is not None else SimpleNamespace(ga4gh_passport_manager=FakePassportManager())
+        trans = SimpleNamespace(user=user, app=app)
         return ProvidesFileSourcesUserContext(cast(ProvidesFileSourcesTransaction, trans))
 
     assert user_context("alice").ga4gh_passport == GA4GHPassportCredential(
@@ -321,3 +318,6 @@ def test_provides_user_context_reads_the_stored_passport():
     )
     assert user_context("bob").ga4gh_passport is None
     assert user_context(None).ga4gh_passport is None
+    # An app without the manager (the Tool Shed, a bare job) has no passports.
+    assert user_context("alice", app=SimpleNamespace()).ga4gh_passport is None
+    assert user_context("alice", app=SimpleNamespace(ga4gh_passport_manager=None)).ga4gh_passport is None
