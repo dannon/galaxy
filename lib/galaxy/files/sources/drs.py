@@ -77,6 +77,15 @@ class DRSFilesSource(BaseFilesSource[DRSFileSourceTemplateConfiguration, DRSFile
         self._url_regex = re.compile(self.template_config.url_regex)
 
     @property
+    def sends_ga4gh_passport(self) -> bool:
+        """Whether fetches from this source carry the user's GA4GH Passport.
+
+        A templated value counts as yes: data from it is then treated as
+        controlled, which errs on the safe side.
+        """
+        return bool(self.template_config.ga4gh_passport)
+
+    @property
     def _allowlist(self):
         return self._file_sources_config.fetch_url_allowlist
 

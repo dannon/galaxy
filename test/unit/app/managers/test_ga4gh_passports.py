@@ -422,6 +422,33 @@ def test_connect_syncs_grant_roles_and_forget_keeps_them(manager, broker, sessio
     assert sorted(manager.data_access(alice)) == ["phs000001.c1"]
 
 
+def test_fetch_roles_are_the_synced_grant_roles_and_a_manage_role_no_one_holds(manager, broker, session, alice):
+    connect(manager, broker, browser(session, alice))
+    grant_roles, manage_role = manager.fetch_roles(alice)
+    assert [role.name for role in grant_roles] == [f"ga4gh_grant:{alice.id}:phs000001.c1"]
+    assert manage_role.name == "ga4gh_controlled_data" and manage_role.users == []
+    assert manage_role not in alice.all_roles()
+    assert manager.fetch_roles(alice)[1] is manage_role  # created once
+
+
+def test_fetch_roles_without_passport(manager, alice):
+    assert manager.fetch_roles(alice) is None  # nothing is sent: nothing to restrict
+    assert manager.fetch_roles(None) is None
+
+
+def test_fetch_roles_with_a_passport_too_old_to_send(manager, broker, session, alice):
+    connect(manager, broker, browser(session, alice))
+    manager._max_age = 0
+    with pytest.raises(exceptions.AuthenticationRequired, match="too old.*Reconnect"):
+        manager.fetch_roles(alice)
+
+
+def test_fetch_roles_with_no_grants(manager, alice, monkeypatch):
+    monkeypatch.setattr(manager, "current", lambda user: with_grants())
+    with pytest.raises(exceptions.ItemAccessibilityException, match="no data access grants"):
+        manager.fetch_roles(alice)
+
+
 # --- freshness ----------------------------------------------------------------------------------
 
 

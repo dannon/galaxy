@@ -46,6 +46,7 @@ from galaxy.authnz.flow_state import (
     InvalidFlow,
 )
 from galaxy.config import GalaxyAppConfiguration
+from galaxy.files.sources.drs import RECONNECT_HINT
 from galaxy.model import (
     Role,
     User,
@@ -75,6 +76,9 @@ log = logging.getLogger(__name__)
 PASSPORT_VAULT_KEY = "ga4gh_passport"
 FLOW_PROVIDER = "ga4gh_passport"
 GRANT_ROLE_PREFIX = "ga4gh_grant"
+# Manages every dataset fetched with a Passport. No user holds it, so only admins
+# can change those datasets' permissions (users can't share them).
+CONTROLLED_DATA_MANAGE_ROLE = "ga4gh_controlled_data"
 CONNECT_PATH = "ga4gh_passport/connect"
 CALLBACK_PATH = "ga4gh_passport/callback"
 TOKEN_REQUEST_TIMEOUT = 10
@@ -362,6 +366,46 @@ class PassportManager:
             ",".join(sorted(ended)) or "-",
         )
         return roles
+
+    def fetch_roles(self, user: User | None) -> tuple[list[Role], Role] | None:
+        """The roles to restrict data fetched now with the user's Passport to.
+
+        Returns the user's grant roles (synced from the Passport; access needs
+        all of them, as Galaxy can't tell which grant covers an object) and the
+        manage role no one holds. None if the user has no Passport: nothing is
+        sent, so no controlled data can come back (a controlled object fails
+        in the job, telling the user to connect). Raises if the Passport is too
+        old to send (the fetch would fail anyway), or carries no grants Galaxy
+        understands (a repository could still accept it, and Galaxy would have
+        no role to restrict the data to).
+        """
+        if user is None or (passport := self.current(user)) is None:
+            return None
+        if self.fresh_until(passport) <= time.time():
+            raise exceptions.AuthenticationRequired(
+                f"Your GA4GH Passport is too old to send to a data repository. {RECONNECT_HINT}"
+            )
+        roles = self.sync_grant_roles(user, passport)
+        if not roles:
+            raise exceptions.ItemAccessibilityException(
+                "Your GA4GH Passport carries no data access grants Galaxy can restrict fetched data to. Forget it "
+                "(User Preferences, /user/ga4gh_passport) to fetch public data from this repository."
+            )
+        return [roles[authorization] for authorization in sorted(roles)], self._controlled_data_manage_role()
+
+    def _controlled_data_manage_role(self) -> Role:
+        stmt = select(Role).filter_by(name=CONTROLLED_DATA_MANAGE_ROLE, type=Role.types.GA4GH_GRANT).order_by(Role.id)
+        role = self._sa_session.scalars(stmt).first()
+        if role is None:
+            role = Role(
+                name=CONTROLLED_DATA_MANAGE_ROLE,
+                description="Manages data fetched with a GA4GH Passport. No user holds it: only admins can change "
+                "the permissions of such data.",
+                type=Role.types.GA4GH_GRANT,
+            )
+            self._sa_session.add(role)
+            self._sa_session.commit()
+        return role
 
     def data_access(self, user: User) -> dict[str, datetime]:
         """The grants the user currently holds in Galaxy, and until when (UTC)."""
