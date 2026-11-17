@@ -179,6 +179,11 @@ class FileSourceCredentialExpired(MessageException):
     err_code = error_codes_by_name["FILE_SOURCE_CREDENTIAL_EXPIRED"]
 
 
+class RasPassportRequiredException(MessageException):
+    status_code = 403
+    err_code = error_codes_by_name["USER_RAS_PASSPORT_REQUIRED"]
+
+
 class AuthenticationRequired(MessageException):
     status_code = 403
     # TODO: as 401 and send WWW-Authenticate: ???

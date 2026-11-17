@@ -42,6 +42,7 @@ from galaxy.authnz.ras.policy import (
     grants_access,
     InvalidAccessionError,
 )
+from galaxy.authnz.ras.protected import match_protected_source
 from galaxy.authnz.ras.sources import DirectRasPassportSource
 from galaxy.authnz.ras.store import (
     PassportStatus,
@@ -150,6 +151,15 @@ class PassportGate:
             if not granted:
                 return self._needed(PassportNeededReason.NO_ACCESS, return_to, phs_id=phs_id)
         return PassportOk(lookup.passport)
+
+    def require_for_url(self, user: Any, url: str, return_to: str | None = None) -> PassportDecision | None:
+        """``None`` if ``url`` isn't a protected source, otherwise what ``require`` says for its study."""
+        match = match_protected_source(self.config.protected_sources, url)
+        if match is None:
+            return None
+        if match.accession is None:
+            return self.require(user, return_to=return_to)
+        return self.require(user, phs_id=match.accession, return_to=return_to)
 
     def require_for_trans(self, trans: Any, phs_id: str | None = None, **kwds: Any) -> PassportDecision:
         return self.require(trans.user, phs_id=phs_id, **kwds)

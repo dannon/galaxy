@@ -41,3 +41,12 @@ issuer: https://stsstg.nih.gov
 #  client_secret_env: RAS_CLIENT_SECRET
 #  redirect_uri: https://cfderas.develop.tapis.io/v3/oauth2/extensions/oa2/callback
 #  scopes: openid profile email ga4gh_passport_v1
+
+# URLs Galaxy only fetches for users holding a passport that grants the study.
+# The first entry whose url_regex matches (re.match, so anchored at the start)
+# decides. Give the study as a literal phs_id, or as a (?P<phs_id>...) group in
+# the regex; an entry with neither accepts any valid passport.
+#protected_sources:
+#  - url_regex: '^drs://protected\.example\.org/'
+#    phs_id: phs000123
+#  - url_regex: '^drs://dbgap\.example\.org/(?P<phs_id>phs\d+)/'
