@@ -30,9 +30,13 @@ class RasConfigError(Exception):
     pass
 
 
+# Plain http only reaches a server on this machine, such as a mock issuer in development.
+_LOCAL_HTTP_RE = re.compile(r"^http://(localhost|127\.0\.0\.1|\[::1\])(:\d+)?(/|$)")
+
+
 def _require_https(value: str | None, name: str) -> str | None:
-    if value is not None and not value.startswith("https://"):
-        raise ValueError(f"{name} must be an https URL")
+    if value is not None and not value.startswith("https://") and not _LOCAL_HTTP_RE.match(value):
+        raise ValueError(f"{name} must be an https URL (http is only accepted for localhost)")
     return value
 
 

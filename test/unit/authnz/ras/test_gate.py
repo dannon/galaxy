@@ -153,6 +153,25 @@ def test_invalid_config(tmp_path, text, match):
         load_ras_config(_write_config(tmp_path, text))
 
 
+@pytest.mark.parametrize(
+    "issuer",
+    ["http://localhost:8101", "http://127.0.0.1:8101", "http://[::1]:8101", "http://localhost"],
+)
+def test_http_issuer_is_allowed_on_this_machine(tmp_path, issuer):
+    config = load_ras_config(_write_config(tmp_path, f"issuer: {issuer}\n"))
+    assert config is not None
+    assert config.issuer == issuer
+
+
+@pytest.mark.parametrize(
+    "issuer",
+    ["http://localhost.evil.example", "http://localhost@evil.example", "http://127.0.0.1.evil.example:8101"],
+)
+def test_http_issuer_that_only_looks_local_is_refused(tmp_path, issuer):
+    with pytest.raises(RasConfigError, match="https"):
+        load_ras_config(_write_config(tmp_path, f"issuer: {issuer}\n"))
+
+
 def test_empty_config_file_uses_defaults(tmp_path):
     config = load_ras_config(_write_config(tmp_path, ""))
     assert config is not None
