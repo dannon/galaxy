@@ -76,8 +76,9 @@ log = logging.getLogger(__name__)
 PASSPORT_VAULT_KEY = "ga4gh_passport"
 FLOW_PROVIDER = "ga4gh_passport"
 GRANT_ROLE_PREFIX = "ga4gh_grant"
-# Manages every dataset fetched with a Passport. No user holds it, so only admins
-# can change those datasets' permissions (users can't share them).
+# Manages every dataset fetched with a Passport (and derived from one). No user
+# holds it or can be given it, and admins get no override for such data, so no
+# one can change those datasets' permissions through Galaxy.
 CONTROLLED_DATA_MANAGE_ROLE = "ga4gh_controlled_data"
 CONNECT_PATH = "ga4gh_passport/connect"
 CALLBACK_PATH = "ga4gh_passport/callback"
@@ -399,8 +400,8 @@ class PassportManager:
         if role is None:
             role = Role(
                 name=CONTROLLED_DATA_MANAGE_ROLE,
-                description="Manages data fetched with a GA4GH Passport. No user holds it: only admins can change "
-                "the permissions of such data.",
+                description="Manages data fetched with a GA4GH Passport and data derived from it. No user holds "
+                "it, so no one can change the permissions of such data.",
                 type=Role.types.GA4GH_GRANT,
             )
             self._sa_session.add(role)

@@ -140,6 +140,7 @@ class RoleManager(base.ModelManager[model.Role]):
         return role
 
     def update_role(self, trans: ProvidesUserContext, role: model.Role, payload: RoleUpdatePayload) -> model.Role:
+        _ensure_not_galaxy_assigned(role)
         if payload.name is not None:
             if not payload.name:
                 raise RequestParameterInvalidException("Enter a valid role name.")
@@ -172,6 +173,7 @@ class RoleManager(base.ModelManager[model.Role]):
             raise Conflict(f"A role with that name already exists [{name}]")
 
     def delete(self, trans: ProvidesUserContext, role: model.Role) -> model.Role:
+        _ensure_not_galaxy_assigned(role)
         role.deleted = True
         trans.sa_session.add(role)
         trans.sa_session.commit()
@@ -185,6 +187,7 @@ class RoleManager(base.ModelManager[model.Role]):
         # - DefaultHistoryPermissions where role_id == Role.id
         # - GroupRoleAssociations where role_id == Role.id
         # - DatasetPermissionss where role_id == Role.id
+        _ensure_not_galaxy_assigned(role)
         sa_session = trans.sa_session
         if not role.deleted:
             raise RequestParameterInvalidException(f"Role '{role.name}' has not been deleted, so it cannot be purged.")
@@ -214,6 +217,7 @@ class RoleManager(base.ModelManager[model.Role]):
         return role
 
     def undelete(self, trans: ProvidesUserContext, role: model.Role) -> model.Role:
+        _ensure_not_galaxy_assigned(role)
         if not role.deleted:
             raise RequestParameterInvalidException(
                 f"Role '{role.name}' has not been deleted, so it cannot be undeleted."
@@ -222,3 +226,16 @@ class RoleManager(base.ModelManager[model.Role]):
         trans.sa_session.add(role)
         trans.sa_session.commit()
         return role
+
+
+def _ensure_not_galaxy_assigned(role: model.Role) -> None:
+    """Refuse changes to roles Galaxy assigns itself (GA4GH Passport grants).
+
+    Editing their members would give or take data access by hand (and drop
+    membership expirations); deleting or purging them would make the data
+    they protect public.
+    """
+    if role.type == model.Role.types.GA4GH_GRANT:
+        raise RequestParameterInvalidException(
+            f"Role '{role.name}' is assigned by Galaxy from GA4GH Passport grants and can't be changed or deleted."
+        )

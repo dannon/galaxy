@@ -1553,6 +1553,8 @@ WHERE history.user_id != :user_id and history_dataset_association.dataset_id = :
         If the provided list is empty, existing associations will be removed.
         If the provided value is None, existing associations will not be updated.
         """
+        if role.type == Role.types.GA4GH_GRANT:
+            raise RequestParameterInvalidException("GA4GH grant roles are assigned by Galaxy, not by hand.")
         self._persist_new_model(role)
         if user_ids is not None:
             self._set_role_users(role, user_ids)
@@ -1574,7 +1576,12 @@ WHERE history.user_id != :user_id and history_dataset_association.dataset_id = :
             log.warning("User %s does not have a private role assigned", user)
         else:
             delete_stmt = delete_stmt.where(UserRoleAssociation.role_id != private_role.id)
+        # GA4GH grant roles are assigned by Galaxy: keep the user's (with their expirations), add none.
+        grant_role_ids = select(Role.id).where(Role.type == Role.types.GA4GH_GRANT)
+        delete_stmt = delete_stmt.where(UserRoleAssociation.role_id.not_in(grant_role_ids))
         role_ids = self._filter_private_roles(role_ids)
+        grant_ids = set(self._ga4gh_grant_role_ids(role_ids))
+        role_ids = [role_id for role_id in role_ids if role_id not in grant_ids]
 
         insert_values = [{"user_id": user.id, "role_id": role_id} for role_id in role_ids]
         self._set_associations(user, UserRoleAssociation, delete_stmt, insert_values)
@@ -1593,6 +1600,8 @@ WHERE history.user_id != :user_id and history_dataset_association.dataset_id = :
         self._set_associations(group, UserGroupAssociation, delete_stmt, insert_values)
 
     def _set_group_roles(self, group, role_ids):
+        if self._ga4gh_grant_role_ids(role_ids):
+            raise RequestParameterInvalidException("GA4GH grant roles are assigned by Galaxy, not by hand.")
         delete_stmt = delete(GroupRoleAssociation).where(GroupRoleAssociation.group_id == group.id)
         insert_values = [{"group_id": group.id, "role_id": role_id} for role_id in role_ids]
         self._set_associations(group, GroupRoleAssociation, delete_stmt, insert_values)
