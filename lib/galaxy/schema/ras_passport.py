@@ -26,3 +26,14 @@ class RasPassportSummary(Model):
         None,
         description="Where to send the user to get a new passport, when there is no valid one and a bridge is configured.",
     )
+
+
+class RasPassportLoginRequest(Model):
+    authorization_url: str = Field(..., description="Where to send the user to log in to NIH RAS.")
+    expires_in: int = Field(..., description="Seconds the user has to finish the login.")
+
+
+class RasPassportLoginCallback(Model):
+    callback_url: str = Field(
+        ..., description="The full URL RAS redirected the browser to after the login, pasted as-is."
+    )

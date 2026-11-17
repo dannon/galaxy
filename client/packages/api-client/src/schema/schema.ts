@@ -6177,6 +6177,50 @@ export interface paths {
         get: operations["show_api_users_current_ras_passport_get"];
         put?: never;
         post?: never;
+        /**
+         * Remove the current user's stored NIH RAS passport.
+         * @description **Warning**: This API is unstable and may change without notice.
+         */
+        delete: operations["delete_api_users_current_ras_passport_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users/current/ras_passport/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start a direct NIH RAS login for the current user.
+         * @description **Warning**: This API is unstable and may change without notice.
+         */
+        post: operations["start_login_api_users_current_ras_passport_login_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users/current/ras_passport/login/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Finish a direct NIH RAS login with the pasted redirect URL.
+         * @description **Warning**: This API is unstable and may change without notice.
+         */
+        post: operations["finish_login_api_users_current_ras_passport_login_callback_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -22486,6 +22530,27 @@ export interface components {
          * @default []
          */
         QuotaSummaryList: components["schemas"]["QuotaSummary"][];
+        /** RasPassportLoginCallback */
+        RasPassportLoginCallback: {
+            /**
+             * Callback Url
+             * @description The full URL RAS redirected the browser to after the login, pasted as-is.
+             */
+            callback_url: string;
+        };
+        /** RasPassportLoginRequest */
+        RasPassportLoginRequest: {
+            /**
+             * Authorization Url
+             * @description Where to send the user to log in to NIH RAS.
+             */
+            authorization_url: string;
+            /**
+             * Expires In
+             * @description Seconds the user has to finish the login.
+             */
+            expires_in: number;
+        };
         /**
          * RasPassportStatus
          * @enum {string}
@@ -53389,6 +53454,131 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RasPassportSummary"];
+                };
+            };
+            /** @description Request Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+            /** @description Server Error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+        };
+    };
+    delete_api_users_current_ras_passport_delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Request Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+            /** @description Server Error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+        };
+    };
+    start_login_api_users_current_ras_passport_login_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RasPassportLoginRequest"];
+                };
+            };
+            /** @description Request Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+            /** @description Server Error */
+            "5XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageExceptionModel"];
+                };
+            };
+        };
+    };
+    finish_login_api_users_current_ras_passport_login_callback_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The user ID that will be used to effectively make this API call. Only admins and designated users can make API calls on behalf of other users. */
+                "run-as"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RasPassportLoginCallback"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

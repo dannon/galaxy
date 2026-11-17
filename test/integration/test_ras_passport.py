@@ -126,3 +126,7 @@ class TestRasPassportIntegration(integration_util.IntegrationTestCase, integrati
         with self._different_user(anon=True):
             response = self._get("users/current/ras_passport")
             self._assert_status_code_is(response, 403)
+
+    def test_login_is_501_without_direct_ras(self):
+        with self._different_user("ras-no-direct@test.gx"):
+            self._assert_status_code_is(self._post("users/current/ras_passport/login"), 501)
