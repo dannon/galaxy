@@ -4698,6 +4698,22 @@
 :Type: int
 
 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``ga4gh_grant_max_membership``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:Description:
+    Each data access grant in a user's GA4GH Passport (e.g. a dbGaP
+    study and consent group) becomes a Galaxy role that only this user
+    holds, and data fetched with the Passport is restricted to these
+    roles. The user holds a grant role until the grant expires, but at
+    most this many seconds (default 30 days) after their last Passport
+    connect; connecting again renews it. A grant missing from a newly
+    connected Passport ends the membership at once.
+:Default: ``2592000``
+:Type: int
+
+
 ~~~~~~~~~~~~~~~~~~~~
 ``auth_config_file``
 ~~~~~~~~~~~~~~~~~~~~

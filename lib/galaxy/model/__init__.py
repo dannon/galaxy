@@ -4762,6 +4762,8 @@ class Role(Base, Dictifiable, RepresentById):
         SHARING = "sharing"
         USER_TOOL_CREATE = "user_tool_create"
         USER_TOOL_EXECUTE = "user_tool_execute"
+        # One per user and data access grant from a GA4GH Passport; managed by Galaxy.
+        GA4GH_GRANT = "ga4gh_grant"
 
     @staticmethod
     def default_name(role_type):

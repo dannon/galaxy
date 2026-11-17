@@ -12,6 +12,11 @@ Galaxy is an OAuth 2.0 client of the broker (authorization code + PKCE):
 3. ``current``: the user's stored Passport, verified again on every read. This
    is the interface the rest of Galaxy uses; ``fresh_until`` says how long it
    may still be sent to data services.
+4. ``sync_grant_roles``: each data access grant in the Passport becomes a role
+   only this user holds (``Role.types.GA4GH_GRANT``), with a membership that
+   expires with the grant, capped at ``ga4gh_grant_max_membership`` after the
+   connect. Data fetched with the Passport is restricted to these roles, so
+   access to it ends when the membership does, without asking the issuer again.
 
 The broker returns the Passport untouched; all decoding happens here, through
 ``galaxy.security.ga4gh_passport``.
@@ -22,6 +27,11 @@ import logging
 import secrets
 import time
 from dataclasses import dataclass
+from datetime import (
+    datetime,
+    timedelta,
+    timezone,
+)
 from typing import Any
 from urllib.parse import urlencode
 
@@ -37,9 +47,12 @@ from galaxy.authnz.flow_state import (
 )
 from galaxy.config import GalaxyAppConfiguration
 from galaxy.model import (
+    Role,
     User,
     UserGA4GHIdentity,
+    UserRoleAssociation,
 )
+from galaxy.model.orm.now import now
 from galaxy.model.scoped_session import galaxy_scoped_session
 from galaxy.security.ga4gh_passport import (
     InvalidPassport,
@@ -61,6 +74,7 @@ log = logging.getLogger(__name__)
 
 PASSPORT_VAULT_KEY = "ga4gh_passport"
 FLOW_PROVIDER = "ga4gh_passport"
+GRANT_ROLE_PREFIX = "ga4gh_grant"
 CONNECT_PATH = "ga4gh_passport/connect"
 CALLBACK_PATH = "ga4gh_passport/callback"
 TOKEN_REQUEST_TIMEOUT = 10
@@ -123,6 +137,7 @@ class PassportManager:
         self._vault = vault
         self._verifier = PassportVerifier(self._broker.trusted_issuers) if self._broker else None
         self._max_age = config.ga4gh_passport_max_age
+        self._grant_max_membership = config.ga4gh_grant_max_membership
 
     @property
     def enabled(self) -> bool:
@@ -194,6 +209,7 @@ class PassportManager:
 
         record = {"passport": token, "preferred_username": preferred_username, "received_at": int(time.time())}
         UserVaultWrapper(self._vault, user).write_secret(PASSPORT_VAULT_KEY, json.dumps(record))
+        self.sync_grant_roles(user, passport)
         log.info(
             "GA4GH passport connected user_id=%s iss=%s sub=%s txn=%s preferred_username=%s grants=%s",
             user.id,
@@ -305,6 +321,78 @@ class PassportManager:
             select(UserGA4GHIdentity).filter_by(user_id=user.id).order_by(UserGA4GHIdentity.id)
         ).first()
 
+    # --- grant roles ---------------------------------------------------------------------
+
+    def sync_grant_roles(self, user: User, passport: VerifiedPassport) -> dict[str, Role]:
+        """Make the user's grant roles match ``passport``; return them by authorization.
+
+        A grant's membership lasts until the grant expires, at most
+        ``ga4gh_grant_max_membership`` from now. Grant roles the user holds
+        that are not in ``passport`` (revoked or expired at the issuer) end now.
+        """
+        current = now()
+        cap = current + timedelta(seconds=self._grant_max_membership)
+        until: dict[str, datetime] = {}
+        for grant in passport.grants:
+            # The same grant may come in more than one Visa; any of them is enough.
+            expiration = _utc(grant.expiration)
+            until[grant.authorization] = max(until.get(grant.authorization, expiration), expiration)
+        held = {_grant_authorization(ura.role, user): ura for ura in self._grant_memberships(user)}
+        roles: dict[str, Role] = {}
+        for authorization, grant_until in sorted(until.items()):
+            expiration_time = min(grant_until, cap)
+            if (ura := held.get(authorization)) is None:
+                role = self._get_or_create_grant_role(user, authorization)
+                ura = UserRoleAssociation(user, role, expiration_time=expiration_time)
+                self._sa_session.add(ura)
+            else:
+                ura.expiration_time = expiration_time
+            roles[authorization] = ura.role
+        ended = []
+        for authorization, ura in held.items():
+            if authorization not in until and ura.is_active:
+                ura.expiration_time = current
+                ended.append(authorization)
+        self._sa_session.commit()
+        log.info(
+            "GA4GH grant roles synced user_id=%s txn=%s held=%s ended=%s",
+            user.id,
+            passport.txn,
+            ",".join(f"{a}@{min(u, cap):%Y-%m-%dT%H:%M:%SZ}" for a, u in sorted(until.items())) or "-",
+            ",".join(sorted(ended)) or "-",
+        )
+        return roles
+
+    def data_access(self, user: User) -> dict[str, datetime]:
+        """The grants the user currently holds in Galaxy, and until when (UTC)."""
+        return {
+            _grant_authorization(ura.role, user): ura.expiration_time or datetime.max
+            for ura in self._grant_memberships(user)
+            if ura.is_active
+        }
+
+    def _grant_memberships(self, user: User) -> list[UserRoleAssociation]:
+        stmt = (
+            select(UserRoleAssociation)
+            .join(Role)
+            .where(UserRoleAssociation.user_id == user.id, Role.type == Role.types.GA4GH_GRANT)
+        )
+        return list(self._sa_session.scalars(stmt))
+
+    def _get_or_create_grant_role(self, user: User, authorization: str) -> Role:
+        name = _grant_role_name(user, authorization)
+        role = self._sa_session.scalars(
+            select(Role).filter_by(name=name, type=Role.types.GA4GH_GRANT).order_by(Role.id)
+        ).first()
+        if role is None:
+            role = Role(
+                name=name,
+                description=f"Data access grant {authorization} (GA4GH Passport) of user {user.id}",
+                type=Role.types.GA4GH_GRANT,
+            )
+            self._sa_session.add(role)
+        return role
+
     def forget(self, user: User) -> None:
         """Delete the user's stored Passport. The identity binding stays."""
         if is_vault_configured(self._vault) and self._read(user) is not None:
@@ -328,3 +416,16 @@ class PassportManager:
     def _get_verifier(self) -> PassportVerifier:
         assert self._verifier is not None
         return self._verifier
+
+
+def _utc(timestamp: int) -> datetime:
+    """Epoch seconds as the naive UTC datetime Galaxy stores."""
+    return datetime.fromtimestamp(timestamp, tz=timezone.utc).replace(tzinfo=None)
+
+
+def _grant_role_name(user: User, authorization: str) -> str:
+    return f"{GRANT_ROLE_PREFIX}:{user.id}:{authorization}"
+
+
+def _grant_authorization(role: Role, user: User) -> str:
+    return role.name.removeprefix(f"{GRANT_ROLE_PREFIX}:{user.id}:")

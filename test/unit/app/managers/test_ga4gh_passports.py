@@ -28,9 +28,13 @@ from galaxy.managers.ga4gh_passports import (
     PASSPORT_VAULT_KEY,
     PassportManager,
 )
+from galaxy.model.orm.now import now
 from galaxy.security.ga4gh_passport import (
+    DbgapGrant,
     PassportVerifier,
     RAS_DBGAP_VISA_TYPE,
+    VerifiedPassport,
+    Visa,
 )
 from galaxy.security.vault import (
     DatabaseVault,
@@ -95,6 +99,7 @@ def config(**overrides) -> SimpleNamespace:
         "ga4gh_passport_broker_client_secret": "secret",
         "ga4gh_passport_trusted_issuers": ISSUER,
         "ga4gh_passport_max_age": 3600,
+        "ga4gh_grant_max_membership": 30 * 86400,
         **overrides,
     }
     return SimpleNamespace(**settings)
@@ -321,6 +326,100 @@ def test_forget_keeps_identity(manager, broker, session, alice):
     assert manager.current(alice) is None
     assert manager.identity(alice) is not None
     manager.forget(alice)  # nothing stored: no error
+
+
+# --- grant roles ---------------------------------------------------------------------------------
+
+DAY = 86400
+
+
+def with_grants(*grants: tuple[str, int], sub: str = "alice-sub") -> VerifiedPassport:
+    """A verified Passport with one Visa per (authorization, seconds until the grant expires)."""
+    t = int(time.time())
+
+    def visa(authorization: str, ttl: int) -> Visa:
+        phs_id, consent_group = authorization.split(".")
+        grant = DbgapGrant(phs_id, "v1", "p1", consent_group, "GRU", "pi", expiration=t + ttl)
+        return Visa(
+            issuer=ISSUER,
+            sub=sub,
+            type=RAS_DBGAP_VISA_TYPE,
+            value="v",
+            source="s",
+            by=None,
+            asserted=t,
+            issued_at=t,
+            expires_at=t + 3600,
+            recognized=True,
+            grants=(grant,),
+        )
+
+    visas = tuple(visa(authorization, ttl) for authorization, ttl in grants)
+    return VerifiedPassport(ISSUER, sub, "txn-1", t, t + 3600, visas, (), token="t")
+
+
+def held(user) -> dict[str, float]:
+    """The user's grant roles as {authorization: days from now} (expired ones included)."""
+    roles = {}
+    for ura in user.roles:
+        if ura.role.type == model.Role.types.GA4GH_GRANT:
+            authorization = ura.role.name.rsplit(":", 1)[1]
+            roles[authorization] = round((ura.expiration_time - now()).total_seconds() / DAY, 1)
+    return roles
+
+
+def test_grants_become_roles_only_this_user_holds(manager, session, alice):
+    bob = new_user(session, "bob@example.org")
+    roles = manager.sync_grant_roles(alice, with_grants(("phs000001.c1", 10 * DAY), ("phs000002.c1", 20 * DAY)))
+    assert sorted(roles) == ["phs000001.c1", "phs000002.c1"]
+    assert held(alice) == {"phs000001.c1": 10.0, "phs000002.c1": 20.0}
+    assert all(role in alice.all_roles() for role in roles.values())
+    assert all([ura.user for ura in role.users] == [alice] for role in roles.values())
+    assert roles["phs000001.c1"].name == f"ga4gh_grant:{alice.id}:phs000001.c1"
+    assert "alice@example.org" not in roles["phs000001.c1"].description  # survives purge without the email
+    manager.sync_grant_roles(bob, with_grants(("phs000001.c1", 5 * DAY), sub="bob-sub"))
+    assert held(bob) == {"phs000001.c1": 5.0}
+    assert roles["phs000001.c1"] not in bob.all_roles()
+
+
+def test_membership_capped_by_policy(manager, alice):
+    manager.sync_grant_roles(alice, with_grants(("phs000001.c1", 365 * DAY)))
+    assert held(alice) == {"phs000001.c1": 30.0}
+
+
+def test_reconnect_renews_and_reuses_roles(manager, session, alice):
+    first = manager.sync_grant_roles(alice, with_grants(("phs000001.c1", 2 * DAY)))
+    again = manager.sync_grant_roles(alice, with_grants(("phs000001.c1", 9 * DAY)))
+    assert again["phs000001.c1"] is first["phs000001.c1"]
+    assert held(alice) == {"phs000001.c1": 9.0}
+    assert len([ura for ura in alice.roles if ura.role.type == model.Role.types.GA4GH_GRANT]) == 1
+
+
+def test_grant_missing_from_new_passport_ends_membership(manager, alice):
+    roles = manager.sync_grant_roles(alice, with_grants(("phs000001.c1", 9 * DAY), ("phs000002.c1", 9 * DAY)))
+    manager.sync_grant_roles(alice, with_grants(("phs000001.c1", 9 * DAY)))
+    assert roles["phs000002.c1"] not in alice.all_roles()
+    assert sorted(manager.data_access(alice)) == ["phs000001.c1"]
+
+
+def test_grant_back_after_revocation(manager, alice):
+    manager.sync_grant_roles(alice, with_grants(("phs000001.c1", 9 * DAY)))
+    manager.sync_grant_roles(alice, with_grants())
+    assert manager.data_access(alice) == {}
+    manager.sync_grant_roles(alice, with_grants(("phs000001.c1", 4 * DAY)))
+    assert held(alice) == {"phs000001.c1": 4.0}
+
+
+def test_same_grant_in_two_visas_uses_the_later_expiration(manager, alice):
+    manager.sync_grant_roles(alice, with_grants(("phs000001.c1", 3 * DAY), ("phs000001.c1", 6 * DAY)))
+    assert held(alice) == {"phs000001.c1": 6.0}
+
+
+def test_connect_syncs_grant_roles_and_forget_keeps_them(manager, broker, session, alice):
+    connect(manager, broker, browser(session, alice))
+    assert sorted(manager.data_access(alice)) == ["phs000001.c1"]
+    manager.forget(alice)
+    assert sorted(manager.data_access(alice)) == ["phs000001.c1"]
 
 
 # --- freshness ----------------------------------------------------------------------------------

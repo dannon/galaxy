@@ -2606,6 +2606,15 @@ galaxy:
   # without logging in again).
   #ga4gh_passport_max_age: 3600
 
+  # Each data access grant in a user's GA4GH Passport (e.g. a dbGaP
+  # study and consent group) becomes a Galaxy role that only this user
+  # holds, and data fetched with the Passport is restricted to these
+  # roles. The user holds a grant role until the grant expires, but at
+  # most this many seconds (default 30 days) after their last Passport
+  # connect; connecting again renews it. A grant missing from a newly
+  # connected Passport ends the membership at once.
+  #ga4gh_grant_max_membership: 2592000
+
   # XML config file that allows the use of different authentication
   # providers (e.g. LDAP) instead or in addition to local authentication
   # (.sample is used if default does not exist).

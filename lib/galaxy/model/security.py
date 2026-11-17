@@ -267,8 +267,11 @@ class GalaxyRBACAgent(RBACAgent):
         Method for checking if:
         - a role is private and is the current user's private role
         - a role is a sharing role and belongs to the current user
+        GA4GH grant roles are never offered: Galaxy assigns them.
         """
         role_type = role.type
+        if role_type == Role.types.GA4GH_GRANT:
+            return False
         if user:
             if role_type == Role.types.PRIVATE:
                 return role == self.get_private_user_role(user)
