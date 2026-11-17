@@ -1,15 +1,16 @@
 """Exercise the RAS passport code against a real RAS server, without a Galaxy server.
 
-RAS only redirects to a client's registered callbacks, which for the CWIC client
-are Tapis URLs Galaxy can't receive, so this runs in two steps::
+RAS only redirects to a client's registered callbacks, which are usually not
+an address this script can listen on, so this runs in two steps::
 
-    RAS_CLIENT_ID=... python scripts/ras_passport_smoke.py url
+    RAS_CLIENT_SECRET=... python scripts/ras_passport_smoke.py --ras-config ras_config.yml url
     # open the printed URL, log in, copy the URL the browser ends up on
-    RAS_CLIENT_ID=... RAS_CLIENT_SECRET=... \\
-        python scripts/ras_passport_smoke.py exchange '<redirected URL>' --phs phs000123
+    RAS_CLIENT_SECRET=... python scripts/ras_passport_smoke.py --ras-config ras_config.yml \\
+        exchange '<redirected URL>' --phs phs000123
 
-``--ras-config ras_config.yml`` takes the issuer and the ``direct_ras`` client
-settings from Galaxy's RAS config instead; command-line flags still win.
+``--ras-config`` takes the issuer and the ``direct_ras`` client settings
+(including ``redirect_uri``) from Galaxy's RAS config. Without it, set
+``RAS_CLIENT_ID`` and pass ``--redirect-uri``; command-line flags always win.
 
 ``exchange`` redeems the code, verifies the ID token, pulls the passport from
 v1.1 userinfo, stores it in a throwaway in-memory vault through
@@ -65,9 +66,6 @@ from galaxy.authnz.ras.verify import (
     PassportVerificationError,
 )
 
-# The CWIC client's develop-tenant callback: least likely to have a live Tapis
-# session that redeems the code before we do.
-DEFAULT_REDIRECT_URI = "https://cfderas.develop.tapis.io/v3/oauth2/extensions/oa2/callback"
 DEFAULT_STATE_FILE = Path(tempfile.gettempdir()) / "ras_passport_smoke_state.json"
 
 
@@ -97,11 +95,15 @@ def _settings(args: argparse.Namespace) -> tuple[str, DirectRasSettings]:
             raise SmokeError(f"No RAS config at {args.ras_config}")
     direct = config.direct_ras if config else None
     issuer = args.issuer or (config.issuer if config else DEFAULT_ISSUER)
+    client_id = direct.client_id if direct else _env("RAS_CLIENT_ID")
+    redirect_uri = args.redirect_uri or (direct.redirect_uri if direct else None)
+    if not redirect_uri:
+        raise SmokeError("No redirect URI: pass --redirect-uri or a --ras-config with direct_ras.redirect_uri")
     settings = DirectRasSettings(
-        client_id=direct.client_id if direct else _env("RAS_CLIENT_ID"),
+        client_id=client_id,
         client_secret=direct.client_secret if direct else None,
         client_secret_env=direct.client_secret_env if direct else "RAS_CLIENT_SECRET",
-        redirect_uri=args.redirect_uri or (direct.redirect_uri if direct else DEFAULT_REDIRECT_URI),
+        redirect_uri=redirect_uri,
         scopes=args.scopes or (direct.scopes if direct else DEFAULT_SCOPES),
     )
     return issuer, settings
@@ -204,7 +206,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--ras-config", help="read the issuer and direct_ras settings from this ras_config.yml")
     parser.add_argument("--issuer", help=f"default {DEFAULT_ISSUER}")
-    parser.add_argument("--redirect-uri", help=f"default {DEFAULT_REDIRECT_URI}")
+    parser.add_argument(
+        "--redirect-uri", help="a redirect URI registered for the client; default direct_ras.redirect_uri"
+    )
     parser.add_argument("--scopes", help=f"default {DEFAULT_SCOPES!r}")
     parser.add_argument("--state-file", default=str(DEFAULT_STATE_FILE))
     sub = parser.add_subparsers(dest="command", required=True)
