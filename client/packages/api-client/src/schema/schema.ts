@@ -14614,6 +14614,12 @@ export interface components {
              * @description Login transaction id at the issuer (NIH RAS), for audit.
              */
             txn?: string | null;
+            /**
+             * Usable Until
+             * Format: date-time
+             * @description Until when Galaxy sends the Passport to data services: the earliest of its expiry, its Visas' expiry and ga4gh_passport_max_age after issue. Reconnect to get a new one.
+             */
+            usable_until: string;
             /** Visas */
             visas: components["schemas"]["GA4GHVisa"][];
             /**

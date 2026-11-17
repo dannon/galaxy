@@ -114,7 +114,7 @@ class FastAPIGA4GHPassport:
         return GA4GHPassportStatus(
             enabled=self.manager.enabled,
             identity=_identity(identity) if identity else None,
-            passport=_summary(passport) if passport else None,
+            passport=_summary(passport, self.manager.fresh_until(passport)) if passport else None,
         )
 
     @router.delete(
@@ -131,7 +131,7 @@ def _time(timestamp: int) -> datetime:
     return datetime.fromtimestamp(timestamp, tz=timezone.utc)
 
 
-def _summary(passport: VerifiedPassport) -> GA4GHPassportSummary:
+def _summary(passport: VerifiedPassport, usable_until: int) -> GA4GHPassportSummary:
     return GA4GHPassportSummary(
         issuer=passport.issuer,
         sub=passport.sub,
@@ -139,6 +139,7 @@ def _summary(passport: VerifiedPassport) -> GA4GHPassportSummary:
         issued_at=_time(passport.issued_at),
         expires_at=_time(passport.expires_at),
         visas_expire_at=_time(passport.visas_expire_at) if passport.visas_expire_at is not None else None,
+        usable_until=_time(usable_until),
         visas=[
             GA4GHVisa(
                 type=visa.type,

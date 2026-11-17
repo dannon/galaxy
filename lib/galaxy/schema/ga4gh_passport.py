@@ -34,6 +34,12 @@ class GA4GHPassportSummary(BaseModel):
     issued_at: datetime
     expires_at: datetime
     visas_expire_at: datetime | None = Field(None, description="Earliest Visa expiry.")
+    usable_until: datetime = Field(
+        description=(
+            "Until when Galaxy sends the Passport to data services: the earliest of its expiry, its Visas' "
+            "expiry and ga4gh_passport_max_age after issue. Reconnect to get a new one."
+        )
+    )
     visas: list[GA4GHVisa]
     rejected_visas: int = Field(description="Visas dropped because they failed verification.")
 
