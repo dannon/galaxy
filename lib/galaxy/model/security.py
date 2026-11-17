@@ -658,10 +658,31 @@ WHERE history.user_id != :user_id and history_dataset_association.dataset_id = :
         # TODO: Pass in the item's actions - the item isn't needed
         return [permission for permission in item.actions if permission.action == action.action]
 
+    def dataset_is_controlled(self, dataset) -> bool:
+        """Whether ``dataset`` is controlled access: managed by a role Galaxy assigns itself.
+
+        Data fetched with a GA4GH Passport, and everything derived from it, is
+        managed by ``ga4gh_grant`` roles that no user holds or can be given.
+        Admins get no override for such data.
+        """
+        if not isinstance(dataset, Dataset):
+            dataset = dataset.dataset
+        manage = self.permitted_actions.DATASET_MANAGE_PERMISSIONS
+        return any(p.role.type == Role.types.GA4GH_GRANT for p in self.get_item_actions(manage, dataset))
+
+    def _controlled_manage_role_ids(self, role_ids) -> list[int]:
+        """The ``ga4gh_grant`` roles among ``role_ids`` (manage roles of controlled data)."""
+        if not role_ids:
+            return []
+        stmt = select(Role.id).where(Role.id.in_(role_ids), Role.type == Role.types.GA4GH_GRANT)
+        return sorted(self.sa_session.scalars(stmt))
+
     def guess_derived_permissions_for_datasets(self, datasets=None):
         """Returns a dict of { action : [ role, role, ... ] } for the output dataset based upon provided datasets"""
         datasets = datasets or []
         perms = {}
+        manage = self.permitted_actions.DATASET_MANAGE_PERMISSIONS
+        controlled_manage_roles: list[Role] = []
         for dataset in datasets:
             if not isinstance(dataset, Dataset):
                 dataset = dataset.dataset
@@ -671,6 +692,9 @@ WHERE history.user_id != :user_id and history_dataset_association.dataset_id = :
                 these_perms[action] = []
             # collect this dataset's perms
             these_perms = self.get_permissions(dataset)
+            for role in these_perms.get(manage, []):
+                if role.type == Role.types.GA4GH_GRANT and role not in controlled_manage_roles:
+                    controlled_manage_roles.append(role)
             # join or intersect this dataset's permissions with others
             for action, roles in these_perms.items():
                 if action not in perms.keys():
@@ -682,6 +706,9 @@ WHERE history.user_id != :user_id and history_dataset_association.dataset_id = :
                     elif action.model == "restrict":
                         # join existing roles with new roles
                         perms[action].extend([_ for _ in roles if _ not in perms[action]])
+        if controlled_manage_roles:
+            # Derived from controlled data: controlled too, whatever the other inputs allow.
+            perms[manage] = controlled_manage_roles
         return perms
 
     def guess_derived_permissions(self, all_input_permissions):
@@ -703,6 +730,10 @@ WHERE history.user_id != :user_id and history_dataset_association.dataset_id = :
                 elif action.model == "restrict":
                     # join existing roles with new roles
                     perms[action].extend([_ for _ in role_ids if _ not in perms[action]])
+        manage = self.permitted_actions.DATASET_MANAGE_PERMISSIONS
+        if controlled := self._controlled_manage_role_ids(all_input_permissions.get(manage.action)):
+            # Derived from controlled data: controlled too, whatever the other inputs allow.
+            perms[manage] = controlled
         return perms
 
     def associate_user_group(self, user, group):
