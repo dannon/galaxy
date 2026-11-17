@@ -27,6 +27,7 @@ import GDropdownItem from "@/components/BaseComponents/GDropdownItem.vue";
 const props = defineProps({
     writable: { type: Boolean, default: true },
     isDataset: { type: Boolean, required: true },
+    isAccessible: { type: Boolean, default: true },
     isDeleted: { type: Boolean, default: false },
     isHistoryItem: { type: Boolean, required: true },
     isVisible: { type: Boolean, default: true },
@@ -125,7 +126,7 @@ function onDisplay($event: MouseEvent) {
         </GButton>
         <!-- Common for all content items -->
         <GButton
-            v-if="isDataset"
+            v-if="isDataset && isAccessible"
             v-g-tooltip.hover
             :title="localize('View')"
             tabindex="0"
