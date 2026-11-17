@@ -117,8 +117,12 @@ class FastAPIGA4GHPassport:
             identity=_identity(identity) if identity else None,
             passport=_summary(passport, self.manager.fresh_until(passport)) if passport else None,
             data_access=[
-                GA4GHDataAccess(authorization=authorization, until=until.replace(tzinfo=timezone.utc))
+                GA4GHDataAccess(authorization=authorization, until=_utc(until), ended=False)
                 for authorization, until in sorted(self.manager.data_access(user).items())
+            ]
+            + [
+                GA4GHDataAccess(authorization=authorization, until=_utc(ended), ended=True, delete_after=_utc(delete))
+                for authorization, (ended, delete) in sorted(self.manager.ended_access(user).items())
             ],
         )
 
@@ -130,6 +134,11 @@ class FastAPIGA4GHPassport:
     def forget(self, user: User = DependsOnUser) -> Response:
         self.manager.forget(user)
         return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+def _utc(naive: datetime) -> datetime:
+    """A naive UTC datetime as stored by Galaxy, made timezone-aware."""
+    return naive.replace(tzinfo=timezone.utc)
 
 
 def _time(timestamp: int) -> datetime:

@@ -14541,9 +14541,19 @@ export interface components {
              */
             authorization: string;
             /**
+             * Delete After
+             * @description If ended: when data fetched under this grant (and derived from it) is deleted, unless access is restored before (ga4gh_controlled_data_grace_period).
+             */
+            delete_after?: string | null;
+            /**
+             * Ended
+             * @description Access has ended; reconnecting a Passport with the grant restores it.
+             */
+            ended: boolean;
+            /**
              * Until
              * Format: date-time
-             * @description Until when the user can use data fetched under this grant in Galaxy: the grant's expiration, capped by ga4gh_grant_max_membership after the last connect.
+             * @description Until when the user can use data fetched under this grant in Galaxy: the grant's expiration, capped by ga4gh_grant_max_membership after the last connect. In the past if ended.
              */
             until: string;
         };
@@ -14591,7 +14601,7 @@ export interface components {
         GA4GHPassportStatus: {
             /**
              * Data Access
-             * @description Grants the user holds in Galaxy (as roles), from their last connected Passport.
+             * @description Grants the user holds in Galaxy (as roles), from their last connected Passport, and grants whose access ended but whose data hasn't been deleted yet.
              */
             data_access: components["schemas"]["GA4GHDataAccess"][];
             /**

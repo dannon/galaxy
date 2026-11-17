@@ -404,6 +404,16 @@ def test_grant_missing_from_new_passport_ends_membership(manager, alice):
     assert sorted(manager.data_access(alice)) == ["phs000001.c1"]
 
 
+def test_ended_grants_are_listed_with_their_deletion_date(manager, alice):
+    manager.sync_grant_roles(alice, with_grants(("phs000001.c1", 9 * DAY), ("phs000002.c1", 9 * DAY)))
+    manager.sync_grant_roles(alice, with_grants(("phs000001.c1", 9 * DAY)))
+    ended = manager.ended_access(alice)
+    assert sorted(ended) == ["phs000002.c1"]
+    ended_at, delete_after = ended["phs000002.c1"]
+    assert delete_after - ended_at == timedelta(days=30)
+    assert sorted(manager.data_access(alice)) == ["phs000001.c1"]
+
+
 def test_grant_back_after_revocation(manager, alice):
     manager.sync_grant_roles(alice, with_grants(("phs000001.c1", 9 * DAY)))
     manager.sync_grant_roles(alice, with_grants())

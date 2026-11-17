@@ -56,8 +56,14 @@ class GA4GHDataAccess(BaseModel):
     until: datetime = Field(
         description=(
             "Until when the user can use data fetched under this grant in Galaxy: the grant's expiration, "
-            "capped by ga4gh_grant_max_membership after the last connect."
+            "capped by ga4gh_grant_max_membership after the last connect. In the past if ended."
         )
+    )
+    ended: bool = Field(description="Access has ended; reconnecting a Passport with the grant restores it.")
+    delete_after: datetime | None = Field(
+        None,
+        description="If ended: when data fetched under this grant (and derived from it) is deleted, "
+        "unless access is restored before (ga4gh_controlled_data_grace_period).",
     )
 
 
@@ -66,5 +72,6 @@ class GA4GHPassportStatus(BaseModel):
     identity: GA4GHIdentity | None = Field(None, description="The Passport identity bound to this user, if any.")
     passport: GA4GHPassportSummary | None = Field(None, description="The stored Passport, if present and valid.")
     data_access: list[GA4GHDataAccess] = Field(
-        description="Grants the user holds in Galaxy (as roles), from their last connected Passport.",
+        description="Grants the user holds in Galaxy (as roles), from their last connected Passport, and grants "
+        "whose access ended but whose data hasn't been deleted yet.",
     )

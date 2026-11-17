@@ -461,6 +461,17 @@ class PassportManager:
             if ura.is_active
         }
 
+    def ended_access(self, user: User) -> dict[str, tuple[datetime, datetime]]:
+        """Grants whose membership has ended, data not purged yet: when it ended, and when its data is deleted."""
+        return {
+            _grant_authorization(ura.role, user): (
+                ura.expiration_time,
+                ura.expiration_time + timedelta(seconds=self._grace_period),
+            )
+            for ura in self._grant_memberships(user)
+            if not ura.is_active and ura.expiration_time is not None
+        }
+
     def _grant_memberships(self, user: User) -> list[UserRoleAssociation]:
         stmt = (
             select(UserRoleAssociation)
