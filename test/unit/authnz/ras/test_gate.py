@@ -413,3 +413,28 @@ def test_require_for_url_entry_without_accession_accepts_any_passport():
     _, store, gate = _gate(protected_sources=PROTECTED)
     store.put(USER, make_passport([permission("phs000999")]))
     assert isinstance(gate.require_for_url(USER, "drs://anystudy.example.org/obj"), PassportOk)
+
+
+OPTIONAL_GROUP = [{"url_regex": r"^drs://optional\.example\.org/(?:(?P<phs_id>phs\d+)/)?"}]
+
+
+def test_require_for_url_uncaptured_study_is_no_access():
+    _, store, gate = _gate(protected_sources=OPTIONAL_GROUP)
+    store.put(USER, make_passport([permission("phs000999")]))
+    decision = gate.require_for_url(USER, "drs://optional.example.org/obj")
+    assert isinstance(decision, PassportNeeded)
+    assert decision.reason == PassportNeededReason.NO_ACCESS
+    assert "None" not in decision.message
+    # When the group does capture, it is the study that counts.
+    assert isinstance(gate.require_for_url(USER, "drs://optional.example.org/phs000999/obj"), PassportOk)
+
+
+def test_require_for_url_uncaptured_study_reports_earlier_reasons_first():
+    clock = Clock(NOW)
+    _, store, gate = _gate(clock, protected_sources=OPTIONAL_GROUP)
+    url = "drs://optional.example.org/obj"
+    assert gate.require_for_url(None, url).reason == PassportNeededReason.ANONYMOUS
+    assert gate.require_for_url(USER, url).reason == PassportNeededReason.MISSING
+    store.put(USER, make_passport([permission("phs000999")], exp=NOW + 60))
+    clock.now = NOW + 3600
+    assert gate.require_for_url(USER, url).reason == PassportNeededReason.EXPIRED
