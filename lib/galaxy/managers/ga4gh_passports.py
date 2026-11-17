@@ -285,13 +285,14 @@ class PassportManager:
         store.put(user, token)
         self.sync_grant_roles(user, passport)
         log.info(
-            "GA4GH passport connected user_id=%s iss=%s sub=%s txn=%s preferred_username=%s grants=%s",
+            "GA4GH passport connected user_id=%s iss=%s sub=%s txn=%s preferred_username=%s grants=%s dropped_visas=%s",
             user.id,
             passport.issuer,
             passport.subject,
             passport.txn,
             preferred_username,
             ",".join(grant.authorization for grant in self.grants(passport)) or "-",
+            "; ".join(dropped.reason for dropped in passport.dropped_visas) or "-",
         )
         return ConnectResult(next_path)
 

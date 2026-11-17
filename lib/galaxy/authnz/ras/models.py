@@ -57,10 +57,13 @@ class Visa:
 
 @dataclass(frozen=True)
 class DroppedVisa:
-    """A visa left out of the passport because it had expired."""
+    """A visa left out of the passport because it had expired or failed verification.
+
+    ``jti`` and ``expires_at`` are only filled in when the visa's signature checked out.
+    """
 
     jti: str | None
-    expires_at: int
+    expires_at: int | None
     reason: str
 
 

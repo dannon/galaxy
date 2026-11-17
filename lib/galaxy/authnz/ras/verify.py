@@ -11,13 +11,14 @@ Policy decisions, all enforced here:
 - ``exp`` and ``iat`` are required and checked against ``now`` with
   ``leeway`` seconds of slack. Time checks are done here rather than by PyJWT so
   ``now`` can be pinned.
-- A visa whose ``sub`` differs from the passport's, or that fails signature or
-  issuer checks, rejects the whole passport: either means the passport was put
-  together by something other than RAS.
-- An *expired* visa inside a still-valid passport is dropped (recorded in
-  ``Passport.dropped_visas``) rather than rejecting the passport. Visas can be
-  shorter-lived than the passport carrying them, and the other visas are still
-  good. Dropped visas grant nothing.
+- A passport that fails any of this is rejected as a whole.
+- A visa that fails on its own (signature, issuer, algorithm, lifetime, a ``sub``
+  that differs from the passport's, no ``ga4gh_visa_v1`` object) is dropped and
+  recorded in ``Passport.dropped_visas``; the rest are kept. This is what the
+  GA4GH passport specification asks of a clearinghouse, and visas can be
+  shorter-lived than the passport carrying them. Dropped visas grant nothing.
+- A visa that couldn't be checked because the issuer's keys couldn't be fetched
+  is not dropped: the whole verification is reported as unavailable.
 """
 
 import time
@@ -222,21 +223,27 @@ def verify_passport(raw_jwt: str, issuer_config: IssuerConfig, now: float | None
     dropped: list[DroppedVisa] = []
     for index, raw_visa in enumerate(raw_visas):
         what = f"visa {index}"
-        visa_claims = verify_jwt(raw_visa, issuer_config, now=now, what=what, check_times=False)
-        if visa_claims["sub"] != subject:
-            raise PassportVerificationError(f"{what} subject does not match the passport subject")
         try:
+            visa_claims = verify_jwt(raw_visa, issuer_config, now=now, what=what, check_times=False)
+        except VerificationUnavailableError:
+            raise
+        except PassportVerificationError as e:
+            # Its claims can't be trusted, so nothing from them is recorded.
+            dropped.append(DroppedVisa(jti=None, expires_at=None, reason=str(e)))
+            continue
+        try:
+            if visa_claims["sub"] != subject:
+                raise PassportVerificationError(f"{what} subject does not match the passport subject")
             check_times_valid(visa_claims, now, issuer_config.leeway, what)
-        except TokenExpiredError as e:
+            visas.append(_visa_from_claims(raw_visa, visa_claims))
+        except PassportVerificationError as e:
             dropped.append(
                 DroppedVisa(
                     jti=_optional_str(visa_claims.get("jti")),
-                    expires_at=_int_claim(visa_claims, "exp", what),
+                    expires_at=_optional_int(visa_claims.get("exp")),
                     reason=str(e),
                 )
             )
-            continue
-        visas.append(_visa_from_claims(raw_visa, visa_claims))
     return Passport(
         raw=raw_jwt,
         issuer=claims["iss"],
