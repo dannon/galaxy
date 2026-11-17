@@ -73,7 +73,10 @@ from galaxy.tools.job_parameters import DATA_MANAGER_MODE
 from galaxy.tools.search import ToolBoxSearch
 from galaxy.util.path import safe_contains
 from galaxy.util.tool_version import remove_version_from_guid
-from galaxy.webapps.galaxy.services._fetch_util import validate_and_normalize_targets
+from galaxy.webapps.galaxy.services._fetch_util import (
+    require_passports_for_targets,
+    validate_and_normalize_targets,
+)
 from galaxy.webapps.galaxy.services.base import ServiceBase
 
 if TYPE_CHECKING:
@@ -341,6 +344,7 @@ class ToolsService(ServiceBase):
             clean_payload[key] = value
         clean_payload["check_content"] = self.config.check_upload_content
         validate_and_normalize_targets(trans, clean_payload)
+        require_passports_for_targets(trans, clean_payload.get("targets", []))
         preferred_object_store_id = clean_payload.get("preferred_object_store_id")
         if preferred_object_store_id is not None:
             validation_error = trans.app.object_store.validate_selected_object_store_id(
