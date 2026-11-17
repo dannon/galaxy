@@ -647,3 +647,36 @@ def test_drs_object_post_redirect_is_refused(signed_url_dns):
     _add_signed_download()
 
     _assert_redirect_refused(target_url)
+
+
+RAS_AND_OIDC_CONF = [
+    {
+        "type": "drs",
+        "id": "test_ras_oidc",
+        "url_regex": r"^drs://drs\.ras-example\.org/",
+        "ras_passport": True,
+        "oidc_auth_provider": "oidc",
+    }
+]
+
+
+@pytest.mark.parametrize("passport_hours,oidc_hours", [(1, 2), (2, 1)])
+def test_drs_passport_and_oidc_serialize_the_earlier_expiry(passport_hours, oidc_hours):
+    passport_expires_at = _passport_expiry(passport_hours)
+    oidc_expires_at = _passport_expiry(oidc_hours)
+    user_context = DictFileSourcesUserContext(
+        username="alice",
+        email="alice@galaxyproject.org",
+        preferences={},
+        role_names=set(),
+        group_names=set(),
+        is_admin=False,
+        oidc_access_tokens={"oidc": "oidc-token"},
+        oidc_access_token_expirations={"oidc": oidc_expires_at},
+        ras_passport=PASSPORT,
+        ras_passport_expires_at=passport_expires_at,
+    )
+    file_sources = configured_file_sources(RAS_AND_OIDC_CONF)
+    as_dict = file_sources.to_dict(for_serialization=True, user_context=user_context)
+    (source,) = as_dict["file_sources"]
+    assert source["auth_expires_at"] == min(passport_expires_at, oidc_expires_at).isoformat()
