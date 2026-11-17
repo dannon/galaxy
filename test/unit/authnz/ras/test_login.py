@@ -256,3 +256,15 @@ def test_requests_client_wraps_network_errors():
         source = DirectRasPassportSource(ISSUER, CLIENT_ID, CLIENT_SECRET, REDIRECT_URI)
         with pytest.raises(PassportSourceError):
             source.discovery()
+
+
+def test_second_start_replaces_the_first():
+    env = _setup()
+    first = _start(env)
+    second = _start(env)
+    assert second["state"] != first["state"]
+    assert _saved(env) == second
+    _nonce_token(env, first)
+    with pytest.raises(PassportLoginError):
+        env.login.finish(env.user, _callback(first["state"]))
+    assert env.store.load(env.user).status == PassportStatus.MISSING
