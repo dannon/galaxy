@@ -1,4 +1,5 @@
 from datetime import datetime
+from enum import Enum
 
 from pydantic import (
     BaseModel,
@@ -67,10 +68,26 @@ class GA4GHDataAccess(BaseModel):
     )
 
 
+class GA4GHStoredPassportStatus(str, Enum):
+    OK = "ok"
+    MISSING = "missing"
+    EXPIRED = "expired"
+    INVALID = "invalid"
+    UNAVAILABLE = "unavailable"
+
+
 class GA4GHPassportStatus(BaseModel):
     enabled: bool = Field(description="Whether this Galaxy is configured for GA4GH Passport connections.")
     identity: GA4GHIdentity | None = Field(None, description="The Passport identity bound to this user, if any.")
     passport: GA4GHPassportSummary | None = Field(None, description="The stored Passport, if present and valid.")
+    passport_status: GA4GHStoredPassportStatus = Field(
+        description=(
+            "Why there is or isn't a stored Passport: ok, missing (never connected, or forgotten), expired, "
+            "invalid (no longer verifies), or unavailable (the issuer's keys can't be fetched right now, so it "
+            "can't be checked; it is kept). Galaxy deletes an expired or invalid Passport when it reads it, so "
+            "that status is reported once and missing after that."
+        )
+    )
     data_access: list[GA4GHDataAccess] = Field(
         description="Grants the user holds in Galaxy (as roles), from their last connected Passport, and grants "
         "whose access ended but whose data hasn't been deleted yet.",

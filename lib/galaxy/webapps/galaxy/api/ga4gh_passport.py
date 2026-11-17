@@ -44,6 +44,7 @@ from galaxy.schema.ga4gh_passport import (
     GA4GHIdentity,
     GA4GHPassportStatus,
     GA4GHPassportSummary,
+    GA4GHStoredPassportStatus,
     GA4GHVisa,
 )
 from galaxy.util import is_safe_local_redirect
@@ -118,11 +119,13 @@ class FastAPIGA4GHPassport:
     )
     def show(self, user: User = DependsOnUser) -> GA4GHPassportStatus:
         identity = self.manager.identity(user)
-        passport = self.manager.current(user)
+        lookup = self.manager.lookup(user)
+        passport = lookup.passport
         return GA4GHPassportStatus(
             enabled=self.manager.enabled,
             identity=_identity(identity) if identity else None,
             passport=_summary(passport, self.manager.fresh_until(passport)) if passport else None,
+            passport_status=GA4GHStoredPassportStatus(lookup.status.value),
             data_access=[
                 GA4GHDataAccess(authorization=authorization, until=_utc(until), ended=False)
                 for authorization, until in sorted(self.manager.data_access(user).items())
