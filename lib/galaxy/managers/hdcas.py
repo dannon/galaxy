@@ -8,7 +8,10 @@ history.
 import logging
 
 from galaxy import model
-from galaxy.exceptions import RequestParameterInvalidException
+from galaxy.exceptions import (
+    ItemAccessibilityException,
+    RequestParameterInvalidException,
+)
 from galaxy.managers import (
     annotatable,
     base,
@@ -30,18 +33,26 @@ from galaxy.util.zipstream import ZipstreamWrapper
 log = logging.getLogger(__name__)
 
 
-def stream_dataset_collection(dataset_collection_instance, upstream_mod_zip=False, upstream_gzip=False, user=None):
+def stream_dataset_collection(
+    dataset_collection_instance, upstream_mod_zip=False, upstream_gzip=False, user=None, can_access=None
+):
     archive_name = f"{dataset_collection_instance.hid}: {dataset_collection_instance.name}"
     archive = ZipstreamWrapper(
         archive_name=archive_name,
         upstream_mod_zip=upstream_mod_zip,
         upstream_gzip=upstream_gzip,
     )
-    write_dataset_collection(dataset_collection_instance, archive, user)
+    write_dataset_collection(dataset_collection_instance, archive, user, can_access=can_access)
     return archive
 
 
-def write_dataset_collection(dataset_collection_instance, archive, user):
+def write_dataset_collection(dataset_collection_instance, archive, user, can_access=None):
+    """Write the collection's datasets to ``archive``.
+
+    ``can_access(hda)`` says whether the requesting user may read a dataset:
+    access to the collection's history doesn't imply access to each dataset
+    (e.g. controlled-access data in a shared history).
+    """
     auth = ObjectStoreAuth(user=user) if user else None
     if not dataset_collection_instance.collection.populated_optimized:
         raise RequestParameterInvalidException("Attempt to write dataset collection that has not been populated yet")
@@ -49,6 +60,8 @@ def write_dataset_collection(dataset_collection_instance, archive, user):
     for name, hda in zip(names, hdas):
         if hda.state != hda.states.OK or hda.purged or hda.dataset.purged:
             continue
+        if can_access is not None and not can_access(hda):
+            raise ItemAccessibilityException(f"You don't have access to the collection element {name}.")
         for file_path, relpath in hda.datatype.to_archive(dataset=hda, name=name, auth=auth):
             archive.write(file_path, relpath)
     return archive

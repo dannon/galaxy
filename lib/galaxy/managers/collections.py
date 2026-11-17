@@ -1022,4 +1022,6 @@ class DatasetCollectionManager:
         with storage_context(request.short_term_storage_request_id, short_term_storage_monitor) as target:
             collection_instance = self.model.context.get(model.HistoryDatasetCollectionAssociation, instance_id)
             with ZipFile(target.path, "w") as zip_f:
-                write_dataset_collection(collection_instance, zip_f, user)
+                write_dataset_collection(
+                    collection_instance, zip_f, user, can_access=lambda hda: self.hda_manager.is_accessible(hda, user)
+                )
