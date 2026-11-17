@@ -64,7 +64,10 @@ def parse_callback(value: str) -> dict[str, str]:
         raise PassportSourceError("Nothing pasted")
     if "://" not in value:
         return {"code": value}
-    url = urlsplit(value)
+    try:
+        url = urlsplit(value)
+    except ValueError as e:
+        raise PassportSourceError("The pasted URL could not be read; paste the full URL RAS redirected to") from e
     params = parse_qs(url.query) or parse_qs(url.fragment)
     result = {
         key: values[0] for key, values in params.items() if key in ("code", "state", "error", "error_description")
@@ -97,14 +100,25 @@ class RequestsHttpClient:
         headers = {"Accept": "application/json"}
         if bearer:
             headers["Authorization"] = f"Bearer {bearer}"
-        response = requests.get(url, headers=headers, timeout=self.timeout)
+        try:
+            response = requests.get(url, headers=headers, timeout=self.timeout)
+        except requests.RequestException as e:
+            raise _unreachable(url, e) from e
         return response.status_code, _json_or_text(response)
 
     def post_form(self, url: str, data: Mapping[str, str], basic_auth: tuple[str, str]) -> tuple[int, Any]:
-        response = requests.post(
-            url, data=dict(data), auth=basic_auth, headers={"Accept": "application/json"}, timeout=self.timeout
-        )
+        try:
+            response = requests.post(
+                url, data=dict(data), auth=basic_auth, headers={"Accept": "application/json"}, timeout=self.timeout
+            )
+        except requests.RequestException as e:
+            raise _unreachable(url, e) from e
         return response.status_code, _json_or_text(response)
+
+
+def _unreachable(url: str, error: requests.RequestException) -> PassportSourceError:
+    log.warning("Request to NIH RAS at %s failed: %s", url, error)
+    return PassportSourceError(f"Could not reach NIH RAS ({type(error).__name__}); please try again shortly")
 
 
 class PassportSource(abc.ABC):

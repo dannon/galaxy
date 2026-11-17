@@ -56,6 +56,7 @@ def test_parse_callback_error():
         "https://cb.example/?code=abc",
         "https://cb.example/?code=abc&state=",
         "https://cb.example/?code=abc&state=s1&state=s2",
+        "https://[",
     ],
 )
 def test_parse_callback_rejects(value):
