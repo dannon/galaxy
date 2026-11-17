@@ -2614,6 +2614,12 @@ galaxy:
   # time restores access; after it, the data is purged.
   #ga4gh_controlled_data_grace_period: 2592000
 
+  # The interval in seconds between purges of controlled-access data
+  # whose ga4gh_controlled_data_grace_period has passed. Runs in a
+  # Celery task, or, without Celery, in one Galaxy web process; 0
+  # disables it.
+  #ga4gh_controlled_data_purge_interval: 3600
+
   # Each data access grant in a user's GA4GH Passport (e.g. a dbGaP
   # study and consent group) becomes a Galaxy role that only this user
   # holds, and data fetched with the Passport is restricted to these

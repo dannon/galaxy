@@ -330,6 +330,7 @@ def setup_periodic_tasks(config, celery_app):
     )
 
     schedule_task("cleanup_expired_role_memberships", config.role_membership_cleanup_interval)
+    schedule_task("purge_ended_controlled_data", config.ga4gh_controlled_data_purge_interval)
 
     if config.statsd_host:
         schedule_task("emit_queue_metrics_task", config.queue_metrics_interval)

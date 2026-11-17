@@ -17,6 +17,9 @@ Galaxy is an OAuth 2.0 client of the broker (authorization code + PKCE):
    expires with the grant, capped at ``ga4gh_grant_max_membership`` after the
    connect. Data fetched with the Passport is restricted to these roles, so
    access to it ends when the membership does, without asking the issuer again.
+5. ``purge_ended_controlled_data``: once a grant's membership has been ended
+   for ``ga4gh_controlled_data_grace_period``, the data restricted to it is
+   purged, and the ended membership deleted.
 
 The broker returns the Passport untouched; all decoding happens here, through
 ``galaxy.security.ga4gh_passport``.
@@ -32,11 +35,19 @@ from datetime import (
     timedelta,
     timezone,
 )
-from typing import Any
+from typing import (
+    Any,
+    TYPE_CHECKING,
+)
 from urllib.parse import urlencode
 
 from pkce import generate_pkce_pair
-from sqlalchemy import select
+from sqlalchemy import (
+    delete,
+    false,
+    or_,
+    select,
+)
 from sqlalchemy.exc import IntegrityError
 
 from galaxy import exceptions
@@ -49,6 +60,8 @@ from galaxy.config import GalaxyAppConfiguration
 from galaxy.files.sources.drs import RECONNECT_HINT
 from galaxy.model import (
     Dataset,
+    DatasetPermissions,
+    HistoryDatasetAssociation,
     Role,
     User,
     UserGA4GHIdentity,
@@ -71,6 +84,9 @@ from galaxy.util import (
     requests,
 )
 from galaxy.work.context import SessionRequestContext
+
+if TYPE_CHECKING:
+    from galaxy.managers.hdas import HDAManager
 
 log = logging.getLogger(__name__)
 
@@ -472,6 +488,90 @@ class PassportManager:
             if not ura.is_active and ura.expiration_time is not None
         }
 
+    # --- purge after the grace period ----------------------------------------------------
+
+    def purge_ended_controlled_data(self, hda_manager: "HDAManager") -> int:
+        """Purge controlled data whose grant ended more than the grace period ago; return how many datasets.
+
+        A dataset is purged when any of its ``ga4gh_grant`` access roles has
+        no membership that is current or ended within the grace period (no
+        membership at all counts as ended: its user was purged). Every HDA of
+        it is purged, in every history, and then its files. This is policy,
+        so ``allow_user_dataset_purge`` doesn't apply. Then the ended grant
+        memberships are deleted, except those of datasets left for the next
+        run: a dataset whose job hasn't finished, or whose purge failed.
+        """
+        cutoff = now() - timedelta(seconds=self._grace_period)
+        session = self._sa_session
+        held = (
+            select(UserRoleAssociation.id)
+            .where(UserRoleAssociation.role_id == Role.id)
+            .where(or_(UserRoleAssociation.expiration_time.is_(None), UserRoleAssociation.expiration_time > cutoff))
+        )
+        stmt = (
+            select(Dataset, Role)
+            .join(DatasetPermissions, DatasetPermissions.dataset_id == Dataset.id)
+            .join(Role, Role.id == DatasetPermissions.role_id)
+            .where(
+                Role.type == Role.types.GA4GH_GRANT,
+                DatasetPermissions.action == Dataset.permitted_actions.DATASET_ACCESS.action,
+                Dataset.purged == false(),
+                ~held.exists(),
+            )
+            .order_by(Dataset.id, Role.id)
+        )
+        ended: dict[Dataset, list[Role]] = {}
+        for dataset, role in session.execute(stmt):
+            ended.setdefault(dataset, []).append(role)
+
+        purged = 0
+        kept_roles: set[int] = set()
+        for dataset, roles in ended.items():
+            if dataset.state in Dataset.uncharged_states:
+                # Its job hasn't finished; mark_purged() would skip its HDAs.
+                kept_roles.update(role.id for role in roles)
+                continue
+            try:
+                self._purge_dataset(hda_manager, dataset)
+            except Exception:
+                log.exception("GA4GH controlled data purge failed dataset_id=%s", dataset.id)
+                session.rollback()
+                kept_roles.update(role.id for role in roles)
+                continue
+            purged += 1
+            for role in roles:
+                user_id, authorization = _grant_role_parts(role)
+                ended_at = max((ura.expiration_time for ura in role.users if ura.expiration_time), default=None)
+                log.info(
+                    "GA4GH controlled data purged dataset_id=%s user_id=%s grant=%s ended_at=%s",
+                    dataset.id,
+                    user_id,
+                    authorization,
+                    f"{ended_at:%Y-%m-%dT%H:%M:%SZ}" if ended_at else "-",
+                )
+
+        grant_roles = select(Role.id).where(Role.type == Role.types.GA4GH_GRANT)
+        delete_ended = delete(UserRoleAssociation).where(
+            UserRoleAssociation.expiration_time <= cutoff, UserRoleAssociation.role_id.in_(grant_roles)
+        )
+        if kept_roles:
+            delete_ended = delete_ended.where(UserRoleAssociation.role_id.not_in(kept_roles))
+        session.execute(delete_ended, execution_options={"synchronize_session": False})
+        session.commit()
+        return purged
+
+    def _purge_dataset(self, hda_manager: "HDAManager", dataset: Dataset) -> None:
+        by_owner: dict[User | None, list[HistoryDatasetAssociation]] = {}
+        for hda in dataset.history_associations:
+            by_owner.setdefault(hda.user, []).append(hda)
+        for owner, hdas in by_owner.items():
+            # Also charges each owner's disk usage back.
+            hda_manager.mark_purged(owner, hdas)
+        owners = [owner for owner in by_owner if owner is not None]
+        dataset.full_delete(user=owners[0] if owners else None)
+        self._sa_session.add(dataset)
+        self._sa_session.commit()
+
     def _grant_memberships(self, user: User) -> list[UserRoleAssociation]:
         stmt = (
             select(UserRoleAssociation)
@@ -526,6 +626,12 @@ def _utc(timestamp: int) -> datetime:
 
 def _grant_role_name(user: User, authorization: str) -> str:
     return f"{GRANT_ROLE_PREFIX}:{user.id}:{authorization}"
+
+
+def _grant_role_parts(role: Role) -> tuple[str, str]:
+    """(user id, authorization) from a grant role's name."""
+    _, user_id, authorization = role.name.split(":", 2)
+    return user_id, authorization
 
 
 def _grant_authorization(role: Role, user: User) -> str:

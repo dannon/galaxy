@@ -1198,6 +1198,19 @@ class UniverseApplication(StructuredApp, GalaxyManagerApplication, InstallationT
         )
         self.database_heartbeat.add_change_callback(self.watchers.change_state)
         self.database_heartbeat.add_change_callback(self._on_config_watcher_change)
+
+        if not self.config.enable_celery_tasks and self.config.ga4gh_controlled_data_purge_interval > 0:
+            # Every web process runs the timer; only the elected config watcher purges.
+            self.controlled_data_purge_task = IntervalTask(
+                func=self._purge_ended_controlled_data,
+                name="ControlledDataPurgeTask",
+                interval=self.config.ga4gh_controlled_data_purge_interval,
+                immediate_start=False,
+                time_execution=True,
+            )
+            self.application_stack.register_postfork_function(self.controlled_data_purge_task.start)
+            self.haltables.append(("ControlledDataPurgeTask", self.controlled_data_purge_task.shutdown))
+
         self.application_stack.register_postfork_function(self.database_heartbeat.start)
 
         # History audit monitor for SSE-based history updates. The monitor only
@@ -1272,6 +1285,18 @@ class UniverseApplication(StructuredApp, GalaxyManagerApplication, InstallationT
         # this not-yet-elected process, so the new watcher queues its own.
         if is_config_watcher:
             send_local_control_task(self, "rebuild_toolbox_search_index")
+
+    def _purge_ended_controlled_data(self) -> None:
+        if not self.database_heartbeat.is_config_watcher:
+            return
+        try:
+            purged = self[PassportManager].purge_ended_controlled_data(self.hda_manager)
+            if purged:
+                log.info("Purged %s controlled-access datasets after the grace period", purged)
+        except Exception:
+            log.exception("Purging controlled-access data failed")
+        finally:
+            self.model.session.remove()
 
     @property
     def writes_tool_search_index(self) -> bool:

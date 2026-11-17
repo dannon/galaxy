@@ -517,6 +517,181 @@ def test_no_message_for_someone_elses_or_ordinary_data(manager, session, alice):
     assert manager.controlled_access_message(None, bobs) is None
 
 
+# --- purge after the grace period ---------------------------------------------------------------
+
+
+class FakeObjectStore:
+    def __init__(self):
+        self.deleted: list[int] = []
+
+    def delete(self, dataset, **kwargs):
+        if not kwargs.get("entire_dir"):
+            self.deleted.append(dataset.id)
+
+    def exists(self, dataset, **kwargs):
+        return False
+
+    def get_store_by(self, dataset):
+        return "uuid"
+
+
+class FakeHDAManager:
+    """Records the owners mark_purged() is called with; marks the HDAs purged like HDAManager."""
+
+    def __init__(self, session):
+        self.session = session
+        self.owners: list = []
+
+    def mark_purged(self, user, hdas, preserve_owner_update_time=False):
+        self.owners.append(user)
+        for hda in hdas:
+            hda.deleted = hda.purged = True
+        self.session.commit()
+
+
+@pytest.fixture
+def object_store(monkeypatch):
+    store = FakeObjectStore()
+    monkeypatch.setattr(model.Dataset, "object_store", store)
+    return store
+
+
+@pytest.fixture
+def hda_manager(session):
+    return FakeHDAManager(session)
+
+
+def in_history(session, user, dataset):
+    """An HDA of ``dataset`` in a new history of ``user``."""
+    history = model.History(user=user)
+    hda = model.HistoryDatasetAssociation(dataset=dataset, history=history, create_dataset=False)
+    session.add_all([history, hda])
+    session.commit()
+    return hda
+
+
+def end_grants(session, user, days_ago):
+    """End all the user's grant memberships ``days_ago`` days ago."""
+    for ura in user.roles:
+        if ura.role.type == model.Role.types.GA4GH_GRANT:
+            ura.expiration_time = now() - timedelta(days=days_ago)
+    session.commit()
+
+
+def fetched(manager, session, user, *authorizations):
+    roles = manager.sync_grant_roles(user, with_grants(*((a, 9 * DAY) for a in authorizations)))
+    dataset = controlled_dataset(session, [roles[a] for a in authorizations])
+    dataset.state = model.Dataset.states.OK
+    session.commit()
+    return dataset, in_history(session, user, dataset)
+
+
+def grant_memberships(session, user):
+    stmt = (
+        select(model.UserRoleAssociation)
+        .join(model.Role)
+        .where(model.UserRoleAssociation.user_id == user.id, model.Role.type == model.Role.types.GA4GH_GRANT)
+    )
+    return session.scalars(stmt).all()
+
+
+def test_purged_after_the_grace_period_not_before(manager, session, object_store, hda_manager, alice, caplog):
+    dataset, hda = fetched(manager, session, alice, "phs000001.c1")
+    end_grants(session, alice, days_ago=29)
+    assert manager.purge_ended_controlled_data(hda_manager) == 0
+    assert not dataset.purged and not hda.purged and len(grant_memberships(session, alice)) == 1
+    end_grants(session, alice, days_ago=31)
+    caplog.set_level("INFO")
+    assert manager.purge_ended_controlled_data(hda_manager) == 1
+    assert dataset.purged and hda.purged and object_store.deleted == [dataset.id]
+    assert hda_manager.owners == [alice]
+    assert grant_memberships(session, alice) == []  # the ended membership is deleted
+    assert f"purged dataset_id={dataset.id} user_id={alice.id} grant=phs000001.c1 ended_at=" in caplog.text
+    assert manager.purge_ended_controlled_data(hda_manager) == 0  # nothing left
+
+
+def test_reconnect_within_the_grace_period_keeps_the_data(manager, session, object_store, hda_manager, alice):
+    dataset, _ = fetched(manager, session, alice, "phs000001.c1")
+    end_grants(session, alice, days_ago=29)
+    manager.sync_grant_roles(alice, with_grants(("phs000001.c1", 9 * DAY)))
+    end_grants(session, alice, days_ago=0)  # ...and wait past the old deadline: the clock restarted
+    assert manager.purge_ended_controlled_data(hda_manager) == 0
+    assert not dataset.purged
+
+
+def test_any_ended_grant_purges_derived_data(manager, session, object_store, hda_manager, alice):
+    """Derived from data of two grants: readable only with both, so purged when either has ended long enough."""
+    source, _ = fetched(manager, session, alice, "phs000001.c1")
+    derived, _ = fetched(manager, session, alice, "phs000001.c1", "phs000002.c1")
+    other, _ = fetched(manager, session, alice, "phs000002.c1")
+    for ura in alice.roles:
+        if ura.role.name.endswith("phs000001.c1"):
+            ura.expiration_time = now() - timedelta(days=31)
+    session.commit()
+    assert manager.purge_ended_controlled_data(hda_manager) == 2
+    assert source.purged and derived.purged and not other.purged
+    assert [ura.role.name.rsplit(":", 1)[1] for ura in grant_memberships(session, alice)] == ["phs000002.c1"]
+
+
+def test_copies_in_other_histories_are_purged(manager, session, object_store, hda_manager, alice):
+    dataset, hda = fetched(manager, session, alice, "phs000001.c1")
+    copy = in_history(session, alice, dataset)
+    end_grants(session, alice, days_ago=31)
+    assert manager.purge_ended_controlled_data(hda_manager) == 1
+    assert hda.purged and copy.purged and dataset.purged
+    assert hda_manager.owners == [alice]  # one call per owner, so disk usage is charged back once
+
+
+def test_no_membership_counts_as_ended(manager, session, object_store, hda_manager, alice):
+    dataset, _ = fetched(manager, session, alice, "phs000001.c1")
+    for ura in grant_memberships(session, alice):
+        session.delete(ura)
+    session.commit()
+    assert manager.purge_ended_controlled_data(hda_manager) == 1
+    assert dataset.purged
+
+
+def test_unfinished_job_output_waits_and_keeps_its_membership(manager, session, object_store, hda_manager, alice):
+    dataset, hda = fetched(manager, session, alice, "phs000001.c1")
+    dataset.state = model.Dataset.states.RUNNING
+    end_grants(session, alice, days_ago=31)
+    assert manager.purge_ended_controlled_data(hda_manager) == 0
+    assert not dataset.purged and len(grant_memberships(session, alice)) == 1
+    dataset.state = model.Dataset.states.OK
+    session.commit()
+    assert manager.purge_ended_controlled_data(hda_manager) == 1
+
+
+def test_failed_purge_is_retried(manager, session, object_store, hda_manager, alice, monkeypatch):
+    dataset, _ = fetched(manager, session, alice, "phs000001.c1")
+    end_grants(session, alice, days_ago=31)
+    monkeypatch.setattr(object_store, "delete", lambda *a, **kw: (_ for _ in ()).throw(OSError("disk")))
+    assert manager.purge_ended_controlled_data(hda_manager) == 0
+    assert not dataset.purged and len(grant_memberships(session, alice)) == 1
+    monkeypatch.undo()
+    monkeypatch.setattr(model.Dataset, "object_store", object_store)
+    assert manager.purge_ended_controlled_data(hda_manager) == 1
+    assert dataset.purged
+
+
+def test_ordinary_and_current_data_untouched(manager, session, object_store, hda_manager, alice):
+    bob = new_user(session, "bob@example.org")
+    current, _ = fetched(manager, session, bob, "phs000001.c1")
+    ordinary = model.Dataset(state=model.Dataset.states.OK)
+    session.add(ordinary)
+    session.commit()
+    in_history(session, alice, ordinary)
+    assert manager.purge_ended_controlled_data(hda_manager) == 0
+    assert not current.purged and not ordinary.purged and object_store.deleted == []
+
+
+def test_ended_memberships_without_data_are_deleted(manager, session, object_store, hda_manager, alice):
+    manager.sync_grant_roles(alice, with_grants(("phs000001.c1", 9 * DAY)))
+    end_grants(session, alice, days_ago=31)
+    assert manager.purge_ended_controlled_data(hda_manager) == 0
+    assert grant_memberships(session, alice) == []
+
+
 # --- freshness ----------------------------------------------------------------------------------
 
 

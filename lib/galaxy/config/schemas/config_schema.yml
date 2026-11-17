@@ -3505,6 +3505,15 @@ mapping:
           seconds (default 30 days). Reconnecting a Passport that carries the grant within
           this time restores access; after it, the data is purged.
 
+      ga4gh_controlled_data_purge_interval:
+        type: int
+        default: 3600
+        required: false
+        desc: |
+          The interval in seconds between purges of controlled-access data whose
+          ga4gh_controlled_data_grace_period has passed. Runs in a Celery task, or, without
+          Celery, in one Galaxy web process; 0 disables it.
+
       ga4gh_grant_max_membership:
         type: int
         default: 2592000

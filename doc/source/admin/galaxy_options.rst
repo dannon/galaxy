@@ -4713,6 +4713,19 @@
 :Type: int
 
 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``ga4gh_controlled_data_purge_interval``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:Description:
+    The interval in seconds between purges of controlled-access data
+    whose ga4gh_controlled_data_grace_period has passed. Runs in a
+    Celery task, or, without Celery, in one Galaxy web process; 0
+    disables it.
+:Default: ``3600``
+:Type: int
+
+
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ``ga4gh_grant_max_membership``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

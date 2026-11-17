@@ -359,6 +359,7 @@ class GalaxyAppConfigurationAttributes:
     ga4gh_passport_trusted_issuers: str | None
     ga4gh_passport_max_age: int
     ga4gh_controlled_data_grace_period: int
+    ga4gh_controlled_data_purge_interval: int
     ga4gh_grant_max_membership: int
     auth_config_file: str
     api_allow_run_as: str | None
