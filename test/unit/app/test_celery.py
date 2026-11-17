@@ -9,8 +9,10 @@ from kombu.serialization import (
 )
 
 from galaxy.celery import (
+    APP_LOCAL,
     celery_app,
     DEFAULT_TASK_QUEUE,
+    galaxy_task,
     GalaxyCelery,
     PYDANTIC_AWARE_SERIALIZER_NAME,
     setup_periodic_tasks,
@@ -20,6 +22,13 @@ from galaxy.celery import (
 from galaxy.config import GalaxyAppConfiguration
 from galaxy.schema.tasks import PurgeDatasetsTaskRequest
 from galaxy.workflow import curated
+
+TASK_ARGUMENT_SENTINEL = "task-argument-sentinel-1f3c"
+
+
+@galaxy_task(action="check the failure log")
+def always_failing_task(positional: str, keyword: str):
+    raise ValueError("this task always fails")
 
 
 def test_default_configuration():
@@ -159,3 +168,17 @@ def test_control_replies_encode_pydantic_task_arguments():
     content_type, content_encoding, body = dumps(reply, serializer=celery_app.control.mailbox.serializer)
     decoded = loads(body, content_type, content_encoding)
     assert decoded["worker@host"][0]["request"]["kwargs"]["request"] == request
+
+
+def test_failed_task_log_names_the_task_but_not_its_arguments(monkeypatch, caplog):
+    fake_app = SimpleNamespace(
+        model=SimpleNamespace(set_request_id=lambda request_id: None, unset_request_id=lambda request_id: None),
+        magic_partial=lambda func: func,
+    )
+    monkeypatch.setattr(APP_LOCAL, "app", fake_app, raising=False)
+    with caplog.at_level(logging.ERROR, logger="galaxy.celery"), pytest.raises(ValueError):
+        always_failing_task.run(TASK_ARGUMENT_SENTINEL, keyword=TASK_ARGUMENT_SENTINEL)
+
+    assert "Celery task execution failed for always_failing_task" in caplog.text
+    assert "this task always fails" in caplog.text
+    assert TASK_ARGUMENT_SENTINEL not in caplog.text
