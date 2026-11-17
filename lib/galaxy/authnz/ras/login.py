@@ -66,14 +66,21 @@ class DirectRasLogin:
         user_vault.delete_secret(LOGIN_REQUEST_VAULT_KEY)
         if not raw_saved:
             raise PassportLoginError("No RAS login is in progress; start a new one.")
-        saved = json.loads(raw_saved)
-        if self.clock() - saved["created"] > LOGIN_REQUEST_LIFETIME:
+        try:
+            saved = json.loads(raw_saved)
+            expected_state, nonce = saved["state"], saved["nonce"]
+            timed_out = self.clock() - saved["created"] > LOGIN_REQUEST_LIFETIME
+        except (ValueError, KeyError, TypeError) as e:
+            log.warning("Discarding unreadable pending RAS login for user %s: %s", user.id, type(e).__name__)
+            raise PassportLoginError("The pending RAS login could not be read; start a new one.") from e
+        if timed_out:
             raise PassportLoginError("The RAS login timed out; start a new one.")
         try:
             callback = parse_callback(callback_url)
-            if "state" not in callback:
+            # An error callback may come without a state; let obtain report what RAS said.
+            if "state" not in callback and not callback.get("error"):
                 raise PassportLoginError("The pasted URL has no state; paste the full URL RAS redirected to.")
-            handoff = dict(callback, expected_state=saved["state"], nonce=saved["nonce"])
+            handoff = dict(callback, expected_state=expected_state, nonce=nonce)
             raw_passport = self.source.obtain(user, handoff)
             return self.store.put(user, raw_passport)
         except (PassportSourceError, PassportVerificationError) as e:
