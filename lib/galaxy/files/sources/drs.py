@@ -33,8 +33,8 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-CONNECT_HINT = "Connect your GA4GH Passport in Galaxy (/ga4gh_passport/connect), then try again."
-RECONNECT_HINT = "Reconnect your GA4GH Passport in Galaxy (/ga4gh_passport/connect), then try again."
+CONNECT_HINT = "Connect your GA4GH Passport in User Preferences (/user/ga4gh_passport), then try again."
+RECONNECT_HINT = "Reconnect your GA4GH Passport in User Preferences (/user/ga4gh_passport), then try again."
 
 
 class DRSFileSourceTemplateConfiguration(BaseFileSourceTemplateConfiguration):
