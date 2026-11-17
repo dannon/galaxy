@@ -16,6 +16,7 @@ from galaxy.exceptions import (
     AuthenticationFailed,
     FileSourceCredentialExpired,
     RasPassportRequiredException,
+    UpstreamProxyError,
 )
 from galaxy.files import (
     DictFileSourcesUserContext,
@@ -600,3 +601,49 @@ def test_drs_expired_passport_fails_fast():
     with pytest.raises(FileSourceCredentialExpired):
         assert_realizes_as(recovered, RAS_DRS_URI, "", user_context=None)
     assert len(responses.calls) == 0
+
+
+REDIRECT_REFUSED_MESSAGE = (
+    "The DRS server tried to redirect a request carrying the NIH RAS passport, and Galaxy refused to follow it."
+)
+
+
+def _assert_redirect_refused(target_url: str):
+    file_sources = configured_file_sources(DRS_RAS_PASSPORT_FILE_SOURCES_CONF)
+    with pytest.raises(UpstreamProxyError) as excinfo:
+        assert_realizes_as(file_sources, RAS_DRS_URI, "", user_context=_ras_user_context())
+    assert str(excinfo.value) == REDIRECT_REFUSED_MESSAGE
+    assert PASSPORT not in repr(excinfo.value)
+    assert not [call for call in responses.calls if call.request.url == target_url]
+    for call in responses.calls:
+        if call.request.url != RAS_ACCESS_URL and call.request.url != RAS_OBJECT_URL:
+            _assert_passport_not_in(call)
+
+
+@pytest.mark.parametrize(
+    "target_url",
+    [
+        "https://elsewhere.example.org/steal",
+        "http://drs.ras-example.org/ga4gh/drs/v1/objects/obj1/access/gs",
+    ],
+)
+@responses.activate
+def test_drs_access_post_redirect_is_refused(target_url, signed_url_dns):
+    responses.add(responses.GET, RAS_OBJECT_URL, json=RAS_OBJECT)
+    responses.add(responses.POST, RAS_ACCESS_URL, status=307, headers={"Location": target_url})
+    responses.add(responses.POST, target_url, json={"url": SIGNED_URL})
+    _add_signed_download()
+
+    _assert_redirect_refused(target_url)
+
+
+@responses.activate
+def test_drs_object_post_redirect_is_refused(signed_url_dns):
+    target_url = "https://elsewhere.example.org/steal"
+    responses.add(responses.GET, RAS_OBJECT_URL, status=401)
+    responses.add(responses.POST, RAS_OBJECT_URL, status=307, headers={"Location": target_url})
+    responses.add(responses.POST, target_url, json=RAS_OBJECT)
+    responses.add(responses.POST, RAS_ACCESS_URL, json={"url": SIGNED_URL})
+    _add_signed_download()
+
+    _assert_redirect_refused(target_url)

@@ -124,7 +124,20 @@ def _retry_drs_request(
 ) -> requests.Response:
     """GET ``url``, or POST ``passports`` to it, repeating the same request while the server answers 202."""
     if passports:
-        response = requests.post(url, timeout=DEFAULT_SOCKET_TIMEOUT, headers=headers, json={"passports": passports})
+        # requests keeps the body on a 307/308, so following one would hand the passport to
+        # whatever host the Location names; a server that needs the passport must answer directly.
+        response = requests.post(
+            url,
+            timeout=DEFAULT_SOCKET_TIMEOUT,
+            headers=headers,
+            json={"passports": passports},
+            allow_redirects=False,
+        )
+        if 300 <= response.status_code < 400:
+            raise exceptions.UpstreamProxyError(
+                "The DRS server tried to redirect a request carrying the NIH RAS passport, "
+                "and Galaxy refused to follow it."
+            )
         if response.status_code in (401, 403):
             raise exceptions.AuthenticationFailed(
                 f"The DRS server did not accept the NIH RAS passport (HTTP {response.status_code})."
