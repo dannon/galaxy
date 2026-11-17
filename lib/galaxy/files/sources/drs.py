@@ -1,5 +1,6 @@
 import logging
 import re
+from collections.abc import Sequence
 from datetime import (
     datetime,
     timezone,
@@ -9,7 +10,10 @@ from typing import (
     TYPE_CHECKING,
 )
 
-from pydantic import Field
+from pydantic import (
+    Field,
+    field_validator,
+)
 
 from galaxy.exceptions import (
     AuthenticationRequired,
@@ -25,6 +29,7 @@ from . import (
     BaseFilesSource,
     PluginKind,
 )
+from ._gen3 import gen3_covering_studies
 from .util import fetch_drs_to_file
 
 if TYPE_CHECKING:
@@ -34,6 +39,9 @@ if TYPE_CHECKING:
     )
 
 log = logging.getLogger(__name__)
+
+# An index service on this machine may be plain http, as a test's is.
+_LOCAL_HTTP_URL = re.compile(r"^http://(localhost|127\.0\.0\.1|\[::1\])(:\d+)?(/|$)")
 
 CONNECT_HINT = "Connect your GA4GH Passport in User Preferences (/user/ga4gh_passport), then try again."
 RECONNECT_HINT = "Reconnect your GA4GH Passport in User Preferences (/user/ga4gh_passport), then try again."
@@ -49,6 +57,21 @@ class DRSFileSourceTemplateConfiguration(BaseFileSourceTemplateConfiguration):
     # and to the object endpoint only after a plain GET of the object is refused. The
     # download from the signed URL never gets it.
     ga4gh_passport: bool | TemplateExpansion = False
+    # The index service of the Gen3 commons this source fetches from
+    # (https://<commons>/index/index). Galaxy asks it which dbGaP study and consent group
+    # cover an object fetched with a Passport, so that the dataset is tied to the user's
+    # grant for that study rather than to all of their grants. Not templated: it is used
+    # when the fetch is submitted, before the source is resolved for a user.
+    gen3_index_url: str | None = None
+
+    @field_validator("gen3_index_url")
+    @classmethod
+    def _gen3_index_over_https(cls, value: str | None) -> str | None:
+        # Nothing signs the answer, and it decides which grant a dataset depends on.
+        if value is not None and not value.startswith("https://") and not _LOCAL_HTTP_URL.match(value):
+            raise ValueError("gen3_index_url must be an https:// URL")
+        return value
+
     # Filled in when the source is serialized for a job, which has no user to look the passport
     # up for; not for configuration.
     passports: list[str] = Field(default=[], repr=False)
@@ -59,6 +82,7 @@ class DRSFileSourceConfiguration(BaseFileSourceConfiguration):
     force_http: bool = False
     http_headers: dict[str, str] = {}
     ga4gh_passport: bool = False
+    gen3_index_url: str | None = None
     passports: list[str] = Field(default=[], repr=False)
 
 
@@ -89,6 +113,17 @@ class DRSFilesSource(BaseFilesSource[DRSFileSourceTemplateConfiguration, DRSFile
         controlled, which errs on the safe side.
         """
         return bool(self.template_config.ga4gh_passport)
+
+    def covering_studies(self, urls: Sequence[str]) -> dict[str, list[str]]:
+        """The dbGaP studies the repository says cover the objects at ``urls``.
+
+        A URL it doesn't say for is left out, as are all of them when this
+        source has no way to ask (``gen3_index_url``).
+        """
+        index_url = self.template_config.gen3_index_url
+        if not index_url:
+            return {}
+        return gen3_covering_studies(index_url, urls)
 
     @property
     def _allowlist(self):

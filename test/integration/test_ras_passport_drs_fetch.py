@@ -15,7 +15,10 @@ from typing import (
     Any,
     ClassVar,
 )
-from urllib.parse import urlsplit
+from urllib.parse import (
+    parse_qs,
+    urlsplit,
+)
 
 from galaxy.model import Dataset
 from galaxy_test.base.populators import DatasetPopulator
@@ -31,6 +34,7 @@ OBJECT_PATH = "/ga4gh/drs/v1/objects/obj1"
 ACCESS_PREFIX = f"{OBJECT_PATH}/access/"
 ACCESS_PATH = f"{ACCESS_PREFIX}a1"
 DATA_PATH = "/data/obj1"
+INDEX_PATH = "/index/index"
 CONTENT = "protected content\n"
 
 RecordedRequest = tuple[str, str, list[str] | None]
@@ -45,6 +49,8 @@ class FakeDrsServer(ThreadingHTTPServer):
         # Raw headers of every request, to check no passport travels outside a POST body.
         self.request_headers: list[str] = []
         self.expected_passports: list[str] | None = None
+        # What the server's Gen3 index service knows about its objects.
+        self.index_records: list[dict[str, Any]] = []
         self._thread = threading.Thread(target=self.serve_forever, daemon=True)
 
     def start(self) -> None:
@@ -59,6 +65,7 @@ class FakeDrsServer(ThreadingHTTPServer):
         self.requests.clear()
         self.request_headers.clear()
         self.expected_passports = None
+        self.index_records = []
 
 
 class FakeDrsHandler(BaseHTTPRequestHandler):
@@ -71,6 +78,9 @@ class FakeDrsHandler(BaseHTTPRequestHandler):
             self._send_json(200, self._drs_object())
         elif self.path == DATA_PATH:
             self._send(200, CONTENT.encode(), "text/plain")
+        elif urlsplit(self.path).path == INDEX_PATH:
+            ids = parse_qs(urlsplit(self.path).query).get("ids", [""])[0].split(",")
+            self._send_json(200, {"records": [r for r in self.server.index_records if r["did"] in ids]})
         elif self.path.startswith(ACCESS_PREFIX):
             self._send_json(401, {"msg": "a passport is required", "status_code": 401})
         else:
@@ -120,7 +130,9 @@ class FakeDrsHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
 
-class TestRasPassportDrsFetchIntegration(integration_util.IntegrationTestCase, ConfiguresRasPassport):
+class DrsFetchIntegrationTestCase(integration_util.IntegrationTestCase, ConfiguresRasPassport):
+    """A Galaxy next to a fake DRS server; subclasses configure how Galaxy reaches it."""
+
     drs_server: ClassVar[FakeDrsServer]
     populator: DatasetPopulator
 
@@ -148,25 +160,6 @@ class TestRasPassportDrsFetchIntegration(integration_util.IntegrationTestCase, C
         self.drs_server.reset()
 
     @classmethod
-    def handle_galaxy_config_kwds(cls, config):
-        super().handle_galaxy_config_kwds(config)
-        port = cls.drs_server.server_port
-        config_dir = cls._write_ras_config(
-            config,
-            f"protected_sources:\n  - url_regex: '^drs://127\\.0\\.0\\.1:{port}/'\n    phs_id: phs000123\n",
-        )
-        file_sources_config_file = os.path.join(config_dir, "file_sources_conf.yml")
-        with open(file_sources_config_file, "w") as f:
-            f.write(
-                "- type: drs\n"
-                "  id: protected_drs\n"
-                "  url_regex: '^drs://127\\.0\\.0\\.1'\n"
-                "  force_http: true\n"
-                "  ga4gh_passport: true\n"
-            )
-        config["file_sources_config_file"] = file_sources_config_file
-
-    @classmethod
     def _configure_app(cls):
         cls._install_test_jwks()
 
@@ -186,6 +179,27 @@ class TestRasPassportDrsFetchIntegration(integration_util.IntegrationTestCase, C
         assert dataset is not None
         access = Dataset.permitted_actions.DATASET_ACCESS.action
         return sorted(p.role.name.split(":", 2)[2] for p in dataset.actions if p.action == access and p.role)
+
+
+class TestRasPassportDrsFetchIntegration(DrsFetchIntegrationTestCase):
+    @classmethod
+    def handle_galaxy_config_kwds(cls, config):
+        super().handle_galaxy_config_kwds(config)
+        port = cls.drs_server.server_port
+        config_dir = cls._write_ras_config(
+            config,
+            f"protected_sources:\n  - url_regex: '^drs://127\\.0\\.0\\.1:{port}/'\n    phs_id: phs000123\n",
+        )
+        file_sources_config_file = os.path.join(config_dir, "file_sources_conf.yml")
+        with open(file_sources_config_file, "w") as f:
+            f.write(
+                "- type: drs\n"
+                "  id: protected_drs\n"
+                "  url_regex: '^drs://127\\.0\\.0\\.1'\n"
+                "  force_http: true\n"
+                "  ga4gh_passport: true\n"
+            )
+        config["file_sources_config_file"] = file_sources_config_file
 
     def _assert_refused(self, response, reason, history_id):
         self._assert_status_code_is(response, 403)
@@ -275,6 +289,53 @@ class TestRasPassportDrsFetchIntegration(integration_util.IntegrationTestCase, C
             ("POST", ACCESS_PATH, [passport]),
         ]
         assert passport not in json.dumps(job_details)
+
+
+class TestRasPassportGen3IndexIntegration(DrsFetchIntegrationTestCase):
+    """No protected source names a study; the DRS source asks the repository's Gen3 index instead."""
+
+    @classmethod
+    def handle_galaxy_config_kwds(cls, config):
+        super().handle_galaxy_config_kwds(config)
+        port = cls.drs_server.server_port
+        config_dir = cls._write_ras_config(config)
+        file_sources_config_file = os.path.join(config_dir, "file_sources_conf.yml")
+        with open(file_sources_config_file, "w") as f:
+            f.write(
+                "- type: drs\n"
+                "  id: gen3_drs\n"
+                "  url_regex: '^drs://127\\.0\\.0\\.1'\n"
+                "  force_http: true\n"
+                "  ga4gh_passport: true\n"
+                f"  gen3_index_url: http://127.0.0.1:{port}{INDEX_PATH}\n"
+            )
+        config["file_sources_config_file"] = file_sources_config_file
+
+    def _access_grants_of_fetched(self, email: str, index_record: dict[str, Any]) -> list[str]:
+        """Fetch the object as a user holding two grants; the grants its dataset ends up tied to."""
+        passport = self._passport("phs000123", also=["phs000456"])
+        self.drs_server.expected_passports = [passport]
+        self.drs_server.index_records = [index_record]
+        with self._different_user(email):
+            self._store_passport(email, passport)
+            history_id = self.populator.new_history()
+            response = self._fetch(history_id)
+            self._assert_status_code_is(response, 200)
+            self.populator.wait_for_job(self.populator.check_run(response)["id"], assert_ok=True)
+            output = response.json()["outputs"][0]
+            details = self.populator.get_history_dataset_details(history_id, dataset=output, assert_ok=False)
+            assert details["state"] == "ok", details["misc_info"]
+        return self._access_grants(details)
+
+    def test_dataset_is_tied_to_the_grant_the_index_names(self):
+        record = {"did": "obj1", "authz": ["/programs/phs000456.c1"], "acl": []}
+        assert self._access_grants_of_fetched("ras-gen3-named@test.gx", record) == ["phs000456.c1"]
+        assert ("GET", f"{INDEX_PATH}?ids=obj1", None) in self.drs_server.requests
+
+    def test_dataset_is_tied_to_all_grants_when_the_index_names_no_study(self):
+        record = {"did": "obj1", "authz": ["/programs/topmed/projects/X"], "acl": ["admin"]}
+        grants = self._access_grants_of_fetched("ras-gen3-unnamed@test.gx", record)
+        assert grants == ["phs000123.c1", "phs000456.c1"]
 
 
 class TestRasPassportFetchWithBrokerIntegration(integration_util.IntegrationTestCase, ConfiguresRasPassport):

@@ -45,7 +45,8 @@ issuer: https://stsstg.nih.gov
 # fetched with the passport is tied to: it stays readable while they hold a
 # grant for that study, whatever happens to their other grants. Add the consent
 # group (phs000123.c1) to tie it to that one grant. Data from an entry that
-# names no study is tied to all of the user's grants.
+# names no study is tied to all of the user's grants, unless its DRS file
+# source can ask the repository (gen3_index_url in file_sources_conf.yml).
 #protected_sources:
 #  - url_regex: '^drs://protected\.example\.org/'
 #    phs_id: phs000123

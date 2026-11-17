@@ -262,11 +262,24 @@
 # protected_sources in ras_config.yml, keep it in step with this source: it
 # decides which URLs need a passport for which study before Galaxy fetches
 # them, and nothing checks that the two agree.
+#
+# A dataset fetched with a passport stays readable only while the user holds
+# the grants it is tied to. Galaxy ties it to the grant for its own study when
+# it knows the study, and to all of the user's grants when it doesn't -- so a
+# grant that ends then locks data it never covered. DRS doesn't say which study
+# an object belongs to. A Gen3 commons does, in its index service: set
+# gen3_index_url (https://<commons>/index/index, on the same host as the DRS
+# URLs this source matches) and Galaxy asks it, without credentials, when a
+# fetch is submitted. This works for a commons whose index records name the
+# study (/programs/phs000123.c1); one that names its resources something else
+# gives no answer, and its data stays tied to all of the user's grants. A study
+# that protected_sources names for the URL wins over the answer.
 - type: drs
   label: Controlled-access DRS filesource
   id: drscontrolled
   url_regex: '^drs://drs\.controlled-example\.org/'
   ga4gh_passport: true
+  #gen3_index_url: https://drs.controlled-example.org/index/index
   doc: Controlled-access data; you need a GA4GH Passport granting access to the study.
 
 - type: drs

@@ -2,8 +2,13 @@
 
 from types import SimpleNamespace
 from typing import Any
+from urllib.parse import (
+    parse_qs,
+    urlsplit,
+)
 
 import pytest
+import responses
 
 from galaxy import exceptions
 from galaxy.authnz.ras.config import ProtectedSource
@@ -22,8 +27,18 @@ ACTIONS = RBACAgent.permitted_actions
 CONTROLLED = "drs://controlled.example.org/obj1"
 CONTROLLED_2 = "drs://controlled.example.org/obj2"
 OPEN = "drs://open.example.org/obj3"
+INDEXED = "drs://indexed.example.org/obj1"
+INDEXED_2 = "drs://indexed.example.org/obj2"
+INDEX = "https://indexed.example.org/index/index"
 FILE_SOURCES: list[dict[str, Any]] = [
     {"type": "drs", "id": "controlled", "url_regex": "^drs://controlled.example.org/", "ga4gh_passport": True},
+    {
+        "type": "drs",
+        "id": "indexed",
+        "url_regex": "^drs://indexed.example.org/",
+        "ga4gh_passport": True,
+        "gen3_index_url": INDEX,
+    },
     {"type": "drs", "id": "open", "url_regex": "^drs://open.example.org/"},
 ]
 
@@ -33,16 +48,17 @@ MANAGE = SimpleNamespace(name="ga4gh_controlled_data")
 
 
 class FakePassportManager:
-    def __init__(self, error: Exception | None = None, passport: bool = True):
+    def __init__(self, error: Exception | None = None, passport: bool = True, grant_roles=(GRANT_1, GRANT_2)):
         self.error = error
         self.passport = passport
+        self.grant_roles = list(grant_roles)
         self.calls = 0
 
     def fetch_roles(self, user):
         self.calls += 1
         if self.error:
             raise self.error
-        return ([GRANT_1, GRANT_2], MANAGE) if self.passport and user is not None else None
+        return (self.grant_roles, MANAGE) if self.passport and user is not None else None
 
 
 class FakeApp:
@@ -67,6 +83,16 @@ def trans(manager=None, user=True, protected_sources=None):
 
 def restricted_to(*grant_roles):
     return {ACTIONS.DATASET_ACCESS: list(grant_roles), ACTIONS.DATASET_MANAGE_PERMISSIONS: [MANAGE]}
+
+
+def index_knows(*objects: tuple[str, str]) -> None:
+    """Serve a Gen3 index holding ``(object id, study)`` records at ``INDEX``."""
+    records = [{"did": did, "authz": [f"/programs/{study}"], "acl": []} for did, study in objects]
+    responses.add(responses.GET, INDEX, json={"records": records})
+
+
+def index_asked() -> list[list[str]]:
+    return [parse_qs(urlsplit(str(call.request.url)).query)["ids"][0].split(",") for call in responses.calls]
 
 
 def hdas(*urls, **item_extra):
@@ -105,6 +131,44 @@ def test_passport_uri_restricted_to_the_grant_role_of_the_study_its_protected_so
         CONTROLLED_2: restricted_to(GRANT_1, GRANT_2),
     }
     assert t.app.manager.calls == 1
+
+
+@responses.activate
+def test_passport_uri_restricted_to_the_grant_roles_of_the_studies_its_repository_names():
+    index_knows(("obj1", "phs000002.c1"))
+    target = hdas(INDEXED, INDEXED_2, INDEXED, CONTROLLED, OPEN)
+    permissions = upload._ga4gh_passport_permissions(trans(), request(target))
+    assert permissions == {
+        INDEXED: restricted_to(GRANT_2),
+        INDEXED_2: restricted_to(GRANT_1, GRANT_2),
+        CONTROLLED: restricted_to(GRANT_1, GRANT_2),
+    }
+    # One question, about the objects of the source that has an index to ask.
+    assert index_asked() == [["obj1", "obj2"]]
+
+
+@responses.activate
+def test_protected_source_study_is_used_without_asking_the_repository():
+    index_knows(("obj1", "phs000002.c1"))
+    t = trans(protected_sources=[ProtectedSource(url_regex=r"^drs://indexed\.example\.org/", phs_id="phs1")])
+    assert upload._ga4gh_passport_permissions(t, request(hdas(INDEXED))) == {INDEXED: restricted_to(GRANT_1)}
+    assert index_asked() == []
+
+
+@responses.activate
+def test_repository_is_asked_when_the_protected_source_names_no_study():
+    index_knows(("obj1", "phs000002.c1"))
+    t = trans(protected_sources=[ProtectedSource(url_regex=r"^drs://indexed\.example\.org/")])
+    assert upload._ga4gh_passport_permissions(t, request(hdas(INDEXED))) == {INDEXED: restricted_to(GRANT_2)}
+    assert index_asked() == [["obj1"]]
+
+
+@responses.activate
+def test_nothing_is_asked_when_the_user_holds_a_single_grant():
+    index_knows(("obj1", "phs000002.c1"))
+    t = trans(FakePassportManager(grant_roles=[GRANT_1]))
+    assert upload._ga4gh_passport_permissions(t, request(hdas(INDEXED))) == {INDEXED: restricted_to(GRANT_1)}
+    assert index_asked() == []
 
 
 @pytest.mark.parametrize(

@@ -277,17 +277,23 @@ def _ga4gh_passport_permissions(trans: ProvidesHistoryContext, request):
 def _covering_studies(trans: ProvidesHistoryContext, urls: list[str]) -> dict[str, list[str]]:
     """The dbGaP studies known to cover the data at each of ``urls``; one Galaxy can't tell for is left out.
 
-    The admin's protected sources say, where they name a study for the URL.
+    The admin's protected sources are asked first, then the repository itself
+    where the URL's file source is set up to ask it.
     """
-    gate = trans.app.ras_passport_gate
-    if gate is None:
-        return {}
     studies: dict[str, list[str]] = {}
+    ask: dict[int, tuple[DRSFilesSource, list[str]]] = {}
+    gate = trans.app.ras_passport_gate
     for url in urls:
-        match = match_protected_source(gate.config.protected_sources, url)
+        match = match_protected_source(gate.config.protected_sources, url) if gate is not None else None
         # A study read off a URL the fetch would rewrite could be another object's.
         if match is not None and match.accession is not None and drs_uri_is_plain(url):
             studies[url] = [match.accession]
+            continue
+        file_source = trans.app.file_sources.find_best_match(url)
+        if isinstance(file_source, DRSFilesSource):
+            ask.setdefault(id(file_source), (file_source, []))[1].append(url)
+    for file_source, source_urls in ask.values():
+        studies.update(file_source.covering_studies(source_urls))
     return studies
 
 
