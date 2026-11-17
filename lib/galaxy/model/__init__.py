@@ -5219,6 +5219,19 @@ class Dataset(Base, StorableObject, Serializable):
         if not self.shareable:
             raise galaxy.exceptions.MessageException(CANNOT_SHARE_PRIVATE_DATASET_MESSAGE)
 
+    @property
+    def is_controlled(self) -> bool:
+        """Controlled access: managed by a role Galaxy assigns itself (``ga4gh_grant``).
+
+        Data fetched with a GA4GH Passport and everything derived from it. No
+        user holds or can be given its manage role, admins get no override for
+        it, and it doesn't leave Galaxy through exports or enter libraries.
+        """
+        manage = self.permitted_actions.DATASET_MANAGE_PERMISSIONS.action
+        return any(
+            p.action == manage and p.role is not None and p.role.type == Role.types.GA4GH_GRANT for p in self.actions
+        )
+
     def get_file_name(self, sync_cache: bool = True, auth: ObjectStoreAuth | None = None) -> str:
         if self.purged:
             log.warning(f"Attempt to get file name of purged dataset {self.id}")
@@ -6742,6 +6755,8 @@ class HistoryDatasetAssociation(DatasetInstance, HasTags, UsesAnnotations, HasNa
         assert self.dataset is not None
         if not self.dataset.shareable:
             raise Exception(CANNOT_SHARE_PRIVATE_DATASET_MESSAGE)
+        if self.dataset.is_controlled:
+            raise galaxy.exceptions.ItemAccessibilityException("Controlled-access data can't be added to a library.")
 
         if replace_dataset:
             # The replace_dataset param ( when not None ) refers to a LibraryDataset that

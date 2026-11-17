@@ -228,7 +228,10 @@ class DefaultToolAction(ToolAction):
                 # fetch dataset details for this input from the database.
                 if collection_info and collection_info.is_mapped_over(input_name):
                     action_tuples = collection_info.map_over_action_tuples(input_name)
-                    if not trans.user_is_admin and not trans.app.security_agent.can_access_datasets(
+                    admin_override = trans.user_is_admin and not trans.app.security_agent.action_tuples_are_controlled(
+                        action_tuples
+                    )
+                    if not admin_override and not trans.app.security_agent.can_access_datasets(
                         current_user_roles, action_tuples
                     ):
                         raise ItemAccessibilityException(
@@ -237,9 +240,9 @@ class DefaultToolAction(ToolAction):
                     for action, role_id in action_tuples:
                         record_permission(action, role_id)
                 else:
-                    if not trans.user_is_admin and not trans.app.security_agent.can_access_dataset(
-                        current_user_roles, data.dataset
-                    ):
+                    if not trans.app.security_agent.admin_override_allowed(
+                        trans.user_is_admin, data.dataset
+                    ) and not trans.app.security_agent.can_access_dataset(current_user_roles, data.dataset):
                         raise ItemAccessibilityException(
                             f"User does not have permission to use dataset ({data.name}) provided for input."
                         )
@@ -334,7 +337,10 @@ class DefaultToolAction(ToolAction):
 
                 assert collection
                 action_tuples = collection.dataset_action_tuples
-                if not trans.user_is_admin and not trans.app.security_agent.can_access_datasets(
+                admin_override = trans.user_is_admin and not trans.app.security_agent.action_tuples_are_controlled(
+                    action_tuples
+                )
+                if not admin_override and not trans.app.security_agent.can_access_datasets(
                     current_user_roles, action_tuples
                 ):
                     raise ItemAccessibilityException(

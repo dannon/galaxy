@@ -78,9 +78,10 @@ class DatasetInterface(BaseUIController, UsesAnnotations, UsesItemRatings, UsesE
         roles = trans.get_current_user_roles()
         if additional_roles:
             roles = roles + additional_roles
-        return (allow_admin and trans.user_is_admin) or trans.app.security_agent.can_access_dataset(
-            roles, dataset_association.dataset
-        )
+        return (
+            allow_admin
+            and trans.app.security_agent.admin_override_allowed(trans.user_is_admin, dataset_association.dataset)
+        ) or trans.app.security_agent.can_access_dataset(roles, dataset_association.dataset)
 
     @web.expose_api_raw_anonymous_and_sessionless
     def get_metadata_file(self, trans: GalaxyWebTransaction, hda_id=None, metadata_name=None, **kwd):

@@ -667,11 +667,19 @@ WHERE history.user_id != :user_id and history_dataset_association.dataset_id = :
         """
         if not isinstance(dataset, Dataset):
             dataset = dataset.dataset
-        manage = self.permitted_actions.DATASET_MANAGE_PERMISSIONS
-        return any(p.role.type == Role.types.GA4GH_GRANT for p in self.get_item_actions(manage, dataset))
+        return bool(dataset.is_controlled)
 
-    def _controlled_manage_role_ids(self, role_ids) -> list[int]:
-        """The ``ga4gh_grant`` roles among ``role_ids`` (manage roles of controlled data)."""
+    def admin_override_allowed(self, is_admin, dataset) -> bool:
+        """Whether an admin may bypass access and manage checks on ``dataset``: never for controlled data."""
+        return bool(is_admin) and not self.dataset_is_controlled(dataset)
+
+    def action_tuples_are_controlled(self, action_tuples) -> bool:
+        """``dataset_is_controlled`` for a collection's ``(action, role_id)`` tuples: any element controlled."""
+        manage = self.permitted_actions.DATASET_MANAGE_PERMISSIONS.action
+        return bool(self._ga4gh_grant_role_ids({role_id for action, role_id in action_tuples if action == manage}))
+
+    def _ga4gh_grant_role_ids(self, role_ids) -> list[int]:
+        """The ``ga4gh_grant`` roles among ``role_ids`` (Galaxy assigns them; they manage controlled data)."""
         if not role_ids:
             return []
         stmt = select(Role.id).where(Role.id.in_(role_ids), Role.type == Role.types.GA4GH_GRANT)
@@ -731,7 +739,7 @@ WHERE history.user_id != :user_id and history_dataset_association.dataset_id = :
                     # join existing roles with new roles
                     perms[action].extend([_ for _ in role_ids if _ not in perms[action]])
         manage = self.permitted_actions.DATASET_MANAGE_PERMISSIONS
-        if controlled := self._controlled_manage_role_ids(all_input_permissions.get(manage.action)):
+        if controlled := self._ga4gh_grant_role_ids(all_input_permissions.get(manage.action)):
             # Derived from controlled data: controlled too, whatever the other inputs allow.
             perms[manage] = controlled
         return perms

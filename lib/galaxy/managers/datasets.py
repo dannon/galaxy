@@ -125,7 +125,9 @@ class DatasetManager(
         """
         Is this dataset readable/viewable to user?
         """
-        if self.user_manager.is_admin(user, trans=kwargs.get("trans")):
+        if self.user_manager.is_admin(
+            user, trans=kwargs.get("trans")
+        ) and not self.app.security_agent.dataset_is_controlled(item):
             return True
         if self.has_access_permission(item, user):
             return True
@@ -606,7 +608,9 @@ class DatasetAssociationManager(
             dataset = dataset_assoc.dataset
 
         current_user_roles = trans.get_current_user_roles()
-        can_manage = self.app.security_agent.can_manage_dataset(current_user_roles, dataset) or trans.user_is_admin
+        can_manage = self.app.security_agent.can_manage_dataset(
+            current_user_roles, dataset
+        ) or self.app.security_agent.admin_override_allowed(trans.user_is_admin, dataset)
         if not can_manage:
             raise exceptions.InsufficientPermissionsException(
                 "You do not have proper permissions to manage permissions on this dataset."
