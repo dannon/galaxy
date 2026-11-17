@@ -194,7 +194,7 @@ def test_bad_handoff(overrides, match):
 def test_real_ras_staging_id_token():
     fixtures = Path(os.environ[FIXTURES_ENV])
     jwks = json.loads((fixtures / "stsstg-jwks.json").read_text())
-    raw = json.loads((fixtures / "token-response-baker1.json").read_text())["id_token"]
+    raw = json.loads((fixtures / "token-response.json").read_text())["id_token"]
     unverified = jwt.decode(raw, options={"verify_signature": False})
     source = DirectRasPassportSource(
         "https://stsstg.nih.gov",

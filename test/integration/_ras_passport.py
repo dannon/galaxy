@@ -22,7 +22,7 @@ from galaxy.model.db.user import get_user_by_email
 from galaxy_test.driver.driver_util import GalaxyTestDriver
 from galaxy_test.driver.integration_util import ConfiguresDatabaseVault
 
-ISSUER = "https://sts.example.nih.gov"
+ISSUER = "https://sts.example.org"
 KID = "INTEGRATION-TEST"
 SUBJECT = "ras-sub"
 

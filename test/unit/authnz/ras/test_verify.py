@@ -392,7 +392,7 @@ def test_jwks_fetch_failure_is_verification_error():
 def test_real_ras_staging_passport():
     fixtures = Path(os.environ[FIXTURES_ENV])
     jwks = json.loads((fixtures / "stsstg-jwks.json").read_text())
-    userinfo = json.loads((fixtures / "userinfo-v11-baker1.json").read_text())
+    userinfo = json.loads((fixtures / "userinfo-v11.json").read_text())
     raw = userinfo["passport_jwt_v11"]
     issued_at = jwt.decode(raw, options={"verify_signature": False})["iat"]
     config = IssuerConfig(

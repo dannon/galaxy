@@ -11,7 +11,7 @@ from galaxy.authnz.ras.jwks import JwksClient
 from galaxy.authnz.ras.verify import IssuerConfig
 
 FIXTURES_ENV = "GALAXY_TEST_RAS_FIXTURES"
-ISSUER = "https://sts.example.nih.gov"
+ISSUER = "https://sts.example.org"
 KID = "TEST-SIGN-1"
 OTHER_KID = "TEST-SIGN-2"
 SUBJECT = "test-subject-1"
@@ -20,7 +20,7 @@ NOW = 1_700_000_000
 PASSPORT_LIFETIME = 12 * 3600
 RAS_VISA = {
     "type": "https://ras.nih.gov/visas/v1.1",
-    "value": "https://sts.example.nih.gov/passport/dbgap/v1.1",
+    "value": "https://sts.example.org/passport/dbgap/v1.1",
     "source": "https://ncbi.nlm.nih.gov/gap",
     "by": "dac",
 }
