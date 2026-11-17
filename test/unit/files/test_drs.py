@@ -680,3 +680,19 @@ def test_drs_passport_and_oidc_serialize_the_earlier_expiry(passport_hours, oidc
     as_dict = file_sources.to_dict(for_serialization=True, user_context=user_context)
     (source,) = as_dict["file_sources"]
     assert source["auth_expires_at"] == min(passport_expires_at, oidc_expires_at).isoformat()
+
+
+@responses.activate
+def test_drs_object_post_rejected_is_reported():
+    responses.add(responses.GET, RAS_OBJECT_URL, status=401)
+    responses.add(responses.POST, RAS_OBJECT_URL, status=401, body=f"bad passport {PASSPORT}")
+
+    file_sources = configured_file_sources(DRS_RAS_PASSPORT_FILE_SOURCES_CONF)
+    with pytest.raises(AuthenticationFailed) as excinfo:
+        assert_realizes_as(file_sources, RAS_DRS_URI, "", user_context=_ras_user_context())
+    assert str(excinfo.value) == "The DRS server did not accept the NIH RAS passport (HTTP 401)."
+    assert PASSPORT not in repr(excinfo.value)
+    assert [(call.request.method, call.request.url) for call in responses.calls] == [
+        ("GET", RAS_OBJECT_URL),
+        ("POST", RAS_OBJECT_URL),
+    ]

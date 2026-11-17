@@ -8,9 +8,7 @@ from urllib.parse import (
 
 import pytest
 
-from galaxy.authnz.ras.smoke import (
-    main,
-)
+from galaxy.authnz.ras.smoke import main
 from galaxy.authnz.ras.sources import (
     parse_callback,
     PassportSourceError,
