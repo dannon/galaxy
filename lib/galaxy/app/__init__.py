@@ -832,7 +832,7 @@ class GalaxyManagerApplication(MinimalManagerApp, MinimalGalaxyApplication):
             PassportManager,
             PassportManager(
                 self.config,
-                self.model.context,
+                self[galaxy_scoped_session],
                 self.vault,
                 store=gate_store if isinstance(gate_store, VaultPassportStore) else None,
             ),
