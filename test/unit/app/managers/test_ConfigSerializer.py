@@ -22,3 +22,11 @@ def test_short_term_storage_effective_duration(default_duration, maximum_duratio
     serializer = ConfigSerializer(MockApp())
     key = "short_term_storage_effective_duration"
     assert serializer.serializers[key](config, key) == expected
+
+
+@pytest.mark.parametrize("authorize_url, expected", [("https://bridge.example.org/connect", True), (None, False)])
+def test_ga4gh_passport_enabled(authorize_url, expected):
+    config = SimpleNamespace(ga4gh_passport_broker_authorize_url=authorize_url)
+    serializer = ConfigSerializer(MockApp())
+    key = "ga4gh_passport_enabled"
+    assert serializer.serializers[key](config, key) is expected
