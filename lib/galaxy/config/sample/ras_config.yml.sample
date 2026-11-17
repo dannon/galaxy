@@ -45,7 +45,10 @@ issuer: https://stsstg.nih.gov
 # URLs Galaxy only fetches for users holding a passport that grants the study.
 # The first entry whose url_regex matches (re.match, so anchored at the start)
 # decides. Give the study as a literal phs_id, or as a (?P<phs_id>...) group in
-# the regex; an entry with neither accepts any valid passport.
+# the regex; an entry with neither accepts any valid passport. Keep these in
+# step with the DRS file sources that set ras_passport: true in
+# file_sources_conf.yml, which decide where the passport is actually sent; the
+# two are configured separately and nothing checks that they agree.
 #protected_sources:
 #  - url_regex: '^drs://protected\.example\.org/'
 #    phs_id: phs000123
