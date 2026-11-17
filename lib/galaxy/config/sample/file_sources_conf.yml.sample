@@ -245,6 +245,20 @@
       Basic ${base64.b64encode(str.encode(user.preferences['mydrssite|username'] + ":" + user.preferences['mydrssite|password'])).decode()}
   doc: Define this if you want custom control over drs downloads. You should also define a stock drs source (below) or only downloads from this drs server will be allowed.
 
+# A DRS server holding controlled-access (dbGaP) data that wants the user's NIH RAS
+# passport. Galaxy POSTs the passport to the server's access endpoint (and to the
+# object endpoint if a plain GET of the object is refused). Passports come from RAS
+# logins, so this needs ras_config_file in galaxy.yml; without it no user has a
+# passport and imports through this source are refused. Don't combine it with an
+# Authorization header or oidc_auth_provider on the same source -- Gen3 rejects a
+# request that carries both a passport and a token.
+#- type: drs
+#  label: Controlled-access DRS filesource
+#  id: drs_ras
+#  url_regex: "^drs://drs.mycontrolledsite.org/"
+#  ras_passport: true
+#  doc: DRS downloads that send the user's NIH RAS passport.
+
 - type: drs
   label: Stock DRS filesource
   id: drsstock

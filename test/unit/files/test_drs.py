@@ -1,11 +1,22 @@
 import json
 import os
+import socket
 import tempfile
+from datetime import (
+    datetime,
+    timedelta,
+    timezone,
+)
 from typing import cast
 
 import pytest
 import responses
 
+from galaxy.exceptions import (
+    AuthenticationFailed,
+    FileSourceCredentialExpired,
+    RasPassportRequiredException,
+)
 from galaxy.files import (
     DictFileSourcesUserContext,
     ProvidesFileSourcesTransaction,
@@ -17,12 +28,14 @@ from ._util import (
     assert_realizes_as,
     assert_realizes_contains,
     configured_file_sources,
+    serialize_and_recover,
     user_context_fixture,
 )
 
 SCRIPT_DIRECTORY = os.path.abspath(os.path.dirname(__file__))
 FILE_SOURCES_CONF = os.path.join(SCRIPT_DIRECTORY, "drs_file_sources_conf.yml")
 DRS_OIDC_FILE_SOURCES_CONF = os.path.join(SCRIPT_DIRECTORY, "drs_oidc_file_sources_conf.yml")
+DRS_RAS_PASSPORT_FILE_SOURCES_CONF = os.path.join(SCRIPT_DIRECTORY, "drs_ras_passport_file_sources_conf.yml")
 
 
 def test_provides_file_sources_user_context_oidc_access_tokens():
@@ -384,3 +397,206 @@ def test_drs_202_retry_keeps_headers():
     assert len(object_calls) == 2
     for call in object_calls:
         assert call.request.headers["Authorization"] == "Bearer IBearTokens"
+
+
+PASSPORT = "aaa.bbb.ccc"
+RAS_DRS_URI = "drs://drs.ras-example.org/obj1"
+RAS_OBJECT_URL = "https://drs.ras-example.org/ga4gh/drs/v1/objects/obj1"
+RAS_ACCESS_URL = f"{RAS_OBJECT_URL}/access/gs"
+STOCK_DRS_URI = "drs://drs.stock-example.org/obj2"
+STOCK_OBJECT_URL = "https://drs.stock-example.org/ga4gh/drs/v1/objects/obj2"
+STOCK_ACCESS_URL = f"{STOCK_OBJECT_URL}/access/gs"
+SIGNED_URL = "https://signed.example.org/obj.txt?signature=xyz"
+RAS_OBJECT = {"id": "obj1", "access_methods": [{"type": "https", "access_id": "gs"}]}
+PASSPORT_BODY = {"passports": [PASSPORT]}
+
+
+@pytest.fixture
+def signed_url_dns(monkeypatch):
+    """Resolve the signed download host to a public address without asking real DNS."""
+    real_getaddrinfo = socket.getaddrinfo
+
+    def getaddrinfo(host, port, *args, **kwds):
+        if host == "signed.example.org":
+            return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.215.14", 443))]
+        return real_getaddrinfo(host, port, *args, **kwds)
+
+    monkeypatch.setattr(socket, "getaddrinfo", getaddrinfo)
+
+
+def _passport_expiry(hours: int = 1) -> datetime:
+    return (datetime.now(timezone.utc) + timedelta(hours=hours)).replace(microsecond=0)
+
+
+def _ras_user_context(
+    passport: str | None = PASSPORT, expires_at: datetime | None = None
+) -> DictFileSourcesUserContext:
+    return DictFileSourcesUserContext(
+        username="alice",
+        email="alice@galaxyproject.org",
+        preferences={},
+        role_names=set(),
+        group_names=set(),
+        is_admin=False,
+        ras_passport=passport,
+        ras_passport_expires_at=(expires_at or _passport_expiry()) if passport else None,
+    )
+
+
+def _add_signed_download():
+    responses.add(responses.GET, SIGNED_URL, body="hello passport world")
+
+
+def _json_body(call) -> dict | None:
+    body = call.request.body
+    return json.loads(body) if body else None
+
+
+def _assert_passport_not_in(call):
+    assert PASSPORT not in str(call.request.headers)
+    body = call.request.body or b""
+    assert PASSPORT.encode() not in (body if isinstance(body, bytes) else body.encode())
+
+
+@responses.activate
+def test_drs_passport_posted_to_access_only(signed_url_dns):
+    responses.add(responses.GET, RAS_OBJECT_URL, json=RAS_OBJECT)
+    responses.add(responses.POST, RAS_ACCESS_URL, json={"url": SIGNED_URL})
+    _add_signed_download()
+
+    file_sources = configured_file_sources(DRS_RAS_PASSPORT_FILE_SOURCES_CONF)
+    assert_realizes_as(file_sources, RAS_DRS_URI, "hello passport world", user_context=_ras_user_context())
+
+    object_call, access_call, download_call = responses.calls
+    assert object_call.request.method == "GET"
+    assert object_call.request.url == RAS_OBJECT_URL
+    _assert_passport_not_in(object_call)
+    assert access_call.request.method == "POST"
+    assert access_call.request.url == RAS_ACCESS_URL
+    assert _json_body(access_call) == PASSPORT_BODY
+    for call in (object_call, access_call):
+        assert call.request.headers["X-Galaxy-Test"] == "ras"
+    assert download_call.request.url == SIGNED_URL
+    _assert_passport_not_in(download_call)
+
+
+@responses.activate
+def test_drs_object_requiring_passport_is_retried_as_post(signed_url_dns):
+    responses.add(responses.GET, RAS_OBJECT_URL, status=401)
+    responses.add(responses.POST, RAS_OBJECT_URL, json=RAS_OBJECT)
+    responses.add(responses.POST, RAS_ACCESS_URL, json={"url": SIGNED_URL})
+    _add_signed_download()
+
+    file_sources = configured_file_sources(DRS_RAS_PASSPORT_FILE_SOURCES_CONF)
+    assert_realizes_as(file_sources, RAS_DRS_URI, "hello passport world", user_context=_ras_user_context())
+
+    methods = [(call.request.method, call.request.url) for call in responses.calls]
+    assert methods == [
+        ("GET", RAS_OBJECT_URL),
+        ("POST", RAS_OBJECT_URL),
+        ("POST", RAS_ACCESS_URL),
+        ("GET", SIGNED_URL),
+    ]
+    assert _json_body(responses.calls[1]) == PASSPORT_BODY
+
+
+@responses.activate
+def test_drs_without_ras_passport_still_gets(signed_url_dns):
+    responses.add(
+        responses.GET, STOCK_OBJECT_URL, json={"id": "obj2", "access_methods": [{"type": "https", "access_id": "gs"}]}
+    )
+    responses.add(responses.GET, STOCK_ACCESS_URL, json={"url": SIGNED_URL})
+    _add_signed_download()
+
+    file_sources = configured_file_sources(DRS_RAS_PASSPORT_FILE_SOURCES_CONF)
+    assert file_sources.get_file_source_path(STOCK_DRS_URI).file_source.id == "test_stock"
+    assert_realizes_as(file_sources, STOCK_DRS_URI, "hello passport world", user_context=_ras_user_context())
+
+    assert [call.request.method for call in responses.calls] == ["GET", "GET", "GET"]
+    for call in responses.calls:
+        _assert_passport_not_in(call)
+
+
+@responses.activate
+def test_drs_ras_passport_missing_raises_before_any_request():
+    file_sources = configured_file_sources(DRS_RAS_PASSPORT_FILE_SOURCES_CONF)
+    with pytest.raises(RasPassportRequiredException):
+        assert_realizes_as(file_sources, RAS_DRS_URI, "", user_context=_ras_user_context(passport=None))
+    with pytest.raises(RasPassportRequiredException):
+        assert_realizes_as(file_sources, RAS_DRS_URI, "", user_context=None)
+
+    # A user without a passport serializes without one, so the job refuses too.
+    recovered = serialize_and_recover(file_sources, user_context=_ras_user_context(passport=None))
+    with pytest.raises(RasPassportRequiredException):
+        assert_realizes_as(recovered, RAS_DRS_URI, "", user_context=None)
+    assert len(responses.calls) == 0
+
+
+@pytest.mark.parametrize("status", [401, 403])
+@responses.activate
+def test_drs_passport_rejected_is_reported(status):
+    responses.add(responses.GET, RAS_OBJECT_URL, json=RAS_OBJECT)
+    responses.add(responses.POST, RAS_ACCESS_URL, status=status, body=f"bad passport {PASSPORT}")
+
+    file_sources = configured_file_sources(DRS_RAS_PASSPORT_FILE_SOURCES_CONF)
+    with pytest.raises(AuthenticationFailed) as excinfo:
+        assert_realizes_as(file_sources, RAS_DRS_URI, "", user_context=_ras_user_context())
+    assert str(excinfo.value) == f"The DRS server did not accept the NIH RAS passport (HTTP {status})."
+    assert PASSPORT not in repr(excinfo.value)
+
+
+@responses.activate
+def test_drs_202_retry_keeps_method_headers_and_passport(signed_url_dns):
+    responses.add(responses.GET, RAS_OBJECT_URL, json=RAS_OBJECT)
+    responses.add(responses.POST, RAS_ACCESS_URL, status=202, headers={"Retry-After": "0"})
+    responses.add(responses.POST, RAS_ACCESS_URL, json={"url": SIGNED_URL})
+    _add_signed_download()
+
+    file_sources = configured_file_sources(DRS_RAS_PASSPORT_FILE_SOURCES_CONF)
+    assert_realizes_as(file_sources, RAS_DRS_URI, "hello passport world", user_context=_ras_user_context())
+
+    first, second = (call for call in responses.calls if call.request.url == RAS_ACCESS_URL)
+    assert second.request.method == "POST"
+    assert second.request.headers["X-Galaxy-Test"] == first.request.headers["X-Galaxy-Test"] == "ras"
+    assert second.request.headers["Content-Type"] == first.request.headers["Content-Type"]
+    assert _json_body(second) == _json_body(first) == PASSPORT_BODY
+
+
+def test_drs_serialization_carries_passport_and_expiry():
+    expires_at = _passport_expiry()
+    file_sources = configured_file_sources(DRS_RAS_PASSPORT_FILE_SOURCES_CONF)
+    as_dict = file_sources.to_dict(for_serialization=True, user_context=_ras_user_context(expires_at=expires_at))
+    by_id = {source["id"]: source for source in as_dict["file_sources"]}
+    assert by_id["test_ras"]["passports"] == [PASSPORT]
+    assert by_id["test_ras"]["auth_expires_at"] == expires_at.isoformat()
+    assert "passports" not in by_id["test_stock"]
+    assert "auth_expires_at" not in by_id["test_stock"]
+    # The listing an API client sees never carries it.
+    assert PASSPORT not in str(file_sources.to_dict(user_context=_ras_user_context()))
+
+
+@responses.activate
+def test_drs_serialized_source_posts_passport_without_user(signed_url_dns):
+    responses.add(responses.GET, RAS_OBJECT_URL, status=403)
+    responses.add(responses.POST, RAS_OBJECT_URL, json=RAS_OBJECT)
+    responses.add(responses.POST, RAS_ACCESS_URL, json={"url": SIGNED_URL})
+    _add_signed_download()
+
+    file_sources = configured_file_sources(DRS_RAS_PASSPORT_FILE_SOURCES_CONF)
+    recovered = serialize_and_recover(file_sources, user_context=_ras_user_context())
+    assert_realizes_as(recovered, RAS_DRS_URI, "hello passport world", user_context=None)
+
+    posts = [call for call in responses.calls if call.request.method == "POST"]
+    assert [call.request.url for call in posts] == [RAS_OBJECT_URL, RAS_ACCESS_URL]
+    for call in posts:
+        assert _json_body(call) == PASSPORT_BODY
+        assert call.request.headers["X-Galaxy-Test"] == "ras"
+
+
+@responses.activate
+def test_drs_expired_passport_fails_fast():
+    file_sources = configured_file_sources(DRS_RAS_PASSPORT_FILE_SOURCES_CONF)
+    recovered = serialize_and_recover(file_sources, user_context=_ras_user_context(expires_at=_passport_expiry(-1)))
+    with pytest.raises(FileSourceCredentialExpired):
+        assert_realizes_as(recovered, RAS_DRS_URI, "", user_context=None)
+    assert len(responses.calls) == 0

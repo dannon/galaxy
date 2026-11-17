@@ -111,7 +111,21 @@ class RetryOptions:
 
 
 def retry_and_get(get_url: str, retry_options: RetryOptions, headers: dict | None = None) -> requests.Response:
-    response = requests.get(get_url, timeout=DEFAULT_SOCKET_TIMEOUT, headers=headers)
+    return _retry_drs_request(get_url, retry_options, headers=headers)
+
+
+def _retry_drs_request(
+    url: str, retry_options: RetryOptions, headers: dict | None = None, passports: list[str] | None = None
+) -> requests.Response:
+    """GET ``url``, or POST ``passports`` to it, repeating the same request while the server answers 202."""
+    if passports:
+        response = requests.post(url, timeout=DEFAULT_SOCKET_TIMEOUT, headers=headers, json={"passports": passports})
+        if response.status_code in (401, 403):
+            raise exceptions.AuthenticationFailed(
+                f"The DRS server did not accept the NIH RAS passport (HTTP {response.status_code})."
+            )
+    else:
+        response = requests.get(url, timeout=DEFAULT_SOCKET_TIMEOUT, headers=headers)
     response.raise_for_status()
     if response.status_code == 202:
         if retry_options.retry_times == 0:
@@ -121,17 +135,28 @@ def retry_and_get(get_url: str, retry_options: RetryOptions, headers: dict | Non
         retry_after = retry_options.override_retry_after or float(response.headers["Retry-After"])
         time.sleep(retry_after)
         retry_options.retry_times -= 1
-        return retry_and_get(get_url, retry_options, headers=headers)
+        return _retry_drs_request(url, retry_options, headers=headers, passports=passports)
     else:
         return response
 
 
-def _get_access_info(obj_url: str, access_method: dict, headers: dict | None = None) -> tuple[str, dict]:
+def _get_access_info(
+    obj_url: str,
+    access_method: dict,
+    headers: dict | None = None,
+    passports: list[str] | None = None,
+    retry_options: RetryOptions | None = None,
+) -> tuple[str, dict]:
     # Prefer access_id resolution to get signed/authenticated URLs
     if access_method.get("access_id"):
         access_id = access_method["access_id"]
         access_get_url = f"{obj_url}/access/{access_id}"
-        access_response = requests.get(access_get_url, timeout=DEFAULT_SOCKET_TIMEOUT, headers=headers)
+        if passports:
+            access_response = _retry_drs_request(
+                access_get_url, retry_options or RetryOptions(), headers=headers, passports=passports
+            )
+        else:
+            access_response = requests.get(access_get_url, timeout=DEFAULT_SOCKET_TIMEOUT, headers=headers)
         access_response.raise_for_status()
         access_response_object = access_response.json()
         access_url = access_response_object
@@ -366,6 +391,7 @@ def fetch_drs_to_file(
     headers: dict | None = None,
     fetch_url_allowlist: list[IpAllowedListEntryT] | None = None,
     metadata_out: RealizedSourceMetadata | None = None,
+    passports: list[str] | None = None,
 ):
     """Fetch contents of drs:// URI to a target path.
 
@@ -374,6 +400,10 @@ def fetch_drs_to_file(
     than the opaque identifier in the URI. It is populated on a best-effort basis and is
     never cleared, so callers should pass a dict scoped to a single fetch rather than
     reusing one and assuming a missing key means this call reported nothing.
+
+    With ``passports`` (GA4GH passport JWTs) the DRS requests that need them are POSTs
+    carrying ``{"passports": [...]}``: the access request always, the object request
+    only after a plain GET is refused. The download of the access URL never gets them.
     """
     if not drs_uri.startswith("drs://"):
         raise ValueError(f"Unknown scheme for drs_uri {drs_uri}")
@@ -404,7 +434,13 @@ def fetch_drs_to_file(
             get_url = f"{scheme}://{netspec}/ga4gh/drs/v1/objects/{object_id}"
         else:
             raise ValueError(f"Invalid DRS URI format: {drs_uri}")
-    response = retry_and_get(get_url, retry_options or RetryOptions(), headers=headers)
+    retry_options = retry_options or RetryOptions()
+    try:
+        response = retry_and_get(get_url, retry_options, headers=headers)
+    except requests.exceptions.HTTPError as e:
+        if not passports or e.response is None or e.response.status_code not in (401, 403):
+            raise
+        response = _retry_drs_request(get_url, retry_options, headers=headers, passports=passports)
     response.raise_for_status()
     response_object = response.json()
     access_methods = response_object.get("access_methods", [])
@@ -418,7 +454,9 @@ def fetch_drs_to_file(
 
     downloaded = False
     for access_method in access_methods:
-        access_url, access_headers = _get_access_info(get_url, access_method, headers=headers)
+        access_url, access_headers = _get_access_info(
+            get_url, access_method, headers=headers, passports=passports, retry_options=retry_options
+        )
         opts = FilesSourceOptions()
         if access_method["type"] == "https":
             extra_props = {
