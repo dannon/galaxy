@@ -37,3 +37,9 @@ def test_no_match_is_none():
 def test_match_is_anchored_at_the_start():
     sources = [ProtectedSource(url_regex=r"drs://host/")]
     assert match_protected_source(sources, "https://x/?u=drs://host/") is None
+
+
+def test_declared_group_that_captured_nothing_is_flagged():
+    sources = [ProtectedSource(url_regex=r"^drs://host/(?:(?P<phs_id>phs\d+)/)?")]
+    assert match_protected_source(sources, "drs://host/obj") == ProtectedMatch(None, study_not_captured=True)
+    assert match_protected_source(sources, "drs://host/phs000123/obj") == ProtectedMatch("phs000123")

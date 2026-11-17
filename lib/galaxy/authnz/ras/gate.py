@@ -157,9 +157,10 @@ class PassportGate:
         match = match_protected_source(self.config.protected_sources, url)
         if match is None:
             return None
-        if match.accession is None:
-            return self.require(user, return_to=return_to)
-        return self.require(user, phs_id=match.accession, return_to=return_to)
+        decision = self.require(user, phs_id=match.accession, return_to=return_to)
+        if match.study_not_captured and isinstance(decision, PassportOk):
+            return self._needed(PassportNeededReason.NO_ACCESS, return_to)
+        return decision
 
     def require_for_trans(self, trans: Any, phs_id: str | None = None, **kwds: Any) -> PassportDecision:
         return self.require(trans.user, phs_id=phs_id, **kwds)
@@ -170,7 +171,7 @@ class PassportGate:
         return PassportNeeded(
             reason=reason,
             redirect_url=redirect_url,
-            message=_MESSAGES[reason].format(phs_id=phs_id),
+            message=_MESSAGES[reason].format(phs_id=phs_id or "the requested study"),
         )
 
     def return_address(self, return_to: str | None = None) -> str:
