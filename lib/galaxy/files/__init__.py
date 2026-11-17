@@ -599,7 +599,7 @@ class ProvidesFileSourcesUserContext(FileSourcesUserContext, FileSourceDictifiab
         if passport is None:
             return None
         fresh_until = datetime.fromtimestamp(manager.fresh_until(passport), tz=timezone.utc)
-        return GA4GHPassportCredential(passport=passport.token, fresh_until=fresh_until, txn=passport.txn)
+        return GA4GHPassportCredential(passport=passport.raw, fresh_until=fresh_until, txn=passport.txn)
 
 
 class DictFileSourcesUserContext(FileSourcesUserContext, FileSourceDictifiable):

@@ -24,6 +24,7 @@ from galaxy import (
     tools,
 )
 from galaxy.authnz.ras.gate import build_passport_gate
+from galaxy.authnz.ras.store import VaultPassportStore
 from galaxy.carbon_emissions import get_carbon_intensity_entry
 from galaxy.celery.base_task import (
     GalaxyTaskAfterReturn,
@@ -825,8 +826,17 @@ class GalaxyManagerApplication(MinimalManagerApp, MinimalGalaxyApplication):
         tag_handler = GalaxyTagHandler(self.model.context)
         self.tag_handler = self._register_singleton(GalaxyTagHandler, tag_handler)
         self.user_manager = self._register_singleton(UserManager)
-        # One instance, so its Passport verifier's signing key cache is shared.
-        self._register_singleton(PassportManager)
+        # One instance, sharing the RAS passport gate's store (and so its signing key cache) when there is one.
+        gate_store = self.ras_passport_gate.store if self.ras_passport_gate else None
+        self._register_singleton(
+            PassportManager,
+            PassportManager(
+                self.config,
+                self.model.context,
+                self.vault,
+                store=gate_store if isinstance(gate_store, VaultPassportStore) else None,
+            ),
+        )
         self._register_singleton(GalaxySessionManager)
         self.hda_manager = self._register_singleton(HDAManager)
         self.history_manager = self._register_singleton(HistoryManager)

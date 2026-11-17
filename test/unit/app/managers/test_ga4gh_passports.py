@@ -25,18 +25,22 @@ from galaxy import (
     exceptions,
     model,
 )
+from galaxy.authnz.ras.jwks import JwksClient
+from galaxy.authnz.ras.models import (
+    DbgapPermission,
+    Passport,
+    Visa,
+)
+from galaxy.authnz.ras.store import VaultPassportStore
+from galaxy.authnz.ras.verify import (
+    IssuerConfig,
+    verify_passport,
+)
 from galaxy.managers.ga4gh_passports import (
     PASSPORT_VAULT_KEY,
     PassportManager,
 )
 from galaxy.model.orm.now import now
-from galaxy.security.ga4gh_passport import (
-    DbgapGrant,
-    PassportVerifier,
-    RAS_DBGAP_VISA_TYPE,
-    VerifiedPassport,
-    Visa,
-)
 from galaxy.security.vault import (
     DatabaseVault,
     NullVault,
@@ -44,14 +48,19 @@ from galaxy.security.vault import (
 )
 
 ISSUER = "https://ras.example.org"
+RAS_DBGAP_VISA_TYPE = "https://ras.nih.gov/visas/v1.1"
+KID = "test-key-1"
 CALLBACK = "https://galaxy.example.org/ga4gh_passport/callback"
 KEY = rsa.generate_private_key(public_exponent=65537, key_size=2048)
 ROGUE_KEY = rsa.generate_private_key(public_exponent=65537, key_size=2048)
 
 
-class StaticKeys:
-    def signing_key(self, issuer: str, token: str) -> Any:
-        return KEY.public_key()
+def static_store(vault) -> VaultPassportStore:
+    """A passport store whose issuer keys come from memory instead of the network."""
+    jwk = json.loads(jwt.algorithms.RSAAlgorithm.to_jwk(KEY.public_key()))
+    jwk.update(kid=KID, use="sig", alg="RS256")
+    jwks = JwksClient(f"{ISSUER}/jwks", fetcher=lambda url: {"keys": [jwk]})
+    return VaultPassportStore(vault, IssuerConfig(issuer=ISSUER, jwks=jwks))
 
 
 def make_passport(
@@ -87,9 +96,10 @@ def make_passport(
         },
         key,
         algorithm="RS256",
+        headers={"kid": KID},
     )
     claims = {"iss": ISSUER, "sub": sub, "iat": iat, "exp": exp, "txn": "txn-1", "ga4gh_passport_v1": [visa]}
-    return jwt.encode(claims, key, algorithm="RS256")
+    return jwt.encode(claims, key, algorithm="RS256", headers={"kid": KID})
 
 
 def config(**overrides) -> SimpleNamespace:
@@ -151,9 +161,7 @@ def broker(monkeypatch):
 
 @pytest.fixture
 def manager(session, vault, broker):
-    manager = PassportManager(config(), session, vault)  # type: ignore[arg-type]
-    manager._verifier = PassportVerifier([ISSUER], keys=StaticKeys())
-    return manager
+    return PassportManager(config(), session, vault, store=static_store(vault))  # type: ignore[arg-type]
 
 
 def new_user(session, email):
@@ -204,12 +212,11 @@ def test_connect_stores_verified_passport_and_binds_identity(manager, broker, se
     assert sent["auth"] == ("galaxy", "secret") and sent["data"]["redirect_uri"] == CALLBACK
 
     passport = manager.current(alice)
-    assert passport is not None and [g.authorization for g in passport.grants] == ["phs000001.c1"]
+    assert passport is not None and [g.authorization for g in manager.grants(passport)] == ["phs000001.c1"]
     identity = manager.identity(alice)
     assert identity is not None
     assert (identity.issuer, identity.sub, identity.preferred_username) == (ISSUER, "sub-alice", "alice@nih")
-    stored = json.loads(UserVaultWrapper(vault, alice).read_secret(PASSPORT_VAULT_KEY) or "")
-    assert stored["passport"] == broker.passport and stored["preferred_username"] == "alice@nih"
+    assert UserVaultWrapper(vault, alice).read_secret(PASSPORT_VAULT_KEY) == broker.passport
 
 
 def test_reconnect_replaces_passport_keeps_identity(manager, broker, session, alice):
@@ -218,7 +225,7 @@ def test_reconnect_replaces_passport_keeps_identity(manager, broker, session, al
     broker.passport = make_passport(phs_id="phs000002")
     assert connect(manager, broker, trans).error is None
     passport = manager.current(alice)
-    assert passport is not None and [g.authorization for g in passport.grants] == ["phs000002.c1"]
+    assert passport is not None and [g.authorization for g in manager.grants(passport)] == ["phs000002.c1"]
     assert len(session.scalars(select(model.UserGA4GHIdentity)).all()) == 1
 
 
@@ -309,7 +316,7 @@ def test_different_identity_for_same_user_refused(manager, broker, session, alic
     broker.passport = make_passport(sub="sub-somebody-else", phs_id="phs000009")
     assert connect(manager, broker, trans).error == "identity_mismatch"
     passport = manager.current(alice)
-    assert passport is not None and passport.sub == "sub-alice"  # the earlier Passport is untouched
+    assert passport is not None and passport.subject == "sub-alice"  # the earlier Passport is untouched
 
 
 def test_identity_bound_to_another_user_refused(manager, broker, session, alice):
@@ -335,29 +342,32 @@ def test_forget_keeps_identity(manager, broker, session, alice):
 DAY = 86400
 
 
-def with_grants(*grants: tuple[str, int], sub: str = "alice-sub") -> VerifiedPassport:
+def with_grants(*grants: tuple[str, int], sub: str = "alice-sub") -> Passport:
     """A verified Passport with one Visa per (authorization, seconds until the grant expires)."""
     t = int(time.time())
 
     def visa(authorization: str, ttl: int) -> Visa:
         phs_id, consent_group = authorization.split(".")
-        grant = DbgapGrant(phs_id, "v1", "p1", consent_group, "GRU", "pi", expiration=t + ttl)
+        grant = DbgapPermission(phs_id, "v1", "p1", consent_group, "GRU", "pi", expiration=t + ttl)
         return Visa(
+            raw="v",
             issuer=ISSUER,
-            sub=sub,
-            type=RAS_DBGAP_VISA_TYPE,
+            subject=sub,
+            issued_at=t,
+            expires_at=t + 3600,
+            jti=None,
+            visa_type=RAS_DBGAP_VISA_TYPE,
             value="v",
             source="s",
             by=None,
             asserted=t,
-            issued_at=t,
-            expires_at=t + 3600,
-            recognized=True,
-            grants=(grant,),
+            dbgap_permissions=(grant,),
         )
 
     visas = tuple(visa(authorization, ttl) for authorization, ttl in grants)
-    return VerifiedPassport(ISSUER, sub, "txn-1", t, t + 3600, visas, (), token="t")
+    return Passport(
+        raw="t", issuer=ISSUER, subject=sub, issued_at=t, expires_at=t + 3600, jti=None, txn="txn-1", visas=visas
+    )
 
 
 def held(user) -> dict[str, float]:
@@ -711,15 +721,15 @@ def test_ended_memberships_without_data_are_deleted(manager, session, object_sto
 def test_fresh_until(manager, claims, expected):
     now = int(time.time())
     shifted = {name: now + offset for name, offset in claims.items()}
-    passport = manager._get_verifier().verify(make_passport(**shifted))
+    passport = verify_passport(make_passport(**shifted), manager._store.issuer_config)
     assert manager.fresh_until(passport) == now + expected
 
 
 def test_fresh_until_max_age_is_configurable(session, vault):
-    manager = PassportManager(config(ga4gh_passport_max_age=60), session, vault)  # type: ignore[arg-type]
-    manager._verifier = PassportVerifier([ISSUER], keys=StaticKeys())
+    store = static_store(vault)
+    manager = PassportManager(config(ga4gh_passport_max_age=60), session, vault, store=store)  # type: ignore[arg-type]
     now = int(time.time())
-    passport = manager._get_verifier().verify(make_passport(iat=now, exp=now + 43200))
+    passport = verify_passport(make_passport(iat=now, exp=now + 43200), store.issuer_config)
     assert manager.fresh_until(passport) == now + 60
 
 
@@ -745,11 +755,10 @@ def test_vault_required(session, alice):
         manager.connect_url(browser(session, alice), CALLBACK, "/")
 
 
-def test_trusted_issuers_list(session, vault):
-    manager = PassportManager(
-        config(ga4gh_passport_trusted_issuers=f" {ISSUER} , https://other.example.org"),  # type: ignore[arg-type]
-        session,
-        vault,
-    )
-    assert manager._broker is not None
-    assert manager._broker.trusted_issuers == (ISSUER, "https://other.example.org")
+def test_more_than_one_trusted_issuer_is_refused(session, vault):
+    with pytest.raises(exceptions.ConfigurationError, match="exactly one issuer"):
+        PassportManager(
+            config(ga4gh_passport_trusted_issuers=f" {ISSUER} , https://other.example.org"),  # type: ignore[arg-type]
+            session,
+            vault,
+        )
