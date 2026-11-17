@@ -121,6 +121,7 @@ def test_build_with_direct_ras_wires_login(tmp_path, monkeypatch):
     monkeypatch.setenv("RAS_CLIENT_SECRET", "s3cret")
     gate = build_passport_gate(_app(path))
     assert gate is not None and gate.direct_login is not None
+    assert isinstance(gate.store, VaultPassportStore)
     assert gate.direct_login.source.jwks is gate.store.issuer_config.jwks
 
 

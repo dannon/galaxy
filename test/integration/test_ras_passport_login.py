@@ -118,7 +118,9 @@ class TestRasPassportLoginIntegration(integration_util.IntegrationTestCase, inte
         assert body["expires_in"] == 600
         assert body["authorization_url"].startswith(DISCOVERY["authorization_endpoint"])
         user = get_user_by_email(self._app.model.session, email)
-        saved = json.loads(UserVaultWrapper(self._app.vault, user).read_secret(LOGIN_REQUEST_VAULT_KEY))
+        raw_saved = UserVaultWrapper(self._app.vault, user).read_secret(LOGIN_REQUEST_VAULT_KEY)
+        assert raw_saved is not None
+        saved = json.loads(raw_saved)
         self.ras.nonce = saved["nonce"]
         return parse_qs(urlsplit(body["authorization_url"]).query)["state"][0]
 

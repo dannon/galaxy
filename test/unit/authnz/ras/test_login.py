@@ -67,7 +67,9 @@ def _setup(http=None):
 
 
 def _saved(env) -> dict:
-    return json.loads(UserVaultWrapper(env.vault, env.user).read_secret(LOGIN_REQUEST_VAULT_KEY))
+    raw = UserVaultWrapper(env.vault, env.user).read_secret(LOGIN_REQUEST_VAULT_KEY)
+    assert raw is not None
+    return json.loads(raw)
 
 
 def _start(env) -> dict:
