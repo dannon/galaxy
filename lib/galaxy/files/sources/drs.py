@@ -13,6 +13,7 @@ from typing import (
 from pydantic import Field
 
 from galaxy.exceptions import (
+    AuthenticationRequired,
     FileSourceCredentialExpired,
     RasPassportRequiredException,
 )
@@ -29,9 +30,15 @@ from . import (
 from .util import fetch_drs_to_file
 
 if TYPE_CHECKING:
-    from galaxy.files import OptionalUserContext
+    from galaxy.files import (
+        GA4GHPassportCredential,
+        OptionalUserContext,
+    )
 
 log = logging.getLogger(__name__)
+
+CONNECT_HINT = "Connect your GA4GH Passport in User Preferences (/user/ga4gh_passport), then try again."
+RECONNECT_HINT = "Reconnect your GA4GH Passport in User Preferences (/user/ga4gh_passport), then try again."
 
 
 class DRSFileSourceTemplateConfiguration(BaseFileSourceTemplateConfiguration):
@@ -42,7 +49,11 @@ class DRSFileSourceTemplateConfiguration(BaseFileSourceTemplateConfiguration):
     # POST the user's NIH RAS passport to this source's access endpoint, and to the object
     # endpoint only after a plain GET of the object is refused. The download never gets it.
     ras_passport: bool = False
-    # Filled in when the source is serialized for a job, which has no user to look the passport up for.
+    # Send the user's GA4GH Passport to the DRS server (DRS 1.4 PassportAuth), as
+    # controlled-access repositories such as dbGaP require.
+    ga4gh_passport: bool | TemplateExpansion = False
+    # Filled in when the source is serialized for a job, which has no user to look the passport
+    # up for; not for configuration.
     passports: list[str] = Field(default=[], repr=False)
 
 
@@ -51,6 +62,7 @@ class DRSFileSourceConfiguration(BaseFileSourceConfiguration):
     force_http: bool = False
     http_headers: dict[str, str] = {}
     ras_passport: bool = False
+    ga4gh_passport: bool = False
     passports: list[str] = Field(default=[], repr=False)
 
 
@@ -74,14 +86,42 @@ class DRSFilesSource(BaseFilesSource[DRSFileSourceTemplateConfiguration, DRSFile
         self._url_regex = re.compile(self.template_config.url_regex)
 
     @property
+    def sends_ga4gh_passport(self) -> bool:
+        """Whether fetches from this source carry the user's GA4GH Passport.
+
+        A templated value counts as yes: data from it is then treated as
+        controlled, which errs on the safe side.
+        """
+        return bool(self.template_config.ga4gh_passport)
+
+    @property
     def _allowlist(self):
         return self._file_sources_config.fetch_url_allowlist
 
     def to_dict(self, for_serialization=False, user_context: "OptionalUserContext" = None) -> dict[str, Any]:
         rval = super().to_dict(for_serialization=for_serialization, user_context=user_context)
-        if for_serialization and self.template_config.ras_passport and user_context is not None:
+        if not for_serialization:
+            return rval
+        if self.template_config.ras_passport and user_context is not None:
             if passport := user_context.ras_passport:
                 rval["passports"] = [passport]
+        if rval.get("ga4gh_passport"):
+            credential = self._passport_credential(user_context)
+            if credential is not None:
+                # The job realizing this source has no user context: give it the Passport, and
+                # the time after which it must not send it.
+                rval["passports"] = [credential.passport]
+                expires_at = credential.fresh_until
+                if rval.get("auth_expires_at"):
+                    expires_at = min(expires_at, datetime.fromisoformat(rval["auth_expires_at"]))
+                rval["auth_expires_at"] = expires_at.isoformat()
+                log.info(
+                    "GA4GH Passport added to DRS file source %s for user %s txn=%s fresh_until=%s",
+                    self.id,
+                    user_context.username if user_context else None,
+                    credential.txn,
+                    credential.fresh_until.isoformat(),
+                )
         return rval
 
     def _compute_auth_expires_at(self, user_context: "OptionalUserContext") -> datetime | None:
@@ -111,16 +151,46 @@ class DRSFilesSource(BaseFilesSource[DRSFileSourceTemplateConfiguration, DRSFile
                 raise FileSourceCredentialExpired()
             else:
                 raise RasPassportRequiredException()
-        fetch_drs_to_file(
-            source_path,
-            native_path,
-            user_context=user_context,
-            fetch_url_allowlist=self._allowlist,
-            headers=headers or None,
-            force_http=config.force_http,
-            metadata_out=context.metadata_out,
-            passports=passports or None,
-        )
+        elif not passports and config.ga4gh_passport and (credential := self._passport_credential(user_context)):
+            # Realized in this process (not in a job): use the user's Passport directly.
+            self._check_passport_fresh(credential.fresh_until)
+            passports = [credential.passport]
+        try:
+            fetch_drs_to_file(
+                source_path,
+                native_path,
+                user_context=user_context,
+                fetch_url_allowlist=self._allowlist,
+                headers=headers or None,
+                force_http=config.force_http,
+                metadata_out=context.metadata_out,
+                passports=passports or None,
+            )
+        except AuthenticationRequired as e:
+            if not config.ga4gh_passport:
+                raise
+            message = str(e).rstrip()
+            if not message.endswith((".", "!", "?")):
+                message += "."
+            raise AuthenticationRequired(f"{message} {RECONNECT_HINT if passports else CONNECT_HINT}") from e
+
+    def _check_credentials_fresh(self) -> None:
+        if self._auth_expires_at and self.template_config.ga4gh_passport and self.template_config.passports:
+            self._check_passport_fresh(self._auth_expires_at)
+        super()._check_credentials_fresh()
+
+    @staticmethod
+    def _check_passport_fresh(fresh_until: datetime) -> None:
+        if datetime.now(timezone.utc) > fresh_until:
+            raise FileSourceCredentialExpired(
+                f"Your GA4GH Passport is too old to send to a data repository. {RECONNECT_HINT}"
+            )
+
+    @staticmethod
+    def _passport_credential(user_context: "OptionalUserContext") -> "GA4GHPassportCredential | None":
+        if user_context is None or user_context.anonymous:
+            return None
+        return user_context.ga4gh_passport
 
     def _write_from(
         self, target_path: str, native_path: str, context: FilesSourceRuntimeContext[DRSFileSourceConfiguration]

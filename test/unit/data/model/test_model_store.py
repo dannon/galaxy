@@ -25,7 +25,10 @@ from rocrate_validator import (
 from sqlalchemy import select
 
 from galaxy import model
-from galaxy.exceptions import MalformedContents
+from galaxy.exceptions import (
+    ItemAccessibilityException,
+    MalformedContents,
+)
 from galaxy.model import store
 from galaxy.model.metadata import MetadataTempFile
 from galaxy.model.scoped_session import galaxy_scoped_session as scoped_session
@@ -2226,3 +2229,43 @@ def import_archive(archive_path, app, user, import_options=None):
     shutil.rmtree(dest_parent)
 
     return new_history
+
+
+def _make_controlled(app, hda):
+    """Give ``hda`` the permissions of data fetched with a GA4GH Passport."""
+    grant = model.Role(name="ga4gh_grant:1:phs000001.c1", type=model.Role.types.GA4GH_GRANT)
+    manage = model.Role(name="ga4gh_controlled_data", type=model.Role.types.GA4GH_GRANT)
+    app.add_and_commit(grant, manage)
+    agent = app.security_agent
+    actions = agent.permitted_actions
+    permissions = {actions.DATASET_ACCESS: [grant], actions.DATASET_MANAGE_PERMISSIONS: [manage]}
+    assert not agent.set_all_dataset_permissions(hda.dataset, permissions, new=True)
+    assert hda.dataset.is_controlled
+
+
+@pytest.mark.parametrize("export_files", [None, "copy"], ids=["metadata only", "with files"])
+def test_export_refuses_controlled_data(tmp_path, export_files):
+    app = _mock_app()
+    _, h, d1, _, _ = _setup_simple_cat_job(app)
+    _make_controlled(app, d1)
+    export_store = store.get_export_store_factory(app, "tar.gz", export_files=export_files)(str(tmp_path / "h.tgz"))
+    with pytest.raises(ItemAccessibilityException, match="controlled-access data"):
+        with export_store:
+            export_store.export_history(h)
+
+
+def test_export_without_controlled_data_works(tmp_path):
+    app = _mock_app()
+    _, h, _, _, _ = _setup_simple_cat_job(app)
+    with store.get_export_store_factory(app, "tar.gz", export_files="copy")(str(tmp_path / "h.tgz")) as export_store:
+        export_store.export_history(h)
+    assert (tmp_path / "h.tgz").exists()
+
+
+def test_internal_export_store_keeps_controlled_data(tmp_path):
+    """Job metadata goes through export stores too; those must keep working on controlled data."""
+    app = _mock_app()
+    _, h, d1, _, _ = _setup_simple_cat_job(app)
+    _make_controlled(app, d1)
+    with store.DirectoryModelExportStore(str(tmp_path / "meta"), app=app) as export_store:
+        export_store.export_history(h)

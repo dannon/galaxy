@@ -267,6 +267,15 @@
 #  doc: DRS downloads that send the user's NIH RAS passport.
 
 - type: drs
+  label: Controlled-access DRS filesource
+  id: drscontrolled
+  url_regex: "^drs://drs.controlled-example.org/"
+  # Send the user's GA4GH Passport (DRS PassportAuth), e.g. for dbGaP data through NIH RAS.
+  # Needs the ga4gh_passport_* options in galaxy.yml; users connect at /ga4gh_passport/connect.
+  ga4gh_passport: true
+  doc: Controlled-access data; you need a GA4GH Passport granting access to the study.
+
+- type: drs
   label: Stock DRS filesource
   id: drsstock
   doc: Make sure to define this generic drs file source if you have defined any other drs file sources, or stock drs download capability will be disabled.

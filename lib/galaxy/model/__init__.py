@@ -1163,7 +1163,7 @@ class User(Base, Dictifiable, RepresentById):
             # skip optimizations...
             user = self
 
-        roles = [ura.role for ura in user.roles]
+        roles = [ura.role for ura in user.roles if ura.is_active]
         for group in [uga.group for uga in user.groups]:
             for role in [gra.role for gra in group.roles]:
                 if role not in roles:
@@ -1172,7 +1172,7 @@ class User(Base, Dictifiable, RepresentById):
 
     def all_roles_exploiting_cache(self):
         """ """
-        roles = [ura.role for ura in self.roles]
+        roles = [ura.role for ura in self.roles if ura.is_active]
         for group in [uga.group for uga in self.groups]:
             for role in [gra.role for gra in group.roles]:
                 if role not in roles:
@@ -4767,14 +4767,22 @@ class UserRoleAssociation(Base, RepresentById):
     role_id: Mapped[int] = mapped_column(ForeignKey("role.id"), index=True)
     create_time: Mapped[datetime] = mapped_column(default=now, nullable=True)
     update_time: Mapped[datetime] = mapped_column(default=now, onupdate=now, nullable=True)
+    # The user holds the role until then (UTC); None: no expiration.
+    expiration_time: Mapped[datetime | None] = mapped_column(index=True, nullable=True)
 
     user: Mapped["User"] = relationship(back_populates="roles")
     role: Mapped["Role"] = relationship(back_populates="users")
 
-    def __init__(self, user, role):
+    def __init__(self, user, role, expiration_time: datetime | None = None):
         add_object_to_object_session(self, user)
         self.user = user
         self.role = role
+        self.expiration_time = expiration_time
+
+    @property
+    def is_active(self) -> bool:
+        """False once the membership has expired."""
+        return self.expiration_time is None or self.expiration_time > now()
 
 
 class GroupRoleAssociation(Base, RepresentById):
@@ -4821,6 +4829,8 @@ class Role(Base, Dictifiable, RepresentById):
         SHARING = "sharing"
         USER_TOOL_CREATE = "user_tool_create"
         USER_TOOL_EXECUTE = "user_tool_execute"
+        # One per user and data access grant from a GA4GH Passport; managed by Galaxy.
+        GA4GH_GRANT = "ga4gh_grant"
 
     @staticmethod
     def default_name(role_type):
@@ -5275,6 +5285,19 @@ class Dataset(Base, StorableObject, Serializable):
     def ensure_shareable(self):
         if not self.shareable:
             raise galaxy.exceptions.MessageException(CANNOT_SHARE_PRIVATE_DATASET_MESSAGE)
+
+    @property
+    def is_controlled(self) -> bool:
+        """Controlled access: managed by a role Galaxy assigns itself (``ga4gh_grant``).
+
+        Data fetched with a GA4GH Passport and everything derived from it. No
+        user holds or can be given its manage role, admins get no override for
+        it, and it doesn't leave Galaxy through exports or enter libraries.
+        """
+        manage = self.permitted_actions.DATASET_MANAGE_PERMISSIONS.action
+        return any(
+            p.action == manage and p.role is not None and p.role.type == Role.types.GA4GH_GRANT for p in self.actions
+        )
 
     def get_file_name(self, sync_cache: bool = True, auth: ObjectStoreAuth | None = None) -> str:
         if self.purged:
@@ -6801,6 +6824,8 @@ class HistoryDatasetAssociation(DatasetInstance, HasTags, UsesAnnotations, HasNa
         assert self.dataset is not None
         if not self.dataset.shareable:
             raise Exception(CANNOT_SHARE_PRIVATE_DATASET_MESSAGE)
+        if self.dataset.is_controlled:
+            raise galaxy.exceptions.ItemAccessibilityException("Controlled-access data can't be added to a library.")
 
         if replace_dataset:
             # The replace_dataset param ( when not None ) refers to a LibraryDataset that
@@ -12357,6 +12382,30 @@ class UserAuthnzToken(Base, UserMixin, RepresentById):
         cls.sa_session.add(instance)
         cls.sa_session.commit()
         return instance
+
+
+class UserGA4GHIdentity(Base, RepresentById):
+    """The GA4GH Passport identity (issuer + sub) bound to a Galaxy user.
+
+    Recorded on a user's first Passport connect. Later connects must present the
+    same identity, and an identity can belong to only one Galaxy user.
+    """
+
+    __tablename__ = "user_ga4gh_identity"
+    __table_args__ = (
+        UniqueConstraint("issuer", "sub", name="user_ga4gh_identity_issuer_sub_key"),
+        UniqueConstraint("user_id", "issuer", name="user_ga4gh_identity_user_id_issuer_key"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    # No separate index: the (user_id, issuer) unique constraint's index covers user_id lookups.
+    user_id: Mapped[int] = mapped_column(ForeignKey("galaxy_user.id"))
+    issuer: Mapped[str] = mapped_column(Text)
+    sub: Mapped[str] = mapped_column(Text)
+    preferred_username: Mapped[str | None] = mapped_column(Text)
+    create_time: Mapped[datetime] = mapped_column(default=now)
+    update_time: Mapped[datetime] = mapped_column(default=now, onupdate=now)
+    user: Mapped["User"] = relationship()
 
 
 class Page(Base, HasTags, RepresentById, UsesCreateAndUpdateTime):

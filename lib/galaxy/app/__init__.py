@@ -62,6 +62,7 @@ from galaxy.managers.file_source_instances import (
     UserDefinedFileSourcesImpl,
 )
 from galaxy.managers.folders import FolderManager
+from galaxy.managers.ga4gh_passports import PassportManager
 from galaxy.managers.hdas import HDAManager
 from galaxy.managers.histories import HistoryManager
 from galaxy.managers.history_audit_monitor import HistoryAuditMonitor
@@ -824,6 +825,8 @@ class GalaxyManagerApplication(MinimalManagerApp, MinimalGalaxyApplication):
         tag_handler = GalaxyTagHandler(self.model.context)
         self.tag_handler = self._register_singleton(GalaxyTagHandler, tag_handler)
         self.user_manager = self._register_singleton(UserManager)
+        # One instance, so its Passport verifier's signing key cache is shared.
+        self._register_singleton(PassportManager)
         self._register_singleton(GalaxySessionManager)
         self.hda_manager = self._register_singleton(HDAManager)
         self.history_manager = self._register_singleton(HistoryManager)
@@ -1205,6 +1208,19 @@ class UniverseApplication(StructuredApp, GalaxyManagerApplication, InstallationT
         if self.is_webapp and (self.config.enable_notification_system or self.config.smtp_server):
             run_notification_monitor = self._register_singleton(RunNotificationMonitor)
             self.database_heartbeat.add_change_callback(run_notification_monitor.on_role_change)
+
+        if not self.config.enable_celery_tasks and self.config.ga4gh_controlled_data_purge_interval > 0:
+            # Every web process runs the timer; only the elected config watcher purges.
+            self.controlled_data_purge_task = IntervalTask(
+                func=self._purge_ended_controlled_data,
+                name="ControlledDataPurgeTask",
+                interval=self.config.ga4gh_controlled_data_purge_interval,
+                immediate_start=False,
+                time_execution=True,
+            )
+            self.application_stack.register_postfork_function(self.controlled_data_purge_task.start)
+            self.haltables.append(("ControlledDataPurgeTask", self.controlled_data_purge_task.shutdown))
+
         self.application_stack.register_postfork_function(self.database_heartbeat.start)
 
         # History audit monitor for SSE-based history updates. The monitor only
@@ -1279,6 +1295,18 @@ class UniverseApplication(StructuredApp, GalaxyManagerApplication, InstallationT
         # this not-yet-elected process, so the new watcher queues its own.
         if is_config_watcher:
             send_local_control_task(self, "rebuild_toolbox_search_index")
+
+    def _purge_ended_controlled_data(self) -> None:
+        if not self.database_heartbeat.is_config_watcher:
+            return
+        try:
+            purged = self[PassportManager].purge_ended_controlled_data(self.hda_manager)
+            if purged:
+                log.info("Purged %s controlled-access datasets after the grace period", purged)
+        except Exception:
+            log.exception("Purging controlled-access data failed")
+        finally:
+            self.model.session.remove()
 
     @property
     def writes_tool_search_index(self) -> bool:

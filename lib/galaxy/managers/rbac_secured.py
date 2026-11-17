@@ -178,15 +178,16 @@ class ManageDatasetRBACPermission(DatasetRBACPermission):
 
     # ---- interface
     def is_permitted(self, dataset, user, trans=None):
-        if trans and trans.user_is_admin:
+        # admins are permitted, except on controlled data
+        admin_override = not dataset.is_controlled
+        if admin_override and trans and trans.user_is_admin:
             return True
 
         # anonymous users cannot manage permissions on datasets
         if self.user_manager.is_anonymous(user):
             return False
-        # admin is always permitted
         # TODO: could probably move this into RBACPermission and call that first
-        if self.user_manager.is_admin(user):
+        if admin_override and self.user_manager.is_admin(user):
             return True
         for role in user.all_roles():
             if self._role_is_permitted(dataset, role):
@@ -237,7 +238,9 @@ class AccessDatasetRBACPermission(DatasetRBACPermission):
 
     # ---- interface
     def is_permitted(self, dataset, user, trans=None):
-        if trans and trans.user_is_admin:
+        # admins are permitted, except on controlled data
+        admin_override = not dataset.is_controlled
+        if admin_override and trans and trans.user_is_admin:
             return True
 
         current_roles = self._roles(dataset)
@@ -245,7 +248,7 @@ class AccessDatasetRBACPermission(DatasetRBACPermission):
         #   anonymous access to public datasets
         return (
             self._is_public_based_on_roles(current_roles)
-            or self.user_manager.is_admin(user)  # admin is always permitted
+            or (admin_override and self.user_manager.is_admin(user))
             or self._user_has_all_roles(user, current_roles)
         )
 

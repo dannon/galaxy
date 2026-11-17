@@ -251,7 +251,7 @@ class TestRasPassportDrsFetchIntegration(integration_util.IntegrationTestCase, C
             details = self.populator.get_history_dataset_details(history_id, dataset=output, assert_ok=False)
             job_details = self.populator.get_job_details(job["id"], full=True).json()
         assert details["state"] == "error"
-        assert "did not accept the NIH RAS passport" in details["misc_info"]
+        assert "did not accept the GA4GH Passport" in details["misc_info"]
         assert self.drs_server.requests == [
             ("GET", OBJECT_PATH, None),
             ("POST", ACCESS_PATH, [passport]),

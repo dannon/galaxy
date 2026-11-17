@@ -7,6 +7,7 @@ from galaxy.exceptions import (
     RequestParameterInvalidException,
     RequestParameterMissingException,
 )
+from galaxy.files.sources.drs import DRSFilesSource
 from galaxy.job_execution.output_collect import copy_collection_metadata_from_target_dict
 from galaxy.managers.context import ProvidesHistoryContext
 from galaxy.model import (
@@ -20,7 +21,10 @@ from galaxy.model.dataset_collections.structure import UninitializedTree
 from galaxy.schema.credentials import CredentialsContext
 from galaxy.tools._types import ToolStateJobInstancePopulatedT
 from galaxy.tools.actions import upload_common
-from galaxy.tools.data_fetch_utils import iter_fetch_request_urls
+from galaxy.tools.data_fetch_utils import (
+    iter_fetch_request_urls,
+    iter_fetch_urls,
+)
 from galaxy.tools.execute import (
     DatasetCollectionElementsSliceT,
     DEFAULT_DATASET_COLLECTION_ELEMENTS,
@@ -173,6 +177,7 @@ class FetchUploadToolAction(BaseUploadToolAction):
                     replace_file_srcs(value)
 
         replace_file_srcs(request)
+        controlled_permissions = _ga4gh_passport_permissions(trans, request)
 
         outputs: list[HistoryDatasetAssociation | HistoryDatasetCollectionAssociation] = []
         for target in request.get("targets", []):
@@ -183,7 +188,7 @@ class FetchUploadToolAction(BaseUploadToolAction):
                 if target.get("elements_from"):
                     # Dynamic collection required I think.
                     continue
-                _precreate_fetched_hdas(trans, history, target, outputs)
+                _precreate_fetched_hdas(trans, history, target, outputs, controlled_permissions)
 
             if destination_type == "hdca":
                 _precreate_fetched_collection_instance(trans, history, target, outputs)
@@ -200,7 +205,62 @@ class FetchUploadToolAction(BaseUploadToolAction):
         )
 
 
-def _precreate_fetched_hdas(trans: ProvidesHistoryContext, history, target, outputs):
+def _sends_ga4gh_passport(trans: ProvidesHistoryContext, url: str) -> bool:
+    file_source = trans.app.file_sources.find_best_match(url)
+    return isinstance(file_source, DRSFilesSource) and file_source.sends_ga4gh_passport
+
+
+def _ga4gh_passport_permissions(trans: ProvidesHistoryContext, request):
+    """Dataset permissions for data this request fetches with the user's GA4GH Passport.
+
+    With a Passport, the data may be controlled access (Galaxy can't tell), so
+    it is restricted: only the user, while they hold its grants
+    (access needs all of the user's grant roles), and no one can change that
+    (manage: a role no user holds). The datasets get these permissions when
+    they are created, so they are never visible to anyone else. That works
+    only for datasets created now, so Passport URIs are refused anywhere
+    else: collections, ``elements_from``, libraries, deferred datasets.
+    Returns None if the request fetches no such data, or the user has no
+    Passport (nothing is sent, so only public data can come back).
+    """
+    passport_urls: list[str] = []
+    not_precreated: list[str] = []
+    for target in request.get("targets", []):
+        urls = [url for url in iter_fetch_urls(target) if _sends_ga4gh_passport(trans, url)]
+        if not urls:
+            continue
+        passport_urls.extend(urls)
+        # Datasets created now: plain elements of an "hdas" target (all Passport URIs must be among them).
+        precreated = [
+            item
+            for item in target.get("elements", [])
+            if item.get("src") == "url"
+            and _sends_ga4gh_passport(trans, item["url"])
+            and not item.get("deferred")
+            and not item.get("elements")
+        ]
+        destination_type = target.get("destination", {}).get("type")
+        if destination_type != "hdas" or target.get("elements_from") or len(precreated) != len(urls):
+            not_precreated.extend(urls)
+    if not passport_urls:
+        return None
+    from galaxy.managers.ga4gh_passports import PassportManager
+
+    roles = trans.app[PassportManager].fetch_roles(trans.user)
+    if roles is None:
+        return None  # no Passport is sent, so these sources serve only public data
+    if not_precreated:
+        raise RequestParameterInvalidException(
+            f"{not_precreated[0]} is fetched with your GA4GH Passport, so it may be controlled-access data; it can "
+            "only be fetched as an individual dataset into a history (not into a collection or library, and not "
+            "deferred)."
+        )
+    grant_roles, manage_role = roles
+    actions = trans.app.security_agent.permitted_actions
+    return {actions.DATASET_ACCESS: grant_roles, actions.DATASET_MANAGE_PERMISSIONS: [manage_role]}
+
+
+def _precreate_fetched_hdas(trans: ProvidesHistoryContext, history, target, outputs, controlled_permissions=None):
     for item in target.get("elements", []):
         name = item.get("name", None)
         if name is None:
@@ -218,9 +278,32 @@ def _precreate_fetched_hdas(trans: ProvidesHistoryContext, history, target, outp
         dbkey = item.get("dbkey", "?")
         uploaded_dataset = Bunch(type="file", name=name, file_type=file_type, dbkey=dbkey)
         tag_list = item.get("tags", [])
-        data = upload_common.new_upload(
-            trans, "", uploaded_dataset, library_bunch=None, history=history, tag_list=tag_list
+        controlled = (
+            controlled_permissions is not None
+            and item.get("src") == "url"
+            and _sends_ga4gh_passport(trans, item["url"])
         )
+        data = upload_common.new_upload(
+            trans,
+            "",
+            uploaded_dataset,
+            library_bunch=None,
+            history=history,
+            tag_list=tag_list,
+            permissions=controlled_permissions if controlled else None,
+        )
+        if controlled:
+            assert controlled_permissions is not None  # for mypy
+            log.info(
+                "GA4GH Passport fetch: user_id=%s dataset_id=%s uri=%s access_roles=%s",
+                trans.user and trans.user.id,
+                data.dataset_id,
+                item["url"],
+                ",".join(
+                    role.name
+                    for role in controlled_permissions[trans.app.security_agent.permitted_actions.DATASET_ACCESS]
+                ),
+            )
         outputs.append(data)
         item["object_id"] = data.id
 

@@ -1,0 +1,4 @@
+- type: drs
+  id: test_passport
+  doc: Test controlled-access DRS repository (GA4GH Passport)
+  ga4gh_passport: true

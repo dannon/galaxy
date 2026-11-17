@@ -202,4 +202,20 @@ describe("ContentItem", () => {
         await button.trigger("keypress", { key: "Enter" });
         expect(wrapper.emitted("toggleHighlights")).toBeUndefined();
     });
+
+    it("explains why a controlled dataset is inaccessible and links to the Passport page", async () => {
+        const message = "Your access to this controlled-access data (phs000001.c1) ended on 2026-11-17 04:21 UTC.";
+        await wrapper.setProps({ item: { ...item, accessible: false, inaccessible_message: message } });
+        const body = wrapper.find(".inaccessible-message");
+        expect(body.text()).toContain(message);
+        expect(body.find("a").attributes("href")).toBe("/user/ga4gh_passport");
+        expect(wrapper.findComponent(ContentOptions).props("isAccessible")).toBe(false);
+    });
+
+    it("keeps the generic text for other inaccessible datasets", async () => {
+        await wrapper.setProps({ item: { ...item, accessible: false } });
+        const body = wrapper.find(".inaccessible-message");
+        expect(body.text()).toBe("You are not allowed to access this dataset");
+        expect(body.find("a").exists()).toBe(false);
+    });
 });

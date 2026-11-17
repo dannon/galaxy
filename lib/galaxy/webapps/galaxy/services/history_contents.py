@@ -525,6 +525,7 @@ class HistoriesContentsService(ServiceBase, ServesExportStores, ConsumesModelSto
             upstream_mod_zip=trans.app.config.upstream_mod_zip,
             upstream_gzip=trans.app.config.upstream_gzip,
             user=trans.user,
+            can_access=lambda hda: self.hda_manager.is_accessible(hda, trans.user, trans=trans),
         )
         return archive
 

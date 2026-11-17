@@ -38,6 +38,7 @@ except Exception:
 
 from galaxy.config import GalaxyAppConfiguration
 from galaxy.exceptions import (
+    ItemAccessibilityException,
     MalformedContents,
     ObjectNotFound,
     ServerNotConfiguredForRequest,
@@ -341,6 +342,7 @@ class GalaxyInternalMarkdownDirectiveHandler(metaclass=abc.ABCMeta):
             elif container == "history_dataset_collection_display":
                 if encoded_id is not None and object_type == "history_dataset_collection_id":
                     hdca = collection_manager.get_dataset_collection_instance(trans, "history", encoded_id)
+                    _check_collection_datasets_accessible(trans, hdca)
                     rval = self.handle_dataset_collection_display(line, hdca)
             elif container == "tool_stdout":
                 job = _job_for_job_directive(object_type, object_id)
@@ -1524,6 +1526,23 @@ def _workflow_license_as_simple_markdown(stored_workflow):
         except ObjectNotFound:
             markdown = f"Unknown license ({license_id})"
     return markdown
+
+
+def _check_collection_datasets_accessible(trans, hdca) -> None:
+    """Embedding a collection embeds its datasets: the viewer must be able to read each one.
+
+    Access to the collection's history doesn't imply that (e.g. controlled-access data in a
+    published history).
+    """
+    if hdca.collection is None:
+        return
+    security_agent = trans.app.security_agent
+    roles = trans.get_current_user_roles()
+    for hda in hdca.collection.dataset_instances:
+        if security_agent.admin_override_allowed(trans.user_is_admin, hda.dataset):
+            continue
+        if not security_agent.can_access_dataset(roles, hda.dataset):
+            raise ItemAccessibilityException("You don't have access to all datasets of this collection.")
 
 
 def _check_object(object_id: int | None, line: str) -> None:

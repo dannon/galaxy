@@ -3,8 +3,16 @@ Manager and Serializer for Roles.
 """
 
 import logging
+from typing import (
+    Any,
+    cast,
+)
 
-from sqlalchemy import select
+from sqlalchemy import (
+    delete,
+    select,
+)
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.exc import (
     MultipleResultsFound,
     NoResultFound,
@@ -26,6 +34,7 @@ from galaxy.model.db.role import (
     get_role_groups,
     get_role_users,
 )
+from galaxy.model.orm.now import now
 from galaxy.schema.schema import (
     RoleDefinitionModel,
     RoleUpdatePayload,
@@ -45,6 +54,26 @@ class RoleManager(base.ModelManager[model.Role]):
 
     user_assoc = model.UserRoleAssociation
     group_assoc = model.GroupRoleAssociation
+
+    def delete_expired_user_role_associations(self) -> int:
+        """Delete role memberships that have expired; returns how many.
+
+        Expired memberships already grant nothing (``User.all_roles`` skips
+        them); this only removes the rows. GA4GH grant memberships are kept:
+        their expiration records when access to controlled data ended, which
+        decides when that data is purged (``PassportManager``).
+        """
+        grant_roles = select(model.Role.id).where(model.Role.type == model.Role.types.GA4GH_GRANT)
+        stmt = (
+            delete(model.UserRoleAssociation)
+            .where(model.UserRoleAssociation.expiration_time <= now())
+            .where(model.UserRoleAssociation.role_id.not_in(grant_roles))
+        )
+        result = cast(
+            "CursorResult[Any]", self.session().execute(stmt, execution_options={"synchronize_session": False})
+        )
+        self.session().commit()
+        return result.rowcount
 
     def get(self, trans: ProvidesUserContext, role_id: int) -> model.Role:
         """
@@ -118,6 +147,7 @@ class RoleManager(base.ModelManager[model.Role]):
         return role
 
     def update_role(self, trans: ProvidesUserContext, role: model.Role, payload: RoleUpdatePayload) -> model.Role:
+        _ensure_not_galaxy_assigned(role)
         if payload.name is not None:
             if not payload.name:
                 raise RequestParameterInvalidException("Enter a valid role name.")
@@ -150,6 +180,7 @@ class RoleManager(base.ModelManager[model.Role]):
             raise Conflict(f"A role with that name already exists [{name}]")
 
     def delete(self, trans: ProvidesUserContext, role: model.Role) -> model.Role:
+        _ensure_not_galaxy_assigned(role)
         role.deleted = True
         trans.sa_session.add(role)
         trans.sa_session.commit()
@@ -163,6 +194,7 @@ class RoleManager(base.ModelManager[model.Role]):
         # - DefaultHistoryPermissions where role_id == Role.id
         # - GroupRoleAssociations where role_id == Role.id
         # - DatasetPermissionss where role_id == Role.id
+        _ensure_not_galaxy_assigned(role)
         sa_session = trans.sa_session
         if not role.deleted:
             raise RequestParameterInvalidException(f"Role '{role.name}' has not been deleted, so it cannot be purged.")
@@ -192,6 +224,7 @@ class RoleManager(base.ModelManager[model.Role]):
         return role
 
     def undelete(self, trans: ProvidesUserContext, role: model.Role) -> model.Role:
+        _ensure_not_galaxy_assigned(role)
         if not role.deleted:
             raise RequestParameterInvalidException(
                 f"Role '{role.name}' has not been deleted, so it cannot be undeleted."
@@ -200,3 +233,16 @@ class RoleManager(base.ModelManager[model.Role]):
         trans.sa_session.add(role)
         trans.sa_session.commit()
         return role
+
+
+def _ensure_not_galaxy_assigned(role: model.Role) -> None:
+    """Refuse changes to roles Galaxy assigns itself (GA4GH Passport grants).
+
+    Editing their members would give or take data access by hand (and drop
+    membership expirations); deleting or purging them would make the data
+    they protect public.
+    """
+    if role.type == model.Role.types.GA4GH_GRANT:
+        raise RequestParameterInvalidException(
+            f"Role '{role.name}' is assigned by Galaxy from GA4GH Passport grants and can't be changed or deleted."
+        )

@@ -932,6 +932,12 @@ class HDAInaccessible(HDACommon):
 
     accessible: Literal[False]
     state: DatasetStateField
+    inaccessible_message: str | None = Field(
+        None,
+        title="Inaccessible message",
+        description="Why the user can't access it and how to restore access, when Galaxy knows "
+        "(e.g. controlled-access data whose grant ended).",
+    )
 
 
 HdaLddaField = Field(

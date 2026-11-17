@@ -54,6 +54,7 @@ from typing_extensions import Protocol
 from galaxy import model
 from galaxy.datatypes.registry import Registry
 from galaxy.exceptions import (
+    ItemAccessibilityException,
     MalformedContents,
     ObjectNotFound,
     RequestParameterInvalidException,
@@ -2197,6 +2198,7 @@ class DirectoryModelExportStore(ModelExportStore):
         user_context=None,
         ignore_errors: bool | None = False,
         include_datasets_mapping: bool = False,
+        refuse_controlled_data: bool = False,
     ) -> None:
         """
         :param export_directory: path to export directory. Will be created if it does not exist.
@@ -2207,6 +2209,8 @@ class DirectoryModelExportStore(ModelExportStore):
                              will not be serialized.
         :param serialize_jobs: Include job data in model export. Not needed for set_metadata script.
         :param include_datasets_mapping: Write a human-readable ``datasets_mapping.tsv`` for user-facing exports.
+        :param refuse_controlled_data: Refuse to export controlled-access data (``Dataset.is_controlled``),
+            with or without its files: for exports that leave Galaxy, not for job metadata.
         """
         if not os.path.exists(export_directory):
             os.makedirs(export_directory)
@@ -2238,6 +2242,7 @@ class DirectoryModelExportStore(ModelExportStore):
         )
         self.export_files = export_files
         self.include_datasets_mapping = include_datasets_mapping
+        self.refuse_controlled_data = refuse_controlled_data
         self.included_datasets: dict[model.DatasetInstance, tuple[model.DatasetInstance, bool]] = {}
         self.dataset_implicit_conversions: dict[model.DatasetInstance, model.ImplicitlyConvertedDatasetAssociation] = {}
         self.included_collections: dict[
@@ -2679,7 +2684,18 @@ class DirectoryModelExportStore(ModelExportStore):
                 f"Cannot export history dataset [{getattr(dataset, 'hid', '')}: {dataset.name}] with id {self.exported_key(dataset)}"
             )
 
+    def _check_no_controlled_data(self) -> None:
+        """Controlled-access data must not leave Galaxy, not even as metadata (its peek holds content)."""
+        for dataset, _ in self.included_datasets.values():
+            if dataset.dataset is not None and dataset.dataset.is_controlled:
+                raise ItemAccessibilityException(
+                    f"This export includes controlled-access data ({dataset.name}), which can't leave Galaxy "
+                    "through an export."
+                )
+
     def _finalize(self) -> None:
+        if self.refuse_controlled_data:
+            self._check_no_controlled_data()
         export_directory = self.export_directory
 
         serialized_datasets: list[tuple[model.DatasetInstance, JsonDictT]] = []
@@ -3307,6 +3323,7 @@ def get_export_store_factory(
         "user_context": user_context,
         "ignore_errors": ignore_errors,
         "include_datasets_mapping": True,
+        "refuse_controlled_data": True,
     }
     if download_format in ["tar.gz", "tgz"]:
         export_store_class = TarModelExportStore

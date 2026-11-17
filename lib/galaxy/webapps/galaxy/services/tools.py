@@ -546,9 +546,9 @@ class ToolsService(ServiceBase):
             ldda = trans.sa_session.get(LibraryDatasetDatasetAssociation, self.decode_id(v["id"]))
             if not ldda:
                 raise exceptions.ObjectNotFound("Could not find library dataset dataset association.")
-            if trans.user_is_admin or trans.app.security_agent.can_access_dataset(
-                trans.get_current_user_roles(), ldda.dataset
-            ):
+            if trans.app.security_agent.admin_override_allowed(
+                trans.user_is_admin, ldda.dataset
+            ) or trans.app.security_agent.can_access_dataset(trans.get_current_user_roles(), ldda.dataset):
                 return ldda.to_history_dataset_association(target_history, add_to_history=True)
 
     #

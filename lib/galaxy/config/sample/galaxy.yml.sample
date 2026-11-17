@@ -2586,6 +2586,65 @@ galaxy:
   # provide more fine-grained scopes.
   #oidc_scope_prefix: https://galaxyproject.org/api
 
+  # Authorization endpoint of the GA4GH Passport broker that connects
+  # Galaxy users to their Passport (OAuth 2.0 authorization code flow
+  # with PKCE; Galaxy is the broker's client). Setting it enables
+  # Passport connections at ``/ga4gh_passport/connect``; the broker must
+  # accept ``<galaxy_url>/ga4gh_passport/callback`` as the redirect URI.
+  # The broker's token endpoint returns the Passport (a JWT) as
+  # ``passport``. Passports are stored in the vault, which must be
+  # configured (see ``vault_config_file``).
+  #ga4gh_passport_broker_authorize_url: null
+
+  # Token endpoint of the GA4GH Passport broker, where Galaxy exchanges
+  # the authorization code for the user's Passport.
+  #ga4gh_passport_broker_token_url: null
+
+  # Galaxy's client id at the GA4GH Passport broker.
+  #ga4gh_passport_broker_client_id: null
+
+  # Galaxy's client secret at the GA4GH Passport broker.
+  #ga4gh_passport_broker_client_secret: null
+
+  # Comma-separated list of trusted Passport and Visa issuers, e.g.
+  # ``https://stsstg.nih.gov``. Galaxy accepts only Passports signed by
+  # one of them, ignores Visas from any other issuer, and takes signing
+  # keys only from these issuers' published key sets (OpenID Connect
+  # discovery).
+  #ga4gh_passport_trusted_issuers: null
+
+  # How long, in seconds, after a stored GA4GH Passport (and the oldest
+  # of its Visas) was issued Galaxy still sends it to data services such
+  # as DRS servers. Visas are access tokens, which the GA4GH AAI profile
+  # treats as stale an hour after issue unless the service re-validates
+  # them, and NIH RAS expects clients to re-check them at least hourly.
+  # After this, the user reconnects to get a fresh Passport (usually
+  # without logging in again).
+  #ga4gh_passport_max_age: 3600
+
+  # When a user's access to controlled-access data fetched with their
+  # GA4GH Passport ends (the grant expired or was revoked, or
+  # ga4gh_grant_max_membership passed), the data, and data derived from
+  # it, stays in Galaxy but unreadable for this many seconds (default 30
+  # days). Reconnecting a Passport that carries the grant within this
+  # time restores access; after it, the data is purged.
+  #ga4gh_controlled_data_grace_period: 2592000
+
+  # The interval in seconds between purges of controlled-access data
+  # whose ga4gh_controlled_data_grace_period has passed. Runs in a
+  # Celery task, or, without Celery, in one Galaxy web process; 0
+  # disables it.
+  #ga4gh_controlled_data_purge_interval: 3600
+
+  # Each data access grant in a user's GA4GH Passport (e.g. a dbGaP
+  # study and consent group) becomes a Galaxy role that only this user
+  # holds, and data fetched with the Passport is restricted to these
+  # roles. The user holds a grant role until the grant expires, but at
+  # most this many seconds (default 30 days) after their last Passport
+  # connect; connecting again renews it. A grant missing from a newly
+  # connected Passport ends the membership at once.
+  #ga4gh_grant_max_membership: 2592000
+
   # XML config file that allows the use of different authentication
   # providers (e.g. LDAP) instead or in addition to local authentication
   # (.sample is used if default does not exist).
@@ -3578,6 +3637,11 @@ galaxy:
   # MCP endpoint will be accessible at this path relative to the Galaxy
   # base URL.
   #mcp_server_path: /api/mcp
+
+  # The interval in seconds between deletions of expired role
+  # memberships from the database. Expired memberships grant nothing
+  # even before they are deleted. Runs in a Celery task; 0 disables it.
+  #role_membership_cleanup_interval: 3600
 
   # The interval in seconds between attempts to delete all expired
   # notifications from the database (every 24 hours by default). Runs in

@@ -11,6 +11,7 @@ import {
     faKey,
     faLock,
     faPalette,
+    faPassport,
     faPerson,
     faRadiation,
     faSignOut,
@@ -238,6 +239,18 @@ onMounted(async () => {
                     :title="localize('Manage Third-Party Identities')"
                     :description="localize('Connect or disconnect access to your third-party identities.')"
                     to="/user/external_ids" />
+
+                <UserPreferencesElement
+                    v-if="isConfigLoaded && config.ga4gh_passport_enabled"
+                    id="manage-ga4gh-passport"
+                    :icon="faPassport"
+                    :title="localize('Manage GA4GH Passport')"
+                    :description="
+                        localize(
+                            'Connect your GA4GH Passport (e.g. NIH RAS) to fetch controlled-access data, and see your data access grants.',
+                        )
+                    "
+                    to="/user/ga4gh_passport" />
 
                 <UserPreferencesElement
                     id="edit-preferences-custom-builds"
