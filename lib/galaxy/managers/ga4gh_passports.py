@@ -308,16 +308,18 @@ class PassportManager:
         store = self._require_store()
         try:
             passport = verify_passport(token, store.issuer_config)
-        except VerificationUnavailableError as e:
-            log.warning("GA4GH passport refused: %s user_id=%s", e, user.id)
-            raise PassportRefused("issuer_unavailable") from e
         except PassportVerificationError as e:
             log.warning("GA4GH passport refused: %s user_id=%s", e, user.id)
-            raise PassportRefused("invalid_passport") from e
+            raise _verification_refused(e) from e
         if bind_error := self._bind_identity(user, passport, preferred_username):
             raise PassportRefused(bind_error)
 
-        store.put(user, token)
+        try:
+            # put verifies again, and the keys can become unreachable (or the Passport expire) in between.
+            store.put(user, token)
+        except PassportVerificationError as e:
+            log.warning("GA4GH passport refused when storing it: %s user_id=%s", e, user.id)
+            raise _verification_refused(e) from e
         self.sync_grant_roles(user, passport)
         log.info(
             "GA4GH passport connected user_id=%s iss=%s sub=%s txn=%s preferred_username=%s grants=%s dropped_visas=%s",
@@ -389,7 +391,9 @@ class PassportManager:
             log.info(
                 "GA4GH passport identity bound user_id=%s iss=%s sub=%s", user.id, passport.issuer, passport.subject
             )
-        mine.preferred_username = preferred_username
+        # The direct RAS login has no username to offer; keep the one a broker connect stored.
+        if preferred_username is not None:
+            mine.preferred_username = preferred_username
         session.add(mine)
         try:
             session.commit()
@@ -701,6 +705,12 @@ class PassportManager:
     def _require_store(self) -> VaultPassportStore:
         assert self._store is not None
         return self._store
+
+
+def _verification_refused(error: PassportVerificationError) -> PassportRefused:
+    return PassportRefused(
+        "issuer_unavailable" if isinstance(error, VerificationUnavailableError) else "invalid_passport"
+    )
 
 
 def _utc(timestamp: int) -> datetime:
