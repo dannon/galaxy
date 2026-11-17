@@ -252,10 +252,17 @@
 # passport and imports through this source are refused. Don't combine it with an
 # Authorization header or oidc_auth_provider on the same source -- Gen3 rejects a
 # request that carries both a passport and a token.
+#
+# The passport goes to whatever host url_regex lets through, so pin the host
+# exactly: escape the dots and end on the slash. A loose pattern such as
+# "^drs://" would send it to any DRS server a user names. Keep this source in
+# step with protected_sources in ras_config.yml, which decides which URLs need
+# a passport for which study before Galaxy fetches them; the two are configured
+# separately and nothing checks that they agree.
 #- type: drs
 #  label: Controlled-access DRS filesource
 #  id: drs_ras
-#  url_regex: "^drs://drs.mycontrolledsite.org/"
+#  url_regex: '^drs://drs\.mycontrolledsite\.org/'
 #  ras_passport: true
 #  doc: DRS downloads that send the user's NIH RAS passport.
 

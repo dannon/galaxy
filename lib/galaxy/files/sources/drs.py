@@ -39,7 +39,8 @@ class DRSFileSourceTemplateConfiguration(BaseFileSourceTemplateConfiguration):
     url_regex: str = r"^drs://"
     force_http: bool | TemplateExpansion = False
     http_headers: dict[str, str] | TemplateExpansion = {}
-    # Send the user's NIH RAS passport with DRS requests to this source.
+    # POST the user's NIH RAS passport to this source's access endpoint, and to the object
+    # endpoint only after a plain GET of the object is refused. The download never gets it.
     ras_passport: bool = False
     # Filled in when the source is serialized for a job, which has no user to look the passport up for.
     passports: list[str] = Field(default=[], repr=False)
@@ -109,7 +110,7 @@ class DRSFilesSource(BaseFilesSource[DRSFileSourceTemplateConfiguration, DRSFile
             elif user_context is not None and user_context.ras_passport_expired:
                 raise FileSourceCredentialExpired()
             else:
-                raise RasPassportRequiredException("A NIH RAS passport is required to access this data.")
+                raise RasPassportRequiredException()
         fetch_drs_to_file(
             source_path,
             native_path,

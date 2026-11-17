@@ -93,7 +93,7 @@ _STATUS_REASONS = {
 }
 _MESSAGES = {
     PassportNeededReason.ANONYMOUS: "You must be logged in to access controlled-access data.",
-    PassportNeededReason.MISSING: "A NIH RAS passport is required to access this data.",
+    PassportNeededReason.MISSING: "An NIH RAS passport is required to access this data.",
     PassportNeededReason.EXPIRED: "Your NIH RAS passport has expired; please log in to RAS again.",
     PassportNeededReason.INVALID: "Your NIH RAS passport could not be verified; please log in to RAS again.",
     PassportNeededReason.UNAVAILABLE: "Your NIH RAS passport can't be checked right now; please try again shortly.",
