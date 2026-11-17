@@ -249,7 +249,7 @@ def build_passport_gate(app: "MinimalManagerApp") -> PassportGate | None:
             jwks=issuer_config.jwks,
             leeway=config.leeway,
         )
-        direct_login = DirectRasLogin(source, store, app.vault)
+        direct_login = DirectRasLogin(source, app.vault)
     # Without a bridge the return address is never used.
     galaxy_url = config.galaxy_url or app.config.galaxy_infrastructure_url
     log.info("RAS passport support enabled for issuer %s", config.issuer)

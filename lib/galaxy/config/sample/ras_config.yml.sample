@@ -33,7 +33,7 @@ issuer: https://stsstg.nih.gov
 #store: vault
 
 # Development only: client settings for talking to RAS directly instead of
-# through a bridge. Setting this turns on the /api/users/current/ras_passport/login
+# through a bridge. Setting this turns on the /api/users/current/ga4gh_passport/ras_login
 # endpoints (and is read by scripts/ras_passport_smoke.py --ras-config). The
 # secret is read from the environment variable named by client_secret_env.
 #direct_ras:
