@@ -12,13 +12,11 @@ import time
 from collections.abc import Callable
 from typing import Any
 
-from galaxy.authnz.ras.models import Passport
 from galaxy.authnz.ras.sources import (
     DirectRasPassportSource,
     parse_callback,
     PassportSourceError,
 )
-from galaxy.authnz.ras.store import PassportStore
 from galaxy.authnz.ras.verify import PassportVerificationError
 from galaxy.security.vault import (
     UserVaultWrapper,
@@ -39,12 +37,10 @@ class DirectRasLogin:
     def __init__(
         self,
         source: DirectRasPassportSource,
-        store: PassportStore,
         vault: Vault,
         clock: Callable[[], float] = time.time,
     ):
         self.source = source
-        self.store = store
         self.vault = vault
         self.clock = clock
 
@@ -58,8 +54,12 @@ class DirectRasLogin:
         UserVaultWrapper(self.vault, user).write_secret(LOGIN_REQUEST_VAULT_KEY, json.dumps(saved))
         return request.url
 
-    def finish(self, user: Any, callback_url: str) -> Passport:
-        """Redeem the pasted callback URL and store the verified passport."""
+    def finish(self, user: Any, callback_url: str) -> str:
+        """Redeem the pasted callback URL; return the raw passport JWT RAS issued.
+
+        The passport is not verified or stored here: ``PassportManager.accept`` does
+        both, and binds its identity to the user.
+        """
         user_vault = UserVaultWrapper(self.vault, user)
         raw_saved = user_vault.read_secret(LOGIN_REQUEST_VAULT_KEY)
         # Consume it first: a failed attempt must not be retryable with the same state.
@@ -81,7 +81,6 @@ class DirectRasLogin:
             if "state" not in callback and not callback.get("error"):
                 raise PassportLoginError("The pasted URL has no state; paste the full URL RAS redirected to.")
             handoff = dict(callback, expected_state=expected_state, nonce=nonce)
-            raw_passport = self.source.obtain(user, handoff)
-            return self.store.put(user, raw_passport)
+            return self.source.obtain(user, handoff)
         except (PassportSourceError, PassportVerificationError) as e:
             raise PassportLoginError(str(e)) from e

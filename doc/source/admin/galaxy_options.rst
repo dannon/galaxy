@@ -6391,7 +6391,7 @@
     stored. It also lists the ``protected_sources``, the URLs
     ``/api/tools/fetch`` refuses to import for users without a
     passport for the right study, and an optional ``direct_ras``
-    client that turns on the ``/api/users/current/ras_passport/login``
+    client that turns on the ``/api/users/current/ga4gh_passport/ras_login``
     endpoints for logging in to RAS without a bridge (development
     only). RAS passport support is off unless this file exists. See
     ras_config.yml.sample for the options. The default ``vault`` store

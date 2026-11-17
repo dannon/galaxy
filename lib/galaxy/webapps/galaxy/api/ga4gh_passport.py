@@ -1,7 +1,9 @@
 """Connect the current user to a GA4GH Passport broker, and report on their Passport.
 
 ``/ga4gh_passport/connect`` and ``/ga4gh_passport/callback`` are browser
-endpoints (they answer with redirects); the ``/api`` ones are JSON.
+endpoints (they answer with redirects); the ``/api`` ones are JSON. The
+``ras_login`` pair is the development-only direct NIH RAS login, for when
+there is no broker: the user pastes back the URL RAS sent them to.
 """
 
 from datetime import (
@@ -20,6 +22,11 @@ from fastapi import (
 )
 from fastapi.responses import RedirectResponse
 
+from galaxy.authnz.ras.login import (
+    DirectRasLogin,
+    LOGIN_REQUEST_LIFETIME,
+    PassportLoginError,
+)
 from galaxy.authnz.ras.models import (
     DbgapPermission,
     Passport,
@@ -28,11 +35,18 @@ from galaxy.authnz.ras.policy import (
     InvalidAccessionError,
     parse_accession,
 )
+from galaxy.exceptions import (
+    AuthenticationRequired,
+    RequestParameterInvalidException,
+    ServerNotConfiguredForRequest,
+)
 from galaxy.managers._config_templates import galaxy_url_for_path
+from galaxy.managers.context import ProvidesUserContext
 from galaxy.managers.ga4gh_passports import (
     CALLBACK_PATH,
     CONNECT_PATH,
     PassportManager,
+    PassportRefused,
 )
 from galaxy.model import (
     User,
@@ -44,6 +58,8 @@ from galaxy.schema.ga4gh_passport import (
     GA4GHIdentity,
     GA4GHPassportStatus,
     GA4GHPassportSummary,
+    GA4GHRasLoginCallback,
+    GA4GHRasLoginRequest,
     GA4GHStoredPassportStatus,
     GA4GHVisa,
 )
@@ -144,6 +160,51 @@ class FastAPIGA4GHPassport:
     def forget(self, user: User = DependsOnUser) -> Response:
         self.manager.forget(user)
         return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+    @router.post(
+        "/api/users/current/ga4gh_passport/ras_login",
+        summary="Start a direct NIH RAS login for the current user (development only)",
+        unstable=True,
+    )
+    def start_ras_login(self, trans: ProvidesUserContext = DependsOnTrans) -> GA4GHRasLoginRequest:
+        """Returns the RAS authorization URL. After logging in, paste the URL RAS redirected to into
+        ``ras_login/callback``. Needs ``direct_ras`` in ``ras_config_file``."""
+        login, user = _direct_login(trans)
+        try:
+            url = login.start(user)
+        except PassportLoginError as e:
+            raise RequestParameterInvalidException(str(e))
+        return GA4GHRasLoginRequest(authorization_url=url, expires_in=LOGIN_REQUEST_LIFETIME)
+
+    @router.post(
+        "/api/users/current/ga4gh_passport/ras_login/callback",
+        summary="Finish a direct NIH RAS login with the pasted redirect URL (development only)",
+        unstable=True,
+    )
+    def finish_ras_login(
+        self, payload: GA4GHRasLoginCallback, trans: ProvidesUserContext = DependsOnTrans
+    ) -> GA4GHPassportStatus:
+        """Redeems the code in the URL and takes the Passport like a connect does: verifies it, binds its
+        identity to the current user, stores it and syncs the user's grant roles."""
+        login, user = _direct_login(trans)
+        try:
+            token = login.finish(user, payload.callback_url)
+        except PassportLoginError as e:
+            raise RequestParameterInvalidException(str(e))
+        try:
+            self.manager.accept(user, token)
+        except PassportRefused as e:
+            raise RequestParameterInvalidException(str(e), ga4gh_passport_error=e.code)
+        return self.show(user)
+
+
+def _direct_login(trans: ProvidesUserContext) -> tuple[DirectRasLogin, User]:
+    gate = trans.app.ras_passport_gate
+    if gate is None or gate.direct_login is None:
+        raise ServerNotConfiguredForRequest("Direct NIH RAS login is not enabled on this Galaxy.")
+    if trans.user is None:
+        raise AuthenticationRequired("You must be logged in to log in to NIH RAS.")
+    return gate.direct_login, trans.user
 
 
 def _utc(naive: datetime) -> datetime:

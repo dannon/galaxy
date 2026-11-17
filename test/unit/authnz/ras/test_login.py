@@ -5,7 +5,6 @@ from urllib.parse import (
     urlsplit,
 )
 
-import jwt
 import pytest
 import requests
 import responses
@@ -21,11 +20,7 @@ from galaxy.authnz.ras.sources import (
     DirectRasPassportSource,
     PassportSourceError,
 )
-from galaxy.authnz.ras.store import (
-    InMemoryVault,
-    PassportStatus,
-    VaultPassportStore,
-)
+from galaxy.authnz.ras.store import InMemoryVault
 from galaxy.security.vault import UserVaultWrapper
 from .util import (
     CLIENT_ID,
@@ -35,13 +30,11 @@ from .util import (
     FakeHttp,
     id_token,
     ISSUER,
-    issuer_config,
     jwks_doc,
     KEY,
     KID,
     make_passport,
     NOW,
-    OTHER_KEY,
     permission,
     REDIRECT_URI,
     SUBJECT,
@@ -59,16 +52,18 @@ class Clock:
 
 
 def _setup(http=None):
-    http = http or FakeHttp(userinfo={"sub": SUBJECT, "passport_jwt_v11": make_passport([permission()])})
+    passport = make_passport([permission()])
+    http = http or FakeHttp(userinfo={"sub": SUBJECT, "passport_jwt_v11": passport})
     vault = InMemoryVault()
     clock = Clock()
     jwks = JwksClient(DISCOVERY["jwks_uri"], fetcher=CountingFetcher(jwks_doc((KEY, KID))))
     source = DirectRasPassportSource(
         ISSUER, CLIENT_ID, CLIENT_SECRET, REDIRECT_URI, http=http, jwks=jwks, clock=lambda: NOW
     )
-    store = VaultPassportStore(vault, issuer_config(), clock=lambda: NOW)
-    login = DirectRasLogin(source, store, vault, clock=clock)
-    return SimpleNamespace(login=login, store=store, vault=vault, clock=clock, user=SimpleNamespace(id=7), http=http)
+    login = DirectRasLogin(source, vault, clock=clock)
+    return SimpleNamespace(
+        login=login, vault=vault, clock=clock, user=SimpleNamespace(id=7), http=http, passport=passport
+    )
 
 
 def _saved(env) -> dict:
@@ -101,14 +96,13 @@ def test_start_saves_request_and_returns_authorize_url():
     assert parse_qs(urlsplit(url).query)["state"] == [saved["state"]]
 
 
-def test_finish_stores_passport():
+def test_finish_returns_the_passport_without_storing_it():
     env = _setup()
     saved = _start(env)
     _nonce_token(env, saved)
-    passport = env.login.finish(env.user, _callback(saved["state"]))
-    assert passport.subject == SUBJECT
-    assert env.store.load(env.user).status == PassportStatus.OK
-    assert not UserVaultWrapper(env.vault, env.user).read_secret(LOGIN_REQUEST_VAULT_KEY)
+    assert env.login.finish(env.user, _callback(saved["state"])) == env.passport
+    # The pending login is consumed; the passport itself is the manager's to verify and store.
+    assert not any(env.vault.secrets.values())  # the vault deletes by writing ""
 
 
 def test_finish_is_single_use():
@@ -127,7 +121,6 @@ def test_finish_rejects_state_mismatch():
     _nonce_token(env, saved)
     with pytest.raises(PassportLoginError):
         env.login.finish(env.user, _callback("not-the-state"))
-    assert env.store.load(env.user).status == PassportStatus.MISSING
     assert not UserVaultWrapper(env.vault, env.user).read_secret(LOGIN_REQUEST_VAULT_KEY)
 
 
@@ -138,7 +131,6 @@ def test_finish_rejects_expired_request():
     env.clock.now += LOGIN_REQUEST_LIFETIME + 1
     with pytest.raises(PassportLoginError):
         env.login.finish(env.user, _callback(saved["state"]))
-    assert env.store.load(env.user).status == PassportStatus.MISSING
 
 
 def test_finish_rejects_bare_code():
@@ -147,7 +139,6 @@ def test_finish_rejects_bare_code():
     _nonce_token(env, saved)
     with pytest.raises(PassportLoginError):
         env.login.finish(env.user, "code-1")
-    assert env.store.load(env.user).status == PassportStatus.MISSING
 
 
 def test_finish_without_start():
@@ -161,20 +152,6 @@ def test_finish_reports_ras_error():
     saved = _start(env)
     with pytest.raises(PassportLoginError, match="access_denied"):
         env.login.finish(env.user, f"{CALLBACK}?error=access_denied&state={saved['state']}")
-
-
-def test_finish_hides_the_passport_when_verification_fails():
-    bad = make_passport([permission()])
-    # Same claims, signed by a key the JWKS doesn't have.
-    claims = jwt.decode(bad, options={"verify_signature": False})
-    forged = jwt.encode(claims, OTHER_KEY, algorithm="RS256", headers={"kid": KID})
-    env = _setup(FakeHttp(userinfo={"sub": SUBJECT, "passport_jwt_v11": forged}))
-    saved = _start(env)
-    _nonce_token(env, saved)
-    with pytest.raises(PassportLoginError) as excinfo:
-        env.login.finish(env.user, _callback(saved["state"]))
-    assert forged not in str(excinfo.value)
-    assert env.store.load(env.user).status == PassportStatus.MISSING
 
 
 def test_finish_rejects_unparseable_url():
@@ -222,9 +199,8 @@ def _requests_login() -> SimpleNamespace:
     vault = InMemoryVault()
     jwks = JwksClient(DISCOVERY["jwks_uri"], fetcher=CountingFetcher(jwks_doc((KEY, KID))))
     source = DirectRasPassportSource(ISSUER, CLIENT_ID, CLIENT_SECRET, REDIRECT_URI, jwks=jwks, clock=lambda: NOW)
-    store = VaultPassportStore(vault, issuer_config(), clock=lambda: NOW)
-    login = DirectRasLogin(source, store, vault, clock=Clock())
-    return SimpleNamespace(login=login, store=store, vault=vault, user=SimpleNamespace(id=7))
+    login = DirectRasLogin(source, vault, clock=Clock())
+    return SimpleNamespace(login=login, vault=vault, user=SimpleNamespace(id=7))
 
 
 DISCOVERY_URL = f"{ISSUER}/.well-known/openid-configuration"
@@ -247,7 +223,6 @@ def test_finish_reports_network_failure_during_exchange():
     saved = _saved(env)
     with pytest.raises(PassportLoginError):
         env.login.finish(env.user, _callback(saved["state"]))
-    assert env.store.load(env.user).status == PassportStatus.MISSING
 
 
 def test_requests_client_wraps_network_errors():
@@ -267,4 +242,3 @@ def test_second_start_replaces_the_first():
     _nonce_token(env, first)
     with pytest.raises(PassportLoginError):
         env.login.finish(env.user, _callback(first["state"]))
-    assert env.store.load(env.user).status == PassportStatus.MISSING

@@ -92,3 +92,12 @@ class GA4GHPassportStatus(BaseModel):
         description="Grants the user holds in Galaxy (as roles), from their last connected Passport, and grants "
         "whose access ended but whose data hasn't been deleted yet.",
     )
+
+
+class GA4GHRasLoginRequest(BaseModel):
+    authorization_url: str = Field(description="Where to send the user to log in to NIH RAS.")
+    expires_in: int = Field(description="Seconds the user has to finish the login.")
+
+
+class GA4GHRasLoginCallback(BaseModel):
+    callback_url: str = Field(description="The full URL RAS redirected the browser to after the login, pasted as-is.")
