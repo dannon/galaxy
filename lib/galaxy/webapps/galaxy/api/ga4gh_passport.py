@@ -31,6 +31,7 @@ from galaxy.model import (
     UserGA4GHIdentity,
 )
 from galaxy.schema.ga4gh_passport import (
+    GA4GHDataAccess,
     GA4GHGrant,
     GA4GHIdentity,
     GA4GHPassportStatus,
@@ -115,6 +116,10 @@ class FastAPIGA4GHPassport:
             enabled=self.manager.enabled,
             identity=_identity(identity) if identity else None,
             passport=_summary(passport, self.manager.fresh_until(passport)) if passport else None,
+            data_access=[
+                GA4GHDataAccess(authorization=authorization, until=until.replace(tzinfo=timezone.utc))
+                for authorization, until in sorted(self.manager.data_access(user).items())
+            ],
         )
 
     @router.delete(

@@ -14533,6 +14533,20 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** GA4GHDataAccess */
+        GA4GHDataAccess: {
+            /**
+             * Authorization
+             * @description Study and consent group, e.g. phs000001.c1.
+             */
+            authorization: string;
+            /**
+             * Until
+             * Format: date-time
+             * @description Until when the user can use data fetched under this grant in Galaxy: the grant's expiration, capped by ga4gh_grant_max_membership after the last connect.
+             */
+            until: string;
+        };
         /** GA4GHGrant */
         GA4GHGrant: {
             /**
@@ -14575,6 +14589,11 @@ export interface components {
         };
         /** GA4GHPassportStatus */
         GA4GHPassportStatus: {
+            /**
+             * Data Access
+             * @description Grants the user holds in Galaxy (as roles), from their last connected Passport.
+             */
+            data_access: components["schemas"]["GA4GHDataAccess"][];
             /**
              * Enabled
              * @description Whether this Galaxy is configured for GA4GH Passport connections.

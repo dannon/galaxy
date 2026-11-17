@@ -51,7 +51,20 @@ class GA4GHIdentity(BaseModel):
     bound_since: datetime
 
 
+class GA4GHDataAccess(BaseModel):
+    authorization: str = Field(description="Study and consent group, e.g. phs000001.c1.")
+    until: datetime = Field(
+        description=(
+            "Until when the user can use data fetched under this grant in Galaxy: the grant's expiration, "
+            "capped by ga4gh_grant_max_membership after the last connect."
+        )
+    )
+
+
 class GA4GHPassportStatus(BaseModel):
     enabled: bool = Field(description="Whether this Galaxy is configured for GA4GH Passport connections.")
     identity: GA4GHIdentity | None = Field(None, description="The Passport identity bound to this user, if any.")
     passport: GA4GHPassportSummary | None = Field(None, description="The stored Passport, if present and valid.")
+    data_access: list[GA4GHDataAccess] = Field(
+        description="Grants the user holds in Galaxy (as roles), from their last connected Passport.",
+    )

@@ -88,7 +88,7 @@ function connect() {
 async function forget() {
     const confirmed = await confirm(
         localize(
-            `Galaxy will delete its copy of your Passport and stop using it for data requests. Your Galaxy account stays linked to ${identityName.value}; connect again to get a new Passport.`,
+            `Galaxy will delete its copy of your Passport and stop using it for data requests. Your Galaxy account stays linked to ${identityName.value}, and data you already fetched stays available until your grants in Galaxy expire; connect again to get a new Passport.`,
         ),
         { title: localize("Forget your GA4GH Passport?"), okText: localize("Forget"), okColor: "red", okIcon: faTrash },
     );
@@ -213,6 +213,32 @@ onMounted(async () => {
                         <FontAwesomeIcon :icon="faTrash" />
                         <span v-localize>Forget</span>
                     </GButton>
+                </div>
+
+                <div class="ga4gh-passport-data-access mt-3">
+                    <h3 v-localize class="h-sm">Access to controlled data in Galaxy</h3>
+                    <p v-localize>
+                        Data you fetch with your Passport is available to you only while you hold its grants in Galaxy.
+                        Reconnecting renews them.
+                    </p>
+                    <p v-if="!status.data_access.length" v-localize>You hold no data access grants in Galaxy.</p>
+                    <table v-else class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th v-localize>Study and consent group</th>
+                                <th v-localize>Access until</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="access in status.data_access" :key="access.authorization">
+                                <td>{{ access.authorization }}</td>
+                                <td>
+                                    <UtcDate :date="access.until" mode="pretty" />
+                                    (<UtcDate :date="access.until" mode="elapsed" />)
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </template>
         </template>

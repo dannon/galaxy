@@ -85,7 +85,7 @@ describe("GA4GHPassport.vue", () => {
     });
 
     it("offers Connect when no identity is linked", async () => {
-        serve({ enabled: true, identity: null, passport: null });
+        serve({ enabled: true, identity: null, passport: null, data_access: [] });
         const wrapper = await mountComponent();
         expect(wrapper.find(".ga4gh-passport-not-connected").exists()).toBe(true);
         expect(wrapper.text()).toContain("Connect");
@@ -93,7 +93,7 @@ describe("GA4GHPassport.vue", () => {
     });
 
     it("shows the linked identity and offers Reconnect when no Passport is stored", async () => {
-        serve({ enabled: true, identity: IDENTITY, passport: null });
+        serve({ enabled: true, identity: IDENTITY, passport: null, data_access: [] });
         const wrapper = await mountComponent();
         expect(wrapper.find(".ga4gh-passport-identity").text()).toContain("alice");
         expect(wrapper.find(".ga4gh-passport-missing").text()).toContain("Reconnect");
@@ -101,7 +101,7 @@ describe("GA4GHPassport.vue", () => {
     });
 
     it("lists the grants of a stored Passport", async () => {
-        serve({ enabled: true, identity: IDENTITY, passport: passport() });
+        serve({ enabled: true, identity: IDENTITY, passport: passport(), data_access: [] });
         const wrapper = await mountComponent();
         const grants = wrapper.find(".ga4gh-passport-grants");
         expect(grants.text()).toContain("phs000001.c1");
@@ -109,16 +109,35 @@ describe("GA4GHPassport.vue", () => {
         expect(wrapper.find(".text-danger").exists()).toBe(false);
     });
 
+    it("lists the grants held in Galaxy, also without a stored Passport", async () => {
+        serve({
+            enabled: true,
+            identity: IDENTITY,
+            passport: null,
+            data_access: [{ authorization: "phs000001.c1", until: IN_AN_HOUR }],
+        });
+        const wrapper = await mountComponent();
+        const access = wrapper.find(".ga4gh-passport-data-access");
+        expect(access.text()).toContain("phs000001.c1");
+        expect(access.find("table").exists()).toBe(true);
+    });
+
+    it("says when no grants are held in Galaxy", async () => {
+        serve({ enabled: true, identity: IDENTITY, passport: passport(), data_access: [] });
+        const wrapper = await mountComponent();
+        expect(wrapper.find(".ga4gh-passport-data-access").text()).toContain("You hold no data access grants");
+    });
+
     it("warns when the Passport is about to become unusable", async () => {
-        serve({ enabled: true, identity: IDENTITY, passport: passport(IN_A_MINUTE) });
+        serve({ enabled: true, identity: IDENTITY, passport: passport(IN_A_MINUTE), data_access: [] });
         const wrapper = await mountComponent();
         expect(wrapper.find(".text-danger").text()).toContain("reconnect to renew it");
     });
 
     it("forgets the Passport after confirmation", async () => {
         serve(
-            { enabled: true, identity: IDENTITY, passport: passport() },
-            { enabled: true, identity: IDENTITY, passport: null },
+            { enabled: true, identity: IDENTITY, passport: passport(), data_access: [] },
+            { enabled: true, identity: IDENTITY, passport: null, data_access: [] },
         );
         const deleted = vi.fn();
         server.use(
@@ -137,7 +156,7 @@ describe("GA4GHPassport.vue", () => {
     });
 
     it("keeps the Passport when Forget is cancelled", async () => {
-        serve({ enabled: true, identity: IDENTITY, passport: passport() });
+        serve({ enabled: true, identity: IDENTITY, passport: passport(), data_access: [] });
         const deleted = vi.fn();
         server.use(
             http.delete("/api/users/current/ga4gh_passport", ({ response }) => {
@@ -154,7 +173,7 @@ describe("GA4GHPassport.vue", () => {
     });
 
     it("reports a successful connect and clears the query", async () => {
-        serve({ enabled: true, identity: IDENTITY, passport: passport() });
+        serve({ enabled: true, identity: IDENTITY, passport: passport(), data_access: [] });
         const wrapper = await mountComponent({ outcome: "connected" });
         expect(wrapper.find(".alert-success").text()).toContain("connected");
         expect(replaceStateSpy).toHaveBeenCalledWith(window.history.state, "", window.location.pathname);
@@ -166,7 +185,7 @@ describe("GA4GHPassport.vue", () => {
         ["identity_in_use", "already linked to another Galaxy account"],
         ["server_error", "Connecting your Passport failed. (server_error)"],
     ])("explains connect error %s", async (code, text) => {
-        serve({ enabled: true, identity: null, passport: null });
+        serve({ enabled: true, identity: null, passport: null, data_access: [] });
         const wrapper = await mountComponent({ error: code });
         expect(wrapper.find(".alert-danger").text()).toContain(text);
         expect(replaceStateSpy).toHaveBeenCalledWith(window.history.state, "", window.location.pathname);
