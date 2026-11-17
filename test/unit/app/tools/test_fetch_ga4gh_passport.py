@@ -1,6 +1,7 @@
 """Data fetched with a GA4GH Passport is restricted from the moment its dataset is created."""
 
 from types import SimpleNamespace
+from typing import Any
 
 import pytest
 
@@ -11,13 +12,16 @@ from galaxy.files import (
 )
 from galaxy.files.plugins import FileSourcePluginsConfig
 from galaxy.security import RBACAgent
-from galaxy.tools.actions import upload
+from galaxy.tools.actions import (
+    upload,
+    upload_common,
+)
 
 ACTIONS = RBACAgent.permitted_actions
 CONTROLLED = "drs://controlled.example.org/obj1"
 CONTROLLED_2 = "drs://controlled.example.org/obj2"
 OPEN = "drs://open.example.org/obj3"
-FILE_SOURCES = [
+FILE_SOURCES: list[dict[str, Any]] = [
     {"type": "drs", "id": "controlled", "url_regex": "^drs://controlled.example.org/", "ga4gh_passport": True},
     {"type": "drs", "id": "open", "url_regex": "^drs://open.example.org/"},
 ]
@@ -127,7 +131,7 @@ def test_only_passport_datasets_get_the_permissions(monkeypatch):
         created.append((uploaded_dataset.name, permissions))
         return SimpleNamespace(id=len(created), dataset_id=len(created))
 
-    monkeypatch.setattr(upload.upload_common, "new_upload", new_upload)
+    monkeypatch.setattr(upload_common, "new_upload", new_upload)
     t = trans()
     target = hdas(CONTROLLED, OPEN, CONTROLLED_2)
     permissions = upload._ga4gh_passport_permissions(t, request(target))
@@ -145,7 +149,7 @@ def test_without_passport_datasets_get_default_permissions(monkeypatch):
         created.append(permissions)
         return SimpleNamespace(id=len(created), dataset_id=len(created))
 
-    monkeypatch.setattr(upload.upload_common, "new_upload", new_upload)
+    monkeypatch.setattr(upload_common, "new_upload", new_upload)
     t = trans(FakePassportManager(passport=False))
     target = hdas(CONTROLLED)
     upload._precreate_fetched_hdas(t, None, target, [], upload._ga4gh_passport_permissions(t, request(target)))

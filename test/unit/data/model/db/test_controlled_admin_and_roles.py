@@ -62,7 +62,10 @@ def test_controlled_data_cannot_enter_a_library(session, agent, make_user, grant
     controlled = new_dataset(session, agent, [grant], [controlled_manage])
     hda = HistoryDatasetAssociation(dataset=controlled, sa_session=session)
     with pytest.raises(exceptions.ItemAccessibilityException, match="can't be added to a library"):
-        hda.to_library_dataset_dataset_association(SimpleNamespace(user=make_user()), target_folder=None)
+        hda.to_library_dataset_dataset_association(
+            SimpleNamespace(user=make_user()),  # type: ignore[arg-type]
+            target_folder=None,
+        )
 
 
 def test_setting_user_roles_keeps_grant_memberships_and_adds_none(session, agent, make_user_and_role, make_role, grant):
