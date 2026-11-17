@@ -16,9 +16,19 @@ class ProtectedMatch:
     study_not_captured: bool = False
 
 
+_SCHEME_AND_AUTHORITY = re.compile(r"^([^:/?#]+://[^/?#]*)")
+
+
+def _lowercase_scheme_and_authority(url: str) -> str:
+    # Hostnames and schemes are case-insensitive, so DRS://Host/ must not slip past ^drs://host/.
+    return _SCHEME_AND_AUTHORITY.sub(lambda m: m.group(1).lower(), url, count=1)
+
+
 def match_protected_source(sources: Sequence[ProtectedSource], url: str) -> ProtectedMatch | None:
+    normalized = _lowercase_scheme_and_authority(url)
     for source in sources:
-        match = re.match(source.url_regex, url)
+        # Also try the URL as given, so a pattern that spells out capitals still matches it.
+        match = re.match(source.url_regex, normalized) or re.match(source.url_regex, url)
         if match is None:
             continue
         if "phs_id" in match.re.groupindex:
