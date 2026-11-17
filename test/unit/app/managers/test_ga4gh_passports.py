@@ -895,3 +895,20 @@ def test_more_than_one_trusted_issuer_is_refused(session, vault):
             session,
             vault,
         )
+
+
+@pytest.mark.parametrize("trusted", ["https://other.example.org", f"{ISSUER}, https://other.example.org"])
+def test_trusted_issuer_must_be_the_ras_config_issuer(session, vault, trusted):
+    with pytest.raises(exceptions.ConfigurationError) as excinfo:
+        PassportManager(
+            config(ga4gh_passport_trusted_issuers=trusted), session, vault, store=static_store(vault)  # type: ignore[arg-type]
+        )
+    assert "ras_config_file" in str(excinfo.value)
+    assert "ga4gh_passport_trusted_issuers" in str(excinfo.value)
+
+
+def test_trusted_issuer_matches_the_ras_config_issuer_without_a_trailing_slash(session, vault):
+    manager = PassportManager(
+        config(ga4gh_passport_trusted_issuers=f"{ISSUER}/"), session, vault, store=static_store(vault)  # type: ignore[arg-type]
+    )
+    assert manager.enabled

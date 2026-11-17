@@ -196,6 +196,8 @@ class PassportManager:
         self._vault = vault
         # The app passes the store of its RAS passport gate, so there is one verifier and
         # one key cache; without a gate the store is built from the trusted issuer.
+        if store is not None and self._broker:
+            self._check_trusted_issuer(self._broker, store)
         self._store = store or (self._build_store(self._broker, vault) if self._broker else None)
         self._max_age = config.ga4gh_passport_max_age
         self._grant_max_membership = config.ga4gh_grant_max_membership
@@ -204,6 +206,16 @@ class PassportManager:
     @property
     def enabled(self) -> bool:
         return self._broker is not None
+
+    @staticmethod
+    def _check_trusted_issuer(broker: PassportBrokerConfig, store: VaultPassportStore) -> None:
+        issuer = store.issuer_config.issuer.rstrip("/")
+        trusted = [trusted.rstrip("/") for trusted in broker.trusted_issuers]
+        if trusted != [issuer]:
+            raise exceptions.ConfigurationError(
+                f"The issuer in ras_config_file ({issuer}) and ga4gh_passport_trusted_issuers "
+                f"({', '.join(broker.trusted_issuers)}) must name the same single issuer."
+            )
 
     @staticmethod
     def _build_store(broker: PassportBrokerConfig, vault: Vault) -> VaultPassportStore:
