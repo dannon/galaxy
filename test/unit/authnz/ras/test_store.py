@@ -8,7 +8,6 @@ from galaxy.authnz.ras.store import (
     InMemoryVault,
     PASSPORT_VAULT_KEY,
     PassportStatus,
-    TapisVaultPassportStore,
     VaultPassportStore,
 )
 from galaxy.authnz.ras.verify import (
@@ -179,14 +178,6 @@ def test_clear():
     store.put(USER, make_passport([]))
     store.clear(USER)
     assert store.get(USER) is None
-
-
-def test_tapis_store_is_a_stub():
-    store = TapisVaultPassportStore()
-    with pytest.raises(NotImplementedError):
-        store.load(USER)
-    with pytest.raises(NotImplementedError):
-        store.put(USER, "x")
 
 
 def test_works_through_galaxy_vault_wrappers():

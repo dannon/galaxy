@@ -1,4 +1,5 @@
 from types import SimpleNamespace
+from unittest import mock
 
 import pytest
 import requests
@@ -15,6 +16,7 @@ from galaxy.authnz.ras.store import (
 )
 from galaxy.exceptions import RasPassportRequiredException
 from galaxy.webapps.galaxy.services._fetch_util import require_passports_for_targets
+from galaxy.work.context import SessionRequestContext
 from ..authnz.ras.util import (
     ISSUER,
     issuer_config,
@@ -24,7 +26,8 @@ from ..authnz.ras.util import (
 )
 
 USER = SimpleNamespace(id=3)
-BRIDGE = "https://bridge.example.org/ras/login"
+GALAXY_URL = "https://galaxy.example.org/galaxy"
+CONNECT_URL = f"{GALAXY_URL}/ga4gh_passport/connect"
 URL = "drs://protected.example.org/obj1"
 SOURCES = [{"url_regex": r"^drs://protected\.example\.org/", "phs_id": "phs000123"}]
 
@@ -32,14 +35,22 @@ SOURCES = [{"url_regex": r"^drs://protected\.example\.org/", "phs_id": "phs00012
 def _gate():
     vault = InMemoryVault()
     store = VaultPassportStore(vault, issuer_config(), clock=lambda: NOW)
-    config = RasConfig(
-        issuer=ISSUER, bridge_url=BRIDGE, galaxy_url="https://galaxy.example.org/", protected_sources=SOURCES
-    )
-    return vault, store, PassportGate(config, store, galaxy_url="https://galaxy.example.org/", clock=lambda: NOW)
+    config = RasConfig(issuer=ISSUER, protected_sources=SOURCES)
+    return vault, store, PassportGate(config, store, clock=lambda: NOW)
 
 
-def _trans(gate, user=USER):
-    return SimpleNamespace(app=SimpleNamespace(ras_passport_gate=gate), user=user)
+def _trans(gate, user=USER, broker=True):
+    trans = mock.Mock(spec=SessionRequestContext)
+    trans.app = SimpleNamespace(ras_passport_gate=gate, ga4gh_passport_manager=SimpleNamespace(enabled=broker))
+    trans.user = user
+    trans.request = SimpleNamespace(url_path=GALAXY_URL)
+    return trans
+
+
+def _refusal(trans, targets=None):
+    with pytest.raises(RasPassportRequiredException) as excinfo:
+        require_passports_for_targets(trans, targets or _targets())
+    return excinfo.value.extra_error_info
 
 
 def _targets(url=URL):
@@ -58,9 +69,10 @@ def test_unprotected_and_non_url_items_pass():
 
 def test_anonymous_user_gets_anonymous_reason():
     _, _, gate = _gate()
-    with pytest.raises(RasPassportRequiredException) as excinfo:
-        require_passports_for_targets(_trans(gate, user=None), _targets())
-    assert excinfo.value.extra_error_info["ras_passport_reason"] == "anonymous"
+    info = _refusal(_trans(gate, user=None))
+    assert info["ras_passport_reason"] == "anonymous"
+    # The connect endpoint sends an anonymous user to log in first.
+    assert info["ras_passport_redirect_url"] == CONNECT_URL
 
 
 def test_nested_elements_are_checked():
@@ -83,9 +95,7 @@ def test_unavailable_keys_report_unavailable():
     vault, store, gate = _gate()
     store.put(USER, make_passport([permission("phs000123")]))
     store.issuer_config = issuer_config_from(RasConfig(issuer=ISSUER), fetcher=down)
-    with pytest.raises(RasPassportRequiredException) as excinfo:
-        require_passports_for_targets(_trans(gate), _targets())
-    info = excinfo.value.extra_error_info
+    info = _refusal(_trans(gate))
     assert info["ras_passport_reason"] == "unavailable"
     assert info["ras_passport_redirect_url"] is None
     assert vault.read_secret(f"user/3/{PASSPORT_VAULT_KEY}")
@@ -99,7 +109,22 @@ def test_first_refusal_carries_reason_and_redirect():
     assert exc.status_code == 403
     assert exc.err_code.code == 403009
     assert exc.extra_error_info["ras_passport_reason"] == "missing"
-    assert exc.extra_error_info["ras_passport_redirect_url"].startswith(BRIDGE)
+    assert exc.extra_error_info["ras_passport_redirect_url"] == CONNECT_URL
+
+
+def test_no_access_points_at_the_connect_flow():
+    _, store, gate = _gate()
+    store.put(USER, make_passport([permission("phs000999")]))
+    info = _refusal(_trans(gate))
+    assert info["ras_passport_reason"] == "no_access"
+    assert info["ras_passport_redirect_url"] == CONNECT_URL
+
+
+def test_no_redirect_without_a_broker():
+    _, _, gate = _gate()
+    info = _refusal(_trans(gate, broker=False))
+    assert info["ras_passport_reason"] == "missing"
+    assert info["ras_passport_redirect_url"] is None
 
 
 def test_passport_for_the_study_lets_the_fetch_through():

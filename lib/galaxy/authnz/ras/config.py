@@ -3,7 +3,6 @@
 import logging
 import os
 import re
-from typing import Literal
 
 import yaml
 from pydantic import (
@@ -41,7 +40,11 @@ def _require_https(value: str | None, name: str) -> str | None:
 
 
 class DirectRasSettings(BaseModel):
-    """Client settings for talking to RAS directly, read by the smoke script. For development only."""
+    """Client settings for logging in to RAS directly. For development only.
+
+    Used when RAS can only redirect to an address that is not this Galaxy: the
+    ``ras_login`` API endpoints and ``scripts/ras_passport_smoke.py`` read them.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
@@ -91,22 +94,12 @@ class RasConfig(BaseModel):
     issuer: str = DEFAULT_ISSUER
     # Looked up through the issuer's discovery document when not given.
     jwks_uri: str | None = None
-    # The bridge application users are sent to when Galaxy needs a passport.
-    bridge_url: str | None = None
-    # Query parameter carrying Galaxy's return address to the bridge.
-    return_param: str = "return_to"
-    # Where in Galaxy the bridge sends users back to when the caller doesn't say.
-    return_path: str = "/"
-    # Galaxy's browser-facing base URL, for the return address. Required with bridge_url.
-    galaxy_url: str | None = None
     leeway: int = DEFAULT_LEEWAY
-    # Only "vault" for now; TapisVaultPassportStore is a placeholder until the bridge contract is settled.
-    store: Literal["vault"] = "vault"
     direct_ras: DirectRasSettings | None = None
     # Checked in order; the first entry whose url_regex matches decides.
     protected_sources: list[ProtectedSource] = []
 
-    @field_validator("issuer", "jwks_uri", "bridge_url")
+    @field_validator("issuer", "jwks_uri")
     @classmethod
     def _https(cls, value: str | None, info: ValidationInfo) -> str | None:
         return _require_https(value, info.field_name or "url")
@@ -122,16 +115,6 @@ class RasConfig(BaseModel):
         if not 0 <= value <= 600:
             raise ValueError("leeway must be between 0 and 600 seconds")
         return value
-
-    @model_validator(mode="after")
-    def _return_path_is_local(self) -> "RasConfig":
-        if not self.return_path.startswith("/") or self.return_path.startswith("//"):
-            raise ValueError("return_path must be a path on this Galaxy, starting with a single /")
-        # galaxy_infrastructure_url is how containers and Pulsar reach Galaxy (http://localhost:8080
-        # by default), so it can't stand in for the address users come back to.
-        if self.bridge_url and not self.galaxy_url:
-            raise ValueError("galaxy_url, Galaxy's browser-facing URL, is required when bridge_url is set")
-        return self
 
 
 def load_ras_config(path: str | None) -> RasConfig | None:

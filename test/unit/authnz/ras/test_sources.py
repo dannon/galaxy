@@ -11,7 +11,6 @@ import pytest
 
 from galaxy.authnz.ras.jwks import JwksClient
 from galaxy.authnz.ras.sources import (
-    BridgeAppPassportSource,
     DirectRasPassportSource,
     PassportSourceError,
 )
@@ -189,11 +188,6 @@ def test_bad_handoff(overrides, match):
     _, source = _source()
     with pytest.raises(PassportSourceError, match=match):
         source.obtain(None, _handoff(**overrides))
-
-
-def test_bridge_source_is_a_stub():
-    with pytest.raises(NotImplementedError):
-        BridgeAppPassportSource("https://bridge.example").obtain(None, {})
 
 
 @pytest.mark.skipif(not os.environ.get(FIXTURES_ENV), reason=f"set {FIXTURES_ENV} to the RAS fixtures directory")

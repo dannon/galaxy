@@ -15,10 +15,14 @@ from typing import (
     Any,
     ClassVar,
 )
+from urllib.parse import urlsplit
 
 from galaxy_test.base.populators import DatasetPopulator
 from galaxy_test.driver import integration_util
-from ._ras_passport import ConfiguresRasPassport
+from ._ras_passport import (
+    ConfiguresRasPassport,
+    ISSUER,
+)
 
 RAS_PASSPORT_REQUIRED = 403009
 
@@ -178,6 +182,8 @@ class TestRasPassportDrsFetchIntegration(integration_util.IntegrationTestCase, C
         body = response.json()
         assert body["err_code"] == RAS_PASSPORT_REQUIRED
         assert body["ras_passport_reason"] == reason
+        # No broker is configured, so Galaxy has nowhere to send the user for a passport.
+        assert body["ras_passport_redirect_url"] is None
         assert not self.populator.get_history_contents(history_id)
 
     def test_protected_fetch_without_passport_never_reaches_the_server(self):
@@ -257,3 +263,45 @@ class TestRasPassportDrsFetchIntegration(integration_util.IntegrationTestCase, C
             ("POST", ACCESS_PATH, [passport]),
         ]
         assert passport not in json.dumps(job_details)
+
+
+class TestRasPassportFetchWithBrokerIntegration(integration_util.IntegrationTestCase, ConfiguresRasPassport):
+    """With a passport broker configured, a refused fetch points the user at the connect flow."""
+
+    @classmethod
+    def handle_galaxy_config_kwds(cls, config):
+        super().handle_galaxy_config_kwds(config)
+        config_dir = cls._write_ras_config(
+            config,
+            "protected_sources:\n  - url_regex: '^drs://protected\\.example\\.org/'\n    phs_id: phs000123\n",
+        )
+        file_sources_config_file = os.path.join(config_dir, "file_sources_conf.yml")
+        with open(file_sources_config_file, "w") as f:
+            f.write(
+                "- type: drs\n"
+                "  id: protected_drs\n"
+                "  url_regex: '^drs://protected\\.example\\.org'\n"
+                "  ga4gh_passport: true\n"
+            )
+        config["file_sources_config_file"] = file_sources_config_file
+        config["ga4gh_passport_broker_authorize_url"] = "https://broker.example.org/authorize"
+        config["ga4gh_passport_broker_token_url"] = "https://broker.example.org/token"
+        config["ga4gh_passport_broker_client_id"] = "galaxy"
+        config["ga4gh_passport_broker_client_secret"] = "secret"
+        config["ga4gh_passport_trusted_issuers"] = ISSUER
+
+    def test_refusal_points_at_the_connect_flow(self):
+        populator = DatasetPopulator(self.galaxy_interactor)
+        with self._different_user("ras-drs-broker@test.gx"):
+            history_id = populator.new_history()
+            target = {
+                "destination": {"type": "hdas"},
+                "elements": [{"src": "url", "url": "drs://protected.example.org/obj1"}],
+            }
+            response = populator.fetch({"history_id": history_id, "targets": [target]}, assert_ok=False, wait=False)
+            self._assert_status_code_is(response, 403)
+            body = response.json()
+            assert body["err_code"] == RAS_PASSPORT_REQUIRED
+            assert body["ras_passport_reason"] == "missing"
+            assert urlsplit(body["ras_passport_redirect_url"]).path == "/ga4gh_passport/connect"
+            assert not populator.get_history_contents(history_id)

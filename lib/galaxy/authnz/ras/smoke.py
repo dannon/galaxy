@@ -190,7 +190,7 @@ def cmd_exchange(args: argparse.Namespace, http: HttpClient | None, fetcher: Jso
     print("passport verified and stored", file=out)
     summarize(passport, out)
 
-    gate = PassportGate(RasConfig(issuer=source.issuer), store, galaxy_url="http://localhost:8080")
+    gate = PassportGate(RasConfig(issuer=source.issuer), store)
     decision = gate.require(user, phs_id=args.phs)
     target = args.phs or "any passport"
     if isinstance(decision, PassportOk):
