@@ -483,6 +483,7 @@ class GalaxyAppConfigurationAttributes:
     command_palette_disabled_providers: list[Any]
     enable_mcp_server: bool
     mcp_server_path: str
+    role_membership_cleanup_interval: int
     expired_notifications_cleanup_interval: int
     dispatch_notifications_interval: int
     send_notification_rate_limit: str

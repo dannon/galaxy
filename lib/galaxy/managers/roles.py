@@ -3,8 +3,16 @@ Manager and Serializer for Roles.
 """
 
 import logging
+from typing import (
+    Any,
+    cast,
+)
 
-from sqlalchemy import select
+from sqlalchemy import (
+    delete,
+    select,
+)
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.exc import (
     MultipleResultsFound,
     NoResultFound,
@@ -26,6 +34,7 @@ from galaxy.model.db.role import (
     get_role_groups,
     get_role_users,
 )
+from galaxy.model.orm.now import now
 from galaxy.schema.schema import (
     RoleDefinitionModel,
     RoleUpdatePayload,
@@ -45,6 +54,19 @@ class RoleManager(base.ModelManager[model.Role]):
 
     user_assoc = model.UserRoleAssociation
     group_assoc = model.GroupRoleAssociation
+
+    def delete_expired_user_role_associations(self) -> int:
+        """Delete role memberships that have expired; returns how many.
+
+        Expired memberships already grant nothing (``User.all_roles`` skips
+        them); this only removes the rows.
+        """
+        stmt = delete(model.UserRoleAssociation).where(model.UserRoleAssociation.expiration_time <= now())
+        result = cast(
+            "CursorResult[Any]", self.session().execute(stmt, execution_options={"synchronize_session": False})
+        )
+        self.session().commit()
+        return result.rowcount
 
     def get(self, trans: ProvidesUserContext, role_id: int) -> model.Role:
         """

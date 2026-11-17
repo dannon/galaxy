@@ -4889,6 +4889,15 @@ mapping:
           This setting only takes effect when 'enable_mcp_server' is true.
           The MCP endpoint will be accessible at this path relative to the Galaxy base URL.
 
+      role_membership_cleanup_interval:
+        type: int
+        required: false
+        default: 3600
+        desc: |
+          The interval in seconds between deletions of expired role memberships from the
+          database. Expired memberships grant nothing even before they are deleted. Runs in
+          a Celery task; 0 disables it.
+
       expired_notifications_cleanup_interval:
         type: int
         required: false

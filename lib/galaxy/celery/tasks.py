@@ -48,6 +48,7 @@ from galaxy.managers.markdown_util import generate_branded_pdf
 from galaxy.managers.model_stores import ModelStoreManager
 from galaxy.managers.notification import NotificationManager
 from galaxy.managers.queue_metrics import emit_queue_metrics
+from galaxy.managers.roles import RoleManager
 from galaxy.managers.tool_data import ToolDataImportManager
 from galaxy.managers.workflow_completion import WorkflowCompletionManager
 from galaxy.metadata.set_metadata import set_metadata_portable
@@ -787,6 +788,13 @@ def prune_kombu_sqla_transport(config: GalaxyAppConfiguration):
 def cleanup_short_term_storage(storage_monitor: ShortTermStorageMonitor):
     """Cleanup short term storage."""
     storage_monitor.cleanup()
+
+
+@galaxy_task(action="delete expired role memberships")
+def cleanup_expired_role_memberships(role_manager: RoleManager):
+    """Delete expired role memberships (they already grant nothing)."""
+    deleted = role_manager.delete_expired_user_role_associations()
+    log.info(f"Deleted {deleted} expired role memberships.")
 
 
 @galaxy_task(action="clean up expired notifications")

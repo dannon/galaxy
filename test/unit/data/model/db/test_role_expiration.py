@@ -1,7 +1,9 @@
 from datetime import timedelta
+from types import SimpleNamespace
 
 from sqlalchemy import select
 
+from galaxy.managers.roles import RoleManager
 from galaxy.model import (
     Dataset,
     UserRoleAssociation,
@@ -69,3 +71,16 @@ def test_set_user_role_expiration_creates_then_updates(session, make_user, make_
     agent.set_user_role_expiration(user, role, later)
     rows = session.scalars(select(UserRoleAssociation).filter_by(user_id=user.id, role_id=role.id)).all()
     assert [row.expiration_time for row in rows] == [later]
+
+
+def test_cleanup_deletes_only_expired_memberships(session, make_user, make_role, make_user_role_association):
+    user = make_user()
+    expired, current, permanent = make_role(), make_role(), make_role()
+    make_user_role_association(user, expired).expiration_time = now() - timedelta(seconds=1)
+    make_user_role_association(user, current).expiration_time = now() + timedelta(hours=1)
+    make_user_role_association(user, permanent)
+    session.commit()
+    manager = RoleManager(SimpleNamespace(model=SimpleNamespace(context=session)))  # type: ignore[arg-type]
+    assert manager.delete_expired_user_role_associations() == 1
+    remaining = session.scalars(select(UserRoleAssociation.role_id).filter_by(user_id=user.id)).all()
+    assert sorted(remaining) == sorted([current.id, permanent.id])

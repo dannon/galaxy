@@ -3575,6 +3575,11 @@ galaxy:
   # base URL.
   #mcp_server_path: /api/mcp
 
+  # The interval in seconds between deletions of expired role
+  # memberships from the database. Expired memberships grant nothing
+  # even before they are deleted. Runs in a Celery task; 0 disables it.
+  #role_membership_cleanup_interval: 3600
+
   # The interval in seconds between attempts to delete all expired
   # notifications from the database (every 24 hours by default). Runs in
   # a Celery task.

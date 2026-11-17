@@ -329,6 +329,8 @@ def setup_periodic_tasks(config, celery_app):
         "recover_stale_bulk_storage_operation_runs", config.recover_stale_bulk_storage_operation_runs_interval
     )
 
+    schedule_task("cleanup_expired_role_memberships", config.role_membership_cleanup_interval)
+
     if config.statsd_host:
         schedule_task("emit_queue_metrics_task", config.queue_metrics_interval)
 
