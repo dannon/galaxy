@@ -32,6 +32,7 @@ from galaxy.authnz.ras.models import (
     Visa,
 )
 from galaxy.authnz.ras.store import (
+    PASSPORT_VAULT_KEY,
     PassportStatus,
     VaultPassportStore,
 )
@@ -40,7 +41,6 @@ from galaxy.authnz.ras.verify import (
     verify_passport,
 )
 from galaxy.managers.ga4gh_passports import (
-    PASSPORT_VAULT_KEY,
     PassportManager,
     PassportRefused,
 )
