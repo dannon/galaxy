@@ -2,7 +2,10 @@ import logging
 import os
 from collections import defaultdict
 from collections.abc import Callable
-from datetime import datetime
+from datetime import (
+    datetime,
+    timezone,
+)
 from typing import (
     Any,
     NamedTuple,
@@ -418,6 +421,14 @@ class FileSourcesUserContext(DictifiableFilesSourceContext, Protocol):
     @property
     def oidc_access_token_expirations(self) -> dict[str, datetime]: ...
 
+    @property
+    def ras_passport(self) -> str | None:
+        """The user's verified NIH RAS passport JWT, if they have one."""
+        ...
+
+    @property
+    def ras_passport_expires_at(self) -> datetime | None: ...
+
 
 OptionalUserContext = FileSourcesUserContext | None
 
@@ -427,6 +438,7 @@ class ProvidesFileSourcesUserContext(FileSourcesUserContext, FileSourceDictifiab
 
     def __init__(self, trans: ProvidesFileSourcesTransaction, **kwargs):
         self.trans = trans
+        self._ras_passport_lookup: tuple[str | None, datetime | None] | None = None
 
     @property
     def email(self) -> str | None:
@@ -516,6 +528,27 @@ class ProvidesFileSourcesUserContext(FileSourcesUserContext, FileSourceDictifiab
             if (expiry := compute_token_expiry_for_provider(user, auth.provider)) is not None
         }
 
+    @property
+    def ras_passport(self) -> str | None:
+        return self._load_ras_passport()[0]
+
+    @property
+    def ras_passport_expires_at(self) -> datetime | None:
+        return self._load_ras_passport()[1]
+
+    def _load_ras_passport(self) -> tuple[str | None, datetime | None]:
+        # Loading re-verifies the JWT, so do it once per context rather than per property read.
+        if self._ras_passport_lookup is None:
+            self._ras_passport_lookup = (None, None)
+            gate = getattr(self.trans.app, "ras_passport_gate", None)
+            user = self.trans.user
+            if gate is not None and user is not None:
+                passport = gate.store.load(user).passport
+                if passport is not None:
+                    expires_at = datetime.fromtimestamp(passport.expires_at, tz=timezone.utc)
+                    self._ras_passport_lookup = (passport.raw, expires_at)
+        return self._ras_passport_lookup
+
 
 class DictFileSourcesUserContext(FileSourcesUserContext, FileSourceDictifiable):
     def __init__(self, **kwd):
@@ -572,3 +605,11 @@ class DictFileSourcesUserContext(FileSourcesUserContext, FileSourceDictifiable):
     @property
     def oidc_access_token_expirations(self) -> dict[str, datetime]:
         return self._kwd.get("oidc_access_token_expirations") or {}
+
+    @property
+    def ras_passport(self) -> str | None:
+        return self._kwd.get("ras_passport")
+
+    @property
+    def ras_passport_expires_at(self) -> datetime | None:
+        return self._kwd.get("ras_passport_expires_at")
