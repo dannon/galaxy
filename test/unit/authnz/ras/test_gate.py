@@ -112,6 +112,18 @@ def test_build_from_config(tmp_path):
     assert gate.galaxy_url == "https://galaxy.example.org/"
 
 
+def test_build_with_direct_ras_wires_login(tmp_path, monkeypatch):
+    monkeypatch.delenv("RAS_CLIENT_SECRET", raising=False)
+    block = "direct_ras:\n  client_id: cid\n  redirect_uri: https://cb.example.org/cb\n"
+    path = _write_config(tmp_path, f"issuer: {ISSUER}\n{block}")
+    with pytest.raises(RasConfigError, match="client secret"):
+        build_passport_gate(_app(path))
+    monkeypatch.setenv("RAS_CLIENT_SECRET", "s3cret")
+    gate = build_passport_gate(_app(path))
+    assert gate is not None and gate.direct_login is not None
+    assert gate.direct_login.source.jwks is gate.store.issuer_config.jwks
+
+
 def test_vault_store_needs_a_vault(tmp_path):
     path = _write_config(tmp_path, f"issuer: {ISSUER}\n")
     with pytest.raises(RasConfigError, match="vault_config_file"):
