@@ -276,7 +276,7 @@ def galaxy_task(
                 log.info(message)
                 return rval
             except Exception:
-                log.exception(f"Celery task execution failed for {desc} {timer} {args}, {kwds}")
+                log.exception(f"Celery task execution failed for {desc} {timer}")
                 raise
             finally:
                 # Close and remove any open session this task has created
