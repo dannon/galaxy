@@ -31,6 +31,7 @@ from galaxy import (
     schema,
     util,
 )
+from galaxy.authnz.ras.store import PASSPORT_VAULT_KEY
 from galaxy.config import (
     COMPLIANCE_LOGGER_NAME,
     GALAXY_APP_NAME,
@@ -50,7 +51,6 @@ from galaxy.managers.extra_preferences import (
     EXTRA_PREFERENCES_KEY,
     ExtraPreferencesManager,
 )
-from galaxy.managers.ga4gh_passports import PASSPORT_VAULT_KEY
 from galaxy.model import (
     Job,
     User,
