@@ -233,3 +233,27 @@ class TestRasPassportDrsFetchIntegration(integration_util.IntegrationTestCase, C
         ]
         assert not any(passport in headers for headers in self.drs_server.request_headers)
         assert passport not in json.dumps(job_details)
+
+    def test_legacy_upload_of_protected_url_is_not_gated(self):
+        # Only /api/tools/fetch checks protected_sources. upload1 takes the URL without a
+        # study check, and the ras_passport source still sends whatever passport the user
+        # has, so here it is the DRS server that refuses the other study's passport.
+        email = "ras-drs-upload1@test.gx"
+        passport = self._passport("phs000999")
+        with self._different_user(email):
+            self._store_passport(email, passport)
+            history_id = self.populator.new_history()
+            response = self.populator.new_dataset_request(history_id, content=self.drs_uri, fetch_data=False)
+            self._assert_status_code_is(response, 200)
+            job = self.populator.check_run(response)
+            self.populator.wait_for_job(job["id"], assert_ok=False)
+            output = response.json()["outputs"][0]
+            details = self.populator.get_history_dataset_details(history_id, dataset=output, assert_ok=False)
+            job_details = self.populator.get_job_details(job["id"], full=True).json()
+        assert details["state"] == "error"
+        assert "did not accept the NIH RAS passport" in details["misc_info"]
+        assert self.drs_server.requests == [
+            ("GET", OBJECT_PATH, None),
+            ("POST", ACCESS_PATH, [passport]),
+        ]
+        assert passport not in json.dumps(job_details)
