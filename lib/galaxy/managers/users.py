@@ -50,10 +50,12 @@ from galaxy.managers.extra_preferences import (
     EXTRA_PREFERENCES_KEY,
     ExtraPreferencesManager,
 )
+from galaxy.managers.ga4gh_passports import PASSPORT_VAULT_KEY
 from galaxy.model import (
     Job,
     User,
     UserAddress,
+    UserGA4GHIdentity,
     UserQuotaUsage,
 )
 from galaxy.model.db.user import (
@@ -68,6 +70,10 @@ from galaxy.security.validate_user_input import (
     validate_password,
     validate_preferred_object_store_id,
     validate_publicname,
+)
+from galaxy.security.vault import (
+    is_vault_configured,
+    UserVaultWrapper,
 )
 from galaxy.structured_app import (
     BasicSharedApp,
@@ -348,6 +354,13 @@ class UserManager(base.ModelManager, deletable.PurgableManagerMixin):
         # Delete UserAuthnzTokens, unlinking any external identities
         for authnz in user.social_auth:
             self.session().delete(authnz)
+        # Unbind the user's GA4GH Passport identities and delete their stored Passport
+        for identity in self.session().scalars(select(UserGA4GHIdentity).where(UserGA4GHIdentity.user_id == user.id)):
+            self.session().delete(identity)
+        if self.app.vault is not None and is_vault_configured(self.app.vault):
+            user_vault = UserVaultWrapper(self.app.vault, user)
+            if user_vault.read_secret(PASSPORT_VAULT_KEY):
+                user_vault.delete_secret(PASSPORT_VAULT_KEY)
         compliance_log = logging.getLogger(COMPLIANCE_LOGGER_NAME)
         compliance_log.info(f"delete-user-event: {user.id}")
         # Maybe there is some case in the future where an admin needs

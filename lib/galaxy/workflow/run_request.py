@@ -488,24 +488,24 @@ def build_workflow_run_configs(
                 if data_request.src == "ldda":
                     ldda = _get_input_or_not_found(trans, LibraryDatasetDatasetAssociation, data_request, step)
                     assert ldda.dataset
-                    assert trans.user_is_admin or trans.app.security_agent.can_access_dataset(
-                        trans.get_current_user_roles(), ldda.dataset
-                    )
+                    assert trans.app.security_agent.admin_override_allowed(
+                        trans.user_is_admin, ldda.dataset
+                    ) or trans.app.security_agent.can_access_dataset(trans.get_current_user_roles(), ldda.dataset)
                     content = ldda.to_history_dataset_association(history, add_to_history=add_to_history)
                 elif data_request.src == "hda":
                     # Get dataset handle, add to dict and history if necessary
                     content = _get_input_or_not_found(trans, HistoryDatasetAssociation, data_request, step)
                     assert content.dataset
-                    assert trans.user_is_admin or trans.app.security_agent.can_access_dataset(
-                        trans.get_current_user_roles(), content.dataset
-                    )
+                    assert trans.app.security_agent.admin_override_allowed(
+                        trans.user_is_admin, content.dataset
+                    ) or trans.app.security_agent.can_access_dataset(trans.get_current_user_roles(), content.dataset)
                 elif data_request.src == "ld":
                     library_dataset = _get_input_or_not_found(trans, LibraryDataset, data_request, step)
                     ldda = library_dataset.library_dataset_dataset_association
                     assert ldda
-                    assert trans.user_is_admin or trans.app.security_agent.can_access_dataset(
-                        trans.get_current_user_roles(), ldda.dataset
-                    )
+                    assert trans.app.security_agent.admin_override_allowed(
+                        trans.user_is_admin, ldda.dataset
+                    ) or trans.app.security_agent.can_access_dataset(trans.get_current_user_roles(), ldda.dataset)
                     content = ldda.to_history_dataset_association(history, add_to_history=add_to_history)
                 elif data_request.src == "hdca":
                     hdca = _get_input_or_not_found(trans, HistoryDatasetCollectionAssociation, data_request, step)

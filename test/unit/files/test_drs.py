@@ -13,8 +13,9 @@ import pytest
 import responses
 
 from galaxy.exceptions import (
-    AuthenticationFailed,
+    AuthenticationRequired,
     FileSourceCredentialExpired,
+    ItemAccessibilityException,
     RasPassportRequiredException,
     UpstreamProxyError,
 )
@@ -533,16 +534,22 @@ def test_drs_ras_passport_missing_raises_before_any_request():
     assert len(responses.calls) == 0
 
 
-@pytest.mark.parametrize("status", [401, 403])
+@pytest.mark.parametrize(
+    "status,exception,message",
+    [
+        (401, AuthenticationRequired, "The DRS server did not accept the GA4GH Passport"),
+        (403, ItemAccessibilityException, "The GA4GH Passport does not grant access to this DRS object"),
+    ],
+)
 @responses.activate
-def test_drs_passport_rejected_is_reported(status):
+def test_drs_passport_rejected_is_reported(status, exception, message):
     responses.add(responses.GET, RAS_OBJECT_URL, json=RAS_OBJECT)
     responses.add(responses.POST, RAS_ACCESS_URL, status=status, body=f"bad passport {PASSPORT}")
 
     file_sources = configured_file_sources(DRS_RAS_PASSPORT_FILE_SOURCES_CONF)
-    with pytest.raises(AuthenticationFailed) as excinfo:
+    with pytest.raises(exception) as excinfo:
         assert_realizes_as(file_sources, RAS_DRS_URI, "", user_context=_ras_user_context())
-    assert str(excinfo.value) == f"The DRS server did not accept the NIH RAS passport (HTTP {status})."
+    assert str(excinfo.value) == message
     assert PASSPORT not in repr(excinfo.value)
 
 
@@ -604,7 +611,7 @@ def test_drs_expired_passport_fails_fast():
 
 
 REDIRECT_REFUSED_MESSAGE = (
-    "The DRS server tried to redirect a request carrying the NIH RAS passport, and Galaxy refused to follow it."
+    "The DRS server tried to redirect a request carrying the GA4GH Passport, and Galaxy refused to follow it."
 )
 
 
@@ -688,11 +695,32 @@ def test_drs_object_post_rejected_is_reported():
     responses.add(responses.POST, RAS_OBJECT_URL, status=401, body=f"bad passport {PASSPORT}")
 
     file_sources = configured_file_sources(DRS_RAS_PASSPORT_FILE_SOURCES_CONF)
-    with pytest.raises(AuthenticationFailed) as excinfo:
+    with pytest.raises(AuthenticationRequired) as excinfo:
         assert_realizes_as(file_sources, RAS_DRS_URI, "", user_context=_ras_user_context())
-    assert str(excinfo.value) == "The DRS server did not accept the NIH RAS passport (HTTP 401)."
+    assert str(excinfo.value) == "The DRS server did not accept the GA4GH Passport"
     assert PASSPORT not in repr(excinfo.value)
     assert [(call.request.method, call.request.url) for call in responses.calls] == [
         ("GET", RAS_OBJECT_URL),
         ("POST", RAS_OBJECT_URL),
     ]
+
+
+@responses.activate
+def test_retry_and_get_keeps_headers_on_202_retry():
+    """A 202 "come back later" retry must send the same headers as the first request."""
+    from galaxy.files.sources.util import (
+        retry_and_get,
+        RetryOptions,
+    )
+
+    url = "https://drs.example.org/ga4gh/drs/v1/objects/202test"
+    responses.add(responses.GET, url, status=202, headers={"Retry-After": "0"})
+    responses.add(responses.GET, url, json={"id": "202test"})
+    retry_options = RetryOptions()
+    retry_options.override_retry_after = 0
+
+    response = retry_and_get(url, retry_options, headers={"Authorization": "Bearer IBearTokens"})
+
+    assert response.json() == {"id": "202test"}
+    assert len(responses.calls) == 2
+    assert all(call.request.headers["Authorization"] == "Bearer IBearTokens" for call in responses.calls)

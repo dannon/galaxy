@@ -4620,6 +4620,128 @@
 :Type: str
 
 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``ga4gh_passport_broker_authorize_url``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:Description:
+    Authorization endpoint of the GA4GH Passport broker that connects
+    Galaxy users to their Passport (OAuth 2.0 authorization code flow
+    with PKCE; Galaxy is the broker's client). Setting it enables
+    Passport connections at ``/ga4gh_passport/connect``; the broker
+    must accept ``<galaxy_url>/ga4gh_passport/callback`` as the
+    redirect URI. The broker's token endpoint returns the Passport (a
+    JWT) as ``passport``. Passports are stored in the vault, which
+    must be configured (see ``vault_config_file``).
+:Default: ``None``
+:Type: str
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``ga4gh_passport_broker_token_url``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:Description:
+    Token endpoint of the GA4GH Passport broker, where Galaxy
+    exchanges the authorization code for the user's Passport.
+:Default: ``None``
+:Type: str
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``ga4gh_passport_broker_client_id``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:Description:
+    Galaxy's client id at the GA4GH Passport broker.
+:Default: ``None``
+:Type: str
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``ga4gh_passport_broker_client_secret``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:Description:
+    Galaxy's client secret at the GA4GH Passport broker.
+:Default: ``None``
+:Type: str
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``ga4gh_passport_trusted_issuers``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:Description:
+    Comma-separated list of trusted Passport and Visa issuers, e.g.
+    ``https://stsstg.nih.gov``. Galaxy accepts only Passports signed
+    by one of them, ignores Visas from any other issuer, and takes
+    signing keys only from these issuers' published key sets (OpenID
+    Connect discovery).
+:Default: ``None``
+:Type: str
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+``ga4gh_passport_max_age``
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:Description:
+    How long, in seconds, after a stored GA4GH Passport (and the
+    oldest of its Visas) was issued Galaxy still sends it to data
+    services such as DRS servers. Visas are access tokens, which the
+    GA4GH AAI profile treats as stale an hour after issue unless the
+    service re-validates them, and NIH RAS expects clients to re-check
+    them at least hourly. After this, the user reconnects to get a
+    fresh Passport (usually without logging in again).
+:Default: ``3600``
+:Type: int
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``ga4gh_controlled_data_grace_period``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:Description:
+    When a user's access to controlled-access data fetched with their
+    GA4GH Passport ends (the grant expired or was revoked, or
+    ga4gh_grant_max_membership passed), the data, and data derived
+    from it, stays in Galaxy but unreadable for this many seconds
+    (default 30 days). Reconnecting a Passport that carries the grant
+    within this time restores access; after it, the data is purged.
+:Default: ``2592000``
+:Type: int
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``ga4gh_controlled_data_purge_interval``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:Description:
+    The interval in seconds between purges of controlled-access data
+    whose ga4gh_controlled_data_grace_period has passed. Runs in a
+    Celery task, or, without Celery, in one Galaxy web process; 0
+    disables it.
+:Default: ``3600``
+:Type: int
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``ga4gh_grant_max_membership``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:Description:
+    Each data access grant in a user's GA4GH Passport (e.g. a dbGaP
+    study and consent group) becomes a Galaxy role that only this user
+    holds, and data fetched with the Passport is restricted to these
+    roles. The user holds a grant role until the grant expires, but at
+    most this many seconds (default 30 days) after their last Passport
+    connect; connecting again renews it. A grant missing from a newly
+    connected Passport ends the membership at once.
+:Default: ``2592000``
+:Type: int
+
+
 ~~~~~~~~~~~~~~~~~~~~
 ``auth_config_file``
 ~~~~~~~~~~~~~~~~~~~~
@@ -6492,6 +6614,19 @@
     Galaxy base URL.
 :Default: ``/api/mcp``
 :Type: str
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``role_membership_cleanup_interval``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:Description:
+    The interval in seconds between deletions of expired role
+    memberships from the database. Expired memberships grant nothing
+    even before they are deleted. Runs in a Celery task; 0 disables
+    it.
+:Default: ``3600``
+:Type: int
 
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

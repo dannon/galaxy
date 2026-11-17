@@ -2,6 +2,7 @@ import ipaddress
 import logging
 import os
 import posixpath
+import re
 import socket
 import tempfile
 import threading
@@ -46,6 +47,21 @@ from galaxy.util.path import safe_relpath
 log = logging.getLogger(__name__)
 
 _thread_http_session = threading.local()
+
+# The query string (and fragment) of URLs in free text. Signed download URLs carry
+# their credential there, and exception messages from HTTP libraries include the URL.
+_URL_QUERY_RE = re.compile(r"(\b[a-zA-Z][a-zA-Z0-9+.-]*://[^\s?#'\"]+)[?#][^\s'\")]*")
+
+
+def redact_url_queries(text: str) -> str:
+    """Replace the query string and fragment of every URL in ``text`` with ``[redacted]``.
+
+    Signed URLs (DRS access URLs, presigned cloud storage URLs) are credentials:
+    whoever has one can download the object until it expires. Use this on anything
+    that may contain one before it reaches a log, an exception message or a
+    dataset's error message.
+    """
+    return _URL_QUERY_RE.sub(r"\1?[redacted]", text)
 
 
 @contextmanager
@@ -302,7 +318,7 @@ def validate_non_local(uri: str, ip_allowlist: list[IpAllowedListEntryT]) -> str
     except (socket.gaierror, UnicodeError) as e:
         # UnicodeError covers idna codec failures (e.g. empty DNS labels in hosts like '...' or '..example.com')
         # which are not wrapped as socket.gaierror.
-        log.debug("Could not resolve url '%s': '%s'", url, e)
+        log.debug("Could not resolve url '%s': '%s'", redact_url_queries(url), e)
         raise RequestParameterInvalidException(f"Could not verify url '{url}'.")
     # Get the IP addresses that this entry resolves to (uniquely)
     # We drop:

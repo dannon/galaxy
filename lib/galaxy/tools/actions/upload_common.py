@@ -133,7 +133,7 @@ def handle_library_params(
     )
 
 
-def __new_history_upload(trans: ProvidesHistoryContext, uploaded_dataset, history=None, state=None):
+def __new_history_upload(trans: ProvidesHistoryContext, uploaded_dataset, history=None, state=None, permissions=None):
     if not history:
         history = trans.history
     hda = HistoryDatasetAssociation(
@@ -150,7 +150,8 @@ def __new_history_upload(trans: ProvidesHistoryContext, uploaded_dataset, histor
     else:
         hda.state = hda.states.QUEUED
     history.add_dataset(hda, genome_build=uploaded_dataset.dbkey, quota=False)
-    permissions = trans.app.security_agent.history_get_default_permissions(history)
+    if permissions is None:
+        permissions = trans.app.security_agent.history_get_default_permissions(history)
     assert hda.dataset is not None
     trans.app.security_agent.set_all_dataset_permissions(hda.dataset, permissions, new=True, flush=False)
     trans.sa_session.commit()
@@ -271,7 +272,14 @@ def new_upload(
     history=None,
     state=None,
     tag_list=None,
+    permissions=None,
 ):
+    """Create the dataset an upload fills in.
+
+    ``permissions`` (history uploads only) replaces the history's default
+    dataset permissions.
+    """
+    assert permissions is None or not library_bunch, "permissions apply to history uploads only"
     requested_uuid = _unused_uuid(trans, getattr(uploaded_dataset, "uuid", None))
     tag_handler = trans.tag_handler
     if library_bunch:
@@ -285,7 +293,9 @@ def new_upload(
                     user=trans.user, item=upload_target_dataset_instance, name=tag[0], value=tag[1], flush=False
                 )
     else:
-        upload_target_dataset_instance = __new_history_upload(trans, uploaded_dataset, history=history, state=state)
+        upload_target_dataset_instance = __new_history_upload(
+            trans, uploaded_dataset, history=history, state=state, permissions=permissions
+        )
         tags_raw = getattr(uploaded_dataset, "tags", None)
         if tags_raw:
             new_tags = tag_handler.parse_tags_list(tags_raw.split(","))

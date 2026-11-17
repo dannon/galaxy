@@ -281,8 +281,11 @@ class DatasetCollectionsService(ServiceBase, UsesLibraryMixinItems):
         dce: DatasetCollectionElement | None = trans.model.session.get(DatasetCollectionElement, dce_id)
         if not dce:
             raise exceptions.ObjectNotFound("No DatasetCollectionElement found")
-        if not trans.user_is_admin:
-            collection = dce.child_collection or dce.collection
+        collection = dce.child_collection or dce.collection
+        admin_override = trans.user_is_admin and not trans.app.security_agent.action_tuples_are_controlled(
+            collection.dataset_action_tuples
+        )
+        if not admin_override:
             if not trans.app.security_agent.can_access_collection(trans.get_current_user_roles(), collection):
                 raise exceptions.ItemAccessibilityException("Collection not accessible by user.")
         serialized_dce = dictify_element_reference(dce, recursive=False, security=trans.security)

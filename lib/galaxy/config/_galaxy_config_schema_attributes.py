@@ -352,6 +352,15 @@ class GalaxyAppConfigurationAttributes:
     oidc_auth_pipeline: list[Any]
     oidc_auth_pipeline_extra: list[Any]
     oidc_scope_prefix: str
+    ga4gh_passport_broker_authorize_url: str | None
+    ga4gh_passport_broker_token_url: str | None
+    ga4gh_passport_broker_client_id: str | None
+    ga4gh_passport_broker_client_secret: str | None
+    ga4gh_passport_trusted_issuers: str | None
+    ga4gh_passport_max_age: int
+    ga4gh_controlled_data_grace_period: int
+    ga4gh_controlled_data_purge_interval: int
+    ga4gh_grant_max_membership: int
     auth_config_file: str
     api_allow_run_as: str | None
     bootstrap_admin_api_key: str | None
@@ -478,6 +487,7 @@ class GalaxyAppConfigurationAttributes:
     command_palette_disabled_providers: list[Any]
     enable_mcp_server: bool
     mcp_server_path: str
+    role_membership_cleanup_interval: int
     expired_notifications_cleanup_interval: int
     dispatch_notifications_interval: int
     send_notification_rate_limit: str

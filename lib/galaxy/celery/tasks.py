@@ -41,6 +41,7 @@ from galaxy.managers.datasets import (
     DatasetAssociationManager,
     DatasetManager,
 )
+from galaxy.managers.ga4gh_passports import PassportManager
 from galaxy.managers.hdas import HDAManager
 from galaxy.managers.jobs import JobSubmitter
 from galaxy.managers.lddas import LDDAManager
@@ -48,6 +49,7 @@ from galaxy.managers.markdown_util import generate_branded_pdf
 from galaxy.managers.model_stores import ModelStoreManager
 from galaxy.managers.notification import NotificationManager
 from galaxy.managers.queue_metrics import emit_queue_metrics
+from galaxy.managers.roles import RoleManager
 from galaxy.managers.tool_data import ToolDataImportManager
 from galaxy.managers.workflow_completion import WorkflowCompletionManager
 from galaxy.metadata.set_metadata import set_metadata_portable
@@ -788,6 +790,20 @@ def prune_kombu_sqla_transport(config: GalaxyAppConfiguration):
 def cleanup_short_term_storage(storage_monitor: ShortTermStorageMonitor):
     """Cleanup short term storage."""
     storage_monitor.cleanup()
+
+
+@galaxy_task(action="delete expired role memberships")
+def cleanup_expired_role_memberships(role_manager: RoleManager):
+    """Delete expired role memberships (they already grant nothing)."""
+    deleted = role_manager.delete_expired_user_role_associations()
+    log.info(f"Deleted {deleted} expired role memberships.")
+
+
+@galaxy_task(action="purge controlled data after the grace period")
+def purge_ended_controlled_data(passport_manager: PassportManager, hda_manager: HDAManager):
+    """Purge controlled-access data whose GA4GH grant ended more than the grace period ago."""
+    purged = passport_manager.purge_ended_controlled_data(hda_manager)
+    log.info(f"Purged {purged} controlled-access datasets after the grace period.")
 
 
 @galaxy_task(action="clean up expired notifications")

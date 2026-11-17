@@ -34,6 +34,14 @@ from .plugins import (
 )
 
 
+class GA4GHPassportCredential(NamedTuple):
+    """A user's GA4GH Passport, for file sources that send it to data services (DRS)."""
+
+    passport: str  # the Passport JWT; a credential, never log it
+    fresh_until: datetime  # don't send it after this; the user reconnects for a fresh one
+    txn: str | None  # the issuer's login transaction id, for audit logs
+
+
 class ProvidesFileSourcesTransaction(Protocol):
     """The slice of a Galaxy transaction ProvidesFileSourcesUserContext reads."""
 
@@ -438,6 +446,9 @@ class FileSourcesUserContext(DictifiableFilesSourceContext, Protocol):
         """The user had a passport but it has expired, as opposed to never having had one."""
         ...
 
+    @property
+    def ga4gh_passport(self) -> GA4GHPassportCredential | None: ...
+
 
 OptionalUserContext = FileSourcesUserContext | None
 
@@ -480,7 +491,7 @@ class ProvidesFileSourcesUserContext(FileSourcesUserContext, FileSourceDictifiab
         """The set of role names of this user."""
         role_names = set()
         if user := self.trans.user:
-            role_names = {ura.role.name for ura in user.roles}
+            role_names = {ura.role.name for ura in user.roles if ura.is_active}
             role_names.add(user.email)  # User's private role may have a generic name, so add user's email explicitly.
         return role_names
 
@@ -575,6 +586,21 @@ class ProvidesFileSourcesUserContext(FileSourcesUserContext, FileSourceDictifiab
             self._ras_passport_lookup = lookup
         return self._ras_passport_lookup
 
+    @property
+    def ga4gh_passport(self) -> GA4GHPassportCredential | None:
+        """The user's stored GA4GH Passport if it still verifies, else None."""
+        user = self.trans.user
+        if not user:
+            return None
+        from galaxy.managers.ga4gh_passports import PassportManager
+
+        manager = self.trans.app[PassportManager]
+        passport = manager.current(user)
+        if passport is None:
+            return None
+        fresh_until = datetime.fromtimestamp(manager.fresh_until(passport), tz=timezone.utc)
+        return GA4GHPassportCredential(passport=passport.token, fresh_until=fresh_until, txn=passport.txn)
+
 
 class DictFileSourcesUserContext(FileSourcesUserContext, FileSourceDictifiable):
     def __init__(self, **kwd):
@@ -643,3 +669,9 @@ class DictFileSourcesUserContext(FileSourcesUserContext, FileSourceDictifiable):
     @property
     def ras_passport_expired(self) -> bool:
         return bool(self._kwd.get("ras_passport_expired"))
+
+    @property
+    def ga4gh_passport(self) -> GA4GHPassportCredential | None:
+        # Never part of the serialized user context (see FileSourceDictifiable): file
+        # sources that use it put what they need into their own serialized config.
+        return self._kwd.get("ga4gh_passport")

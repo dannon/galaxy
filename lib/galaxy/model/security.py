@@ -267,8 +267,11 @@ class GalaxyRBACAgent(RBACAgent):
         Method for checking if:
         - a role is private and is the current user's private role
         - a role is a sharing role and belongs to the current user
+        GA4GH grant roles are never offered: Galaxy assigns them.
         """
         role_type = role.type
+        if role_type == Role.types.GA4GH_GRANT:
+            return False
         if user:
             if role_type == Role.types.PRIVATE:
                 return role == self.get_private_user_role(user)
@@ -655,10 +658,39 @@ WHERE history.user_id != :user_id and history_dataset_association.dataset_id = :
         # TODO: Pass in the item's actions - the item isn't needed
         return [permission for permission in item.actions if permission.action == action.action]
 
+    def dataset_is_controlled(self, dataset) -> bool:
+        """Whether ``dataset`` is controlled access: managed by a role Galaxy assigns itself.
+
+        Data fetched with a GA4GH Passport, and everything derived from it, is
+        managed by ``ga4gh_grant`` roles that no user holds or can be given.
+        Admins get no override for such data.
+        """
+        if not isinstance(dataset, Dataset):
+            dataset = dataset.dataset
+        return bool(dataset.is_controlled)
+
+    def admin_override_allowed(self, is_admin, dataset) -> bool:
+        """Whether an admin may bypass access and manage checks on ``dataset``: never for controlled data."""
+        return bool(is_admin) and not self.dataset_is_controlled(dataset)
+
+    def action_tuples_are_controlled(self, action_tuples) -> bool:
+        """``dataset_is_controlled`` for a collection's ``(action, role_id)`` tuples: any element controlled."""
+        manage = self.permitted_actions.DATASET_MANAGE_PERMISSIONS.action
+        return bool(self._ga4gh_grant_role_ids({role_id for action, role_id in action_tuples if action == manage}))
+
+    def _ga4gh_grant_role_ids(self, role_ids) -> list[int]:
+        """The ``ga4gh_grant`` roles among ``role_ids`` (Galaxy assigns them; they manage controlled data)."""
+        if not role_ids:
+            return []
+        stmt = select(Role.id).where(Role.id.in_(role_ids), Role.type == Role.types.GA4GH_GRANT)
+        return sorted(self.sa_session.scalars(stmt))
+
     def guess_derived_permissions_for_datasets(self, datasets=None):
         """Returns a dict of { action : [ role, role, ... ] } for the output dataset based upon provided datasets"""
         datasets = datasets or []
         perms = {}
+        manage = self.permitted_actions.DATASET_MANAGE_PERMISSIONS
+        controlled_manage_roles: list[Role] = []
         for dataset in datasets:
             if not isinstance(dataset, Dataset):
                 dataset = dataset.dataset
@@ -668,6 +700,9 @@ WHERE history.user_id != :user_id and history_dataset_association.dataset_id = :
                 these_perms[action] = []
             # collect this dataset's perms
             these_perms = self.get_permissions(dataset)
+            for role in these_perms.get(manage, []):
+                if role.type == Role.types.GA4GH_GRANT and role not in controlled_manage_roles:
+                    controlled_manage_roles.append(role)
             # join or intersect this dataset's permissions with others
             for action, roles in these_perms.items():
                 if action not in perms.keys():
@@ -679,6 +714,9 @@ WHERE history.user_id != :user_id and history_dataset_association.dataset_id = :
                     elif action.model == "restrict":
                         # join existing roles with new roles
                         perms[action].extend([_ for _ in roles if _ not in perms[action]])
+        if controlled_manage_roles:
+            # Derived from controlled data: controlled too, whatever the other inputs allow.
+            perms[manage] = controlled_manage_roles
         return perms
 
     def guess_derived_permissions(self, all_input_permissions):
@@ -700,6 +738,10 @@ WHERE history.user_id != :user_id and history_dataset_association.dataset_id = :
                 elif action.model == "restrict":
                     # join existing roles with new roles
                     perms[action].extend([_ for _ in role_ids if _ not in perms[action]])
+        manage = self.permitted_actions.DATASET_MANAGE_PERMISSIONS
+        if controlled := self._ga4gh_grant_role_ids(all_input_permissions.get(manage.action)):
+            # Derived from controlled data: controlled too, whatever the other inputs allow.
+            perms[manage] = controlled
         return perms
 
     def associate_user_group(self, user, group):
@@ -708,9 +750,22 @@ WHERE history.user_id != :user_id and history_dataset_association.dataset_id = :
         self.sa_session.commit()
         return assoc
 
-    def associate_user_role(self, user, role):
-        assoc = UserRoleAssociation(user, role)
+    def associate_user_role(self, user, role, expiration_time=None):
+        assoc = UserRoleAssociation(user, role, expiration_time=expiration_time)
         self.sa_session.add(assoc)
+        self.sa_session.commit()
+        return assoc
+
+    def set_user_role_expiration(self, user, role, expiration_time):
+        """Give ``user`` the role until ``expiration_time`` (None: no expiration).
+
+        Updates the expiration of an existing membership, or creates it.
+        """
+        stmt = select(UserRoleAssociation).filter_by(user_id=user.id, role_id=role.id)
+        assoc = self.sa_session.scalars(stmt).one_or_none()
+        if assoc is None:
+            return self.associate_user_role(user, role, expiration_time=expiration_time)
+        assoc.expiration_time = expiration_time
         self.sa_session.commit()
         return assoc
 
@@ -1498,6 +1553,8 @@ WHERE history.user_id != :user_id and history_dataset_association.dataset_id = :
         If the provided list is empty, existing associations will be removed.
         If the provided value is None, existing associations will not be updated.
         """
+        if role.type == Role.types.GA4GH_GRANT:
+            raise RequestParameterInvalidException("GA4GH grant roles are assigned by Galaxy, not by hand.")
         self._persist_new_model(role)
         if user_ids is not None:
             self._set_role_users(role, user_ids)
@@ -1519,7 +1576,12 @@ WHERE history.user_id != :user_id and history_dataset_association.dataset_id = :
             log.warning("User %s does not have a private role assigned", user)
         else:
             delete_stmt = delete_stmt.where(UserRoleAssociation.role_id != private_role.id)
+        # GA4GH grant roles are assigned by Galaxy: keep the user's (with their expirations), add none.
+        grant_role_ids = select(Role.id).where(Role.type == Role.types.GA4GH_GRANT)
+        delete_stmt = delete_stmt.where(UserRoleAssociation.role_id.not_in(grant_role_ids))
         role_ids = self._filter_private_roles(role_ids)
+        grant_ids = set(self._ga4gh_grant_role_ids(role_ids))
+        role_ids = [role_id for role_id in role_ids if role_id not in grant_ids]
 
         insert_values = [{"user_id": user.id, "role_id": role_id} for role_id in role_ids]
         self._set_associations(user, UserRoleAssociation, delete_stmt, insert_values)
@@ -1538,6 +1600,8 @@ WHERE history.user_id != :user_id and history_dataset_association.dataset_id = :
         self._set_associations(group, UserGroupAssociation, delete_stmt, insert_values)
 
     def _set_group_roles(self, group, role_ids):
+        if self._ga4gh_grant_role_ids(role_ids):
+            raise RequestParameterInvalidException("GA4GH grant roles are assigned by Galaxy, not by hand.")
         delete_stmt = delete(GroupRoleAssociation).where(GroupRoleAssociation.group_id == group.id)
         insert_values = [{"group_id": group.id, "role_id": role_id} for role_id in role_ids]
         self._set_associations(group, GroupRoleAssociation, delete_stmt, insert_values)

@@ -94,7 +94,11 @@ class ModelStoreManager:
         assert history
         # symlink files on export, on worker files will tarred up in a dereferenced manner.
         with DirectoryModelExportStore(
-            store_directory, app=self._app, export_files="symlink", include_datasets_mapping=True
+            store_directory,
+            app=self._app,
+            export_files="symlink",
+            include_datasets_mapping=True,
+            refuse_controlled_data=True,
         ) as export_store:
             export_store.export_history(history, include_hidden=include_hidden, include_deleted=include_deleted)
         job = self._sa_session.get(model.Job, job_id)

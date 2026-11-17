@@ -377,7 +377,7 @@ function unexpandedClick(event: Event) {
                             fixed-width
                             :icon="contentState.icon!"
                             :spin="contentState.spin"
-                            :title="item.populated_state_message || contentState.text" />
+                            :title="item.inaccessible_message || item.populated_state_message || contentState.text" />
                     </span>
                     <span class="id hid">{{ id }}: </span>
                     <span class="content-title name font-weight-bold">{{ name }}</span>
@@ -407,6 +407,7 @@ function unexpandedClick(event: Event) {
                         v-if="!isPlaceholder && !hideOptions"
                         :writable="writable"
                         :is-dataset="isDataset"
+                        :is-accessible="item.accessible !== false"
                         :is-deleted="item.deleted"
                         :is-history-item="isHistoryItem"
                         :is-visible="item.visible"
@@ -447,7 +448,14 @@ function unexpandedClick(event: Event) {
         </span>
         <!-- collections are not expandable, so we only need the DatasetDetails component here -->
         <GCollapse v-slot="{ contentActive }" :visible="expandDataset" class="px-2 pb-2">
-            <div v-if="item.accessible === false">You are not allowed to access this dataset</div>
+            <div v-if="item.accessible === false" class="inaccessible-message">
+                <template v-if="item.inaccessible_message">
+                    <!-- So far only set for controlled-access data fetched with a GA4GH Passport. -->
+                    {{ item.inaccessible_message }}
+                    <router-link to="/user/ga4gh_passport">{{ localize("Manage your GA4GH Passport") }}</router-link>
+                </template>
+                <template v-else>{{ localize("You are not allowed to access this dataset") }}</template>
+            </div>
             <DatasetDetails
                 v-else-if="contentActive && item.id"
                 :id="item.id"

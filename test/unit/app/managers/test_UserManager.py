@@ -30,9 +30,13 @@ from galaxy.managers import (
 )
 from galaxy.managers.api_keys import ApiKeyManager
 from galaxy.managers.extra_preferences import ExtraPreferencesManager
+from galaxy.managers.ga4gh_passports import PASSPORT_VAULT_KEY
 from galaxy.schema.schema import UserUpdatePayload
 from galaxy.security.passwords import check_password
-from galaxy.security.vault import NullVault
+from galaxy.security.vault import (
+    NullVault,
+    UserVaultWrapper,
+)
 from galaxy.util import now
 from .base import BaseTestCase
 
@@ -616,6 +620,23 @@ class TestUserManager(BaseTestCase):
         self.user_manager.purge(user2)
 
         assert self._oidc_tokens_for(user2) == []
+
+    def test_purge_unbinds_ga4gh_identity_and_deletes_passport(self):
+        self.log("purging a user should unbind their GA4GH Passport identity and delete their stored Passport")
+        self.trans.app.config.allow_user_deletion = True
+        self.app.setup_test_vault()
+        user2 = self.user_manager.create(**user2_data)
+        self.trans.sa_session.add(model.UserGA4GHIdentity(user_id=user2.id, issuer="https://ras.example.org", sub="s2"))
+        self.trans.sa_session.commit()
+        user_vault = UserVaultWrapper(self.app.vault, user2)
+        user_vault.write_secret(PASSPORT_VAULT_KEY, '{"passport": "x"}')
+
+        self.user_manager.delete(user2)
+        self.user_manager.purge(user2)
+
+        stmt = select(model.UserGA4GHIdentity).where(model.UserGA4GHIdentity.user_id == user2.id)
+        assert list(self.trans.sa_session.scalars(stmt)) == []
+        assert not user_vault.read_secret(PASSPORT_VAULT_KEY)
 
     def test_purge_logs_compliance_event_with_user_id(self, caplog):
         self.log("purging a user should log the user ID, not their PII, to the compliance logger")
