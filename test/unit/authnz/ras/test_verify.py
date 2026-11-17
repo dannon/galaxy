@@ -19,6 +19,7 @@ from galaxy.authnz.ras.verify import (
     IssuerConfig,
     PassportVerificationError,
     TokenExpiredError,
+    VerificationUnavailableError,
     verify_passport,
 )
 from .util import (
@@ -121,11 +122,20 @@ def test_passport_missing_required_claim_rejected(claim):
         verify_passport(sign(claims), issuer_config(), now=NOW)
 
 
-def test_visa_without_visa_object_rejected():
-    visa = visa_claims()
+def _only_dropped_visa(raw_visa: str):
+    """Verify a passport holding just ``raw_visa`` and return its one dropped visa."""
+    passport = verify_passport(sign(passport_claims([raw_visa])), issuer_config(), now=NOW)
+    assert passport.visas == ()
+    (dropped,) = passport.dropped_visas
+    return dropped
+
+
+def test_visa_without_visa_object_is_dropped():
+    visa = visa_claims(jti="no-visa-object")
     del visa["ga4gh_visa_v1"]
-    with pytest.raises(PassportVerificationError, match="ga4gh_visa_v1"):
-        verify_passport(sign(passport_claims([sign(visa)])), issuer_config(), now=NOW)
+    dropped = _only_dropped_visa(sign(visa))
+    assert "ga4gh_visa_v1" in dropped.reason
+    assert dropped.jti == "no-visa-object"
 
 
 def test_expired_passport_rejected():
@@ -177,10 +187,27 @@ def test_tampered_payload_rejected():
         verify_passport(f"{header}.{forged}.{signature}", issuer_config(), now=NOW)
 
 
-def test_visa_bad_signature_rejects_passport():
-    bad_visa = sign(visa_claims([permission()]), key=OTHER_KEY)
-    with pytest.raises(PassportVerificationError, match="visa 0"):
-        verify_passport(sign(passport_claims([bad_visa])), issuer_config(), now=NOW)
+def test_visa_with_bad_signature_is_dropped_and_the_rest_kept():
+    good = sign(visa_claims([permission("phs000001")]))
+    forged = sign(visa_claims([permission("phs000002")]), key=OTHER_KEY)
+    passport = verify_passport(sign(passport_claims([forged, good])), issuer_config(), now=NOW)
+    assert [v.dbgap_permissions[0].phs_id for v in passport.visas] == ["phs000001"]
+    (dropped,) = passport.dropped_visas
+    assert dropped.reason.startswith("visa 0")
+    # Nothing in a visa that failed its signature can be believed, not even its id.
+    assert dropped.jti is None and dropped.expires_at is None
+    assert forged not in repr(passport)
+
+
+def test_visa_is_not_dropped_when_the_keys_cannot_be_fetched():
+    """An outage at the issuer must read as "can't check", not as a visa that failed."""
+    visa = sign(visa_claims([permission()]), kid=OTHER_KID)
+    fetcher = OutageFetcher(jwks_doc((KEY, KID)))
+    config = issuer_config(fetcher, min_refresh_interval=0)
+    verify_passport(make_passport(), config, now=NOW)
+    fetcher.down = True
+    with pytest.raises(VerificationUnavailableError):
+        verify_passport(sign(passport_claims([visa])), config, now=NOW)
 
 
 def test_wrong_issuer():
@@ -188,10 +215,9 @@ def test_wrong_issuer():
         verify_passport(make_passport(iss="https://evil.example"), issuer_config(), now=NOW)
 
 
-def test_visa_wrong_issuer():
-    visa = sign(visa_claims(iss="https://evil.example"))
-    with pytest.raises(PassportVerificationError, match="visa 0 has the wrong issuer"):
-        verify_passport(sign(passport_claims([visa])), issuer_config(), now=NOW)
+def test_visa_from_another_issuer_is_dropped():
+    dropped = _only_dropped_visa(sign(visa_claims(iss="https://evil.example")))
+    assert dropped.reason == "visa 0 has the wrong issuer"
 
 
 def test_alg_none_rejected():
@@ -200,10 +226,9 @@ def test_alg_none_rejected():
         verify_passport(raw, issuer_config(), now=NOW)
 
 
-def test_visa_alg_none_rejected():
-    visa = jwt.encode(visa_claims(), "", algorithm="none")
-    with pytest.raises(PassportVerificationError, match="disallowed algorithm"):
-        verify_passport(sign(passport_claims([visa])), issuer_config(), now=NOW)
+def test_visa_alg_none_is_dropped():
+    dropped = _only_dropped_visa(jwt.encode(visa_claims(), "", algorithm="none"))
+    assert "disallowed algorithm" in dropped.reason
 
 
 def test_hs256_with_public_key_as_secret_rejected():
@@ -235,16 +260,15 @@ def test_not_a_jwt():
         verify_passport("not-a-token", issuer_config(), now=NOW)
 
 
-def test_visa_subject_mismatch_rejects_passport():
-    visa = sign(visa_claims(sub="another-subject"))
-    with pytest.raises(PassportVerificationError, match="subject"):
-        verify_passport(sign(passport_claims([visa])), issuer_config(), now=NOW)
+def test_visa_for_another_subject_is_dropped():
+    dropped = _only_dropped_visa(sign(visa_claims(sub="another-subject", jti="someone-elses")))
+    assert "subject" in dropped.reason
+    assert dropped.jti == "someone-elses"
 
 
-def test_expired_visa_with_subject_mismatch_still_rejects():
+def test_expired_visa_for_another_subject_is_dropped_for_the_subject():
     visa = sign(visa_claims(sub="another-subject", iat=NOW - 7200, exp=NOW - 3600))
-    with pytest.raises(PassportVerificationError, match="subject"):
-        verify_passport(sign(passport_claims([visa])), issuer_config(), now=NOW)
+    assert "subject" in _only_dropped_visa(visa).reason
 
 
 def test_kid_miss_triggers_one_jwks_refresh():
