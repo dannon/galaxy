@@ -380,13 +380,13 @@ def test_file_source_drs_attach_oidc_token():
 
 
 @responses.activate
-def test_drs_202_retry_keeps_headers():
+def test_drs_202_retry_keeps_headers(signed_url_dns):
     """A 202 on the object request is retried with the configured headers still attached."""
     object_url = "https://drs.example.org/ga4gh/drs/v1/objects/202202"
-    data = {"id": "202202", "access_methods": [{"type": "https", "access_url": {"url": "https://my.repository.org/f"}}]}
+    data = {"id": "202202", "access_methods": [{"type": "https", "access_url": {"url": SIGNED_URL}}]}
     responses.add(responses.GET, object_url, status=202, headers={"Retry-After": "0"})
     responses.add(responses.GET, object_url, json=data)
-    responses.add(responses.GET, "https://my.repository.org/f", body="hello drs world")
+    responses.add(responses.GET, SIGNED_URL, body="hello drs world")
 
     file_sources = configured_file_sources(FILE_SOURCES_CONF)
     assert_realizes_as(
