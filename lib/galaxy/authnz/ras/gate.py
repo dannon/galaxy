@@ -1,28 +1,20 @@
 """The check protected-data code paths call before touching dbGaP data.
 
 ``PassportGate.require`` answers "does this user have a passport (for this
-study)?" with either the verified passport or a ``PassportNeeded`` that carries
-where to send the user to get one: the configured bridge application, with a
-validated Galaxy return address attached.
+study)?" with either the verified passport or a ``PassportNeeded`` that says
+what is missing. Where to send the user to get a passport is the caller's
+business: on a Galaxy with a passport broker it is the connect flow.
 """
 
 import logging
 import threading
 import time
-from collections.abc import (
-    Callable,
-    Iterable,
-)
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
 from typing import (
     Any,
     TYPE_CHECKING,
-)
-from urllib.parse import (
-    urlencode,
-    urlsplit,
-    urlunsplit,
 )
 
 from galaxy.authnz.ras.config import (
@@ -51,7 +43,6 @@ from galaxy.authnz.ras.store import (
 )
 from galaxy.authnz.ras.verify import IssuerConfig
 from galaxy.security.vault import is_vault_configured
-from galaxy.util import is_safe_login_redirect
 
 if TYPE_CHECKING:
     from galaxy.structured_app import MinimalManagerApp
@@ -78,8 +69,6 @@ class PassportOk:
 @dataclass(frozen=True)
 class PassportNeeded:
     reason: PassportNeededReason
-    # None when no bridge is configured (e.g. a dev setup using direct RAS only).
-    redirect_url: str | None
     message: str
 
 
@@ -106,15 +95,11 @@ class PassportGate:
         self,
         config: RasConfig,
         store: PassportStore,
-        galaxy_url: str,
-        allowed_return_hosts: Iterable[str] = (),
         clock: Callable[[], float] = time.time,
         direct_login: DirectRasLogin | None = None,
     ):
         self.config = config
         self.store = store
-        self.galaxy_url = galaxy_url.rstrip("/") + "/"
-        self.allowed_return_hosts = list(allowed_return_hosts)
         self.clock = clock
         self.direct_login = direct_login
 
@@ -127,20 +112,17 @@ class PassportGate:
         phs_id: str | None = None,
         version: str | int | None = None,
         consent_group: str | int | None = None,
-        return_to: str | None = None,
     ) -> PassportDecision:
-        """The user's verified passport, or what's missing and where to go to fix it.
+        """The user's verified passport, or what's missing.
 
         With ``phs_id`` the passport must also grant that study (optionally a
-        specific version / consent group). ``return_to`` is where the bridge should
-        send the user afterwards; it must be on this Galaxy (or an allowed login
-        redirect host) and otherwise falls back to the configured ``return_path``.
+        specific version / consent group).
         """
         if user is None:
-            return self._needed(PassportNeededReason.ANONYMOUS, return_to)
+            return self._needed(PassportNeededReason.ANONYMOUS)
         lookup = self.store.load(user)
         if lookup.passport is None:
-            return self._needed(_STATUS_REASONS.get(lookup.status, PassportNeededReason.MISSING), return_to)
+            return self._needed(_STATUS_REASONS.get(lookup.status, PassportNeededReason.MISSING))
         if phs_id is not None:
             try:
                 granted = grants_access(
@@ -149,49 +131,24 @@ class PassportGate:
             except InvalidAccessionError:
                 granted = False
             if not granted:
-                return self._needed(PassportNeededReason.NO_ACCESS, return_to, phs_id=phs_id)
+                return self._needed(PassportNeededReason.NO_ACCESS, phs_id=phs_id)
         return PassportOk(lookup.passport)
 
-    def require_for_url(self, user: Any, url: str, return_to: str | None = None) -> PassportDecision | None:
+    def require_for_url(self, user: Any, url: str) -> PassportDecision | None:
         """``None`` if ``url`` isn't a protected source, otherwise what ``require`` says for its study."""
         match = match_protected_source(self.config.protected_sources, url)
         if match is None:
             return None
-        decision = self.require(user, phs_id=match.accession, return_to=return_to)
+        decision = self.require(user, phs_id=match.accession)
         if match.study_not_captured and isinstance(decision, PassportOk):
-            return self._needed(PassportNeededReason.NO_ACCESS, return_to)
+            return self._needed(PassportNeededReason.NO_ACCESS)
         return decision
 
     def require_for_trans(self, trans: Any, phs_id: str | None = None, **kwds: Any) -> PassportDecision:
         return self.require(trans.user, phs_id=phs_id, **kwds)
 
-    def _needed(self, reason: PassportNeededReason, return_to: str | None, phs_id: str | None = None) -> PassportNeeded:
-        # Sending the user back through RAS can't help while its keys are unreachable.
-        redirect_url = None if reason == PassportNeededReason.UNAVAILABLE else self.bridge_redirect_url(return_to)
-        return PassportNeeded(
-            reason=reason,
-            redirect_url=redirect_url,
-            message=_MESSAGES[reason].format(phs_id=phs_id or "the requested study"),
-        )
-
-    def return_address(self, return_to: str | None = None) -> str:
-        """An absolute URL on this Galaxy for the bridge to send the user back to."""
-        if return_to and is_safe_login_redirect(return_to, self.allowed_return_hosts, base_url=self.galaxy_url):
-            target = return_to
-        else:
-            if return_to:
-                log.warning("Ignoring RAS return address that is not on this Galaxy: %s", return_to)
-            target = self.config.return_path
-        # Relative targets go below Galaxy's URL, keeping any prefix. Concatenate rather
-        # than urljoin, which reads "/https://evil.example" as absolute once the slash is gone.
-        return self.galaxy_url.rstrip("/") + target if target.startswith("/") else target
-
-    def bridge_redirect_url(self, return_to: str | None = None) -> str | None:
-        if not self.config.bridge_url:
-            return None
-        bridge = urlsplit(self.config.bridge_url)
-        query = urlencode({self.config.return_param: self.return_address(return_to)})
-        return urlunsplit(bridge._replace(query=f"{bridge.query}&{query}" if bridge.query else query))
+    def _needed(self, reason: PassportNeededReason, phs_id: str | None = None) -> PassportNeeded:
+        return PassportNeeded(reason=reason, message=_MESSAGES[reason].format(phs_id=phs_id or "the requested study"))
 
 
 class _DiscoveredJwksUri:
@@ -234,9 +191,9 @@ def build_passport_gate(app: "MinimalManagerApp") -> PassportGate | None:
     if config is None:
         return None
     if not is_vault_configured(app.vault):
-        raise RasConfigError("RAS passport support with store: vault needs vault_config_file to be configured")
+        raise RasConfigError("RAS passport support needs vault_config_file to be configured")
     issuer_config = issuer_config_from(config)
-    store: PassportStore = VaultPassportStore(app.vault, issuer_config)
+    store = VaultPassportStore(app.vault, issuer_config)
     direct_login = None
     if config.direct_ras:
         settings = config.direct_ras
@@ -250,13 +207,5 @@ def build_passport_gate(app: "MinimalManagerApp") -> PassportGate | None:
             leeway=config.leeway,
         )
         direct_login = DirectRasLogin(source, app.vault)
-    # Without a bridge the return address is never used.
-    galaxy_url = config.galaxy_url or app.config.galaxy_infrastructure_url
     log.info("RAS passport support enabled for issuer %s", config.issuer)
-    return PassportGate(
-        config,
-        store,
-        galaxy_url=galaxy_url,
-        allowed_return_hosts=getattr(app.config, "allowed_login_redirect_hosts", None) or (),
-        direct_login=direct_login,
-    )
+    return PassportGate(config, store, direct_login=direct_login)

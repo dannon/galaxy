@@ -1,8 +1,4 @@
 from types import SimpleNamespace
-from urllib.parse import (
-    parse_qs,
-    urlsplit,
-)
 
 import pytest
 import requests
@@ -49,8 +45,6 @@ from .util import (
 )
 
 USER = SimpleNamespace(id=3)
-GALAXY_URL = "https://galaxy.example.org/"
-BRIDGE = "https://bridge.example.org/ras/login"
 
 
 class Clock:
@@ -61,21 +55,12 @@ class Clock:
         return self.now
 
 
-def _gate(clock=None, galaxy_url=GALAXY_URL, **config):
+def _gate(clock=None, **config):
     clock = clock or Clock(NOW)
     vault = InMemoryVault()
     store = VaultPassportStore(vault, issuer_config(), clock=clock)
-    ras_config = RasConfig(issuer=ISSUER, bridge_url=BRIDGE, galaxy_url=galaxy_url, **config)
-    gate = PassportGate(
-        ras_config, store, galaxy_url=galaxy_url, allowed_return_hosts=["portal.example.org"], clock=clock
-    )
+    gate = PassportGate(RasConfig(issuer=ISSUER, **config), store, clock=clock)
     return vault, store, gate
-
-
-def _return_to(redirect_url):
-    url = urlsplit(redirect_url)
-    assert f"{url.scheme}://{url.netloc}{url.path}" == BRIDGE
-    return parse_qs(url.query)["return_to"][0]
 
 
 def _write_config(tmp_path, text):
@@ -85,11 +70,7 @@ def _write_config(tmp_path, text):
 
 
 def _app(ras_config_file, vault=None):
-    config = SimpleNamespace(
-        ras_config_file=ras_config_file,
-        galaxy_infrastructure_url="http://localhost:8080",
-        allowed_login_redirect_hosts=[],
-    )
+    config = SimpleNamespace(ras_config_file=ras_config_file)
     return SimpleNamespace(config=config, vault=vault if vault is not None else InMemoryVault())
 
 
@@ -101,15 +82,13 @@ def test_off_by_default(tmp_path):
 
 
 def test_build_from_config(tmp_path):
-    path = _write_config(
-        tmp_path, f"issuer: {ISSUER}\nbridge_url: {BRIDGE}\ngalaxy_url: https://galaxy.example.org\nleeway: 30\n"
-    )
+    path = _write_config(tmp_path, f"issuer: {ISSUER}\nleeway: 30\n")
     gate = build_passport_gate(_app(path))
     assert isinstance(gate, PassportGate)
     assert gate.config.leeway == 30
     assert isinstance(gate.store, VaultPassportStore)
     assert gate.store.issuer_config.leeway == 30
-    assert gate.galaxy_url == "https://galaxy.example.org/"
+    assert gate.direct_login is None
 
 
 def test_build_with_direct_ras_wires_login(tmp_path, monkeypatch):
@@ -135,16 +114,9 @@ def test_vault_store_needs_a_vault(tmp_path):
     "text,match",
     [
         ("issuer: http://insecure.example\n", "https"),
-        (f"bridge_url: http://bridge.example\nissuer: {ISSUER}\n", "https"),
-        # galaxy_infrastructure_url is an internal address, no use to a browser coming back from the bridge.
-        (f"bridge_url: {BRIDGE}\n", "galaxy_url"),
-        ("return_path: //evil.example\n", "return_path"),
-        ("return_path: https://evil.example\n", "return_path"),
+        (f"jwks_uri: http://insecure.example/jwks.json\nissuer: {ISSUER}\n", "https"),
         ("leeway: 100000\n", "leeway"),
         ("unknown_option: 1\n", "unknown_option"),
-        ("store: s3\n", "store"),
-        # TapisVaultPassportStore is only a placeholder; accepting it would 500 every request.
-        ("store: tapis_vault\n", "store"),
         ("- a list\n", "mapping"),
     ],
 )
@@ -176,7 +148,8 @@ def test_empty_config_file_uses_defaults(tmp_path):
     config = load_ras_config(_write_config(tmp_path, ""))
     assert config is not None
     assert config.issuer == "https://stsstg.nih.gov"
-    assert config.bridge_url is None
+    assert config.jwks_uri is None
+    assert config.direct_ras is None
 
 
 def test_direct_ras_secret_from_env(monkeypatch):
@@ -193,8 +166,6 @@ def test_needed_when_missing():
     decision = gate.require(USER)
     assert isinstance(decision, PassportNeeded)
     assert decision.reason == PassportNeededReason.MISSING
-    assert decision.redirect_url
-    assert _return_to(decision.redirect_url) == GALAXY_URL
 
 
 def test_needed_when_anonymous():
@@ -233,8 +204,6 @@ def test_needed_when_keys_unavailable():
     decision = gate.require(USER)
     assert isinstance(decision, PassportNeeded)
     assert decision.reason == PassportNeededReason.UNAVAILABLE
-    # Logging in to RAS again won't help while the issuer is unreachable.
-    assert decision.redirect_url is None
     assert vault.read_secret(f"user/3/{PASSPORT_VAULT_KEY}")
 
 
@@ -268,7 +237,6 @@ def test_phs_denial_has_distinct_reason():
         assert isinstance(decision, PassportNeeded)
         assert decision.reason == PassportNeededReason.NO_ACCESS
         assert kwargs["phs_id"] in decision.message
-        assert decision.redirect_url
 
 
 def test_permission_expiry_is_enforced_by_the_gate():
@@ -280,58 +248,6 @@ def test_permission_expiry_is_enforced_by_the_gate():
     decision = gate.require(USER, phs_id="phs000123")
     assert isinstance(decision, PassportNeeded)
     assert decision.reason == PassportNeededReason.NO_ACCESS
-
-
-@pytest.mark.parametrize(
-    "return_to,expected",
-    [
-        (None, GALAXY_URL),
-        ("/datasets/list", "https://galaxy.example.org/datasets/list"),
-        ("https://galaxy.example.org/histories/view?id=1", "https://galaxy.example.org/histories/view?id=1"),
-        ("https://portal.example.org/after", "https://portal.example.org/after"),
-        ("https://evil.example/phish", GALAXY_URL),
-        ("//evil.example/phish", GALAXY_URL),
-        ("/\\evil.example", GALAXY_URL),
-        ("javascript:alert(1)", GALAXY_URL),
-        ("http://portal.example.org/after", GALAXY_URL),
-        # Paths that look like URLs once the leading slash is dropped stay on Galaxy.
-        ("/https://evil.example/phish", "https://galaxy.example.org/https://evil.example/phish"),
-        ("/javascript:alert(1)", "https://galaxy.example.org/javascript:alert(1)"),
-    ],
-)
-def test_return_address_validation(return_to, expected):
-    _, _, gate = _gate()
-    decision = gate.require(USER, return_to=return_to)
-    assert isinstance(decision, PassportNeeded)
-    assert decision.redirect_url
-    assert _return_to(decision.redirect_url) == expected
-
-
-def test_return_path_and_galaxy_prefix():
-    _, _, gate = _gate(galaxy_url="https://example.org/galaxy", return_path="/ras/done")
-    assert gate.return_address() == "https://example.org/galaxy/ras/done"
-    assert gate.return_address("/datasets/list") == "https://example.org/galaxy/datasets/list"
-
-
-def test_bridge_url_with_existing_query():
-    _, store, _ = _gate()
-    gate = PassportGate(
-        RasConfig(issuer=ISSUER, bridge_url=f"{BRIDGE}?tenant=cfderas", galaxy_url=GALAXY_URL, return_param="next"),
-        store,
-        GALAXY_URL,
-    )
-    redirect = gate.bridge_redirect_url()
-    assert redirect is not None
-    query = parse_qs(urlsplit(redirect).query)
-    assert query == {"tenant": ["cfderas"], "next": [GALAXY_URL]}
-
-
-def test_no_bridge_configured():
-    _, store, _ = _gate()
-    gate = PassportGate(RasConfig(issuer=ISSUER), store, GALAXY_URL)
-    decision = gate.require(USER)
-    assert isinstance(decision, PassportNeeded)
-    assert decision.redirect_url is None
 
 
 def test_jwks_uri_from_discovery():

@@ -1,12 +1,12 @@
-"""Ways for Galaxy to obtain a user's raw passport JWT.
+"""Ways for Galaxy to obtain a user's raw passport JWT from NIH RAS directly.
 
-In the CWIC design a TACC-built bridge application runs the RAS login and makes
-the passport available to Galaxy; how it hands it over isn't settled, so that
-part is :class:`BridgeAppPassportSource`, a stub. :class:`DirectRasPassportSource`
-talks to RAS itself and stands in for the bridge during development.
+The usual way in is a passport broker (``galaxy.managers.ga4gh_passports``).
+:class:`DirectRasPassportSource` logs in to RAS itself, which is how to get a
+passport in development when RAS can only redirect to an address that is not
+this Galaxy.
 
 Whatever the source, the JWT it returns is NIH's original signed passport and
-still goes through ``verify_passport`` (via the store) before Galaxy relies on it.
+still goes through ``verify_passport`` before Galaxy relies on it.
 """
 
 import abc
@@ -124,7 +124,7 @@ def _unreachable(url: str, error: requests.RequestException) -> PassportSourceEr
 class PassportSource(abc.ABC):
     @abc.abstractmethod
     def obtain(self, user: Any, handoff: Mapping[str, Any]) -> str:
-        """Turn whatever the bridge (or RAS) handed back for ``user`` into a raw passport JWT."""
+        """Turn what the login handed back for ``user`` into a raw passport JWT."""
 
 
 @dataclass(frozen=True)
@@ -138,8 +138,9 @@ class DirectRasPassportSource(PassportSource):
     """Runs the RAS authorization code flow itself, using ``client_secret_basic``.
 
     For development and testing only: RAS redirects back to the client's
-    registered callbacks, which for the CWIC client are Tapis URLs, so the
-    callback has to be carried back to Galaxy by hand (see ``ras_passport_smoke``).
+    registered callbacks, which need not be on this Galaxy, so the callback URL
+    is carried back to Galaxy by hand (see ``ras_passport_smoke`` and the
+    ``ras_login`` API endpoints).
 
     ``obtain`` expects a handoff with the ``code`` and ``state`` from the callback
     plus the ``expected_state`` and ``nonce`` that went into the authorization URL.
@@ -261,27 +262,3 @@ class DirectRasPassportSource(PassportSource):
         if not isinstance(claimed_nonce, str) or not hmac.compare_digest(claimed_nonce, nonce):
             raise PassportSourceError("ID token nonce does not match this login attempt")
         return claims
-
-
-class BridgeAppPassportSource(PassportSource):
-    """Placeholder for receiving the passport from the TACC bridge application.
-
-    The bridge fronts the ``cfderas.tapis.io`` tenant, runs the RAS login and makes
-    the passport available to Galaxy, which sent the user there with a return
-    address. Open questions, all of which shape ``obtain``'s handoff:
-
-    - Does Galaxy get the passport on the return redirect (a code or one-time
-      reference it redeems), by reading a Tapis vault secret, or via a Tapis API
-      call? Whichever it is, it must be NIH's original signed passport -- RAS
-      visas may not be repackaged by another broker.
-    - How does Galaxy authenticate to the bridge, and how is the returned passport
-      bound to the Galaxy user who started the flow (state/nonce on the redirect)?
-    - Who owns refresh, and how often must Galaxy recheck (the "once an hour" vs
-      "at most once an hour" question from 10/27)?
-    """
-
-    def __init__(self, bridge_url: str):
-        self.bridge_url = bridge_url
-
-    def obtain(self, user: Any, handoff: Mapping[str, Any]) -> str:
-        raise NotImplementedError("The bridge application handoff is not defined yet")

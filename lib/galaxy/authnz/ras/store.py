@@ -1,8 +1,8 @@
 """Where a user's current RAS passport is kept between requests.
 
-The passport is just-in-time: it's used until it expires and then the user goes
-through the bridge again, so stores hold the raw signed JWT and re-verify it on
-every read rather than trusting anything parsed earlier.
+The passport is just-in-time: it's used until it expires and then the user
+connects again, so stores hold the raw signed JWT and re-verify it on every
+read rather than trusting anything parsed earlier.
 """
 
 import abc
@@ -98,8 +98,8 @@ class VaultPassportStore(PassportStore):
         return PassportLookup(PassportStatus.OK, passport)
 
     def _drop(self, user: Any, raw: str) -> None:
-        # The user may have just come back from the bridge with a fresh passport
-        # while this request was verifying the old one; don't delete that.
+        # The user may have just connected again with a fresh passport while this
+        # request was verifying the old one; don't delete that.
         if self._user_vault(user).read_secret(PASSPORT_VAULT_KEY) == raw:
             self.clear(user)
 
@@ -113,29 +113,6 @@ class VaultPassportStore(PassportStore):
     def clear(self, user: Any) -> None:
         if user is not None:
             self._user_vault(user).delete_secret(PASSPORT_VAULT_KEY)
-
-
-class TapisVaultPassportStore(PassportStore):
-    """Placeholder for keeping the passport in the RAS-side Tapis tenant instead of Galaxy.
-
-    At the 10/20 CWIC meeting the bridge application was described as running in
-    the separate ``cfderas.tapis.io`` tenant, so the passport would be saved there,
-    and "if it is stored in a vault, the passport/token does not need to be
-    persisted within galaxy". Whether Tapis secrets can carry an expiry was still
-    being checked. Until the bridge contract is settled this has no
-    implementation; a real one would read the raw passport JWT from the Tapis
-    secret for the user and run it through ``verify_passport`` exactly like
-    :class:`VaultPassportStore`, so Galaxy still checks NIH's signature itself.
-    """
-
-    def load(self, user: Any) -> PassportLookup:
-        raise NotImplementedError("The Tapis vault passport store is not implemented yet")
-
-    def put(self, user: Any, raw_jwt: str) -> Passport:
-        raise NotImplementedError("The Tapis vault passport store is not implemented yet")
-
-    def clear(self, user: Any) -> None:
-        raise NotImplementedError("The Tapis vault passport store is not implemented yet")
 
 
 class InMemoryVault(Vault):

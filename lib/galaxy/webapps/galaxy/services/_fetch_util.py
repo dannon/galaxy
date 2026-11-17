@@ -6,19 +6,25 @@ from galaxy.actions.library import (
     validate_path_upload,
     validate_server_directory_upload,
 )
-from galaxy.authnz.ras.gate import PassportNeeded
+from galaxy.authnz.ras.gate import (
+    PassportNeeded,
+    PassportNeededReason,
+)
 from galaxy.exceptions import (
     RasPassportRequiredException,
     RequestParameterInvalidException,
 )
 from galaxy.files.uris import validate_non_local
+from galaxy.managers._config_templates import galaxy_url_for_path
 from galaxy.managers.context import ProvidesUserContext
+from galaxy.managers.ga4gh_passports import CONNECT_PATH
 from galaxy.model.store.discover import (
     get_required_item,
     replace_request_syntax_sugar,
 )
 from galaxy.tools.actions.upload_common import validate_datatype_extension
 from galaxy.util import relpath
+from galaxy.work.context import SessionRequestContext
 
 log = logging.getLogger(__name__)
 
@@ -210,10 +216,23 @@ def require_passports_for_targets(trans: ProvidesUserContext, targets: Any) -> N
             raise RasPassportRequiredException(
                 decision.message,
                 ras_passport_reason=decision.reason.value,
-                ras_passport_redirect_url=decision.redirect_url,
+                ras_passport_redirect_url=_passport_redirect_url(trans, decision),
             )
 
     _for_each_src(check_src, targets)
+
+
+def _passport_redirect_url(trans: ProvidesUserContext, decision: PassportNeeded) -> str | None:
+    """Where the user can get a passport: this Galaxy's connect flow, when a broker is configured."""
+    # Connecting again can't help while the issuer's keys are unreachable.
+    if decision.reason == PassportNeededReason.UNAVAILABLE:
+        return None
+    if not trans.app.ga4gh_passport_manager.enabled:
+        return None
+    # The URL is built from the browser's request; a fetch without one has no address to point at.
+    if not isinstance(trans, SessionRequestContext):
+        return None
+    return galaxy_url_for_path(trans, CONNECT_PATH)
 
 
 def _handle_invalid_link_data_only_elements_type(item):
