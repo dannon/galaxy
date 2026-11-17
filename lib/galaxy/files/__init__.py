@@ -466,7 +466,7 @@ class ProvidesFileSourcesUserContext(FileSourcesUserContext, FileSourceDictifiab
         """The set of role names of this user."""
         role_names = set()
         if user := self.trans.user:
-            role_names = {ura.role.name for ura in user.roles}
+            role_names = {ura.role.name for ura in user.roles if ura.is_active}
             role_names.add(user.email)  # User's private role may have a generic name, so add user's email explicitly.
         return role_names
 

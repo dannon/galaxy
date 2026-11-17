@@ -1156,7 +1156,7 @@ class User(Base, Dictifiable, RepresentById):
             # skip optimizations...
             user = self
 
-        roles = [ura.role for ura in user.roles]
+        roles = [ura.role for ura in user.roles if ura.is_active]
         for group in [uga.group for uga in user.groups]:
             for role in [gra.role for gra in group.roles]:
                 if role not in roles:
@@ -1165,7 +1165,7 @@ class User(Base, Dictifiable, RepresentById):
 
     def all_roles_exploiting_cache(self):
         """ """
-        roles = [ura.role for ura in self.roles]
+        roles = [ura.role for ura in self.roles if ura.is_active]
         for group in [uga.group for uga in self.groups]:
             for role in [gra.role for gra in group.roles]:
                 if role not in roles:
@@ -4700,14 +4700,22 @@ class UserRoleAssociation(Base, RepresentById):
     role_id: Mapped[int] = mapped_column(ForeignKey("role.id"), index=True)
     create_time: Mapped[datetime] = mapped_column(default=now, nullable=True)
     update_time: Mapped[datetime] = mapped_column(default=now, onupdate=now, nullable=True)
+    # The user holds the role until then (UTC); None: no expiration.
+    expiration_time: Mapped[datetime | None] = mapped_column(index=True, nullable=True)
 
     user: Mapped["User"] = relationship(back_populates="roles")
     role: Mapped["Role"] = relationship(back_populates="users")
 
-    def __init__(self, user, role):
+    def __init__(self, user, role, expiration_time: datetime | None = None):
         add_object_to_object_session(self, user)
         self.user = user
         self.role = role
+        self.expiration_time = expiration_time
+
+    @property
+    def is_active(self) -> bool:
+        """False once the membership has expired."""
+        return self.expiration_time is None or self.expiration_time > now()
 
 
 class GroupRoleAssociation(Base, RepresentById):

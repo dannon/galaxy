@@ -708,9 +708,22 @@ WHERE history.user_id != :user_id and history_dataset_association.dataset_id = :
         self.sa_session.commit()
         return assoc
 
-    def associate_user_role(self, user, role):
-        assoc = UserRoleAssociation(user, role)
+    def associate_user_role(self, user, role, expiration_time=None):
+        assoc = UserRoleAssociation(user, role, expiration_time=expiration_time)
         self.sa_session.add(assoc)
+        self.sa_session.commit()
+        return assoc
+
+    def set_user_role_expiration(self, user, role, expiration_time):
+        """Give ``user`` the role until ``expiration_time`` (None: no expiration).
+
+        Updates the expiration of an existing membership, or creates it.
+        """
+        stmt = select(UserRoleAssociation).filter_by(user_id=user.id, role_id=role.id)
+        assoc = self.sa_session.scalars(stmt).one_or_none()
+        if assoc is None:
+            return self.associate_user_role(user, role, expiration_time=expiration_time)
+        assoc.expiration_time = expiration_time
         self.sa_session.commit()
         return assoc
 
