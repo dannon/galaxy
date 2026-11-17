@@ -87,6 +87,7 @@ import TourList from "@/components/Tour/TourList.vue";
 import CredentialsManagement from "@/components/User/Credentials/CredentialsManagement.vue";
 import CustomBuilds from "@/components/User/CustomBuilds.vue";
 import HistoryStorageOverview from "@/components/User/DiskUsage/Visualizations/HistoryStorageOverview.vue";
+import GA4GHPassport from "@/components/User/GA4GHPassport/GA4GHPassport.vue";
 import NotificationsPreferences from "@/components/User/Notifications/NotificationsPreferences.vue";
 import UserDatasetPermissions from "@/components/User/UserDatasetPermissions.vue";
 import UserOidcProfile from "@/components/User/UserOidcProfile.vue";
@@ -681,6 +682,15 @@ export function getRouter(Galaxy) {
                         path: "user/external_ids",
                         component: ExternalIdentities,
                         redirect: redirectIf(Galaxy.config.fixed_delegated_auth, "/") || redirectAnon(),
+                    },
+                    {
+                        path: "user/ga4gh_passport",
+                        component: GA4GHPassport,
+                        redirect: redirectIf(!Galaxy.config.ga4gh_passport_enabled, "/user") || redirectAnon(),
+                        props: (route) => ({
+                            outcome: route.query.ga4gh_passport,
+                            error: route.query.ga4gh_passport_error,
+                        }),
                     },
                     {
                         path: "user/notifications",
