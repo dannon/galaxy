@@ -14,17 +14,20 @@ import responses
 
 from galaxy.exceptions import (
     AuthenticationRequired,
-    FileSourceCredentialExpired,
     ItemAccessibilityException,
-    RasPassportRequiredException,
     UpstreamProxyError,
 )
 from galaxy.files import (
     DictFileSourcesUserContext,
+    GA4GHPassportCredential,
     ProvidesFileSourcesTransaction,
     ProvidesFileSourcesUserContext,
 )
 from galaxy.files.models import RealizedSourceMetadata
+from galaxy.files.sources.drs import (
+    CONNECT_HINT,
+    RECONNECT_HINT,
+)
 from galaxy.files.sources.util import sanitize_drs_name
 from ._util import (
     assert_realizes_as,
@@ -430,8 +433,12 @@ def _passport_expiry(hours: int = 1) -> datetime:
     return (datetime.now(timezone.utc) + timedelta(hours=hours)).replace(microsecond=0)
 
 
+def _passport_credential(passport: str = PASSPORT, fresh_until: datetime | None = None) -> GA4GHPassportCredential:
+    return GA4GHPassportCredential(passport=passport, fresh_until=fresh_until or _passport_expiry(), txn=None)
+
+
 def _ras_user_context(
-    passport: str | None = PASSPORT, expires_at: datetime | None = None
+    passport: str | None = PASSPORT, fresh_until: datetime | None = None, **kwd
 ) -> DictFileSourcesUserContext:
     return DictFileSourcesUserContext(
         username="alice",
@@ -440,8 +447,8 @@ def _ras_user_context(
         role_names=set(),
         group_names=set(),
         is_admin=False,
-        ras_passport=passport,
-        ras_passport_expires_at=(expires_at or _passport_expiry()) if passport else None,
+        ga4gh_passport=_passport_credential(passport, fresh_until) if passport else None,
+        **kwd,
     )
 
 
@@ -483,27 +490,7 @@ def test_drs_passport_posted_to_access_only(signed_url_dns):
 
 
 @responses.activate
-def test_drs_object_requiring_passport_is_retried_as_post(signed_url_dns):
-    responses.add(responses.GET, RAS_OBJECT_URL, status=401)
-    responses.add(responses.POST, RAS_OBJECT_URL, json=RAS_OBJECT)
-    responses.add(responses.POST, RAS_ACCESS_URL, json={"url": SIGNED_URL})
-    _add_signed_download()
-
-    file_sources = configured_file_sources(DRS_RAS_PASSPORT_FILE_SOURCES_CONF)
-    assert_realizes_as(file_sources, RAS_DRS_URI, "hello passport world", user_context=_ras_user_context())
-
-    methods = [(call.request.method, call.request.url) for call in responses.calls]
-    assert methods == [
-        ("GET", RAS_OBJECT_URL),
-        ("POST", RAS_OBJECT_URL),
-        ("POST", RAS_ACCESS_URL),
-        ("GET", SIGNED_URL),
-    ]
-    assert _json_body(responses.calls[1]) == PASSPORT_BODY
-
-
-@responses.activate
-def test_drs_without_ras_passport_still_gets(signed_url_dns):
+def test_drs_stock_source_never_sends_the_passport(signed_url_dns):
     responses.add(
         responses.GET, STOCK_OBJECT_URL, json={"id": "obj2", "access_methods": [{"type": "https", "access_id": "gs"}]}
     )
@@ -520,24 +507,27 @@ def test_drs_without_ras_passport_still_gets(signed_url_dns):
 
 
 @responses.activate
-def test_drs_ras_passport_missing_raises_before_any_request():
+def test_drs_without_a_passport_asks_without_one():
+    # Galaxy doesn't decide which objects need a passport; the DRS server does, and its
+    # refusal tells the user to connect one.
+    responses.add(responses.GET, RAS_OBJECT_URL, status=401)
     file_sources = configured_file_sources(DRS_RAS_PASSPORT_FILE_SOURCES_CONF)
-    with pytest.raises(RasPassportRequiredException):
-        assert_realizes_as(file_sources, RAS_DRS_URI, "", user_context=_ras_user_context(passport=None))
-    with pytest.raises(RasPassportRequiredException):
-        assert_realizes_as(file_sources, RAS_DRS_URI, "", user_context=None)
-
-    # A user without a passport serializes without one, so the job refuses too.
     recovered = serialize_and_recover(file_sources, user_context=_ras_user_context(passport=None))
-    with pytest.raises(RasPassportRequiredException):
-        assert_realizes_as(recovered, RAS_DRS_URI, "", user_context=None)
-    assert len(responses.calls) == 0
+    for sources, user_context in [
+        (file_sources, _ras_user_context(passport=None)),
+        (file_sources, None),
+        (recovered, None),
+    ]:
+        with pytest.raises(AuthenticationRequired) as excinfo:
+            assert_realizes_as(sources, RAS_DRS_URI, "", user_context=user_context)
+        assert str(excinfo.value).endswith(CONNECT_HINT)
+    assert [(call.request.method, call.request.url) for call in responses.calls] == [("GET", RAS_OBJECT_URL)] * 3
 
 
 @pytest.mark.parametrize(
     "status,exception,message",
     [
-        (401, AuthenticationRequired, "The DRS server did not accept the GA4GH Passport"),
+        (401, AuthenticationRequired, f"The DRS server did not accept the GA4GH Passport. {RECONNECT_HINT}"),
         (403, ItemAccessibilityException, "The GA4GH Passport does not grant access to this DRS object"),
     ],
 )
@@ -571,12 +561,12 @@ def test_drs_202_retry_keeps_method_headers_and_passport(signed_url_dns):
 
 
 def test_drs_serialization_carries_passport_and_expiry():
-    expires_at = _passport_expiry()
+    fresh_until = _passport_expiry()
     file_sources = configured_file_sources(DRS_RAS_PASSPORT_FILE_SOURCES_CONF)
-    as_dict = file_sources.to_dict(for_serialization=True, user_context=_ras_user_context(expires_at=expires_at))
+    as_dict = file_sources.to_dict(for_serialization=True, user_context=_ras_user_context(fresh_until=fresh_until))
     by_id = {source["id"]: source for source in as_dict["file_sources"]}
     assert by_id["test_ras"]["passports"] == [PASSPORT]
-    assert by_id["test_ras"]["auth_expires_at"] == expires_at.isoformat()
+    assert by_id["test_ras"]["auth_expires_at"] == fresh_until.isoformat()
     assert "passports" not in by_id["test_stock"]
     assert "auth_expires_at" not in by_id["test_stock"]
     # The listing an API client sees never carries it.
@@ -599,15 +589,6 @@ def test_drs_serialized_source_posts_passport_without_user(signed_url_dns):
     for call in posts:
         assert _json_body(call) == PASSPORT_BODY
         assert call.request.headers["X-Galaxy-Test"] == "ras"
-
-
-@responses.activate
-def test_drs_expired_passport_fails_fast():
-    file_sources = configured_file_sources(DRS_RAS_PASSPORT_FILE_SOURCES_CONF)
-    recovered = serialize_and_recover(file_sources, user_context=_ras_user_context(expires_at=_passport_expiry(-1)))
-    with pytest.raises(FileSourceCredentialExpired):
-        assert_realizes_as(recovered, RAS_DRS_URI, "", user_context=None)
-    assert len(responses.calls) == 0
 
 
 REDIRECT_REFUSED_MESSAGE = (
@@ -661,7 +642,7 @@ RAS_AND_OIDC_CONF = [
         "type": "drs",
         "id": "test_ras_oidc",
         "url_regex": r"^drs://drs\.ras-example\.org/",
-        "ras_passport": True,
+        "ga4gh_passport": True,
         "oidc_auth_provider": "oidc",
     }
 ]
@@ -671,17 +652,10 @@ RAS_AND_OIDC_CONF = [
 def test_drs_passport_and_oidc_serialize_the_earlier_expiry(passport_hours, oidc_hours):
     passport_expires_at = _passport_expiry(passport_hours)
     oidc_expires_at = _passport_expiry(oidc_hours)
-    user_context = DictFileSourcesUserContext(
-        username="alice",
-        email="alice@galaxyproject.org",
-        preferences={},
-        role_names=set(),
-        group_names=set(),
-        is_admin=False,
+    user_context = _ras_user_context(
+        fresh_until=passport_expires_at,
         oidc_access_tokens={"oidc": "oidc-token"},
         oidc_access_token_expirations={"oidc": oidc_expires_at},
-        ras_passport=PASSPORT,
-        ras_passport_expires_at=passport_expires_at,
     )
     file_sources = configured_file_sources(RAS_AND_OIDC_CONF)
     as_dict = file_sources.to_dict(for_serialization=True, user_context=user_context)
@@ -697,7 +671,7 @@ def test_drs_object_post_rejected_is_reported():
     file_sources = configured_file_sources(DRS_RAS_PASSPORT_FILE_SOURCES_CONF)
     with pytest.raises(AuthenticationRequired) as excinfo:
         assert_realizes_as(file_sources, RAS_DRS_URI, "", user_context=_ras_user_context())
-    assert str(excinfo.value) == "The DRS server did not accept the GA4GH Passport"
+    assert str(excinfo.value) == f"The DRS server did not accept the GA4GH Passport. {RECONNECT_HINT}"
     assert PASSPORT not in repr(excinfo.value)
     assert [(call.request.method, call.request.url) for call in responses.calls] == [
         ("GET", RAS_OBJECT_URL),

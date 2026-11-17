@@ -1,4 +1,4 @@
-"""A protected drs:// fetch runs as a real job and sends the user's RAS passport.
+"""A protected drs:// fetch runs as a real job and sends the user's stored passport.
 
 The DRS server is a local fake, so no network is needed.
 """
@@ -157,7 +157,7 @@ class TestRasPassportDrsFetchIntegration(integration_util.IntegrationTestCase, C
                 "  id: protected_drs\n"
                 "  url_regex: '^drs://127\\.0\\.0\\.1'\n"
                 "  force_http: true\n"
-                "  ras_passport: true\n"
+                "  ga4gh_passport: true\n"
             )
         config["file_sources_config_file"] = file_sources_config_file
 
@@ -236,7 +236,7 @@ class TestRasPassportDrsFetchIntegration(integration_util.IntegrationTestCase, C
 
     def test_legacy_upload_of_protected_url_is_not_gated(self):
         # Only /api/tools/fetch checks protected_sources. upload1 takes the URL without a
-        # study check, and the ras_passport source still sends whatever passport the user
+        # study check, and the ga4gh_passport source still sends whatever passport the user
         # has, so here it is the DRS server that refuses the other study's passport.
         email = "ras-drs-upload1@test.gx"
         passport = self._passport("phs000999")

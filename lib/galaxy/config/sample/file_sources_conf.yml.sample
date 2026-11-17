@@ -245,33 +245,27 @@
       Basic ${base64.b64encode(str.encode(user.preferences['mydrssite|username'] + ":" + user.preferences['mydrssite|password'])).decode()}
   doc: Define this if you want custom control over drs downloads. You should also define a stock drs source (below) or only downloads from this drs server will be allowed.
 
-# A DRS server holding controlled-access (dbGaP) data that wants the user's NIH RAS
-# passport. Galaxy POSTs the passport to the server's access endpoint (and to the
-# object endpoint if a plain GET of the object is refused). Passports come from RAS
-# logins, so this needs ras_config_file in galaxy.yml; without it no user has a
-# passport and imports through this source are refused. Don't combine it with an
-# Authorization header or oidc_auth_provider on the same source -- Gen3 rejects a
-# request that carries both a passport and a token.
+# A DRS server holding controlled-access (dbGaP) data that wants the user's GA4GH
+# Passport (DRS 1.4 PassportAuth), such as one fronting NIH RAS. Galaxy POSTs the
+# passport to the server's access endpoint (and to the object endpoint if a plain
+# GET of the object is refused); the download from the signed URL never gets it.
+# Users get a passport by connecting at /ga4gh_passport/connect (needs the
+# ga4gh_passport_* options in galaxy.yml) or through ras_config_file. A fetch
+# by a user without one goes out with no passport, and the server's refusal
+# tells them to connect. Don't combine this with an Authorization header or
+# oidc_auth_provider on the same source -- Gen3 rejects a request that carries
+# both a passport and a token.
 #
 # The passport goes to whatever host url_regex lets through, so pin the host
 # exactly: escape the dots and end on the slash. A loose pattern such as
-# "^drs://" would send it to any DRS server a user names. Keep this source in
-# step with protected_sources in ras_config.yml, which decides which URLs need
-# a passport for which study before Galaxy fetches them; the two are configured
-# separately and nothing checks that they agree.
-#- type: drs
-#  label: Controlled-access DRS filesource
-#  id: drs_ras
-#  url_regex: '^drs://drs\.mycontrolledsite\.org/'
-#  ras_passport: true
-#  doc: DRS downloads that send the user's NIH RAS passport.
-
+# "^drs://" would send it to any DRS server a user names. If you use
+# protected_sources in ras_config.yml, keep it in step with this source: it
+# decides which URLs need a passport for which study before Galaxy fetches
+# them, and nothing checks that the two agree.
 - type: drs
   label: Controlled-access DRS filesource
   id: drscontrolled
-  url_regex: "^drs://drs.controlled-example.org/"
-  # Send the user's GA4GH Passport (DRS PassportAuth), e.g. for dbGaP data through NIH RAS.
-  # Needs the ga4gh_passport_* options in galaxy.yml; users connect at /ga4gh_passport/connect.
+  url_regex: '^drs://drs\.controlled-example\.org/'
   ga4gh_passport: true
   doc: Controlled-access data; you need a GA4GH Passport granting access to the study.
 
