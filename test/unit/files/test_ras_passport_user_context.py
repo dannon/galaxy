@@ -13,8 +13,6 @@ import pytest
 import requests
 import responses
 
-from galaxy.authnz.ras.config import RasConfig
-from galaxy.authnz.ras.gate import PassportGate
 from galaxy.authnz.ras.jwks import JwksClient
 from galaxy.authnz.ras.store import (
     InMemoryVault,
@@ -23,15 +21,15 @@ from galaxy.authnz.ras.store import (
     VaultPassportStore,
 )
 from galaxy.authnz.ras.verify import IssuerConfig
-from galaxy.exceptions import (
-    FileSourceCredentialExpired,
-    RasPassportRequiredException,
-)
+from galaxy.exceptions import AuthenticationRequired
 from galaxy.files import (
     DictFileSourcesUserContext,
+    GA4GHPassportCredential,
     ProvidesFileSourcesTransaction,
     ProvidesFileSourcesUserContext,
 )
+from galaxy.files.sources.drs import CONNECT_HINT
+from galaxy.managers.ga4gh_passports import PassportManager
 from ._util import (
     assert_realizes_as,
     configured_file_sources,
@@ -47,8 +45,10 @@ from ..authnz.ras.util import (
 )
 
 USER = SimpleNamespace(id=3)
+MAX_AGE = 3600
 RAS_FILE_SOURCES_CONF = os.path.join(os.path.dirname(__file__), "drs_ras_passport_file_sources_conf.yml")
 RAS_DRS_URI = "drs://drs.ras-example.org/obj1"
+RAS_OBJECT_URL = "https://drs.ras-example.org/ga4gh/drs/v1/objects/obj1"
 
 
 class Clock:
@@ -69,52 +69,48 @@ class CountingStore(VaultPassportStore):
         return super().load(user)
 
 
+def _app(store: VaultPassportStore, vault: InMemoryVault) -> SimpleNamespace:
+    """An app the way Galaxy builds one with ras_config_file and no passport broker."""
+    config = SimpleNamespace(
+        ga4gh_passport_broker_authorize_url=None,
+        ga4gh_passport_max_age=MAX_AGE,
+        ga4gh_grant_max_membership=30 * 86400,
+        ga4gh_controlled_data_grace_period=30 * 86400,
+    )
+    manager = PassportManager(config, None, vault, store=store)  # type: ignore[arg-type]
+    return SimpleNamespace(ga4gh_passport_manager=manager)
+
+
 def _gate(clock: Clock | None = None, config: IssuerConfig | None = None) -> tuple[InMemoryVault, CountingStore, Any]:
     vault = InMemoryVault()
     store = CountingStore(vault, config or issuer_config(), clock=clock or Clock(NOW))
-    gate = PassportGate(RasConfig(issuer=ISSUER), store, galaxy_url="https://galaxy.example.org/")
-    return vault, store, gate
+    return vault, store, _app(store, vault)
 
 
 def _context(app: Any, user: Any = USER) -> ProvidesFileSourcesUserContext:
-    trans = SimpleNamespace(app=app, user=user, user_is_admin=False)
+    trans = SimpleNamespace(app=app, user=user, user_is_admin=False, anonymous=user is None)
     return ProvidesFileSourcesUserContext(cast(ProvidesFileSourcesTransaction, trans))
 
 
-def test_returns_raw_passport_and_expiry():
-    vault, store, gate = _gate()
+def test_returns_raw_passport_and_freshness_limit():
+    vault, _, app = _gate()
     raw = make_passport([permission("phs000123")])
     vault.write_secret(f"user/{USER.id}/{PASSPORT_VAULT_KEY}", raw)
-    context = _context(SimpleNamespace(ras_passport_gate=gate))
-    assert context.ras_passport == raw
-    assert context.ras_passport_expires_at == datetime.fromtimestamp(NOW - 60 + PASSPORT_LIFETIME, tz=timezone.utc)
-    # Reading the properties again doesn't verify the passport again.
-    assert context.ras_passport == raw
-    assert context.ras_passport_expires_at is not None
-    assert store.loads == 1
-
-
-def test_none_when_feature_is_off():
-    for app in (SimpleNamespace(ras_passport_gate=None), SimpleNamespace()):
-        context = _context(app)
-        assert context.ras_passport is None
-        assert context.ras_passport_expires_at is None
+    assert _context(app).ga4gh_passport == GA4GHPassportCredential(
+        passport=raw, fresh_until=datetime.fromtimestamp(NOW - 60 + MAX_AGE, tz=timezone.utc), txn="txn-1"
+    )
 
 
 def test_none_when_anonymous():
-    _, store, gate = _gate()
-    context = _context(SimpleNamespace(ras_passport_gate=gate), user=None)
-    assert context.ras_passport is None
-    assert context.ras_passport_expires_at is None
+    _, store, app = _gate()
+    assert _context(app, user=None).ga4gh_passport is None
     assert store.loads == 0
 
 
 def test_none_when_expired():
-    vault, _, gate = _gate(clock=Clock(NOW + PASSPORT_LIFETIME + 3600))
+    vault, _, app = _gate(clock=Clock(NOW + PASSPORT_LIFETIME + 3600))
     vault.write_secret(f"user/{USER.id}/{PASSPORT_VAULT_KEY}", make_passport([]))
-    context = _context(SimpleNamespace(ras_passport_gate=gate))
-    assert context.ras_passport is None
-    assert context.ras_passport_expires_at is None
+    assert _context(app).ga4gh_passport is None
 
 
 def test_none_when_keys_unavailable():
@@ -122,84 +118,54 @@ def test_none_when_keys_unavailable():
         raise requests.ConnectionError("RAS is down")
 
     config = IssuerConfig(issuer=ISSUER, jwks=JwksClient("https://jwks.example", fetcher=unreachable))
-    vault, _, gate = _gate(config=config)
+    vault, _, app = _gate(config=config)
     vault.write_secret(f"user/{USER.id}/{PASSPORT_VAULT_KEY}", make_passport([]))
-    context = _context(SimpleNamespace(ras_passport_gate=gate))
-    assert context.ras_passport is None
-    assert context.ras_passport_expires_at is None
+    assert _context(app).ga4gh_passport is None
 
 
-def test_dict_context_round_trip():
-    expires_at = datetime(2030, 1, 2, 3, 4, 5, tzinfo=timezone.utc)
-    context = DictFileSourcesUserContext(
-        username="alice", ras_passport="aaa.bbb.ccc", ras_passport_expires_at=expires_at
+def test_dict_context_never_serializes_the_passport():
+    credential = GA4GHPassportCredential(
+        passport="aaa.bbb.ccc", fresh_until=datetime(2030, 1, 2, 3, 4, 5, tzinfo=timezone.utc), txn="txn-1"
     )
-    assert context.ras_passport == "aaa.bbb.ccc"
-    assert context.ras_passport_expires_at == expires_at
+    context = DictFileSourcesUserContext(username="alice", ga4gh_passport=credential)
+    assert context.ga4gh_passport == credential
     # Dictifying the context is how it reaches job_io.json; the passport must stay out of it.
     as_dict = context.to_dict()
-    assert "ras_passport" not in as_dict
-    assert "ras_passport_expires_at" not in as_dict
+    assert "ga4gh_passport" not in as_dict
     assert "aaa.bbb.ccc" not in str(as_dict)
 
-    empty = DictFileSourcesUserContext(username="alice")
-    assert empty.ras_passport is None
-    assert empty.ras_passport_expires_at is None
-
-
-def test_reports_expired_separately_from_missing():
-    clock = Clock(NOW)
-    vault, store, gate = _gate(clock=clock)
-    store.put(USER, make_passport([]))
-    clock.now = NOW + PASSPORT_LIFETIME + 3600
-    expired = _context(SimpleNamespace(ras_passport_gate=gate))
-    assert expired.ras_passport is None
-    assert expired.ras_passport_expired
-    # The store drops an expired passport, but this context still remembers why it has none.
-    assert store.load(USER).passport is None
-    assert expired.ras_passport_expired
-
-    never_had_one = _context(SimpleNamespace(ras_passport_gate=gate), user=SimpleNamespace(id=4))
-    assert never_had_one.ras_passport is None
-    assert not never_had_one.ras_passport_expired
+    assert DictFileSourcesUserContext(username="alice").ga4gh_passport is None
 
 
 def _expired_passport_context() -> ProvidesFileSourcesUserContext:
     clock = Clock(NOW)
-    _, store, gate = _gate(clock=clock)
+    _, store, app = _gate(clock=clock)
     store.put(USER, make_passport([permission("phs000123")]))
     clock.now = NOW + PASSPORT_LIFETIME + 3600
-    return _context(SimpleNamespace(ras_passport_gate=gate))
+    return _context(app)
 
 
+def _never_had_one_context() -> ProvidesFileSourcesUserContext:
+    _, _, app = _gate()
+    return _context(app)
+
+
+@pytest.mark.parametrize("make_context", [_expired_passport_context, _never_had_one_context])
 @responses.activate
-def test_passport_expired_before_job_setup_is_credential_expired():
+def test_expired_passport_is_no_passport(make_context):
+    responses.add(responses.GET, RAS_OBJECT_URL, status=401)
     file_sources = configured_file_sources(RAS_FILE_SOURCES_CONF)
-    recovered = serialize_and_recover(file_sources, user_context=_expired_passport_context())
-    with pytest.raises(FileSourceCredentialExpired):
-        assert_realizes_as(recovered, RAS_DRS_URI, "", user_context=None)
-    assert len(responses.calls) == 0
+    context = make_context()
+    as_dict = file_sources.to_dict(for_serialization=True, user_context=context)
+    (source,) = (source for source in as_dict["file_sources"] if source["id"] == "test_ras")
+    assert "passports" not in source and "auth_expires_at" not in source
 
-
-@responses.activate
-def test_passport_expired_on_live_fetch_is_credential_expired():
-    file_sources = configured_file_sources(RAS_FILE_SOURCES_CONF)
-    with pytest.raises(FileSourceCredentialExpired):
-        assert_realizes_as(file_sources, RAS_DRS_URI, "", user_context=_expired_passport_context())
-    assert len(responses.calls) == 0
-
-
-@responses.activate
-def test_never_had_a_passport_is_still_passport_required():
-    _, _, gate = _gate()
-    context = _context(SimpleNamespace(ras_passport_gate=gate))
-    file_sources = configured_file_sources(RAS_FILE_SOURCES_CONF)
-    with pytest.raises(RasPassportRequiredException):
-        assert_realizes_as(file_sources, RAS_DRS_URI, "", user_context=context)
     recovered = serialize_and_recover(file_sources, user_context=context)
-    with pytest.raises(RasPassportRequiredException):
-        assert_realizes_as(recovered, RAS_DRS_URI, "", user_context=None)
-    assert len(responses.calls) == 0
+    for sources, user_context in [(file_sources, context), (recovered, None)]:
+        with pytest.raises(AuthenticationRequired) as excinfo:
+            assert_realizes_as(sources, RAS_DRS_URI, "", user_context=user_context)
+        assert str(excinfo.value).endswith(CONNECT_HINT)
+    assert [(call.request.method, call.request.url) for call in responses.calls] == [("GET", RAS_OBJECT_URL)] * 2
 
 
 class FlakyStore(CountingStore):
@@ -210,13 +176,13 @@ class FlakyStore(CountingStore):
         return super().load(user)
 
 
-def test_failed_load_is_not_cached():
+def test_failed_load_is_not_remembered():
     vault = InMemoryVault()
     store = FlakyStore(vault, issuer_config(), clock=Clock(NOW))
-    gate = PassportGate(RasConfig(issuer=ISSUER), store, galaxy_url="https://galaxy.example.org/")
     raw = make_passport([])
     vault.write_secret(f"user/{USER.id}/{PASSPORT_VAULT_KEY}", raw)
-    context = _context(SimpleNamespace(ras_passport_gate=gate))
+    context = _context(_app(store, vault))
     with pytest.raises(RuntimeError):
-        _ = context.ras_passport
-    assert context.ras_passport == raw
+        _ = context.ga4gh_passport
+    credential = context.ga4gh_passport
+    assert credential is not None and credential.passport == raw

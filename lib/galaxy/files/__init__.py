@@ -2,10 +2,6 @@ import logging
 import os
 from collections import defaultdict
 from collections.abc import Callable
-from dataclasses import (
-    dataclass,
-    field,
-)
 from datetime import (
     datetime,
     timezone,
@@ -434,30 +430,10 @@ class FileSourcesUserContext(DictifiableFilesSourceContext, Protocol):
     def oidc_access_token_expirations(self) -> dict[str, datetime]: ...
 
     @property
-    def ras_passport(self) -> str | None:
-        """The user's verified NIH RAS passport JWT, if they have one."""
-        ...
-
-    @property
-    def ras_passport_expires_at(self) -> datetime | None: ...
-
-    @property
-    def ras_passport_expired(self) -> bool:
-        """The user had a passport but it has expired, as opposed to never having had one."""
-        ...
-
-    @property
     def ga4gh_passport(self) -> GA4GHPassportCredential | None: ...
 
 
 OptionalUserContext = FileSourcesUserContext | None
-
-
-@dataclass(frozen=True)
-class _RasPassportLookup:
-    raw: str | None = field(default=None, repr=False)
-    expires_at: datetime | None = None
-    status: str | None = None
 
 
 class ProvidesFileSourcesUserContext(FileSourcesUserContext, FileSourceDictifiable):
@@ -465,7 +441,6 @@ class ProvidesFileSourcesUserContext(FileSourcesUserContext, FileSourceDictifiab
 
     def __init__(self, trans: ProvidesFileSourcesTransaction, **kwargs):
         self.trans = trans
-        self._ras_passport_lookup: _RasPassportLookup | None = None
 
     @property
     def email(self) -> str | None:
@@ -556,37 +531,6 @@ class ProvidesFileSourcesUserContext(FileSourcesUserContext, FileSourceDictifiab
         }
 
     @property
-    def ras_passport(self) -> str | None:
-        return self._load_ras_passport().raw
-
-    @property
-    def ras_passport_expires_at(self) -> datetime | None:
-        return self._load_ras_passport().expires_at
-
-    @property
-    def ras_passport_expired(self) -> bool:
-        # galaxy.files can't import galaxy.authnz, so compare PassportStatus.EXPIRED by value.
-        return self._load_ras_passport().status == "expired"
-
-    def _load_ras_passport(self) -> _RasPassportLookup:
-        # Loading re-verifies the JWT, so do it once per context rather than per property read.
-        # Only cache once the load has returned, so a failed load is retried rather than remembered.
-        if self._ras_passport_lookup is None:
-            lookup = _RasPassportLookup()
-            gate = getattr(self.trans.app, "ras_passport_gate", None)
-            user = self.trans.user
-            if gate is not None and user is not None:
-                result = gate.store.load(user)
-                passport = result.passport
-                if passport is not None:
-                    expires_at = datetime.fromtimestamp(passport.expires_at, tz=timezone.utc)
-                    lookup = _RasPassportLookup(passport.raw, expires_at, result.status.value)
-                else:
-                    lookup = _RasPassportLookup(status=result.status.value)
-            self._ras_passport_lookup = lookup
-        return self._ras_passport_lookup
-
-    @property
     def ga4gh_passport(self) -> GA4GHPassportCredential | None:
         """The user's stored GA4GH Passport if it still verifies, else None."""
         user = self.trans.user
@@ -655,18 +599,6 @@ class DictFileSourcesUserContext(FileSourcesUserContext, FileSourceDictifiable):
     @property
     def oidc_access_token_expirations(self) -> dict[str, datetime]:
         return self._kwd.get("oidc_access_token_expirations") or {}
-
-    @property
-    def ras_passport(self) -> str | None:
-        return self._kwd.get("ras_passport")
-
-    @property
-    def ras_passport_expires_at(self) -> datetime | None:
-        return self._kwd.get("ras_passport_expires_at")
-
-    @property
-    def ras_passport_expired(self) -> bool:
-        return bool(self._kwd.get("ras_passport_expired"))
 
     @property
     def ga4gh_passport(self) -> GA4GHPassportCredential | None:

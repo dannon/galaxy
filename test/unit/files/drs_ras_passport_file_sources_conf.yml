@@ -1,8 +1,8 @@
 - type: drs
   id: test_ras
-  doc: Test drs repository filesource that sends the user's NIH RAS passport
+  doc: Test drs repository filesource that sends the user's GA4GH Passport
   url_regex: "^drs://drs.ras-example.org/"
-  ras_passport: true
+  ga4gh_passport: true
   http_headers:
     X-Galaxy-Test: ras
 

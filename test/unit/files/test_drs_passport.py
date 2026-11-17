@@ -257,11 +257,13 @@ def test_job_posts_the_passport(tmp_path):
     assert json.loads(responses.calls[1].request.body or "") == {"passports": [PASSPORT]}
 
 
+@responses.activate
 def test_job_refuses_a_stale_passport():
     file_sources = serialize_and_recover(configured_file_sources(FILE_SOURCES_CONF), _user(_credential(-1)))
 
     with pytest.raises(exceptions.FileSourceCredentialExpired, match="too old .* Reconnect your GA4GH Passport"):
         realize_to_temp_file(file_sources, DRS_URI)
+    assert len(responses.calls) == 0
 
 
 @responses.activate
@@ -293,9 +295,11 @@ def test_realized_in_process_uses_the_users_passport():
     assert json.loads(responses.calls[1].request.body or "") == {"passports": [PASSPORT]}
 
 
+@responses.activate
 def test_realized_in_process_refuses_a_stale_passport():
     with pytest.raises(exceptions.FileSourceCredentialExpired, match="too old"):
         realize_to_temp_file(configured_file_sources(FILE_SOURCES_CONF), DRS_URI, user_context=_user(_credential(-1)))
+    assert len(responses.calls) == 0
 
 
 def test_provides_user_context_reads_the_stored_passport():
