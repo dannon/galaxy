@@ -1,6 +1,10 @@
 import logging
 import re
-from datetime import datetime
+from datetime import (
+    datetime,
+    timedelta,
+    timezone,
+)
 from typing import (
     Any,
     TYPE_CHECKING,
@@ -8,7 +12,10 @@ from typing import (
 
 from pydantic import Field
 
-from galaxy.exceptions import RasPassportRequiredException
+from galaxy.exceptions import (
+    FileSourceCredentialExpired,
+    RasPassportRequiredException,
+)
 from galaxy.files.models import (
     BaseFileSourceConfiguration,
     BaseFileSourceTemplateConfiguration,
@@ -80,6 +87,10 @@ class DRSFilesSource(BaseFilesSource[DRSFileSourceTemplateConfiguration, DRSFile
         expires_at = super()._compute_auth_expires_at(user_context)
         if not self.template_config.ras_passport or user_context is None:
             return expires_at
+        if user_context.ras_passport_expired:
+            # The store has already dropped the passport, so its own deadline is gone; any past
+            # time makes the job fail as credential-expired rather than as passport-required.
+            return datetime.now(timezone.utc) - timedelta(seconds=1)
         passport_expires_at = user_context.ras_passport_expires_at
         if expires_at is None or passport_expires_at is None:
             return expires_at or passport_expires_at
@@ -95,6 +106,8 @@ class DRSFilesSource(BaseFilesSource[DRSFileSourceTemplateConfiguration, DRSFile
         if not passports and config.ras_passport:
             if user_context is not None and user_context.ras_passport:
                 passports = [user_context.ras_passport]
+            elif user_context is not None and user_context.ras_passport_expired:
+                raise FileSourceCredentialExpired()
             else:
                 raise RasPassportRequiredException("A NIH RAS passport is required to access this data.")
         fetch_drs_to_file(
