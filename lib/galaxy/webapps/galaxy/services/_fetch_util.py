@@ -1,11 +1,16 @@
 import logging
 import os
+from typing import Any
 
 from galaxy.actions.library import (
     validate_path_upload,
     validate_server_directory_upload,
 )
-from galaxy.exceptions import RequestParameterInvalidException
+from galaxy.authnz.ras.gate import PassportNeeded
+from galaxy.exceptions import (
+    RasPassportRequiredException,
+    RequestParameterInvalidException,
+)
 from galaxy.files.uris import validate_non_local
 from galaxy.managers.context import ProvidesUserContext
 from galaxy.model.store.discover import (
@@ -186,6 +191,26 @@ def validate_and_normalize_targets(trans: ProvidesUserContext, payload, set_inte
             del item["purge_source"]
 
     replace_request_syntax_sugar(targets)
+    _for_each_src(check_src, targets)
+
+
+def require_passports_for_targets(trans: ProvidesUserContext, targets: Any) -> None:
+    """Refuse the fetch when a URL in ``targets`` is a protected source the user has no passport for."""
+    gate = trans.app.ras_passport_gate
+    if gate is None:
+        return
+
+    def check_src(item):
+        if item.get("src") != "url":
+            return
+        decision = gate.require_for_url(trans.user, item["url"])
+        if isinstance(decision, PassportNeeded):
+            raise RasPassportRequiredException(
+                decision.message,
+                ras_passport_reason=decision.reason.value,
+                ras_passport_redirect_url=decision.redirect_url,
+            )
+
     _for_each_src(check_src, targets)
 
 

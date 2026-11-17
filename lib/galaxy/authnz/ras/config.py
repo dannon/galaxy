@@ -2,6 +2,7 @@
 
 import logging
 import os
+import re
 from typing import Literal
 
 import yaml
@@ -13,6 +14,10 @@ from pydantic import (
     ValidationInfo,
 )
 
+from galaxy.authnz.ras.policy import (
+    InvalidAccessionError,
+    parse_accession,
+)
 from galaxy.authnz.ras.sources import DEFAULT_SCOPES
 from galaxy.authnz.ras.verify import DEFAULT_LEEWAY
 
@@ -50,6 +55,32 @@ class DirectRasSettings(BaseModel):
         return secret
 
 
+class ProtectedSource(BaseModel):
+    """URLs that need a passport before Galaxy fetches them, and the study they belong to."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    # Matched with re.match, so it is anchored at the start of the URL.
+    url_regex: str
+    # A literal study, or leave it out and use a (?P<phs_id>...) group in url_regex.
+    phs_id: str | None = None
+
+    @model_validator(mode="after")
+    def _check(self) -> "ProtectedSource":
+        try:
+            pattern = re.compile(self.url_regex)
+        except re.error as e:
+            raise ValueError(f"url_regex {self.url_regex!r} is not a valid regular expression: {e}") from e
+        if self.phs_id is not None:
+            if "phs_id" in pattern.groupindex:
+                raise ValueError("Give phs_id either as a literal or as a (?P<phs_id>...) group, not both")
+            try:
+                parse_accession(self.phs_id)
+            except InvalidAccessionError as e:
+                raise ValueError(f"phs_id {self.phs_id!r} is not a dbGaP study accession") from e
+        return self
+
+
 class RasConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -68,6 +99,8 @@ class RasConfig(BaseModel):
     # Only "vault" for now; TapisVaultPassportStore is a placeholder until the bridge contract is settled.
     store: Literal["vault"] = "vault"
     direct_ras: DirectRasSettings | None = None
+    # Checked in order; the first entry whose url_regex matches decides.
+    protected_sources: list[ProtectedSource] = []
 
     @field_validator("issuer", "jwks_uri", "bridge_url")
     @classmethod

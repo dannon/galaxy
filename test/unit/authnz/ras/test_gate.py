@@ -352,3 +352,64 @@ def test_discovery_must_match_the_issuer(discovery):
         verify_passport(make_passport([]), config, now=NOW)
     # The keys were never fetched from wherever the bad document pointed.
     assert calls == [f"{ISSUER}/.well-known/openid-configuration"]
+
+
+def test_protected_sources_default_empty():
+    assert RasConfig(issuer=ISSUER).protected_sources == []
+
+
+def test_bad_url_regex_rejected():
+    with pytest.raises(ValueError, match="url_regex"):
+        RasConfig(issuer=ISSUER, protected_sources=[{"url_regex": "drs://(unclosed"}])
+
+
+def test_bad_phs_id_rejected():
+    with pytest.raises(ValueError, match="phs_id"):
+        RasConfig(issuer=ISSUER, protected_sources=[{"url_regex": "^drs://", "phs_id": "not-a-study"}])
+
+
+def test_literal_and_named_group_together_rejected():
+    with pytest.raises(ValueError, match="phs_id"):
+        RasConfig(
+            issuer=ISSUER,
+            protected_sources=[{"url_regex": r"^drs://(?P<phs_id>phs\d+)/", "phs_id": "phs000123"}],
+        )
+
+
+PROTECTED = [
+    {"url_regex": r"^drs://protected\.example\.org/", "phs_id": "phs000123"},
+    {"url_regex": r"^drs://anystudy\.example\.org/"},
+]
+
+
+def test_require_for_url_ignores_unprotected_urls():
+    vault, _, gate = _gate(protected_sources=PROTECTED)
+    assert gate.require_for_url(USER, "drs://public.example.org/obj") is None
+    assert vault.secrets == {}
+
+
+def test_require_for_url_missing_passport():
+    _, _, gate = _gate(protected_sources=PROTECTED)
+    decision = gate.require_for_url(USER, "drs://protected.example.org/obj")
+    assert isinstance(decision, PassportNeeded)
+    assert decision.reason == PassportNeededReason.MISSING
+
+
+def test_require_for_url_grants_matching_study():
+    _, store, gate = _gate(protected_sources=PROTECTED)
+    store.put(USER, make_passport([permission("phs000123")]))
+    assert isinstance(gate.require_for_url(USER, "drs://protected.example.org/obj"), PassportOk)
+
+
+def test_require_for_url_other_study_is_no_access():
+    _, store, gate = _gate(protected_sources=PROTECTED)
+    store.put(USER, make_passport([permission("phs000999")]))
+    decision = gate.require_for_url(USER, "drs://protected.example.org/obj")
+    assert isinstance(decision, PassportNeeded)
+    assert decision.reason == PassportNeededReason.NO_ACCESS
+
+
+def test_require_for_url_entry_without_accession_accepts_any_passport():
+    _, store, gate = _gate(protected_sources=PROTECTED)
+    store.put(USER, make_passport([permission("phs000999")]))
+    assert isinstance(gate.require_for_url(USER, "drs://anystudy.example.org/obj"), PassportOk)

@@ -160,6 +160,11 @@
         "message": "Action requires user authentication."
     },
     {
+        "name": "USER_RAS_PASSPORT_REQUIRED",
+        "code": 403009,
+        "message": "A NIH RAS passport is required to access this data."
+    },
+    {
         "name": "USER_OBJECT_NOT_FOUND",
         "code": 404001,
         "message": "No such object found."
