@@ -590,11 +590,9 @@ class ProvidesFileSourcesUserContext(FileSourcesUserContext, FileSourceDictifiab
     def ga4gh_passport(self) -> GA4GHPassportCredential | None:
         """The user's stored GA4GH Passport if it still verifies, else None."""
         user = self.trans.user
-        if not user:
+        manager = getattr(self.trans.app, "ga4gh_passport_manager", None)
+        if not user or manager is None:
             return None
-        from galaxy.managers.ga4gh_passports import PassportManager
-
-        manager = self.trans.app[PassportManager]
         passport = manager.current(user)
         if passport is None:
             return None

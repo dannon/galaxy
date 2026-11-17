@@ -828,7 +828,7 @@ class GalaxyManagerApplication(MinimalManagerApp, MinimalGalaxyApplication):
         self.user_manager = self._register_singleton(UserManager)
         # One instance, sharing the RAS passport gate's store (and so its signing key cache) when there is one.
         gate_store = self.ras_passport_gate.store if self.ras_passport_gate else None
-        self._register_singleton(
+        self.ga4gh_passport_manager = self._register_singleton(
             PassportManager,
             PassportManager(
                 self.config,

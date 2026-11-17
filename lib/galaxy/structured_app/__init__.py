@@ -47,6 +47,7 @@ if TYPE_CHECKING:
     from galaxy.jobs.manager import JobManager
     from galaxy.managers.collections import DatasetCollectionManager
     from galaxy.managers.folders import FolderManager
+    from galaxy.managers.ga4gh_passports import PassportManager
     from galaxy.managers.hdas import HDAManager
     from galaxy.managers.histories import HistoryManager
     from galaxy.managers.interactivetool import InteractiveToolManager
@@ -132,6 +133,7 @@ class MinimalManagerApp(MinimalApp):
     amqp_internal_connection_obj: Connection | None
     vault: Vault
     ras_passport_gate: PassportGate | None
+    ga4gh_passport_manager: "PassportManager"
     execution_timer_factory: "ExecutionTimerFactory"
     carbon_intensity: float
     file_sources: ConfiguredFileSources
