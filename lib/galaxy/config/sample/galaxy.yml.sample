@@ -2606,6 +2606,14 @@ galaxy:
   # without logging in again).
   #ga4gh_passport_max_age: 3600
 
+  # When a user's access to controlled-access data fetched with their
+  # GA4GH Passport ends (the grant expired or was revoked, or
+  # ga4gh_grant_max_membership passed), the data, and data derived from
+  # it, stays in Galaxy but unreadable for this many seconds (default 30
+  # days). Reconnecting a Passport that carries the grant within this
+  # time restores access; after it, the data is purged.
+  #ga4gh_controlled_data_grace_period: 2592000
+
   # Each data access grant in a user's GA4GH Passport (e.g. a dbGaP
   # study and consent group) becomes a Galaxy role that only this user
   # holds, and data fetched with the Passport is restricted to these

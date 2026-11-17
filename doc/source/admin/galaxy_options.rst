@@ -4698,6 +4698,21 @@
 :Type: int
 
 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``ga4gh_controlled_data_grace_period``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:Description:
+    When a user's access to controlled-access data fetched with their
+    GA4GH Passport ends (the grant expired or was revoked, or
+    ga4gh_grant_max_membership passed), the data, and data derived
+    from it, stays in Galaxy but unreadable for this many seconds
+    (default 30 days). Reconnecting a Passport that carries the grant
+    within this time restores access; after it, the data is purged.
+:Default: ``2592000``
+:Type: int
+
+
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ``ga4gh_grant_max_membership``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

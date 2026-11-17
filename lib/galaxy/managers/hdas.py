@@ -134,6 +134,28 @@ class HDAManager(
         self.user_manager = user_manager
         self.ldda_manager = ldda_manager
 
+    def inaccessible_message(self, item: HistoryDatasetAssociation, user: model.User | None) -> str | None:
+        """Why ``user`` can't read ``item``, when Galaxy can say more than "not accessible".
+
+        For controlled-access data (fetched with a GA4GH Passport) whose grant
+        the user no longer holds: which grant, since when, and how to restore
+        access.
+        """
+        if item.dataset is None or not item.dataset.is_controlled:
+            return None
+        from galaxy.managers.ga4gh_passports import PassportManager
+
+        return self.app[PassportManager].controlled_access_message(user, item.dataset)
+
+    def error_unless_accessible(
+        self, item: HistoryDatasetAssociation, user: model.User | None, **kwargs: Any
+    ) -> HistoryDatasetAssociation:
+        if self.is_accessible(item, user, **kwargs):
+            return item
+        if message := self.inaccessible_message(item, user):
+            raise exceptions.ItemAccessibilityException(message)
+        return super().error_unless_accessible(item, user, **kwargs)
+
     def get_owned_ids(self, object_ids, history=None):
         """Get owned IDs."""
         filters = [self.model_class.table.c.id.in_(object_ids), self.model_class.table.c.history_id == history.id]
@@ -638,7 +660,18 @@ class HDASerializer(  # datasets._UnflattenedMetadataDatasetAssociationSerialize
         # keyset returned to create show a dataset where the owner has no access
         self.add_view(
             "inaccessible",
-            ["accessible", "id", "name", "history_id", "hid", "history_content_type", "state", "deleted", "visible"],
+            [
+                "accessible",
+                "id",
+                "name",
+                "history_id",
+                "hid",
+                "history_content_type",
+                "state",
+                "deleted",
+                "visible",
+                "inaccessible_message",
+            ],
         )
 
     def add_serializers(self):
@@ -684,6 +717,7 @@ class HDASerializer(  # datasets._UnflattenedMetadataDatasetAssociationSerialize
             "parent_id": self.serialize_id,
             # TODO: to DatasetAssociationSerializer
             "accessible": lambda item, key, user=None, **c: self.manager.is_accessible(item, user, **c),
+            "inaccessible_message": lambda item, key, user=None, **c: self.manager.inaccessible_message(item, user),
             "api_type": lambda item, key, **context: "file",
             "type": lambda item, key, **context: "file",
             "created_from_basename": lambda item, key, **context: item.created_from_basename,

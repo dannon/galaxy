@@ -2,6 +2,7 @@ import base64
 import hashlib
 import json
 import time
+from datetime import timedelta
 from types import SimpleNamespace
 from typing import Any
 from urllib.parse import (
@@ -100,6 +101,7 @@ def config(**overrides) -> SimpleNamespace:
         "ga4gh_passport_trusted_issuers": ISSUER,
         "ga4gh_passport_max_age": 3600,
         "ga4gh_grant_max_membership": 30 * 86400,
+        "ga4gh_controlled_data_grace_period": 30 * 86400,
         **overrides,
     }
     return SimpleNamespace(**settings)
@@ -447,6 +449,62 @@ def test_fetch_roles_with_no_grants(manager, alice, monkeypatch):
     monkeypatch.setattr(manager, "current", lambda user: with_grants())
     with pytest.raises(exceptions.ItemAccessibilityException, match="no data access grants"):
         manager.fetch_roles(alice)
+
+
+def controlled_dataset(session, access_roles):
+    """A dataset restricted like data fetched with a Passport."""
+    from galaxy.model.security import GalaxyRBACAgent
+
+    agent = GalaxyRBACAgent(session)
+    manage = model.Role(name="ga4gh_controlled_data", type=model.Role.types.GA4GH_GRANT)
+    dataset = model.Dataset()
+    session.add_all([manage, dataset])
+    session.commit()
+    actions = agent.permitted_actions
+    permissions = {actions.DATASET_ACCESS: access_roles, actions.DATASET_MANAGE_PERMISSIONS: [manage]}
+    assert not agent.set_all_dataset_permissions(dataset, permissions, new=True)
+    return dataset
+
+
+def test_no_message_while_access_lasts(manager, session, alice):
+    roles = manager.sync_grant_roles(alice, with_grants(("phs000001.c1", 9 * DAY)))
+    dataset = controlled_dataset(session, list(roles.values()))
+    assert manager.controlled_access_ended(alice, dataset) is None
+    assert manager.controlled_access_message(alice, dataset) is None
+
+
+def test_message_when_the_grant_ended(manager, session, alice):
+    roles = manager.sync_grant_roles(alice, with_grants(("phs000001.c1", 9 * DAY), ("phs000002.c1", 9 * DAY)))
+    dataset = controlled_dataset(session, list(roles.values()))
+    manager.sync_grant_roles(alice, with_grants(("phs000001.c1", 9 * DAY)))  # phs000002.c1 revoked
+    authorization, ended_at = manager.controlled_access_ended(alice, dataset)
+    assert authorization == "phs000002.c1" and ended_at is not None
+    message = manager.controlled_access_message(alice, dataset)
+    assert "(phs000002.c1) ended on" in message and "Reconnect your GA4GH Passport" in message
+    assert f"deleted after {ended_at + timedelta(days=30):%Y-%m-%d %H:%M} UTC" in message
+
+
+def test_message_without_a_membership(manager, session, alice):
+    roles = manager.sync_grant_roles(alice, with_grants(("phs000001.c1", 9 * DAY)))
+    dataset = controlled_dataset(session, list(roles.values()))
+    for ura in list(alice.roles):
+        if ura.role.type == model.Role.types.GA4GH_GRANT:
+            session.delete(ura)
+    session.commit()
+    assert manager.controlled_access_ended(alice, dataset) == ("phs000001.c1", None)
+    assert "has ended" in manager.controlled_access_message(alice, dataset)
+
+
+def test_no_message_for_someone_elses_or_ordinary_data(manager, session, alice):
+    bob = new_user(session, "bob@example.org")
+    roles = manager.sync_grant_roles(bob, with_grants(("phs000001.c1", 9 * DAY), sub="bob-sub"))
+    bobs = controlled_dataset(session, list(roles.values()))
+    assert manager.controlled_access_message(alice, bobs) is None
+    ordinary = model.Dataset()
+    session.add(ordinary)
+    session.commit()
+    assert manager.controlled_access_message(alice, ordinary) is None
+    assert manager.controlled_access_message(None, bobs) is None
 
 
 # --- freshness ----------------------------------------------------------------------------------

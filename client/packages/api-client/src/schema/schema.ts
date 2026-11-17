@@ -15581,6 +15581,11 @@ export interface components {
              */
             id: string;
             /**
+             * Inaccessible message
+             * @description Why the user can't access it and how to restore access, when Galaxy knows (e.g. controlled-access data whose grant ended).
+             */
+            inaccessible_message?: string | null;
+            /**
              * Name
              * @description The name of the item.
              */

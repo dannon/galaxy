@@ -48,6 +48,7 @@ from galaxy.authnz.flow_state import (
 from galaxy.config import GalaxyAppConfiguration
 from galaxy.files.sources.drs import RECONNECT_HINT
 from galaxy.model import (
+    Dataset,
     Role,
     User,
     UserGA4GHIdentity,
@@ -143,6 +144,7 @@ class PassportManager:
         self._verifier = PassportVerifier(self._broker.trusted_issuers) if self._broker else None
         self._max_age = config.ga4gh_passport_max_age
         self._grant_max_membership = config.ga4gh_grant_max_membership
+        self._grace_period = config.ga4gh_controlled_data_grace_period
 
     @property
     def enabled(self) -> bool:
@@ -407,6 +409,49 @@ class PassportManager:
             self._sa_session.add(role)
             self._sa_session.commit()
         return role
+
+    def controlled_access_ended(self, user: User | None, dataset: Dataset) -> tuple[str, datetime | None] | None:
+        """Why ``user`` can no longer read controlled ``dataset`` they fetched (or derived from such data).
+
+        Returns the grant whose membership ended first and when (None if no
+        membership is left), or None if the user can still read it or it isn't
+        their controlled data.
+        """
+        if user is None or not dataset.is_controlled:
+            return None
+        prefix = f"{GRANT_ROLE_PREFIX}:{user.id}:"
+        access = Dataset.permitted_actions.DATASET_ACCESS.action
+        roles = [
+            p.role
+            for p in dataset.actions
+            if p.action == access
+            and p.role is not None
+            and p.role.type == Role.types.GA4GH_GRANT
+            and p.role.name.startswith(prefix)
+        ]
+        memberships = {ura.role_id: ura for ura in self._grant_memberships(user)}
+        ended: list[tuple[str, datetime | None]] = []
+        for role in roles:
+            ura = memberships.get(role.id)
+            if ura is None or not ura.is_active:
+                ended.append((_grant_authorization(role, user), ura.expiration_time if ura else None))
+        if not ended:
+            return None
+        return min(ended, key=lambda e: e[1] or datetime.min)
+
+    def controlled_access_message(self, user: User | None, dataset: Dataset) -> str | None:
+        """What to tell ``user`` about controlled ``dataset`` they can no longer read, if it is theirs."""
+        if (ended := self.controlled_access_ended(user, dataset)) is None:
+            return None
+        authorization, ended_at = ended
+        if ended_at is None:
+            return f"Your access to this controlled-access data ({authorization}) has ended. {RECONNECT_HINT}"
+        delete_after = ended_at + timedelta(seconds=self._grace_period)
+        return (
+            f"Your access to this controlled-access data ({authorization}) ended on {ended_at:%Y-%m-%d %H:%M} UTC. "
+            f"Reconnect your GA4GH Passport in User Preferences (/user/ga4gh_passport) to restore it; otherwise it "
+            f"will be deleted after {delete_after:%Y-%m-%d %H:%M} UTC."
+        )
 
     def data_access(self, user: User) -> dict[str, datetime]:
         """The grants the user currently holds in Galaxy, and until when (UTC)."""
