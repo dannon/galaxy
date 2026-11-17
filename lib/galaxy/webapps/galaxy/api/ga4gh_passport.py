@@ -20,6 +20,14 @@ from fastapi import (
 )
 from fastapi.responses import RedirectResponse
 
+from galaxy.authnz.ras.models import (
+    DbgapPermission,
+    Passport,
+)
+from galaxy.authnz.ras.policy import (
+    InvalidAccessionError,
+    parse_accession,
+)
 from galaxy.managers._config_templates import galaxy_url_for_path
 from galaxy.managers.ga4gh_passports import (
     CALLBACK_PATH,
@@ -38,7 +46,6 @@ from galaxy.schema.ga4gh_passport import (
     GA4GHPassportSummary,
     GA4GHVisa,
 )
-from galaxy.security.ga4gh_passport import VerifiedPassport
 from galaxy.util import is_safe_local_redirect
 from galaxy.webapps.galaxy.api import (
     depends,
@@ -145,38 +152,47 @@ def _time(timestamp: int) -> datetime:
     return datetime.fromtimestamp(timestamp, tz=timezone.utc)
 
 
-def _summary(passport: VerifiedPassport, usable_until: int) -> GA4GHPassportSummary:
+def _summary(passport: Passport, usable_until: int) -> GA4GHPassportSummary:
+    visas_expire_at = min((visa.expires_at for visa in passport.visas), default=None)
     return GA4GHPassportSummary(
         issuer=passport.issuer,
-        sub=passport.sub,
+        sub=passport.subject,
         txn=passport.txn,
         issued_at=_time(passport.issued_at),
         expires_at=_time(passport.expires_at),
-        visas_expire_at=_time(passport.visas_expire_at) if passport.visas_expire_at is not None else None,
+        visas_expire_at=_time(visas_expire_at) if visas_expire_at is not None else None,
         usable_until=_time(usable_until),
         visas=[
             GA4GHVisa(
-                type=visa.type,
+                type=visa.visa_type or "",
                 issuer=visa.issuer,
-                recognized=visa.recognized,
+                recognized=visa.is_ras_visa,
                 expires_at=_time(visa.expires_at),
-                grants=[
-                    GA4GHGrant(
-                        phs_id=grant.phs_id,
-                        version=grant.version,
-                        participant_set=grant.participant_set,
-                        consent_group=grant.consent_group,
-                        consent_name=grant.consent_name,
-                        role=grant.role,
-                        authorization=grant.authorization,
-                        expiration=_time(grant.expiration),
-                    )
-                    for grant in visa.grants
-                ],
+                grants=[grant for grant in map(_grant, visa.dbgap_permissions) if grant is not None],
             )
             for visa in passport.visas
         ],
-        rejected_visas=len(passport.rejected_visas),
+        rejected_visas=len(passport.dropped_visas),
+    )
+
+
+def _grant(permission: DbgapPermission) -> GA4GHGrant | None:
+    """A permission as the API reports it; None if it lacks what a grant needs (study, consent group, expiration)."""
+    if permission.consent_group is None or permission.expiration is None:
+        return None
+    try:
+        accession = parse_accession(permission.phs_id)
+    except InvalidAccessionError:
+        return None
+    return GA4GHGrant(
+        phs_id=permission.phs_id,
+        version=permission.version or "",
+        participant_set=permission.participant_set or "",
+        consent_group=permission.consent_group,
+        consent_name=permission.consent_name or "",
+        role=permission.role or "",
+        authorization=f"{accession.phs_id}.{permission.consent_group}",
+        expiration=_time(permission.expiration),
     )
 
 

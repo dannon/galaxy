@@ -307,7 +307,7 @@ def test_provides_user_context_reads_the_stored_passport():
 
     class FakePassportManager:
         def current(self, user):
-            return SimpleNamespace(token=PASSPORT, txn="txn-1") if user == "alice" else None
+            return SimpleNamespace(raw=PASSPORT, txn="txn-1") if user == "alice" else None
 
         def fresh_until(self, passport):
             return fresh_until

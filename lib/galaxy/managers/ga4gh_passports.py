@@ -21,11 +21,11 @@ Galaxy is an OAuth 2.0 client of the broker (authorization code + PKCE):
    for ``ga4gh_controlled_data_grace_period``, the data restricted to it is
    purged, and the ended membership deleted.
 
-The broker returns the Passport untouched; all decoding happens here, through
-``galaxy.security.ga4gh_passport``.
+The broker returns the Passport untouched. Verifying, decoding and storing it is
+``galaxy.authnz.ras``'s job (``verify_passport``, ``VaultPassportStore``); this
+manager is what Galaxy does with a verified Passport.
 """
 
-import json
 import logging
 import secrets
 import time
@@ -35,10 +35,7 @@ from datetime import (
     timedelta,
     timezone,
 )
-from typing import (
-    Any,
-    TYPE_CHECKING,
-)
+from typing import TYPE_CHECKING
 from urllib.parse import urlencode
 
 from pkce import generate_pkce_pair
@@ -56,6 +53,18 @@ from galaxy.authnz.flow_state import (
     FlowState,
     InvalidFlow,
 )
+from galaxy.authnz.ras.config import RasConfig
+from galaxy.authnz.ras.gate import issuer_config_from
+from galaxy.authnz.ras.models import Passport
+from galaxy.authnz.ras.policy import carried_permissions
+from galaxy.authnz.ras.store import (
+    PASSPORT_VAULT_KEY,
+    VaultPassportStore,
+)
+from galaxy.authnz.ras.verify import (
+    PassportVerificationError,
+    verify_passport,
+)
 from galaxy.config import GalaxyAppConfiguration
 from galaxy.files.sources.drs import RECONNECT_HINT
 from galaxy.model import (
@@ -69,11 +78,6 @@ from galaxy.model import (
 )
 from galaxy.model.orm.now import now
 from galaxy.model.scoped_session import galaxy_scoped_session
-from galaxy.security.ga4gh_passport import (
-    InvalidPassport,
-    PassportVerifier,
-    VerifiedPassport,
-)
 from galaxy.security.vault import (
     is_vault_configured,
     UserVaultWrapper,
@@ -90,7 +94,6 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-PASSPORT_VAULT_KEY = "ga4gh_passport"
 FLOW_PROVIDER = "ga4gh_passport"
 GRANT_ROLE_PREFIX = "ga4gh_grant"
 # Manages every dataset fetched with a Passport (and derived from one). No user
@@ -145,6 +148,14 @@ class PassportBrokerConfig:
 
 
 @dataclass(frozen=True)
+class Grant:
+    """A data access grant a Passport carries, as Galaxy's roles need it."""
+
+    authorization: str  # study + consent group, e.g. phs000001.c1
+    expiration: int | None  # the grant's (DAR's) own expiration, not the Visa's or the Passport's
+
+
+@dataclass(frozen=True)
 class ConnectResult:
     """Where to send the browser after the broker returns, and why if it failed."""
 
@@ -153,11 +164,19 @@ class ConnectResult:
 
 
 class PassportManager:
-    def __init__(self, config: GalaxyAppConfiguration, sa_session: galaxy_scoped_session, vault: Vault) -> None:
+    def __init__(
+        self,
+        config: GalaxyAppConfiguration,
+        sa_session: galaxy_scoped_session,
+        vault: Vault,
+        store: VaultPassportStore | None = None,
+    ) -> None:
         self._broker = PassportBrokerConfig.from_config(config)
         self._sa_session = sa_session
         self._vault = vault
-        self._verifier = PassportVerifier(self._broker.trusted_issuers) if self._broker else None
+        # The app passes the store of its RAS passport gate, so there is one verifier and
+        # one key cache; without a gate the store is built from the trusted issuer.
+        self._store = store or (self._build_store(self._broker, vault) if self._broker else None)
         self._max_age = config.ga4gh_passport_max_age
         self._grant_max_membership = config.ga4gh_grant_max_membership
         self._grace_period = config.ga4gh_controlled_data_grace_period
@@ -165,6 +184,38 @@ class PassportManager:
     @property
     def enabled(self) -> bool:
         return self._broker is not None
+
+    @staticmethod
+    def _build_store(broker: PassportBrokerConfig, vault: Vault) -> VaultPassportStore:
+        if len(broker.trusted_issuers) != 1:
+            raise exceptions.ConfigurationError(
+                "ga4gh_passport_trusted_issuers must name exactly one issuer: Passports and their Visas are "
+                "verified against a single issuer's keys."
+            )
+        try:
+            issuer_config = issuer_config_from(RasConfig(issuer=broker.trusted_issuers[0]))
+        except ValueError as e:
+            raise exceptions.ConfigurationError(f"ga4gh_passport_trusted_issuers: {e}") from e
+        return VaultPassportStore(vault, issuer_config)
+
+    @staticmethod
+    def grants(passport: Passport) -> list[Grant]:
+        """The data access grants ``passport`` carries, one per study and consent group.
+
+        The same grant may come in more than one Visa; the latest expiration counts.
+        """
+        grants: dict[str, int | None] = {}
+        for permission, accession in carried_permissions(passport):
+            if accession.consent_group is None:
+                # Galaxy's grant roles are per study and consent group; nothing to key this one on.
+                continue
+            authorization = f"{accession.phs_id}.{accession.consent_group}"
+            expiration = permission.expiration
+            if authorization in grants and (grants[authorization] is None or expiration is None):
+                grants[authorization] = None
+            else:
+                grants[authorization] = max(grants.get(authorization) or 0, expiration or 0) or None
+        return [Grant(authorization, expiration) for authorization, expiration in sorted(grants.items())]
 
     # --- connect flow ------------------------------------------------------------------
 
@@ -222,25 +273,25 @@ class PassportManager:
         token, preferred_username = self._exchange_code(broker, redirect_uri, code, payload["verifier"])
         if token is None:
             return ConnectResult(next_path, "broker_error")
+        store = self._require_store()
         try:
-            passport = self._get_verifier().verify(token)
-        except InvalidPassport as e:
+            passport = verify_passport(token, store.issuer_config)
+        except PassportVerificationError as e:
             log.warning("GA4GH passport connect: %s user_id=%s", e, user.id)
             return ConnectResult(next_path, "invalid_passport")
         if bind_error := self._bind_identity(user, passport, preferred_username):
             return ConnectResult(next_path, bind_error)
 
-        record = {"passport": token, "preferred_username": preferred_username, "received_at": int(time.time())}
-        UserVaultWrapper(self._vault, user).write_secret(PASSPORT_VAULT_KEY, json.dumps(record))
+        store.put(user, token)
         self.sync_grant_roles(user, passport)
         log.info(
             "GA4GH passport connected user_id=%s iss=%s sub=%s txn=%s preferred_username=%s grants=%s",
             user.id,
             passport.issuer,
-            passport.sub,
+            passport.subject,
             passport.txn,
             preferred_username,
-            ",".join(grant.authorization for grant in passport.grants) or "-",
+            ",".join(grant.authorization for grant in self.grants(passport)) or "-",
         )
         return ConnectResult(next_path)
 
@@ -271,35 +322,37 @@ class PassportManager:
         preferred_username = body.get("preferred_username")
         return body["passport"], preferred_username if isinstance(preferred_username, str) else None
 
-    def _bind_identity(self, user: User, passport: VerifiedPassport, preferred_username: str | None) -> str | None:
+    def _bind_identity(self, user: User, passport: Passport, preferred_username: str | None) -> str | None:
         """Bind the Passport identity to the user on first connect; refuse a different one later."""
         session = self._sa_session
         bound = session.scalars(
-            select(UserGA4GHIdentity).filter_by(issuer=passport.issuer, sub=passport.sub)
+            select(UserGA4GHIdentity).filter_by(issuer=passport.issuer, sub=passport.subject)
         ).one_or_none()
         if bound is not None and bound.user_id != user.id:
             log.warning(
                 "GA4GH passport connect refused: identity %s/%s is bound to another user, user_id=%s",
                 passport.issuer,
-                passport.sub,
+                passport.subject,
                 user.id,
             )
             return "identity_in_use"
         mine = session.scalars(
             select(UserGA4GHIdentity).filter_by(user_id=user.id, issuer=passport.issuer)
         ).one_or_none()
-        if mine is not None and mine.sub != passport.sub:
+        if mine is not None and mine.sub != passport.subject:
             log.warning(
                 "GA4GH passport connect refused: user_id=%s is bound to %s/%s, got sub=%s",
                 user.id,
                 passport.issuer,
                 mine.sub,
-                passport.sub,
+                passport.subject,
             )
             return "identity_mismatch"
         if mine is None:
-            mine = UserGA4GHIdentity(user_id=user.id, issuer=passport.issuer, sub=passport.sub)
-            log.info("GA4GH passport identity bound user_id=%s iss=%s sub=%s", user.id, passport.issuer, passport.sub)
+            mine = UserGA4GHIdentity(user_id=user.id, issuer=passport.issuer, sub=passport.subject)
+            log.info(
+                "GA4GH passport identity bound user_id=%s iss=%s sub=%s", user.id, passport.issuer, passport.subject
+            )
         mine.preferred_username = preferred_username
         session.add(mine)
         try:
@@ -312,18 +365,13 @@ class PassportManager:
 
     # --- the stored Passport ------------------------------------------------------------
 
-    def current(self, user: User) -> VerifiedPassport | None:
+    def current(self, user: User) -> Passport | None:
         """The user's stored Passport if it still verifies (signatures, expiry), else None."""
-        record = self._read(user)
-        if record is None:
+        if self._store is None or not is_vault_configured(self._vault):
             return None
-        try:
-            return self._get_verifier().verify(record["passport"])
-        except InvalidPassport as e:
-            log.info("GA4GH passport of user_id=%s no longer valid: %s", user.id, e)
-            return None
+        return self._store.load(user).passport
 
-    def fresh_until(self, passport: VerifiedPassport) -> int:
+    def fresh_until(self, passport: Passport) -> int:
         """Until when (epoch seconds) Galaxy may send ``passport`` to a data service.
 
         The earliest of: the Passport's expiry, its Visas' expiry, and
@@ -333,8 +381,7 @@ class PassportManager:
         """
         issued_at = min([passport.issued_at, *(visa.issued_at for visa in passport.visas)])
         limits = [passport.expires_at, issued_at + self._max_age]
-        if passport.visas_expire_at is not None:
-            limits.append(passport.visas_expire_at)
+        limits.extend(visa.expires_at for visa in passport.visas)
         return min(limits)
 
     def identity(self, user: User) -> UserGA4GHIdentity | None:
@@ -346,7 +393,7 @@ class PassportManager:
 
     # --- grant roles ---------------------------------------------------------------------
 
-    def sync_grant_roles(self, user: User, passport: VerifiedPassport) -> dict[str, Role]:
+    def sync_grant_roles(self, user: User, passport: Passport) -> dict[str, Role]:
         """Make the user's grant roles match ``passport``; return them by authorization.
 
         A grant's membership lasts until the grant expires, at most
@@ -356,10 +403,9 @@ class PassportManager:
         current = now()
         cap = current + timedelta(seconds=self._grant_max_membership)
         until: dict[str, datetime] = {}
-        for grant in passport.grants:
-            # The same grant may come in more than one Visa; any of them is enough.
-            expiration = _utc(grant.expiration)
-            until[grant.authorization] = max(until.get(grant.authorization, expiration), expiration)
+        for grant in self.grants(passport):
+            # A grant that names no expiration of its own lasts as long as the cap allows.
+            until[grant.authorization] = _utc(grant.expiration) if grant.expiration is not None else datetime.max
         held = {_grant_authorization(ura.role, user): ura for ura in self._grant_memberships(user)}
         roles: dict[str, Role] = {}
         for authorization, grant_until in sorted(until.items()):
@@ -596,27 +642,21 @@ class PassportManager:
 
     def forget(self, user: User) -> None:
         """Delete the user's stored Passport. The identity binding stays."""
-        if is_vault_configured(self._vault) and self._read(user) is not None:
-            UserVaultWrapper(self._vault, user).delete_secret(PASSPORT_VAULT_KEY)
+        if self._store is None or not is_vault_configured(self._vault):
+            return
+        # never written, or deleted (the vault deletes by writing "")
+        if UserVaultWrapper(self._vault, user).read_secret(PASSPORT_VAULT_KEY):
+            self._store.clear(user)
             log.info("GA4GH passport forgotten user_id=%s", user.id)
-
-    def _read(self, user: User) -> dict[str, Any] | None:
-        if self._broker is None or not is_vault_configured(self._vault):
-            return None
-        raw = UserVaultWrapper(self._vault, user).read_secret(PASSPORT_VAULT_KEY)
-        if not raw:  # never written, or deleted (the vault deletes by writing "")
-            return None
-        record = json.loads(raw)
-        return record if isinstance(record, dict) else None
 
     def _require_broker(self) -> PassportBrokerConfig:
         if self._broker is None:
             raise exceptions.ConfigDoesNotAllowException("GA4GH Passport connections are not enabled.")
         return self._broker
 
-    def _get_verifier(self) -> PassportVerifier:
-        assert self._verifier is not None
-        return self._verifier
+    def _require_store(self) -> VaultPassportStore:
+        assert self._store is not None
+        return self._store
 
 
 def _utc(timestamp: int) -> datetime:

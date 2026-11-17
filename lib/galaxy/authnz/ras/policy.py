@@ -83,6 +83,16 @@ def _visa_permissions(passport: Passport) -> list[tuple[Visa, DbgapPermission]]:
     return [(visa, permission) for visa in passport.visas if visa.is_ras_visa for permission in visa.dbgap_permissions]
 
 
+def carried_permissions(passport: Passport) -> list[tuple[DbgapPermission, Accession]]:
+    """Every dbGaP permission in the passport's RAS visas with a readable accession, expired or not."""
+    result = []
+    for _, permission in _visa_permissions(passport):
+        accession = _permission_accession(permission)
+        if accession is not None:
+            result.append((permission, accession))
+    return result
+
+
 def effective_expiry(passport: Passport, visa: Visa | None = None, permission: DbgapPermission | None = None) -> int:
     """The earliest of the passport's, the visa's and the permission's expiry."""
     candidates = [passport.expires_at]

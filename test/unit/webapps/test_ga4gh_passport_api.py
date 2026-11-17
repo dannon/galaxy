@@ -3,9 +3,10 @@ from datetime import (
     timezone,
 )
 
-from galaxy.security.ga4gh_passport import (
-    DbgapGrant,
-    VerifiedPassport,
+from galaxy.authnz.ras.models import (
+    DbgapPermission,
+    DroppedVisa,
+    Passport,
     Visa,
 )
 from galaxy.webapps.galaxy.api.ga4gh_passport import _summary
@@ -14,10 +15,33 @@ ISSUER = "https://ras.example.org"
 NOW = 1_800_000_000
 
 
-def passport() -> VerifiedPassport:
-    grant = DbgapGrant("phs000001", "v1", "p1", "c1", "GRU", "pi", NOW + 86400)
-    visa = Visa(ISSUER, "alice", "https://ras.nih.gov/visas/v1.1", "v", "s", None, NOW, NOW, NOW + 3600, True, (grant,))
-    return VerifiedPassport(ISSUER, "alice", "txn-1", NOW, NOW + 3600, (visa,), ("bad signature",), token="secret")
+def passport() -> Passport:
+    grant = DbgapPermission("phs000001", "v1", "p1", "c1", "GRU", "pi", NOW + 86400)
+    visa = Visa(
+        raw="visa-secret",
+        issuer=ISSUER,
+        subject="alice",
+        issued_at=NOW,
+        expires_at=NOW + 3600,
+        jti=None,
+        visa_type="https://ras.nih.gov/visas/v1.1",
+        value="v",
+        source="s",
+        by=None,
+        asserted=NOW,
+        dbgap_permissions=(grant,),
+    )
+    return Passport(
+        raw="secret",
+        issuer=ISSUER,
+        subject="alice",
+        issued_at=NOW,
+        expires_at=NOW + 3600,
+        jti=None,
+        txn="txn-1",
+        visas=(visa,),
+        dropped_visas=(DroppedVisa(jti=None, expires_at=NOW - 60, reason="expired"),),
+    )
 
 
 def test_summary_reports_usable_until_and_never_the_token():
