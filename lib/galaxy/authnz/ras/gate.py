@@ -36,11 +36,13 @@ from galaxy.authnz.ras.jwks import (
     JwksUnavailableError,
     requests_json_fetcher,
 )
+from galaxy.authnz.ras.login import DirectRasLogin
 from galaxy.authnz.ras.models import Passport
 from galaxy.authnz.ras.policy import (
     grants_access,
     InvalidAccessionError,
 )
+from galaxy.authnz.ras.sources import DirectRasPassportSource
 from galaxy.authnz.ras.store import (
     PassportStatus,
     PassportStore,
@@ -106,12 +108,14 @@ class PassportGate:
         galaxy_url: str,
         allowed_return_hosts: Iterable[str] = (),
         clock: Callable[[], float] = time.time,
+        direct_login: DirectRasLogin | None = None,
     ):
         self.config = config
         self.store = store
         self.galaxy_url = galaxy_url.rstrip("/") + "/"
         self.allowed_return_hosts = list(allowed_return_hosts)
         self.clock = clock
+        self.direct_login = direct_login
 
     def now(self) -> float:
         return self.clock()
@@ -220,7 +224,21 @@ def build_passport_gate(app: "MinimalManagerApp") -> PassportGate | None:
         return None
     if not is_vault_configured(app.vault):
         raise RasConfigError("RAS passport support with store: vault needs vault_config_file to be configured")
-    store: PassportStore = VaultPassportStore(app.vault, issuer_config_from(config))
+    issuer_config = issuer_config_from(config)
+    store: PassportStore = VaultPassportStore(app.vault, issuer_config)
+    direct_login = None
+    if config.direct_ras:
+        settings = config.direct_ras
+        source = DirectRasPassportSource(
+            config.issuer,
+            settings.client_id,
+            settings.resolve_client_secret(),
+            settings.redirect_uri,
+            scopes=settings.scopes,
+            jwks=issuer_config.jwks,
+            leeway=config.leeway,
+        )
+        direct_login = DirectRasLogin(source, store, app.vault)
     # Without a bridge the return address is never used.
     galaxy_url = config.galaxy_url or app.config.galaxy_infrastructure_url
     log.info("RAS passport support enabled for issuer %s", config.issuer)
@@ -229,4 +247,5 @@ def build_passport_gate(app: "MinimalManagerApp") -> PassportGate | None:
         store,
         galaxy_url=galaxy_url,
         allowed_return_hosts=getattr(app.config, "allowed_login_redirect_hosts", None) or (),
+        direct_login=direct_login,
     )

@@ -30,10 +30,6 @@ from datetime import (
 from pathlib import Path
 from types import SimpleNamespace
 from typing import TextIO
-from urllib.parse import (
-    parse_qs,
-    urlsplit,
-)
 
 from galaxy.authnz.ras.config import (
     DEFAULT_ISSUER,
@@ -57,6 +53,7 @@ from galaxy.authnz.ras.sources import (
     DEFAULT_SCOPES,
     DirectRasPassportSource,
     HttpClient,
+    parse_callback,
     PassportSourceError,
 )
 from galaxy.authnz.ras.store import (
@@ -76,25 +73,6 @@ DEFAULT_STATE_FILE = Path(tempfile.gettempdir()) / "ras_passport_smoke_state.jso
 
 class SmokeError(Exception):
     pass
-
-
-def parse_callback(value: str) -> dict[str, str]:
-    """Pull ``code``/``state``/``error`` out of a pasted redirect URL, or take a bare code."""
-    value = value.strip()
-    if not value:
-        raise SmokeError("Nothing pasted")
-    if "://" not in value:
-        return {"code": value}
-    url = urlsplit(value)
-    params = parse_qs(url.query) or parse_qs(url.fragment)
-    result = {
-        key: values[0] for key, values in params.items() if key in ("code", "state", "error", "error_description")
-    }
-    if not result.get("code") and not result.get("error"):
-        raise SmokeError("No code or error in the pasted URL")
-    if result.get("code") and len(params.get("state", [])) != 1:
-        raise SmokeError("The pasted URL needs exactly one state; paste just the code to skip the state check")
-    return result
 
 
 def _env(name: str) -> str:

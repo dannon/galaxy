@@ -10,8 +10,10 @@ import pytest
 
 from galaxy.authnz.ras.smoke import (
     main,
+)
+from galaxy.authnz.ras.sources import (
     parse_callback,
-    SmokeError,
+    PassportSourceError,
 )
 from .util import (
     CLIENT_ID,
@@ -57,7 +59,7 @@ def test_parse_callback_error():
     ],
 )
 def test_parse_callback_rejects(value):
-    with pytest.raises(SmokeError):
+    with pytest.raises(PassportSourceError):
         parse_callback(value)
 
 

@@ -24,8 +24,10 @@ from typing import (
     Protocol,
 )
 from urllib.parse import (
+    parse_qs,
     quote,
     urlencode,
+    urlsplit,
 )
 
 import jwt
@@ -53,6 +55,25 @@ PASSPORT_USERINFO_CLAIM = "passport_jwt_v11"
 
 class PassportSourceError(Exception):
     pass
+
+
+def parse_callback(value: str) -> dict[str, str]:
+    """Pull ``code``/``state``/``error`` out of a pasted redirect URL, or take a bare code."""
+    value = value.strip()
+    if not value:
+        raise PassportSourceError("Nothing pasted")
+    if "://" not in value:
+        return {"code": value}
+    url = urlsplit(value)
+    params = parse_qs(url.query) or parse_qs(url.fragment)
+    result = {
+        key: values[0] for key, values in params.items() if key in ("code", "state", "error", "error_description")
+    }
+    if not result.get("code") and not result.get("error"):
+        raise PassportSourceError("No code or error in the pasted URL")
+    if result.get("code") and len(params.get("state", [])) != 1:
+        raise PassportSourceError("The pasted URL needs exactly one state; paste just the code to skip the state check")
+    return result
 
 
 class HttpClient(Protocol):
