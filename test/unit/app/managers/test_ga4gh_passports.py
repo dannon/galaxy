@@ -38,6 +38,9 @@ from galaxy.authnz.ras.store import (
 )
 from galaxy.authnz.ras.verify import (
     IssuerConfig,
+    PassportVerificationError,
+    TokenExpiredError,
+    VerificationUnavailableError,
     verify_passport,
 )
 from galaxy.managers.ga4gh_passports import (
@@ -369,6 +372,32 @@ def test_accept_refuses_a_passport_that_does_not_verify_without_echoing_it(manag
     assert refused.value.code == "invalid_passport"
     assert forged not in str(refused.value)
     assert manager.current(alice) is None and manager.identity(alice) is None
+
+
+def test_accept_without_a_username_keeps_the_one_a_connect_stored(manager, broker, session, alice):
+    assert connect(manager, broker, browser(session, alice)).error is None
+    manager.accept(alice, make_passport())
+    identity = manager.identity(alice)
+    assert identity is not None and identity.preferred_username == "alice@nih"
+
+
+@pytest.mark.parametrize(
+    "error, code",
+    [
+        (VerificationUnavailableError("keys went away"), "issuer_unavailable"),
+        (TokenExpiredError("expired just now"), "invalid_passport"),
+        (PassportVerificationError("no longer verifies"), "invalid_passport"),
+    ],
+)
+def test_accept_refuses_when_storing_fails_verification(manager, alice, monkeypatch, error, code):
+    def put(user, token):
+        raise error
+
+    monkeypatch.setattr(manager._store, "put", put)
+    with pytest.raises(PassportRefused) as refused:
+        manager.accept(alice, make_passport())
+    assert refused.value.code == code
+    assert manager.current(alice) is None and manager.data_access(alice) == {}
 
 
 def test_accept_reports_an_unreachable_issuer(session, vault, alice):
