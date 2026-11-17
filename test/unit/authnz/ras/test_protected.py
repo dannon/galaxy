@@ -43,3 +43,21 @@ def test_declared_group_that_captured_nothing_is_flagged():
     sources = [ProtectedSource(url_regex=r"^drs://host/(?:(?P<phs_id>phs\d+)/)?")]
     assert match_protected_source(sources, "drs://host/obj") == ProtectedMatch(None, study_not_captured=True)
     assert match_protected_source(sources, "drs://host/phs000123/obj") == ProtectedMatch("phs000123")
+
+
+def test_scheme_and_host_case_is_ignored():
+    sources = [ProtectedSource(url_regex=r"^drs://protected\.example\.org/", phs_id="phs000123")]
+    assert match_protected_source(sources, "drs://Protected.Example.ORG/obj") == ProtectedMatch("phs000123")
+    assert match_protected_source(sources, "DRS://protected.example.org/obj") == ProtectedMatch("phs000123")
+
+
+def test_path_case_is_kept():
+    sources = [ProtectedSource(url_regex=r"^drs://host/(?P<phs_id>phs\d+)/Obj$")]
+    assert match_protected_source(sources, "drs://HOST/phs000123/Obj") == ProtectedMatch("phs000123")
+    assert match_protected_source(sources, "drs://HOST/phs000123/obj") is None
+
+
+def test_pattern_written_with_capitals_still_matches_as_written():
+    # Lowercasing the URL must not stop a pattern that spells out a capitalised prefix.
+    sources = [ProtectedSource(url_regex=r"^drs://dg\.ANV0:", phs_id="phs000123")]
+    assert match_protected_source(sources, "drs://dg.ANV0:abc") == ProtectedMatch("phs000123")
