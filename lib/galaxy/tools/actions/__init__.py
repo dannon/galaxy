@@ -96,6 +96,11 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
+# Tools whose job writes its input datasets out of Galaxy (e.g. to a remote file source).
+# Controlled-access data (Dataset.is_controlled) can't be their input.
+EXPORTING_TOOL_IDS = frozenset(["export_remote"])
+CANNOT_EXPORT_CONTROLLED_DATA = "Controlled-access data can't leave Galaxy through an export."
+
 
 OutputDatasetsT = dict[str, "DatasetInstance"]
 PreservedTagsT = dict[str | None, ItemTagAssociation]
@@ -237,6 +242,10 @@ class DefaultToolAction(ToolAction):
                         raise ItemAccessibilityException(
                             "User does not have permission to use a dataset provided for input."
                         )
+                    if tool.id in EXPORTING_TOOL_IDS and trans.app.security_agent.action_tuples_are_controlled(
+                        action_tuples
+                    ):
+                        raise ItemAccessibilityException(CANNOT_EXPORT_CONTROLLED_DATA)
                     for action, role_id in action_tuples:
                         record_permission(action, role_id)
                 else:
@@ -246,6 +255,8 @@ class DefaultToolAction(ToolAction):
                         raise ItemAccessibilityException(
                             f"User does not have permission to use dataset ({data.name}) provided for input."
                         )
+                    if tool.id in EXPORTING_TOOL_IDS and trans.app.security_agent.dataset_is_controlled(data.dataset):
+                        raise ItemAccessibilityException(CANNOT_EXPORT_CONTROLLED_DATA)
                     permissions = trans.app.security_agent.get_permissions(data.dataset)
                     for action, roles in permissions.items():
                         for role in roles:
@@ -346,6 +357,10 @@ class DefaultToolAction(ToolAction):
                     raise ItemAccessibilityException(
                         "User does not have permission to use a dataset provided for input."
                     )
+                if tool.id in EXPORTING_TOOL_IDS and trans.app.security_agent.action_tuples_are_controlled(
+                    action_tuples
+                ):
+                    raise ItemAccessibilityException(CANNOT_EXPORT_CONTROLLED_DATA)
                 for action, role_id in action_tuples:
                     record_permission(action, role_id)
 
