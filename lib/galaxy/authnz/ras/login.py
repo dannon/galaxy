@@ -1,9 +1,9 @@
 """A user's direct RAS login, driven over the API instead of the smoke script.
 
-RAS only redirects to the client's registered callback, which Galaxy usually
-can't receive, so the user pastes the URL they landed on back to Galaxy. The
-state and nonce of the pending attempt live in the user's vault between the two
-steps.
+A way to get a passport in development when RAS can only redirect to an
+address that is not this Galaxy: the user pastes the URL they landed on back
+to Galaxy. The state and nonce of the pending attempt live in the user's vault
+between the two steps.
 """
 
 import json

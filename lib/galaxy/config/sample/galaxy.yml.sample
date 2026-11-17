@@ -2590,11 +2590,12 @@ galaxy:
   # Galaxy's client secret at the GA4GH Passport broker.
   #ga4gh_passport_broker_client_secret: null
 
-  # Comma-separated list of trusted Passport and Visa issuers, e.g.
-  # ``https://stsstg.nih.gov``. Galaxy accepts only Passports signed by
-  # one of them, ignores Visas from any other issuer, and takes signing
-  # keys only from these issuers' published key sets (OpenID Connect
-  # discovery).
+  # The trusted Passport and Visa issuer, e.g.
+  # ``https://stsstg.nih.gov``. Exactly one issuer is supported. Galaxy
+  # accepts only Passports signed by it, ignores Visas from any other
+  # issuer, and takes signing keys only from its published key set
+  # (OpenID Connect discovery). When ``ras_config_file`` exists, this
+  # must be the ``issuer`` named there.
   #ga4gh_passport_trusted_issuers: null
 
   # How long, in seconds, after a stored GA4GH Passport (and the oldest
@@ -3472,15 +3473,19 @@ galaxy:
   #vault_config_file: vault_conf.yml
 
   # Configuration for NIH RAS (Researcher Auth Service) GA4GH passport
-  # support: the passport issuer, the bridge application users are sent
-  # to when Galaxy needs a passport, and where passports are stored. It
-  # also lists the ``protected_sources``, the URLs ``/api/tools/fetch``
-  # refuses to import for users without a passport for the right study,
-  # and an optional ``direct_ras`` client that turns on the
-  # ``/api/users/current/ga4gh_passport/ras_login`` endpoints for logging in
-  # to RAS without a bridge (development only). RAS passport support is
-  # off unless this file exists. See ras_config.yml.sample for the
-  # options. The default ``vault`` store needs ``vault_config_file`` to
+  # support: the passport issuer whose signing keys Galaxy verifies
+  # passports against, and the ``protected_sources``, the URLs
+  # ``/api/tools/fetch`` refuses to import for users without a passport
+  # for the right study. When a passport broker is configured as well
+  # (``ga4gh_passport_broker_authorize_url``), such a refusal points the
+  # user at ``/ga4gh_passport/connect``, and
+  # ``ga4gh_passport_trusted_issuers`` must name the same issuer. An
+  # optional ``direct_ras`` client turns on the
+  # ``/api/users/current/ga4gh_passport/ras_login`` endpoints, a way to
+  # get a passport in development when RAS can only redirect to an
+  # address that is not this Galaxy. RAS passport support is off unless
+  # this file exists. See ras_config.yml.sample for the options.
+  # Passports are kept in Galaxy's vault, so ``vault_config_file`` must
   # be configured as well.
   # The value of this option will be resolved with respect to
   # <config_dir>.

@@ -1,9 +1,14 @@
 # NIH RAS (Researcher Auth Service) GA4GH passport support.
 #
 # Copy to ras_config.yml in Galaxy's config directory (or point
-# ras_config_file at it) to turn the feature on. Galaxy verifies every passport
-# against the issuer's signing keys itself; the bridge application only gets
-# the passport to Galaxy.
+# ras_config_file at it) to turn the feature on. Passports are kept in Galaxy's
+# vault, so vault_config_file must be configured too. Galaxy verifies every
+# passport against the issuer's signing keys itself.
+#
+# Users get a passport through a passport broker, configured with the
+# ga4gh_passport_broker_* options in galaxy.yml; when a fetch is refused for
+# want of a passport, Galaxy points the user at /ga4gh_passport/connect. With a
+# broker configured, ga4gh_passport_trusted_issuers must name the issuer below.
 
 # Passport issuer. RAS staging is https://stsstg.nih.gov, production is
 # https://sts.nih.gov.
@@ -15,31 +20,17 @@ issuer: https://stsstg.nih.gov
 # Seconds of clock skew allowed when checking exp/iat (0-600).
 #leeway: 60
 
-# The bridge application Galaxy sends users to when it needs a passport. Galaxy
-# appends its return address as ?<return_param>=<url>.
-#bridge_url: https://bridge.example.org/ras/login
-#return_param: return_to
-
-# Where in Galaxy users come back to when the caller doesn't name a page. A
-# path below galaxy_url.
-#return_path: /
-
-# Galaxy's browser-facing URL, used to build the return address. Required when
-# bridge_url is set.
-#galaxy_url: https://galaxy.example.org/
-
-# Where passports are kept. Only "vault" (Galaxy's vault, needs
-# vault_config_file) so far.
-#store: vault
-
-# Development only: client settings for talking to RAS directly instead of
-# through a bridge. Setting this turns on the /api/users/current/ga4gh_passport/ras_login
-# endpoints (and is read by scripts/ras_passport_smoke.py --ras-config). The
-# secret is read from the environment variable named by client_secret_env.
+# Development only: a way to get a passport when RAS can only redirect to an
+# address that is not this Galaxy. Galaxy logs in to RAS as this client and the
+# user pastes back the URL RAS sent them to. Setting this turns on the
+# /api/users/current/ga4gh_passport/ras_login endpoints (and is read by
+# scripts/ras_passport_smoke.py --ras-config). redirect_uri must be one
+# registered for the client. The secret is read from the environment variable
+# named by client_secret_env.
 #direct_ras:
 #  client_id: 00000000-0000-0000-0000-000000000000
 #  client_secret_env: RAS_CLIENT_SECRET
-#  redirect_uri: https://cfderas.develop.tapis.io/v3/oauth2/extensions/oa2/callback
+#  redirect_uri: https://login.example.org/oauth2/callback
 #  scopes: openid profile email ga4gh_passport_v1
 
 # URLs Galaxy only fetches for users holding a passport that grants the study.

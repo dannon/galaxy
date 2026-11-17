@@ -30,7 +30,7 @@ from .util import (
 
 
 def test_parse_callback_url():
-    url = "https://cfderas.develop.tapis.io/v3/oauth2/extensions/oa2/callback?code=abc&state=xyz&extra=1"
+    url = "https://login.example.org/oauth2/callback?code=abc&state=xyz&extra=1"
     assert parse_callback(url) == {"code": "abc", "state": "xyz"}
 
 
@@ -70,7 +70,7 @@ def env(monkeypatch, tmp_path):
 
 
 def _common(state_file):
-    return ["--issuer", ISSUER, "--state-file", str(state_file)]
+    return ["--issuer", ISSUER, "--redirect-uri", "https://cb.example/cb", "--state-file", str(state_file)]
 
 
 def _live_http(permissions):
@@ -124,6 +124,13 @@ def test_url_needs_client_id(env, monkeypatch, capsys):
     code, _ = _run(_common(env) + ["url"], FakeHttp())
     assert code == 1
     assert "RAS_CLIENT_ID" in capsys.readouterr().err
+
+
+def test_url_needs_a_redirect_uri(env, capsys):
+    code, _ = _run(["--issuer", ISSUER, "--state-file", str(env), "url"], FakeHttp())
+    assert code == 1
+    assert "redirect URI" in capsys.readouterr().err
+    assert not env.exists()
 
 
 def test_url_reads_direct_ras_from_ras_config(env, monkeypatch, tmp_path):
