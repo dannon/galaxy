@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 import time
 from typing import (
     Any,
@@ -29,6 +30,10 @@ log = logging.getLogger(__name__)
 
 # Constants
 CHUNK_SIZE = 8192
+
+# localhost or an IPv4 literal can't be an identifiers.org prefix anyone means, so
+# drs://<host>:<port>/<id> with one of those is a hostname URI, not a compact identifier.
+LOCAL_HOST_AND_PORT_DRS_REST = re.compile(r"^(localhost|\d{1,3}(\.\d{1,3}){3}):\d+/")
 
 # POSIX NAME_MAX is 255 *bytes*, and dataset names are stored as TrimmedString(255)
 # characters, so a 255-byte cap satisfies both limits at once.
@@ -412,7 +417,7 @@ def fetch_drs_to_file(
 
     # Try compact identifier first (prefix:accession format)
     get_url = None
-    if ":" in rest_of_drs_uri:
+    if ":" in rest_of_drs_uri and not LOCAL_HOST_AND_PORT_DRS_REST.match(rest_of_drs_uri):
         try:
             get_url = resolve_compact_identifier_to_url(drs_uri)
             log.info(f"Resolved compact identifier DRS URI {drs_uri} to {get_url}")

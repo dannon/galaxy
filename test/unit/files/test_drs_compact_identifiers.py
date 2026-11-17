@@ -7,6 +7,7 @@ import pytest
 
 from galaxy.files.sources.util import (
     CompactIdentifierResolver,
+    fetch_drs_to_file,
     parse_compact_identifier,
     resolve_compact_identifier_to_url,
 )
@@ -165,3 +166,47 @@ class TestFetchDrsToFile:
         args = mock_retry_get.call_args[0]
         assert args[0] == "https://example.com/ga4gh/drs/v1/objects/object123"
         mock_stream.assert_called_once()
+
+
+class TestFetchDrsHostAndPortUri:
+    def _object_response(self):
+        response = Mock()
+        response.json.return_value = {
+            "access_methods": [{"type": "https", "access_url": {"url": "https://download.example.com/file.txt"}}]
+        }
+        response.raise_for_status.return_value = None
+        return response
+
+    @pytest.mark.parametrize(
+        "drs_uri, force_http, expected_url",
+        [
+            ("drs://127.0.0.1:8080/obj1", True, "http://127.0.0.1:8080/ga4gh/drs/v1/objects/obj1"),
+            ("drs://localhost:8080/obj1", False, "https://localhost:8080/ga4gh/drs/v1/objects/obj1"),
+        ],
+    )
+    @patch("galaxy.files.sources.util.resolve_compact_identifier_to_url")
+    @patch("galaxy.files.sources.util.retry_and_get")
+    @patch("galaxy.files.sources.util.stream_url_to_file")
+    def test_host_and_port_skips_the_resolver(
+        self, mock_stream, mock_retry_get, mock_resolve, drs_uri, force_http, expected_url
+    ):
+        mock_resolve.side_effect = ValueError("not a registered prefix")
+        mock_retry_get.return_value = self._object_response()
+
+        fetch_drs_to_file(drs_uri, "/tmp/output.txt", None, force_http=force_http)
+
+        mock_resolve.assert_not_called()
+        assert mock_retry_get.call_args[0][0] == expected_url
+        mock_stream.assert_called_once()
+
+    @patch("galaxy.files.sources.util.resolve_compact_identifier_to_url")
+    @patch("galaxy.files.sources.util.retry_and_get")
+    @patch("galaxy.files.sources.util.stream_url_to_file")
+    def test_compact_identifier_with_numeric_accession_still_resolves(self, mock_stream, mock_retry_get, mock_resolve):
+        mock_resolve.return_value = "https://example.com/ga4gh/drs/v1/objects/1234%2Fabc"
+        mock_retry_get.return_value = self._object_response()
+
+        fetch_drs_to_file("drs://dg.4503:1234/abc", "/tmp/output.txt", None)
+
+        mock_resolve.assert_called_once_with("drs://dg.4503:1234/abc")
+        assert mock_retry_get.call_args[0][0] == "https://example.com/ga4gh/drs/v1/objects/1234%2Fabc"
