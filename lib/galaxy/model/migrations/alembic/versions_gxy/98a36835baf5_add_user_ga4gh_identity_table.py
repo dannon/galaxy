@@ -1,7 +1,7 @@
 """add user_ga4gh_identity table
 
 Revision ID: 98a36835baf5
-Revises: 64d49ad328d4
+Revises: b9467a8c12de
 Create Date: 2026-11-13 15:36:29.169691
 
 """
@@ -24,7 +24,7 @@ from galaxy.model.migrations.util import (
 
 # revision identifiers, used by Alembic.
 revision = "98a36835baf5"
-down_revision = "64d49ad328d4"
+down_revision = "b9467a8c12de"
 branch_labels = None
 depends_on = None
 
